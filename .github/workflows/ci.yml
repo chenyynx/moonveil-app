@@ -1,0 +1,24 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: secret-scan
+        uses: gitleaks/gitleaks-action@v2
+      - name: import-direction
+        run: bash scripts/import-scan.sh
+      - name: fork-point
+        run: bash scripts/fork-point-audit.sh
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: select xcode
+        run: sudo xcodebuild -selectXcodePath "$(ls -d /Applications/Xcode*.app | head -1)"
+      - name: build
+        run: xcodebuild -scheme Minis -destination 'generic/platform=iOS' -configuration Release build

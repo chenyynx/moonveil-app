@@ -1,0 +1,7 @@
+title = "Moonveil gitleaks config"
+[extend]
+# use built-in base rules
+[rules.aa-secret]
+description = "AA server secret must never be committed"
+regex = '''AGENT_SERVER_SECRET\s*=\s*["'][^"']+["']'''
+keywords = ["AGENT_SERVER_SECRET"]
