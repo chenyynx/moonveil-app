@@ -1,7 +1,40 @@
 title = "Moonveil gitleaks config"
+
 [extend]
-# use built-in base rules
+# CRITICAL: without this, a custom config REPLACES all built-in rules (verified the
+# hard way 2026-09-15: an aws-shaped sentinel slipped through a config lacking this line).
+useDefault = true
+
 [rules.aa-secret]
-description = "AA server secret must never be committed"
+description = "AA server secret literal must never be committed (D3 R1 / P0 patch guard)"
 regex = '''AGENT_SERVER_SECRET\s*=\s*["'][^"']+["']'''
 keywords = ["AGENT_SERVER_SECRET"]
+
+[rules.bridge-key]
+description = "claudio/bridge api key literal guard"
+regex = '''BRIDGE_API_KEY\s*=\s*["'][^"']+["']'''
+keywords = ["BRIDGE_API_KEY"]
+
+[allowlist]
+description = """
+Upstream OpenMinis image (mirror of 4ef2900) ships public constants that the noisy
+generic-api-key rule flags. Every path below was verified 2026-09-15 byte-identical to
+upstream 4ef2900 (diff -q vs git show) — public by publication upstream, not introduced
+by Moonveil. Natures: UserDefaults key strings (ShortcutRunTracker), and OAuth2
+client_id values (Claude/Kimi/xAI on iOS+Android) which are public identifiers by PKCE
+design (RFC 8252), not secrets.
+Scoping: only generic-api-key is exempted on these exact paths; all other rules
+(aws/jwt/aa-secret/bridge-key/…) still scan them, and every other file still fails CI
+on any generic-api-key hit. Random AWS-shaped sentinel re-verified as FAIL (gate has teeth).
+"""
+rules = ["generic-api-key"]
+paths = [
+  '''src/ios/Agent/Intents/ShortcutRunTracker\.swift''',
+  '''src/android/app/src/main/java/com/openminis/app/auth/XAIOAuthManager\.kt''',
+  '''src/android/app/src/main/java/com/openminis/app/auth/ClaudeOAuthManager\.kt''',
+  '''src/android/app/src/main/java/com/openminis/app/auth/KimiOAuthManager\.kt''',
+  '''src/android/app/src/test/java/com/openminis/app/debug/DebugServerAuthTest\.kt''',
+  '''src/ios/Providers/Anthropic/OAuth/ClaudeOAuthManager\.swift''',
+  '''src/ios/Providers/Kimi/OAuth/KimiOAuthManager\.swift''',
+  '''src/ios/Providers/xAI/OAuth/XAIOAuthManager\.swift''',
+]
