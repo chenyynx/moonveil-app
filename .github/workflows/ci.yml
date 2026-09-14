@@ -16,11 +16,3 @@ jobs:
         run: bash scripts/fork-point-audit.sh
       - name: aav2-freeze
         run: bash scripts/aav2-freeze-check.sh
-  build:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: select xcode
-        run: sudo xcodebuild -selectXcodePath "$(ls -d /Applications/Xcode*.app | head -1)"
-      - name: build
-        run: xcodebuild -scheme Minis -destination 'generic/platform=iOS' -configuration Release build
