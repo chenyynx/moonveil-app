@@ -14,6 +14,8 @@ jobs:
         run: bash scripts/import-scan.sh
       - name: fork-point
         run: bash scripts/fork-point-audit.sh
+      - name: aav2-freeze
+        run: bash scripts/aav2-freeze-check.sh
   build:
     runs-on: macos-latest
     steps:

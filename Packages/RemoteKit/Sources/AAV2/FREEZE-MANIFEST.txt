@@ -1,0 +1,10 @@
+# AAV2 freeze manifest — sha256 of verbatim copies from AA v2.0.0
+# Upstream: ios/Agents Anywhere/Agents Anywhere/<path>  (mirror: chenyynx/moonveil-cloud tag v2.0.0)
+# Regenerate: cd this dir && find . -name '*.swift' -exec sha256sum {} \; | sed 's|\./||' | sort -k2 > FREEZE-MANIFEST.txt
+# Check:      cd this dir && sha256sum -c FREEZE-MANIFEST.txt   (see scripts/aav2-freeze-check.sh)
+8570654994ea5ee97048342e456e7511f17bb8ad3d9f4ecdcebb7e0816dd1d56  Models/Session/V2SessionModel.swift
+1d350fb149e75c51f61e1967fd42647987f0eb65698e2800e8ff96e4e16d2cc4  Models/Session/V2SessionReadCoordinator.swift
+0b7b306407e373680bfb64078a5dc2e28faf1546aa75f8f85560a029aebb8695  Repositories/V2LocalArchive.swift
+4dad69ac0aed9bd5a34d43ff194596c4124fcc5ff6b22767a8d3215de515ef23  Repositories/V2LocalStore.swift
+51bf7e380258c30f28971a4b968aac9359555ab411ced98972adf8dbd516b3e9  Repositories/V2SessionRepository.swift
+0a57fbd026a9b08e314fa9e4649fb656c8d3599d8c89c9d9eefcd3151012535f  Views/Components/StableViewModel.swift
