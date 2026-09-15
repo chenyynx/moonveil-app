@@ -19,5 +19,15 @@ jobs:
       - name: swift build RemoteKit
         run: |
           cd Packages/RemoteKit
-          swift build 2>&1 | tail -60
-          swift build
+          # Log persistence quirk: Actions blob logs intermittently undownloadable
+          # (EOF from CI + browser both hit it, 2026-09-15). Echo the error surface
+          # into the job summary so `gh api check-runs/<id>/output` always yields it.
+          if ! swift build 2>&1 | tee /tmp/rk-build.log | tail -80; then
+            {
+              echo '### swift build errors'
+              echo '```'
+              grep -E 'error:' /tmp/rk-build.log | grep -v '`-' | sort -u | head -40
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
