@@ -8,6 +8,20 @@ struct ServiceEntryView: View {
     /// JO-6（首启入口终案）：直接用本地，灰字小按钮不抢两颗登录 CTA。
     var onLocalEntry: () -> Void = {}
 
+    // Upstream's appState was @EnvironmentObject (never in the memberwise
+    // init); our 8a rebind made `service` an injected @ObservedObject, and
+    // `private` dragged the synthesized init to private — inaccessible across
+    // files. Explicit init, same defaults, access repaired, behavior identical.
+    init(service: RemoteService,
+         onManualLogin: @escaping () -> Void = {},
+         onQRCodeLogin: @escaping () -> Void = {},
+         onLocalEntry: @escaping () -> Void = {}) {
+        self.service = ObservedObject(wrappedValue: service)
+        self.onManualLogin = onManualLogin
+        self.onQRCodeLogin = onQRCodeLogin
+        self.onLocalEntry = onLocalEntry
+    }
+
     var body: some View {
         NavigationStack {
             AuthWelcomeLayout {

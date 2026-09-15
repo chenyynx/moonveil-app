@@ -3,12 +3,24 @@ import SwiftUI
 struct SheetCloseButton: View {
     let action: () -> Void
 
+    @ViewBuilder
     var body: some View {
-        Button(role: .close, action: action) {
-            Label(String(localized: "Close"), appSymbol: "xmark")
+        // Button(role:) is iOS 26+ (upstream deployment 26.5). Shim per
+        // AuthGlassButton precedent: original role form on 26+, system-plain
+        // equivalent below — cancel-action shortcut keeps Escape semantics.
+        if #available(iOS 26.0, *) {
+            Button(role: .close, action: action) {
+                Label(String(localized: "Close"), appSymbol: "xmark")
+            }
+            .labelStyle(.iconOnly)
+            .keyboardShortcut(.cancelAction)
+        } else {
+            Button(action: action) {
+                Label(String(localized: "Close"), appSymbol: "xmark")
+            }
+            .labelStyle(.iconOnly)
+            .keyboardShortcut(.cancelAction)
         }
-        .labelStyle(.iconOnly)
-        .keyboardShortcut(.cancelAction)
     }
 }
 
@@ -43,13 +55,22 @@ struct SheetSaveToolbar: ToolbarContent {
     var saveDisabled = false
     let onSave: () -> Void
 
+    @ViewBuilder
     var body: some ToolbarContent {
         ToolbarItem(placement: .confirmationAction) {
-            Button(role: .confirm, action: onSave) {
-                Text(saveTitle).opacity(isWorking ? 0 : 1)
-                    .overlay { if isWorking { ProgressView().controlSize(.small) } }
+            if #available(iOS 26.0, *) {
+                Button(role: .confirm, action: onSave) {
+                    Text(saveTitle).opacity(isWorking ? 0 : 1)
+                        .overlay { if isWorking { ProgressView().controlSize(.small) } }
+                }
+                .disabled(isWorking || saveDisabled).keyboardShortcut("s", modifiers: .command)
+            } else {
+                Button(action: onSave) {
+                    Text(saveTitle).opacity(isWorking ? 0 : 1)
+                        .overlay { if isWorking { ProgressView().controlSize(.small) } }
+                }
+                .disabled(isWorking || saveDisabled).keyboardShortcut("s", modifiers: .command)
             }
-            .disabled(isWorking || saveDisabled).keyboardShortcut("s", modifiers: .command)
         }
     }
 }
