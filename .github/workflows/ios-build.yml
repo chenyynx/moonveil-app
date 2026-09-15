@@ -82,6 +82,8 @@ jobs:
             ENABLE_DEBUG_DYLIB=NO \
             SWIFT_NUM_THREADS=2 \
             SWIFT_COMPILATION_MODE=incremental \
+            SWIFT_VERSION=5.0 \
+            SWIFT_STRICT_CONCURRENCY=minimal \
             'OTHER_SWIFT_FLAGS=-Xfrontend -disable-batch-mode' \
             -derivedDataPath build/DerivedData 2>&1 | tee /tmp/ios-build.log | tail -150
           XB=${PIPESTATUS[0]}
