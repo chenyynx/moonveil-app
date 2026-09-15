@@ -22,7 +22,10 @@ jobs:
           # Log persistence quirk: Actions blob logs intermittently undownloadable
           # (EOF from CI + browser both hit it, 2026-09-15). Echo the error surface
           # into the job summary so `gh api check-runs/<id>/output` always yields it.
-          if ! swift build 2>&1 | tee /tmp/rk-build.log | tail -80; then
+          set +o pipefail   # PIPESTATUS capture stays reachable (ios-build.yml ritual)
+          rc=0
+          swift build 2>&1 | tee /tmp/rk-build.log | tail -80 || rc=${PIPESTATUS[0]}
+          if [ "$rc" != 0 ]; then
             {
               echo '### swift build errors'
               echo '```'

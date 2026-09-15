@@ -28,6 +28,7 @@ let package = Package(
             name: "RemoteKit",
             dependencies: [],
             path: "Sources",
+            exclude: ["Glue/README.md"],  // doc file in source dir (swift build sanity; harmless elsewhere)
             sources: [
                 // batch2 (2026-09-15): Domain leaf closure + error family + StableViewModel
                 "AAV2/Domain/Common",
@@ -45,6 +46,7 @@ let package = Package(
                 // orchestration — closure verified = 0 extra pulls (all deps placed)
                 "AAV2/API/APIClient.swift",
                 "AAV2/Domain/Account",
+                "AAV2/Models/Auth/ServerNetworkPolicy.swift",
                 "AAV2/Models/APIModels.swift",
                 "AAV2/Models/WorkspaceDownloadedFile.swift",
                 // batch8a (2026-09-15): login-page service pair (local-network probe
@@ -57,5 +59,6 @@ let package = Package(
             ],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
-    ]
+    ],
+    swiftLanguageModes: [.v5]  // B8-FIX2: package-level pin (Xcode ignored target-level)
 )

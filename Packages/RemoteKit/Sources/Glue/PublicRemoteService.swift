@@ -164,8 +164,9 @@ public final class RemoteService: ObservableObject {
     public func completeManualLogin(serverURL: URL, token: String) async -> Bool {
         engine.bootstrap(serverURL: serverURL, accessToken: token)
         syncState()
-        profile = try? await engine.fetchProfile()
-            .map { RemoteProfile(userId: $0.userId, displayName: $0.displayName, email: $0.email) }
+        if let me = try? await engine.fetchProfile() {
+            profile = RemoteProfile(userId: me.userId, displayName: me.displayName, email: me.email)
+        }
         return profile != nil
     }
 
@@ -174,8 +175,11 @@ public final class RemoteService: ObservableObject {
     public func restoreSession() -> Bool {
         guard case .idle = stateMapping, let pair = RemoteSessionBackend.restore() else { return false }
         engine.bootstrap(serverURL: pair.0, accessToken: pair.1)
-        Task { @MainActor in self.profile = try? await self.engine.fetchProfile()
-                            .map { RemoteProfile(userId: $0.userId, displayName: $0.displayName, email: $0.email) } }
+        Task { @MainActor in
+            if let me = try? await self.engine.fetchProfile() {
+                self.profile = RemoteProfile(userId: me.userId, displayName: me.displayName, email: me.email)
+            }
+        }
         syncState()
         return true
     }
@@ -218,15 +222,17 @@ public final class RemoteService: ObservableObject {
 
     private func finishAuth(_ error: Error) {
         authErrorText = error.localizedDescription
-        // iOS local-network denial surfaces as networkPermissionDenied (AA gates
-        // the same setting sheet on this; LocalNetworkAccess service ports with
-        // the views in the next B8 step).
-        if let url = error as? URLError, url.code == .networkPermissionDenied {
-            needsLocalNetworkSettings = true
-        } else if let transport = error as? RemoteServiceError, case .transport(let inner) = transport,
-                  let url = inner as? URLError, url.code == .networkPermissionDenied {
-            needsLocalNetworkSettings = true
+        // Official detection (upstream AppState:162): the LocalNetworkAccess
+        // service throws LocalNetworkAccessError on denial — that type check IS
+        // the signal. (Earlier line here used a URLError code that does not
+        // exist; self-invented API caught by CI, replaced with the mirror.)
+        let underlying: Error
+        if let t = error as? RemoteServiceError, case .transport(let inner) = t {
+            underlying = inner
+        } else {
+            underlying = error
         }
+        needsLocalNetworkSettings = underlying is LocalNetworkAccessError
     }
 
     // MARK: Wiring (engine observation without exposing internal types)
