@@ -53,7 +53,7 @@ struct URLSessionHTTPTransport: HTTPTransport {
             } catch {
                 try Task.checkCancellation()
                 guard request.method == .get, attempt < retryPolicy.maximumRetries,
-                      retryPolicy.permitsRetry(error) else { throw error }
+                      await retryPolicy.permitsRetry(error) else { throw error }
                 // Long rate-limit waits are surfaced to the caller; never retry earlier
                 // than the server asks, or hold a foreground request indefinitely.
                 if let retryAfter, retryAfter > 30 { throw error }

@@ -23,6 +23,20 @@ if [ -n "${MV_CLOUD:-}" ]; then
   while read -r _sha path; do
     case "$path" in ''|\#*) continue ;; esac
     [ -f "$path" ] || { echo "MISSING: $path"; fail=1; continue; }
+    if [ "$path" = "Network/HTTPTransport.swift" ]; then
+      # Approved deviation AAV2-AWAIT-1 (pp-signed 2026-09-15 「行」): our file must
+      # equal upstream-tag content with EXACTLY the documented sed applied.
+      # Revoking the await OR any second deviation fails this check either way.
+      if diff -q <(git -C "$MV_CLOUD" show "$BASE_TAG:$IOS_SUB/$path" \
+          | sed "s/retryPolicy\.permitsRetry(error)/await retryPolicy.permitsRetry(error)/") \
+          "$path" >/dev/null 2>&1; then
+        echo "[gate] HTTPTransport.swift == upstream + AAV2-AWAIT-1 (approved) only"
+        continue
+      fi
+      echo "VIOLATION: HTTPTransport.swift diverges BEYOND the approved AAV2-AWAIT-1"
+      fail=1
+      continue
+    fi
     if ! diff -q <(git -C "$MV_CLOUD" show "$BASE_TAG:$IOS_SUB/$path") "$path" >/dev/null 2>&1; then
       echo "VIOLATION: $path diverges from $BASE_TAG in $MV_CLOUD"
       fail=1

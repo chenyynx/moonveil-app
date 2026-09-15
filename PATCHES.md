@@ -177,3 +177,20 @@ key; both sites verified upstream-identical modulo our own brand rename. Rule-sc
 
 ## B8-FIX4 — permitsRetry 末路配置轮（2026-09-15，CI 实证红单发，探针②分支执行）
 tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不吃）。改走 xcodebuild **命令行构建设置覆盖**（压到集成包全部 target）：SWIFT_VERSION=5.0（上游项目本值）+ SWIFT_STRICT_CONCURRENCY=minimal。配置面零代码编辑：AAV2 逐字节未动（强门历次 PASS 佐证）、重试策略零删减。若此路仍红=配置穷尽，届时才议带台账的偏差补丁（需 pp）。
+
+
+### AAV2-AWAIT-1 (2026-09-15, pp approval in chat — question 「批 A 案这一行?」 answer 「行」)
+- File: Packages/RemoteKit/Sources/AAV2/Network/HTTPTransport.swift, call site line 56
+- Deviation: `retryPolicy.permitsRetry(error)` -> `await retryPolicy.permitsRetry(error)` (5 chars added, nothing else)
+- Why: bare call is a HARD error even in Swift 5 mode ("expression is 'async' but is
+  not marked with 'await'") — isolated-repro machine-proven: bare=error, awaited=0 errors
+  under -swift-version 5 AND 6 (swiftc 6.0.3). All configuration surfaces exhausted
+  (target pin, package pin, tools banner, xcodebuild overrides, target-level default
+  isolation [polluted local line, scoped out], per-file COMPILER_FLAGS [not honored by
+  Xcode for Swift]). Upstream stays byte-compilable on the author's Xcode-27 combo only.
+- Semantics: zero loss — pure error-code table function; call site already async; the
+  hop matches the author's own @MainActor design intent.
+- EXIT: any future AA tag landing await/refactoring this guard -> delete this patch,
+  restore the byte, re-baseline FREEZE-MANIFEST (strong gate fails any other shape).
+- Gate: aav2-freeze-check strong mode reverse-verifies "ours == upstream+sed exactly";
+  counter-probes done: revoke-await rc=1, second-deviation rc=1, correct state rc=0.
