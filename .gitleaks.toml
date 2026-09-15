@@ -17,15 +17,16 @@ keywords = ["BRIDGE_API_KEY"]
 
 [allowlist]
 description = """
-Upstream OpenMinis image (mirror of 4ef2900) ships public constants that the noisy
+Upstream OpenMinis image (mirror of 4ef2900) contains public constants that the noisy
 generic-api-key rule flags. Every path below was verified 2026-09-15 byte-identical to
-upstream 4ef2900 (diff -q vs git show) — public by publication upstream, not introduced
-by Moonveil. Natures: UserDefaults key strings (ShortcutRunTracker), and OAuth2
-client_id values (Claude/Kimi/xAI on iOS+Android) which are public identifiers by PKCE
-design (RFC 8252), not secrets.
+upstream 4ef2900 (diff -q vs git show) — public by publication, not introduced by
+Moonveil. Natures: UserDefaults key strings, OAuth2 client_id values (public identifiers
+by PKCE design, RFC 8252), fixed test-fixture tokens, and crypto FORMAT-MAGIC constants
+(BackupCrypto.*: the "moonveilbak-enc/1" scheme string / KDF info labels — identical
+constant on iOS+Android, sha 5bd3a1b4138e, a protocol discriminator not a key).
 Scoping: only generic-api-key is exempted on these exact paths; all other rules
-(aws/jwt/aa-secret/bridge-key/…) still scan them, and every other file still fails CI
-on any generic-api-key hit. Random AWS-shaped sentinel re-verified as FAIL (gate has teeth).
+(aws/jwt/aa-secret/bridge-key/…) still scan them, and any other file still fails CI on
+any generic-api-key hit. Random AWS-shaped sentinel re-verified as FAIL (gate has teeth).
 """
 rules = ["generic-api-key"]
 paths = [
@@ -37,4 +38,6 @@ paths = [
   '''src/ios/Providers/Anthropic/OAuth/ClaudeOAuthManager\.swift''',
   '''src/ios/Providers/Kimi/OAuth/KimiOAuthManager\.swift''',
   '''src/ios/Providers/xAI/OAuth/XAIOAuthManager\.swift''',
+  '''src/ios/Agent/Backup/BackupCrypto\.swift''',
+  '''src/android/app/src/main/java/com/openminis/app/backup/BackupCrypto\.kt''',
 ]
