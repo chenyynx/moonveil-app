@@ -9,8 +9,8 @@ private let logger = AppLogger(category: "ProviderMigration")
 @MainActor
 enum ProviderMigration {
 
-    private static let migrationKey = "com.openminis.app.provider-migration-v1-done"
-    private static let oauthMigrationKey = "com.openminis.app.provider-migration-oauth-v2-done"
+    private static let migrationKey = "com.moonveil.app.provider-migration-v1-done"
+    private static let oauthMigrationKey = "com.moonveil.app.provider-migration-oauth-v2-done"
 
     /// Run migration if it hasn't been performed yet.
     static func migrateIfNeeded(store: ProviderConfigStore) {
@@ -105,7 +105,7 @@ enum ProviderMigration {
         // MARK: - Anthropic
 
         // API Key
-        if let key = readLegacyKeychain(service: "com.openminis.app.anthropic-api-key") {
+        if let key = readLegacyKeychain(service: "com.moonveil.app.anthropic-api-key") {
             let instance = ProviderInstance(
                 label: "Anthropic API Key",
                 providerType: .anthropic,
@@ -145,7 +145,7 @@ enum ProviderMigration {
         // MARK: - Gemini
 
         // API Key
-        if let key = readLegacyKeychain(service: "com.openminis.app.gemini-api-key") {
+        if let key = readLegacyKeychain(service: "com.moonveil.app.gemini-api-key") {
             let instance = ProviderInstance(
                 label: "Gemini API Key",
                 providerType: .gemini,
@@ -184,7 +184,7 @@ enum ProviderMigration {
         // MARK: - OpenAI
 
         // API Key
-        if let key = readLegacyKeychain(service: "com.openminis.app.openai-api-key") {
+        if let key = readLegacyKeychain(service: "com.moonveil.app.openai-api-key") {
             let instance = ProviderInstance(
                 label: "OpenAI API Key",
                 providerType: .openAI,
@@ -289,7 +289,7 @@ enum ProviderMigration {
     }
 
     private static func loadLegacyAgentModelSettings() -> LegacyAgentModelSettings {
-        let key = "com.openminis.app.agent-model-settings"
+        let key = "com.moonveil.app.agent-model-settings"
         guard let data = UserDefaults.standard.data(forKey: key),
               let settings = try? JSONDecoder().decode(LegacyAgentModelSettings.self, from: data)
         else {
@@ -302,7 +302,7 @@ enum ProviderMigration {
     private static func isLegacyActiveProvider(_ rawValue: String) -> Bool {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.openminis.app.active-provider",
+            kSecAttrService as String: "com.moonveil.app.active-provider",
             kSecAttrAccount as String: "auth-mode",
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
