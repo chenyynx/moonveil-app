@@ -14292,6 +14292,57 @@
         }
       }
     },
+    "Camera access is required to scan the login QR code.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera access is required to scan the login QR code."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要摄像头权限才能扫描登录二维码。"
+          }
+        }
+      }
+    },
+    "Camera input is not available.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera input is not available."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "摄像头输入不可用。"
+          }
+        }
+      }
+    },
+    "Camera is not available.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera is not available."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "摄像头不可用。"
+          }
+        }
+      }
+    },
     "Can save backups": {
       "extractionState": "manual",
       "localizations": {
@@ -14495,6 +14546,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "取消迁移？"
+          }
+        }
+      }
+    },
+    "Cancel Sign In": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel Sign In"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消登录"
           }
         }
       }
@@ -18006,6 +18074,23 @@
         }
       }
     },
+    "Click confirm in the web console, then return here.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click confirm in the web console, then return here."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Web 控制台确认后，返回这里。"
+          }
+        }
+      }
+    },
     "Client ID": {
       "localizations": {
         "es": {
@@ -19595,6 +19680,24 @@
         }
       }
     },
+    "Confirm Login": {
+      "comment": "Shared with Web: common.mobileConfirm. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm sign-in"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确认登录"
+          }
+        }
+      }
+    },
     "Confirm change": {
       "localizations": {
         "de": {
@@ -19653,12 +19756,46 @@
         }
       }
     },
+    "Confirm on Web": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm on Web"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Web 中确认"
+          }
+        }
+      }
+    },
     "Confirm passphrase": {
       "localizations": {
         "es": {
           "stringUnit": {
             "state": "translated",
             "value": "Confirma la frase de contraseña"
+          }
+        }
+      }
+    },
+    "Confirm the login on the web console and try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm the login on the web console and try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在 Web 控制台确认登录后重试。"
           }
         }
       }
@@ -19705,6 +19842,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "连接"
+          }
+        }
+      }
+    },
+    "Connect this device to your workspace.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect this device to your workspace."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将此设备连接到你的工作空间。"
+          }
+        }
+      }
+    },
+    "Connect to Anywhere Cloud": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect to Anywhere Cloud"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接到 Anywhere Cloud"
+          }
+        }
+      }
+    },
+    "Connect to your self-hosted instance": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect to your self-hosted instance"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接到自己部署的实例"
           }
         }
       }
@@ -20446,6 +20634,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "繼續"
+          }
+        }
+      }
+    },
+    "Continue in Browser": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue in Browser"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在浏览器中继续"
           }
         }
       }
@@ -22424,6 +22629,23 @@
         }
       }
     },
+    "Could not check the login status.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not check the login status."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法检查登录状态。"
+          }
+        }
+      }
+    },
     "Could not import this provider configuration.": {
       "localizations": {
         "de": {
@@ -23482,6 +23704,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "當前 GPS 座標和位置歷史"
+          }
+        }
+      }
+    },
+    "Current login status: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current login status: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前登录状态：%@"
           }
         }
       }
@@ -27536,6 +27775,40 @@
         }
       }
     },
+    "Discard changes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard changes"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放弃修改"
+          }
+        }
+      }
+    },
+    "Discard unsaved changes?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard unsaved changes?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放弃未保存的修改？"
+          }
+        }
+      }
+    },
     "Dismiss error": {
       "extractionState": "manual",
       "localizations": {
@@ -27939,6 +28212,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "解散群組？"
+          }
+        }
+      }
+    },
+    "Do you want to sign in as %@?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do you want to sign in as %@?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以 %@ 的身份登录？"
           }
         }
       }
@@ -30483,6 +30773,12 @@
     },
     "Encrypted": {
       "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cifrado"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -30493,12 +30789,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "已加密"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cifrado"
           }
         }
       }
@@ -31003,6 +31293,23 @@
         }
       }
     },
+    "Enter Server": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter Server"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入服务器"
+          }
+        }
+      }
+    },
     "Enter a custom API base URL and bearer token for proxy services or self-hosted endpoints.": {
       "extractionState": "stale",
       "localizations": {
@@ -31374,6 +31681,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "請輸入 API Key"
+          }
+        }
+      }
+    },
+    "Enter your server address, then sign in with the server's web login.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter your server address, then sign in with the server's web login."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入服务器地址，再通过服务器的网页登录。"
           }
         }
       }
@@ -36946,6 +37270,23 @@
         }
       }
     },
+    "Go to Dashboard": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Go to Dashboard"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "进入工作空间"
+          }
+        }
+      }
+    },
     "Go to Parent Folder": {
       "localizations": {
         "de": {
@@ -41991,6 +42332,23 @@
         }
       }
     },
+    "Keep editing": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep editing"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续编辑"
+          }
+        }
+      }
+    },
     "Keep-Alive": {
       "localizations": {
         "de": {
@@ -44768,6 +45126,23 @@
         }
       }
     },
+    "Local Network Access": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local Network Access"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "局域网访问"
+          }
+        }
+      }
+    },
     "Local Sessions": {
       "localizations": {
         "de": {
@@ -45580,6 +45955,75 @@
         }
       }
     },
+    "Log In": {
+      "comment": "Shared with Web: auth.login.submit. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录"
+          }
+        }
+      }
+    },
+    "Login Request Failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Login Request Failed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录请求失败"
+          }
+        }
+      }
+    },
+    "Login Status": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Login Status"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录状态"
+          }
+        }
+      }
+    },
+    "Login Success": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Login Success"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录成功"
+          }
+        }
+      }
+    },
     "Logs": {
       "localizations": {
         "de": {
@@ -46220,6 +46664,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "手動 Bearer Token"
+          }
+        }
+      }
+    },
+    "Manual Login": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual Login"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手动登录"
           }
         }
       }
@@ -52762,6 +53223,12 @@
     },
     "No": {
       "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -52772,12 +53239,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "否"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No"
           }
         }
       }
@@ -58048,6 +58509,23 @@
         }
       }
     },
+    "Open Settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开设置"
+          }
+        }
+      }
+    },
     "Open Soul settings": {
       "extractionState": "manual",
       "localizations": {
@@ -62171,6 +62649,23 @@
         }
       }
     },
+    "Point the camera at the web QR code": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Point the camera at the web QR code"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将摄像头对准 Web 上的二维码"
+          }
+        }
+      }
+    },
     "Pre-v2 messages stay on this device only. Requesting migration uploads them to iCloud so other devices can download. Once finished, this device's old v1 zone is freed.": {
       "extractionState": "manual",
       "localizations": {
@@ -63784,6 +64279,41 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在從 iCloud 拉取…"
+          }
+        }
+      }
+    },
+    "QR Code Login": {
+      "comment": "Shared with Web: dashboard.mobileConnections.scanTitle. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan to sign in"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "扫码登录"
+          }
+        }
+      }
+    },
+    "QR scanner output is not available.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QR scanner output is not available."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "二维码扫描输出不可用。"
           }
         }
       }
@@ -73015,6 +73545,40 @@
         }
       }
     },
+    "Scan Agents Anywhere QR": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan Agents Anywhere QR"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "扫描 Agents Anywhere 二维码"
+          }
+        }
+      }
+    },
+    "Scan the login QR code from the web console.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan the login QR code from the web console."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "扫描 Web 控制台上的登录二维码。"
+          }
+        }
+      }
+    },
     "Scanning files…": {
       "localizations": {
         "de": {
@@ -74621,6 +75185,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "服務器 URL"
+          }
+        }
+      }
+    },
+    "Server Unavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server Unavailable"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器不可用"
           }
         }
       }
@@ -77447,6 +78028,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "登錄"
+          }
+        }
+      }
+    },
+    "Sign In Failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign In Failed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录失败"
           }
         }
       }
@@ -84876,6 +85474,40 @@
         }
       }
     },
+    "The login could not be completed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The login could not be completed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法完成登录。"
+          }
+        }
+      }
+    },
+    "The login request could not be started.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The login request could not be started."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法发起登录请求。"
+          }
+        }
+      }
+    },
     "The model declined to respond to this request. Try rephrasing, or switch to a different model.": {
       "localizations": {
         "de": {
@@ -85243,6 +85875,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rootfs 包含 Alpine Linux 文件系統。重置將刪除所有數據並恢復出廠狀態。"
+          }
+        }
+      }
+    },
+    "The server could not be reached.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server could not be reached."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法连接到服务器。"
+          }
+        }
+      }
+    },
+    "The server login opens in a secure web session. You can use password login or any OAuth provider configured on that server.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server login opens in a secure web session. You can use password login or any OAuth provider configured on that server."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将在安全的网页会话中登录服务器。可以使用密码或服务器已配置的 OAuth 登录方式。"
           }
         }
       }
@@ -86208,6 +86874,22 @@
         }
       }
     },
+    "This QR code is not a valid Moonveil login code.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This QR code is not a valid Moonveil login code."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这不是有效的 Moonveil 登录二维码。"
+          }
+        }
+      }
+    },
     "This Week": {
       "extractionState": "stale",
       "localizations": {
@@ -86842,6 +87524,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "此位置位於只讀的已掛載文件夾中，無法修改：%@"
+          }
+        }
+      }
+    },
+    "This login request expired. Scan a new QR code.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This login request expired. Scan a new QR code."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此登录请求已过期，请扫描新的二维码。"
+          }
+        }
+      }
+    },
+    "This login request has already been used.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This login request has already been used."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此登录请求已被使用。"
+          }
+        }
+      }
+    },
+    "This login request was rejected.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This login request was rejected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此登录请求已被拒绝。"
           }
         }
       }
@@ -92702,6 +93435,22 @@
         }
       }
     },
+    "Use local AI directly": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use local AI directly"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直接用本地 AI"
+          }
+        }
+      }
+    },
     "Use the braces button to insert a reference to an App environment variable as $$NAME. Its value is filled in at runtime.": {
       "localizations": {
         "de": {
@@ -92845,6 +93594,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "用於在備份檔案名稱和 iCloud 同步裝置清單中識別本裝置。留空則使用「%@」。"
+          }
+        }
+      }
+    },
+    "User": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "User"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户"
           }
         }
       }
@@ -95181,6 +95947,23 @@
         }
       }
     },
+    "Waiting for confirmation": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for confirmation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等待确认"
+          }
+        }
+      }
+    },
     "Waiting for other tasks to complete...": {
       "localizations": {
         "de": {
@@ -97152,6 +97935,12 @@
     },
     "Yes": {
       "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sí"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -97162,12 +97951,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "是"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sí"
           }
         }
       }
@@ -97832,6 +98615,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "您的首個本地智能體即將就緒。"
+          }
+        }
+      }
+    },
+    "Your iPhone is signed in. Go to your dashboard to continue.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your iPhone is signed in. Go to your dashboard to continue."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此设备已登录，进入工作空间即可继续。"
           }
         }
       }
@@ -99722,6 +100522,168 @@
         }
       }
     },
+    "privacyPolicy.agents.title": {
+      "comment": "Privacy policy for the native iOS and Mac Catalyst client.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agents and external services"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent 与外部服务"
+          }
+        }
+      }
+    },
+    "privacyPolicy.contact.body": {
+      "comment": "Privacy policy for the native iOS and Mac Catalyst client.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For questions about the client's handling of information, use the project's support channels. For access to, correction or deletion of information held by a server or model service, contact its operator. Policy updates will be reflected in the date above."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如对客户端的信息处理有疑问，可以通过项目支持渠道联系我们。如需访问、更正或删除服务器、模型服务保存的信息，请联系其运营者。政策更新时会同步修改上方日期。"
+          }
+        }
+      }
+    },
+    "privacyPolicy.contact.title": {
+      "comment": "Privacy policy for the native iOS and Mac Catalyst client.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contact and updates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "联系与更新"
+          }
+        }
+      }
+    },
+    "privacyPolicy.localStorage.title": {
+      "comment": "Privacy policy for the native iOS and Mac Catalyst client.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Information on this device"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本设备保存的信息"
+          }
+        }
+      }
+    },
+    "privacyPolicy.permissions.title": {
+      "comment": "Privacy policy for the native iOS and Mac Catalyst client.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System permissions"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统权限"
+          }
+        }
+      }
+    },
+    "privacyPolicy.retention.title": {
+      "comment": "Privacy policy for the native iOS and Mac Catalyst client.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retention and deletion"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存与删除"
+          }
+        }
+      }
+    },
+    "privacyPolicy.server.title": {
+      "comment": "Privacy policy for the native iOS and Mac Catalyst client.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Information sent to your server"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发送到服务器的信息"
+          }
+        }
+      }
+    },
+    "privacyPolicy.title": {
+      "comment": "Privacy policy for the native iOS and Mac Catalyst client.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy policy"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐私政策"
+          }
+        }
+      }
+    },
+    "privacyPolicy.updated": {
+      "comment": "Privacy policy for the native iOS and Mac Catalyst client.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last updated: September 7, 2026"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新日期：2026 年 9 月 7 日"
+          }
+        }
+      }
+    },
     "reasoning.effort (nested)": {
       "extractionState": "manual",
       "localizations": {
@@ -101334,6 +102296,22 @@
         }
       }
     },
+    "会话列表与消息将在下一批上线": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The session list and messages land in the next batch"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话列表与消息将在下一批上线"
+          }
+        }
+      }
+    },
     "你好，这是语音预览。": {
       "extractionState": "stale",
       "localizations": {
@@ -101509,6 +102487,54 @@
         }
       }
     },
+    "去登录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "去登录"
+          }
+        }
+      }
+    },
+    "取消，回到引导": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel and go back"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消，回到引导"
+          }
+        }
+      }
+    },
+    "已连接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已连接"
+          }
+        }
+      }
+    },
     "拍照": {
       "localizations": {
         "de": {
@@ -101563,6 +102589,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "拍照"
+          }
+        }
+      }
+    },
+    "断开连接": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "断开连接"
           }
         }
       }
@@ -101799,6 +102841,22 @@
         }
       }
     },
+    "等待配对完成…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for pairing…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等待配对完成…"
+          }
+        }
+      }
+    },
     "设置闹钟": {
       "localizations": {
         "de": {
@@ -101853,6 +102911,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "設置鬧鐘"
+          }
+        }
+      }
+    },
+    "还没有连接远程工作空间": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No remote workspace connected yet"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有连接远程工作空间"
+          }
+        }
+      }
+    },
+    "需要你处理 ×%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs your attention ×%@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要你处理 ×%@"
           }
         }
       }
