@@ -5,7 +5,7 @@ import Photos
 import SwiftUI
 import UIKit
 
-private let imgLogger = AppLogger(category: "MinisImage")
+private let imgLogger = AppLogger(category: "MoonveilImage")
 private let attachLogger = AppLogger(category: "AttachDebug")
 /// [T-ios-resign-first-responder-graph-reentry] Deferred responder-chain walks.
 private let responderLogger = AppLogger(category: "MarkdownResponder")
@@ -147,7 +147,7 @@ final class NativeMediaImageCache {
     /// re-entered conversation, or message-list session re-load from disk)
     /// already have the size on the very first attachmentBounds call.
     /// [AttachHang preload-bounds]
-    private static let defaultsKey = "MinisImageSizes_v1"
+    private static let defaultsKey = "MoonveilImageSizes_v1"
     private var sizes: [String: CGSize]
     private let sizesLock = NSLock()
     private init() {
@@ -1062,7 +1062,7 @@ fileprivate final class MarkdownNSRenderer {
         let attachment: ImageAttachment
         if let cached = imageAttachmentCache[source] {
             AppLogger(category: "AttachHotPath").info("[IMG][RENDER] REUSE src=\(ImageAttachment.shortSrc(source)) ptr=\(ObjectIdentifier(cached).hashValue & 0xFFFFFF) loaded=\(cached.loadedImage != nil)")
-            imgLogger.info("[MinisImage][RenderAttach] REUSE cached attachment src=\(source) loaded=\(cached.loadedImage != nil) imgSize=\(cached.loadedImage.map { "\($0.size.width)x\($0.size.height)" } ?? "nil")")
+            imgLogger.info("[MoonveilImage][RenderAttach] REUSE cached attachment src=\(source) loaded=\(cached.loadedImage != nil) imgSize=\(cached.loadedImage.map { "\($0.size.width)x\($0.size.height)" } ?? "nil")")
             // Keep messageId fresh on reused attachments — the same renderer
             // instance may survive across different messages during cell reuse.
             cached.messageId = messageId
@@ -1072,13 +1072,13 @@ fileprivate final class MarkdownNSRenderer {
             let currentFp = minisMediaCacheKey(for: source)
             if let loadedFp = cached.loadedFingerprint, loadedFp != currentFp {
                 AppLogger(category: "AttachHotPath").info("[IMG][RENDER] FINGERPRINT-DROP src=\(ImageAttachment.shortSrc(source)) old=\(loadedFp) new=\(currentFp) — bitmap invalidated, will reload")
-                imgLogger.info("[MinisImage][RenderAttach] FINGERPRINT CHANGED src=\(source) old=\(loadedFp) new=\(currentFp) — invalidating cached image")
+                imgLogger.info("[MoonveilImage][RenderAttach] FINGERPRINT CHANGED src=\(source) old=\(loadedFp) new=\(currentFp) — invalidating cached image")
                 cached.invalidateLoadedImage()
             }
             attachment = cached
         } else {
             AppLogger(category: "AttachHotPath").info("[IMG][RENDER] CREATE src=\(ImageAttachment.shortSrc(source)) cacheCount=\(self.imageAttachmentCache.count) — fresh ImageAttachment, ObjectIdentifier changed, view WILL be rebuilt")
-            imgLogger.info("[MinisImage][RenderAttach] CREATE new ImageAttachment src=\(source) cacheCount=\(self.imageAttachmentCache.count)")
+            imgLogger.info("[MoonveilImage][RenderAttach] CREATE new ImageAttachment src=\(source) cacheCount=\(self.imageAttachmentCache.count)")
             attachment = ImageAttachment(source: source, theme: theme, messageId: messageId)
             imageAttachmentCache[source] = attachment
         }
@@ -1269,17 +1269,17 @@ fileprivate final class MarkdownNSRenderer {
         case .image(let source, let children):
             let ext = URL(string: source)?.pathExtension.lowercased() ?? ""
             let altText = children.plainText
-            imgLogger.info("[MinisImage][InlineParse] .image node src=\(source) ext=\(ext) alt=\(altText)")
+            imgLogger.info("[MoonveilImage][InlineParse] .image node src=\(source) ext=\(ext) alt=\(altText)")
             if nativeAudioExts.contains(ext) {
                 return renderAudioAttachment(source: source)
             } else if nativeVideoExts.contains(ext) {
                 return renderVideoAttachment(source: source)
             } else if nativeImageExts.contains(ext) || ext.isEmpty {
-                imgLogger.info("[MinisImage][InlineParse] routing to IMAGE attachment src=\(source)")
+                imgLogger.info("[MoonveilImage][InlineParse] routing to IMAGE attachment src=\(source)")
                 return renderImageAttachment(source: source)
             } else {
                 // Unknown extension — render as image attachment (best guess)
-                imgLogger.info("[MinisImage][InlineParse] unknown ext=\(ext), routing to IMAGE attachment (best guess) src=\(source)")
+                imgLogger.info("[MoonveilImage][InlineParse] unknown ext=\(ext), routing to IMAGE attachment (best guess) src=\(source)")
                 return renderImageAttachment(source: source)
             }
 
@@ -3856,7 +3856,7 @@ final class ImageAttachment: NSTextAttachment {
         guard NativeMediaImageCache.shared.size(forSource: canonicalSrc) == nil else { return }
         guard let size = probePixelSize(at: url) else { return }
         NativeMediaImageCache.shared.recordSize(size, forSource: canonicalSrc)
-        imgLogger.info("[MinisImage][Probe] header size=\(Int(size.width))x\(Int(size.height)) src=\(canonicalSrc) — publishing before full decode")
+        imgLogger.info("[MoonveilImage][Probe] header size=\(Int(size.width))x\(Int(size.height)) src=\(canonicalSrc) — publishing before full decode")
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .minisAttachmentSizeChanged, object: canonicalSrc)
         }
@@ -3878,7 +3878,7 @@ final class ImageAttachment: NSTextAttachment {
         loadedFingerprint = fingerprint
         isLoading = false
         fileNotFound = false
-        imgLogger.info("[MinisImage][Adopt] via=\(via) src=\(canonicalSrc) size=\(Int(image.size.width))x\(Int(image.size.height))")
+        imgLogger.info("[MoonveilImage][Adopt] via=\(via) src=\(canonicalSrc) size=\(Int(image.size.width))x\(Int(image.size.height))")
         onLoad?()
         // Adoption grows the cell: placeholder bounds → image bounds. The
         // cell must re-measure even on the synchronous cache-hit path.
@@ -3892,7 +3892,7 @@ final class ImageAttachment: NSTextAttachment {
         // `![img](foo.png)` or `![img](subdir/foo.png)` land here.
         let canonicalSrc = Self.canonicalizeMarkdownImageSource(source)
         if canonicalSrc != source {
-            imgLogger.info("[MinisImage][Load] canonicalized src=\(self.source) → \(canonicalSrc)")
+            imgLogger.info("[MoonveilImage][Load] canonicalized src=\(self.source) → \(canonicalSrc)")
         }
 
         // [T-ios-image-single-writer] Cache first, flags second — the shared
@@ -3910,13 +3910,13 @@ final class ImageAttachment: NSTextAttachment {
         }
 
         guard loadedImage == nil, !isLoading else {
-            imgLogger.info("[MinisImage][Load] skip src=\(self.source) alreadyLoaded=\(self.loadedImage != nil) isLoading=\(self.isLoading) — the in-flight completion or the next render's cache check will adopt")
+            imgLogger.info("[MoonveilImage][Load] skip src=\(self.source) alreadyLoaded=\(self.loadedImage != nil) isLoading=\(self.isLoading) — the in-flight completion or the next render's cache check will adopt")
             return
         }
         // Reset fileNotFound so we don't spin; it will be set again if still missing.
         fileNotFound = false
         guard retriesRemaining > 0 else {
-            imgLogger.warning("[MinisImage][Load] no retries left src=\(self.source)")
+            imgLogger.warning("[MoonveilImage][Load] no retries left src=\(self.source)")
             return
         }
         retriesRemaining -= 1
@@ -3929,7 +3929,7 @@ final class ImageAttachment: NSTextAttachment {
         loadGeneration &+= 1
         let gen = loadGeneration
         let parsedURL = URL(string: canonicalSrc)
-        imgLogger.info("[MinisImage][Load] START gen=\(gen) src=\(canonicalSrc) scheme=\(parsedURL?.scheme ?? "nil") host=\(parsedURL?.host ?? "nil") path=\(parsedURL?.path ?? "nil") ext=\(parsedURL?.pathExtension ?? "nil") retriesRemaining=\(self.retriesRemaining)")
+        imgLogger.info("[MoonveilImage][Load] START gen=\(gen) src=\(canonicalSrc) scheme=\(parsedURL?.scheme ?? "nil") host=\(parsedURL?.host ?? "nil") path=\(parsedURL?.path ?? "nil") ext=\(parsedURL?.pathExtension ?? "nil") retriesRemaining=\(self.retriesRemaining)")
 
         let src = canonicalSrc
         let isMinisURL = URL(string: src).map { $0.scheme == "minis" } ?? false
@@ -3939,12 +3939,12 @@ final class ImageAttachment: NSTextAttachment {
         // are local files that may be written shortly after the markdown
         // references them, so the retriesRemaining-scheduled flow must stay.
         if !isMinisURL, NativeMediaImageCache.shared.isRecentlyFailed(src) {
-            imgLogger.info("[MinisImage][Load] SUPPRESSED (recent failure within TTL) src=\(src)")
+            imgLogger.info("[MoonveilImage][Load] SUPPRESSED (recent failure within TTL) src=\(src)")
             isLoading = false
             fileNotFound = true
             return
         }
-        imgLogger.info("[MinisImage][Load] dispatching async load src=\(src) isMinisURL=\(isMinisURL)")
+        imgLogger.info("[MoonveilImage][Load] dispatching async load src=\(src) isMoonveilURL=\(isMinisURL)")
         // [T-ios-image-single-writer] Captured on the caller's (main) thread;
         // `displayTargetPixels` needs it off-main where UIScreen is off-limits.
         let screenScale = UIScreen.main.scale
@@ -3952,44 +3952,44 @@ final class ImageAttachment: NSTextAttachment {
             var fileURL: URL?
             let img: UIImage?
             if let url = URL(string: src), url.scheme == "minis" {
-                imgLogger.info("[MinisImage][Load] resolving minis:// URL src=\(src) host=\(url.host ?? "nil") path=\(url.path)")
+                imgLogger.info("[MoonveilImage][Load] resolving minis:// URL src=\(src) host=\(url.host ?? "nil") path=\(url.path)")
                 if let resolved = resolveMinisFileURLForNativeText(url: url) {
-                    imgLogger.info("[MinisImage][Load] minis:// resolved to localPath=\(resolved.path)")
+                    imgLogger.info("[MoonveilImage][Load] minis:// resolved to localPath=\(resolved.path)")
                     fileURL = resolved
                     // [T-ios-image-squish-probe] Publish the true aspect ratio
                     // from the file header before paying for the full decode.
                     Self.probeAndPublishSize(at: resolved, canonicalSrc: src)
                     if let data = try? Data(contentsOf: resolved) {
-                        imgLogger.info("[MinisImage][Load] read \(data.count) bytes from localPath=\(resolved.path)")
+                        imgLogger.info("[MoonveilImage][Load] read \(data.count) bytes from localPath=\(resolved.path)")
                         // [T-ios-image-single-writer] Decode straight to display
                         // size — the one and only decode this image gets.
                         let downsampled = downsampleImageData(data, maxPixelSize: displayTargetPixels(for: data, screenScale: screenScale))
                         if let downsampled {
-                            imgLogger.info("[MinisImage][Load] downsample OK src=\(src) resultSize=\(downsampled.size.width)x\(downsampled.size.height)")
+                            imgLogger.info("[MoonveilImage][Load] downsample OK src=\(src) resultSize=\(downsampled.size.width)x\(downsampled.size.height)")
                         } else {
-                            imgLogger.error("[MinisImage][Load] downsample FAILED src=\(src) dataSize=\(data.count)")
+                            imgLogger.error("[MoonveilImage][Load] downsample FAILED src=\(src) dataSize=\(data.count)")
                         }
                         img = downsampled
                     } else {
-                        imgLogger.error("[MinisImage][Load] Data(contentsOf:) FAILED localPath=\(resolved.path)")
+                        imgLogger.error("[MoonveilImage][Load] Data(contentsOf:) FAILED localPath=\(resolved.path)")
                         img = nil
                     }
                 } else {
-                    imgLogger.warning("[MinisImage][Load] resolveMinisFileURLForNativeText returned nil src=\(src)")
+                    imgLogger.warning("[MoonveilImage][Load] resolveMinisFileURLForNativeText returned nil src=\(src)")
                     img = nil
                 }
             } else if let url = URL(string: src), url.scheme == "http" || url.scheme == "https" {
-                imgLogger.info("[MinisImage][Load] fetching HTTP(S) url=\(src)")
+                imgLogger.info("[MoonveilImage][Load] fetching HTTP(S) url=\(src)")
                 if let data = try? Data(contentsOf: url) {
-                    imgLogger.info("[MinisImage][Load] HTTP fetched \(data.count) bytes src=\(src)")
+                    imgLogger.info("[MoonveilImage][Load] HTTP fetched \(data.count) bytes src=\(src)")
                     img = downsampleImageData(data, maxPixelSize: displayTargetPixels(for: data, screenScale: screenScale))
                 } else {
-                    imgLogger.warning("[MinisImage][Load] HTTP fetch FAILED src=\(src)")
+                    imgLogger.warning("[MoonveilImage][Load] HTTP fetch FAILED src=\(src)")
                     img = nil
                 }
             } else if let url = URL(string: src) {
                 // file URL or relative
-                imgLogger.info("[MinisImage][Load] trying file/relative URL scheme=\(url.scheme ?? "nil") path=\(url.path)")
+                imgLogger.info("[MoonveilImage][Load] trying file/relative URL scheme=\(url.scheme ?? "nil") path=\(url.path)")
                 fileURL = url
                 // [T-ios-image-squish-probe] Same early header probe as the
                 // minis:// branch. HTTP(S) is deliberately NOT probed — a
@@ -3997,14 +3997,14 @@ final class ImageAttachment: NSTextAttachment {
                 // full download records the size as before.
                 Self.probeAndPublishSize(at: url, canonicalSrc: src)
                 if let data = try? Data(contentsOf: url) {
-                    imgLogger.info("[MinisImage][Load] file loaded \(data.count) bytes src=\(src)")
+                    imgLogger.info("[MoonveilImage][Load] file loaded \(data.count) bytes src=\(src)")
                     img = downsampleImageData(data, maxPixelSize: displayTargetPixels(for: data, screenScale: screenScale))
                 } else {
-                    imgLogger.warning("[MinisImage][Load] file load FAILED src=\(src)")
+                    imgLogger.warning("[MoonveilImage][Load] file load FAILED src=\(src)")
                     img = nil
                 }
             } else {
-                imgLogger.error("[MinisImage][Load] cannot parse URL src=\(src)")
+                imgLogger.error("[MoonveilImage][Load] cannot parse URL src=\(src)")
                 img = nil
             }
 
@@ -4012,7 +4012,7 @@ final class ImageAttachment: NSTextAttachment {
             // rewritten between the pre-check at entry and this point.
             let postLoadKey = minisMediaCacheKey(for: src)
             if let img {
-                imgLogger.info("[MinisImage][Load] SUCCESS src=\(src) finalSize=\(img.size.width)x\(img.size.height) — caching in memory")
+                imgLogger.info("[MoonveilImage][Load] SUCCESS src=\(src) finalSize=\(img.size.width)x\(img.size.height) — caching in memory")
                 NativeMediaImageCache.shared.set(img, for: postLoadKey)
                 // Also record the size (keyed by canonical source) so future
                 // ImageAttachment instances can compute correct bounds before
@@ -4022,7 +4022,7 @@ final class ImageAttachment: NSTextAttachment {
                 // that now succeeded — clear its negative-cache entry.
                 if !isMinisURL { NativeMediaImageCache.shared.clearFailure(src) }
             } else {
-                imgLogger.warning("[MinisImage][Load] FAILED src=\(src) — no image produced")
+                imgLogger.warning("[MoonveilImage][Load] FAILED src=\(src) — no image produced")
                 // [T-ios-failed-image-refetch-storm] Negative-cache remote
                 // failures so cell recycling during scroll doesn't re-fetch the
                 // same broken URL every recycle (the image-session decel storm).
@@ -4039,7 +4039,7 @@ final class ImageAttachment: NSTextAttachment {
                 // above, so the live generation adopts it from there anyway;
                 // nothing is lost, and nothing stale ever lands.
                 guard gen == self.loadGeneration else {
-                    imgLogger.info("[MinisImage][Load] DROP STALE completion gen=\(gen) current=\(self.loadGeneration) src=\(src)")
+                    imgLogger.info("[MoonveilImage][Load] DROP STALE completion gen=\(gen) current=\(self.loadGeneration) src=\(src)")
                     return
                 }
                 self.resolvedFileURL = fileURL
@@ -4048,7 +4048,7 @@ final class ImageAttachment: NSTextAttachment {
                 } else {
                     self.isLoading = false
                     if isMinisURL && self.retriesRemaining > 0 {
-                        imgLogger.info("[MinisImage][Load] RETRY scheduled src=\(src) retriesRemaining=\(self.retriesRemaining)")
+                        imgLogger.info("[MoonveilImage][Load] RETRY scheduled src=\(src) retriesRemaining=\(self.retriesRemaining)")
                         self.fileNotFound = true
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                             guard let self, self.fileNotFound else { return }
@@ -4056,7 +4056,7 @@ final class ImageAttachment: NSTextAttachment {
                         }
                     } else {
                         if isMinisURL {
-                            imgLogger.error("[MinisImage][Load] GAVE UP src=\(src) — all retries exhausted")
+                            imgLogger.error("[MoonveilImage][Load] GAVE UP src=\(src) — all retries exhausted")
                         }
                         // Failure still signals: views waiting on this load
                         // must get a pass to render their file-not-found state
@@ -4077,10 +4077,10 @@ final class ImageAttachment: NSTextAttachment {
         // updateAttachmentViews reuse path.
         AppLogger(category: "AttachHotPath").info("[IMG][MAKEVIEW] #\(self.makeViewCallCount) src=\(Self.shortSrc(self.source)) ptr=\(ObjectIdentifier(self).hashValue & 0xFFFFFF) hasImg=\(self.loadedImage != nil) width=\(String(format: "%.0f", width))")
         if let img = loadedImage {
-            imgLogger.info("[MinisImage][MakeView] rendering LOADED image src=\(self.source) imgSize=\(img.size.width)x\(img.size.height) containerWidth=\(width)")
+            imgLogger.info("[MoonveilImage][MakeView] rendering LOADED image src=\(self.source) imgSize=\(img.size.width)x\(img.size.height) containerWidth=\(width)")
             return makeImageView(img, width: width)
         } else {
-            imgLogger.info("[MinisImage][MakeView] rendering PLACEHOLDER src=\(self.source) containerWidth=\(width) fileNotFound=\(self.fileNotFound) retriesRemaining=\(self.retriesRemaining)")
+            imgLogger.info("[MoonveilImage][MakeView] rendering PLACEHOLDER src=\(self.source) containerWidth=\(width) fileNotFound=\(self.fileNotFound) retriesRemaining=\(self.retriesRemaining)")
             return makePlaceholderView(width: width)
         }
     }
@@ -4095,7 +4095,7 @@ final class ImageAttachment: NSTextAttachment {
         let aspect = img.size.height / max(img.size.width, 1)
         let maxH = UIScreen.main.bounds.height / 2
         let h = min(imgWidth * aspect, maxH)
-        imgLogger.info("[MinisImage][MakeView] layout src=\(self.source) displayWidth=\(imgWidth) displayHeight=\(h) aspect=\(aspect) maxImageWidth=\(Self.maxImageWidth)")
+        imgLogger.info("[MoonveilImage][MakeView] layout src=\(self.source) displayWidth=\(imgWidth) displayHeight=\(h) aspect=\(aspect) maxImageWidth=\(Self.maxImageWidth)")
 
         let shadowInset: CGFloat = Self.imageShadowInset
         // Container == the attachment box (image + shadow room on all sides).
@@ -7794,11 +7794,11 @@ struct SelectableMarkdownView: UIViewRepresentable {
         if !imageMatches.isEmpty {
             for match in imageMatches {
                 let matchStr = String(markdown[match])
-                imgLogger.info("[MinisImage][StreamParse] image markdown found: \(matchStr)")
+                imgLogger.info("[MoonveilImage][StreamParse] image markdown found: \(matchStr)")
             }
             let imageBlockCount = content.blocks.flatMap { Self.collectImageNodes(from: $0) }.count
             if imageBlockCount > 0 {
-                imgLogger.info("[MinisImage][StreamParse] parsed \(imageBlockCount) image node(s) from \(content.blocks.count) block(s), markdownLen=\(markdown.count)")
+                imgLogger.info("[MoonveilImage][StreamParse] parsed \(imageBlockCount) image node(s) from \(content.blocks.count) block(s), markdownLen=\(markdown.count)")
             }
         }
 
@@ -7901,7 +7901,7 @@ struct SelectableMarkdownView: UIViewRepresentable {
             if let loadedFp = att.loadedFingerprint {
                 let currentFp = minisMediaCacheKey(for: att.source)
                 if loadedFp != currentFp {
-                    imgLogger.info("[MinisImage][CachedAttr] FINGERPRINT CHANGED src=\(att.source) old=\(loadedFp) new=\(currentFp) — invalidating cached image")
+                    imgLogger.info("[MoonveilImage][CachedAttr] FINGERPRINT CHANGED src=\(att.source) old=\(loadedFp) new=\(currentFp) — invalidating cached image")
                     att.invalidateLoadedImage()
                 }
             }
@@ -8311,7 +8311,7 @@ struct SelectableMarkdownView: UIViewRepresentable {
         // fixed-height attachments (tool capsules, code/shell blocks, images):
         // those blocks don't grow with character count, so the estimate came
         // out too short and the NEXT cell overlapped the tail of a finished
-        // message (user report, macOS, "Minis Feedback Review" — the shell
+        // message (user report, macOS, "Moonveil Feedback Review" — the shell
         // preview + tool capsule covered the body text of the last message).
         // Gate it back off so every streaming sizeThatFits takes a real
         // measurement; the hang de4d3df6 fixed is the tradeoff to revisit with
@@ -9080,7 +9080,7 @@ struct SelectableMarkdownView: UIViewRepresentable {
 private func resolveMinisFileURLForNativeText(url: URL) -> URL? {
     guard url.scheme == "minis" else { return nil }
     guard let host = url.host else {
-        imgLogger.warning("[MinisImage][Resolve] no host in URL: \(url.absoluteString)")
+        imgLogger.warning("[MoonveilImage][Resolve] no host in URL: \(url.absoluteString)")
         return nil
     }
     // Try the single-decoded subpath first; fall back to a double-decoded
@@ -9090,7 +9090,7 @@ private func resolveMinisFileURLForNativeText(url: URL) -> URL? {
     // holdout, so double-encoded non-ASCII inline image names still failed here.
     // [T-ios-file-preview-stale-cache, completing T-fix-double-encoding 2026-06-01]
     let subPaths = MinisURLPathDecoding.subPathCandidates(for: url)
-    imgLogger.info("[MinisImage][Resolve] BEGIN url=\(url.absoluteString) host=\(host) subPaths=\(subPaths) activeSession=\(AIChatViewModel.activeSessionId ?? "nil")")
+    imgLogger.info("[MoonveilImage][Resolve] BEGIN url=\(url.absoluteString) host=\(host) subPaths=\(subPaths) activeSession=\(AIChatViewModel.activeSessionId ?? "nil")")
     let fm = FileManager.default
 
     // Primary: active session persistent storage
@@ -9100,36 +9100,36 @@ private func resolveMinisFileURLForNativeText(url: URL) -> URL? {
                 .appendingPathComponent(sid, isDirectory: true)
                 .appendingPathComponent(host, isDirectory: true)
                 .appendingPathComponent(subPath)
-            imgLogger.info("[MinisImage][Resolve] checking session path=\(persistURL.path)")
+            imgLogger.info("[MoonveilImage][Resolve] checking session path=\(persistURL.path)")
             if fm.fileExists(atPath: persistURL.path) {
                 let size = (try? fm.attributesOfItem(atPath: persistURL.path)[.size] as? Int64) ?? -1
-                imgLogger.info("[MinisImage][Resolve] FOUND in active session=\(sid) path=\(persistURL.path) size=\(size)")
+                imgLogger.info("[MoonveilImage][Resolve] FOUND in active session=\(sid) path=\(persistURL.path) size=\(size)")
                 return persistURL
             }
         }
-        imgLogger.info("[MinisImage][Resolve] NOT in active session=\(sid)")
+        imgLogger.info("[MoonveilImage][Resolve] NOT in active session=\(sid)")
     } else {
-        imgLogger.info("[MinisImage][Resolve] no active session — skipping session lookup")
+        imgLogger.info("[MoonveilImage][Resolve] no active session — skipping session lookup")
     }
 
     // Global namespaces (not session-scoped)
     if host == "skills" {
         for subPath in subPaths {
             let candidate = AIChatViewModel.minisSkillsPersistentDir.appendingPathComponent(subPath)
-            imgLogger.info("[MinisImage][Resolve] checking global skills path=\(candidate.path)")
+            imgLogger.info("[MoonveilImage][Resolve] checking global skills path=\(candidate.path)")
             if fm.fileExists(atPath: candidate.path) {
                 let size = (try? fm.attributesOfItem(atPath: candidate.path)[.size] as? Int64) ?? -1
-                imgLogger.info("[MinisImage][Resolve] FOUND global skills path=\(candidate.path) size=\(size)")
+                imgLogger.info("[MoonveilImage][Resolve] FOUND global skills path=\(candidate.path) size=\(size)")
                 return candidate
             }
         }
     } else if host == "memory" {
         for subPath in subPaths {
             let candidate = AIChatViewModel.minisMemoryPersistentDir.appendingPathComponent(subPath)
-            imgLogger.info("[MinisImage][Resolve] checking global memory path=\(candidate.path)")
+            imgLogger.info("[MoonveilImage][Resolve] checking global memory path=\(candidate.path)")
             if fm.fileExists(atPath: candidate.path) {
                 let size = (try? fm.attributesOfItem(atPath: candidate.path)[.size] as? Int64) ?? -1
-                imgLogger.info("[MinisImage][Resolve] FOUND global memory path=\(candidate.path) size=\(size)")
+                imgLogger.info("[MoonveilImage][Resolve] FOUND global memory path=\(candidate.path) size=\(size)")
                 return candidate
             }
         }
@@ -9156,12 +9156,12 @@ private func resolveMinisFileURLForNativeText(url: URL) -> URL? {
                 .appendingPathComponent(subPath)
             if fm.fileExists(atPath: rootfsURL.path) {
                 let size = (try? fm.attributesOfItem(atPath: rootfsURL.path)[.size] as? Int64) ?? -1
-                imgLogger.info("[MinisImage][Resolve] FOUND in global rootfs path=\(rootfsURL.path) size=\(size)")
+                imgLogger.info("[MoonveilImage][Resolve] FOUND in global rootfs path=\(rootfsURL.path) size=\(size)")
                 return rootfsURL
             }
         }
     }
 
-    imgLogger.warning("[MinisImage][Resolve] NOT FOUND in active session / global dirs url=\(url.absoluteString) host=\(host) subPaths=\(subPaths) (cross-session scan disabled for isolation)")
+    imgLogger.warning("[MoonveilImage][Resolve] NOT FOUND in active session / global dirs url=\(url.absoluteString) host=\(host) subPaths=\(subPaths) (cross-session scan disabled for isolation)")
     return nil
 }

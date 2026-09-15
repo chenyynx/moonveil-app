@@ -433,7 +433,7 @@ struct InlineVoiceInputView: View {
         // buttons, so on-device e2e voice tests (play audio at the phone, then
         // inspect debug.voiceInputs) drive the mic via this notification from
         // the debug server's `debug.voice.panel {action:"mic"}` instead.
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("MinisDebugVoiceMicTap"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("MoonveilDebugVoiceMicTap"))) { _ in
             VoiceLog.log("[debug-bridge] mic tap via debug.voice.panel")
             if showCancelIcon {
                 viewModel.cancelTranscription()

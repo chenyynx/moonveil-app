@@ -299,7 +299,7 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
             // [T-deferred-sync-reload] If a send is in flight, don't
             // reload mid-stream — that would re-snapshot messages and
             // could clobber the streaming assistant block / hide the
-            // "Minis is thinking" indicator. Flip a flag instead; the
+            // "Moonveil is thinking" indicator. Flip a flag instead; the
             // $isProcessing observer below picks it up and replays one
             // reload as soon as the send completes. This avoids waiting
             // the full sync-timer cycle (~60s) for the next refresh.
@@ -4556,7 +4556,7 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
             // content, no committed prior iteration, and history does not
             // end with a tool_result (would mean Case 1 owns it). The
             // placeholder ChatMessage runAgentLoop pushed would otherwise
-            // render as a bare "Minis" header bubble with the typing
+            // render as a bare "Moonveil" header bubble with the typing
             // indicator hosted on it. Drop the placeholder so the UI snaps
             // back to idle. Boundary against #566/#569 8bb0bf83: a candidate
             // with any non-empty text block or any tool_use block is kept

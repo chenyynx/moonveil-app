@@ -159,7 +159,7 @@ final class MountedFoldersManager {
     // MARK: - Persistence
 
     /// Mounts metadata lives in the App Group's private MinisConfig subdir
-    /// so it does NOT leak into iOS Files' "On My iPhone → Minis" view.
+    /// so it does NOT leak into iOS Files' "On My iPhone → Moonveil" view.
     /// Historically stored in `minisAppGroupRoot/mounted-folders.json`, but
     /// that path sits inside the FileProvider's exposed root.
     private static var storeURL: URL {

@@ -4,7 +4,7 @@ import Photos
 import QuickLook
 
 
-private let minisLogger = AppLogger(category: "MinisMedia")
+private let minisLogger = AppLogger(category: "MoonveilMedia")
 // MARK: - minis:// Media Provider
 
 // MARK: Media Cache — avoids re-loading/decoding when LazyVStack recycles cells
@@ -124,7 +124,7 @@ func resolveMinisFileURLCached(url: URL) -> URL? {
     let sessionScope = AIChatViewModel.activeSessionId ?? "nil"
     let key = "\(sessionScope)|\(url.absoluteString)"
     if let cached = MinisMediaCache.shared.resolvedURL(for: key) {
-        minisLogger.info("[MinisImage][ResolveCache] HIT url=\(url.absoluteString) → \(cached.path)")
+        minisLogger.info("[MoonveilImage][ResolveCache] HIT url=\(url.absoluteString) → \(cached.path)")
         return cached
     }
     if let resolved = resolveMinisFileURL(url: url) {
@@ -138,10 +138,10 @@ func resolveMinisFileURLCached(url: URL) -> URL? {
         if !isUnverifiedMountGuess {
             MinisMediaCache.shared.setResolvedURL(resolved, for: key)
         }
-        minisLogger.info("[MinisImage][ResolveCache] MISS→resolved url=\(url.absoluteString) → \(resolved.path)")
+        minisLogger.info("[MoonveilImage][ResolveCache] MISS→resolved url=\(url.absoluteString) → \(resolved.path)")
         return resolved
     }
-    minisLogger.warning("[MinisImage][ResolveCache] MISS→nil url=\(url.absoluteString)")
+    minisLogger.warning("[MoonveilImage][ResolveCache] MISS→nil url=\(url.absoluteString)")
     return nil
 }
 
@@ -220,7 +220,7 @@ let minisDocumentExtensions: Set<String> = [
 /// No dependency on iSH boot or bind mounts.
 func resolveMinisFileURL(url: URL) -> URL? {
     guard let host = url.host else {
-        minisLogger.warning("[ResolveMinisURL] no host in URL: \(url.absoluteString)")
+        minisLogger.warning("[ResolveMoonveilURL] no host in URL: \(url.absoluteString)")
         return nil
     }
     // Try the single-decoded subpath first; fall back to a double-decoded
@@ -238,7 +238,7 @@ func resolveMinisFileURL(url: URL) -> URL? {
                 .appendingPathComponent(subPath)
             let exists = fm.fileExists(atPath: persistURL.path)
             let fileSize: Int64 = exists ? ((try? fm.attributesOfItem(atPath: persistURL.path)[.size] as? Int64) ?? -1) : 0
-            minisLogger.info("[MinisImage][Resolve] \(url.absoluteString) → session=\(sid) → \(persistURL.path) exists=\(exists) size=\(fileSize)")
+            minisLogger.info("[MoonveilImage][Resolve] \(url.absoluteString) → session=\(sid) → \(persistURL.path) exists=\(exists) size=\(fileSize)")
             if exists { return persistURL }
         }
     }
@@ -253,7 +253,7 @@ func resolveMinisFileURL(url: URL) -> URL? {
         for subPath in subPaths {
             let candidate = globalDir.appendingPathComponent(subPath)
             if fm.fileExists(atPath: candidate.path) {
-                minisLogger.info("[MinisImage][Resolve] \(url.absoluteString) → global \(subdir) → \(candidate.path)")
+                minisLogger.info("[MoonveilImage][Resolve] \(url.absoluteString) → global \(subdir) → \(candidate.path)")
                 return candidate
             }
         }
@@ -301,11 +301,11 @@ func resolveMinisFileURL(url: URL) -> URL? {
                 // main thread means a watchdog SIGKILL. Off-main callers keep
                 // the precise check.
                 if Thread.isMainThread {
-                    minisLogger.info("[MinisImage][Resolve] \(url.absoluteString) → mount '\(mountName)' → \(candidate.path) (unverified, main thread)")
+                    minisLogger.info("[MoonveilImage][Resolve] \(url.absoluteString) → mount '\(mountName)' → \(candidate.path) (unverified, main thread)")
                     return candidate
                 }
                 if fm.fileExists(atPath: candidate.path) {
-                    minisLogger.info("[MinisImage][Resolve] \(url.absoluteString) → mount '\(mountName)' → \(candidate.path)")
+                    minisLogger.info("[MoonveilImage][Resolve] \(url.absoluteString) → mount '\(mountName)' → \(candidate.path)")
                     return candidate
                 }
             }
@@ -321,7 +321,7 @@ func resolveMinisFileURL(url: URL) -> URL? {
     // model-use-zimage-0.jpg, so session B referencing that path would silently
     // resolve to session A's image. Not-found is the correct, safe result for a
     // cross-session reference.
-    minisLogger.warning("[MinisImage][Resolve] \(url.absoluteString) → not found in active session, global dirs, or mounts (cross-session scan disabled for isolation)")
+    minisLogger.warning("[MoonveilImage][Resolve] \(url.absoluteString) → not found in active session, global dirs, or mounts (cross-session scan disabled for isolation)")
     return nil
 }
 
@@ -616,7 +616,7 @@ private struct MinisImageView: View {
     var body: some View {
         if let url, url.scheme == "minis" {
             let ext = url.pathExtension.lowercased()
-            let _ = minisLogger.info("[MinisImage][View] render url=\(url.absoluteString) ext=\(ext) hasLoadedImage=\(self.loadedImage != nil) attempt=\(self.loadAttempt)")
+            let _ = minisLogger.info("[MoonveilImage][View] render url=\(url.absoluteString) ext=\(ext) hasLoadedImage=\(self.loadedImage != nil) attempt=\(self.loadAttempt)")
             if minisAudioExtensions.contains(ext) {
                 if let fileURL = resolveMinisFileURLCached(url: url) {
                     MinisAudioPlayerView(url: url, fileURL: fileURL)
@@ -709,10 +709,10 @@ private struct MinisImageView: View {
 
     private func loadWithRetry(url: URL) async {
         let cacheKey = minisMediaCacheKey(for: url)
-        minisLogger.info("[MinisImage][MarkdownUI] loadWithRetry START url=\(url.absoluteString)")
+        minisLogger.info("[MoonveilImage][MarkdownUI] loadWithRetry START url=\(url.absoluteString)")
         // Check memory cache first — instant on cell recycle
         if let cached = MinisMediaCache.shared.image(for: cacheKey) {
-            minisLogger.info("[MinisImage][MarkdownUI] CACHE HIT url=\(url.absoluteString) size=\(cached.size.width)x\(cached.size.height)")
+            minisLogger.info("[MoonveilImage][MarkdownUI] CACHE HIT url=\(url.absoluteString) size=\(cached.size.width)x\(cached.size.height)")
             loadedImage = cached
             // Cache hit still changes the rendered intrinsic size from
             // mediaPlaceholderHeight to aspect-fit; tell the cell to remeasure.
@@ -725,35 +725,35 @@ private struct MinisImageView: View {
             }
             loadAttempt = attempt
             if let fileURL = resolveMinisFileURLCached(url: url) {
-                minisLogger.info("[MinisImage][MarkdownUI] attempt=\(attempt) url=\(url.absoluteString) resolved=\(fileURL.path) exists=\(FileManager.default.fileExists(atPath: fileURL.path))")
+                minisLogger.info("[MoonveilImage][MarkdownUI] attempt=\(attempt) url=\(url.absoluteString) resolved=\(fileURL.path) exists=\(FileManager.default.fileExists(atPath: fileURL.path))")
                 // Load and downsample on background thread to avoid blocking main thread
                 let image = await Task.detached(priority: .userInitiated) {
                     guard let data = try? Data(contentsOf: fileURL) else {
-                        minisLogger.warning("[MinisImage][MarkdownUI] Data(contentsOf:) FAILED url=\(url.absoluteString) path=\(fileURL.path)")
+                        minisLogger.warning("[MoonveilImage][MarkdownUI] Data(contentsOf:) FAILED url=\(url.absoluteString) path=\(fileURL.path)")
                         return nil as UIImage?
                     }
                     let fileSize = data.count
                     let img = downsampleImage(data: data, maxPixelSize: 2048)
                     if let img {
-                        minisLogger.info("[MinisImage][MarkdownUI] decoded url=\(url.absoluteString) dataSize=\(fileSize) imgSize=\(img.size.width)x\(img.size.height)")
+                        minisLogger.info("[MoonveilImage][MarkdownUI] decoded url=\(url.absoluteString) dataSize=\(fileSize) imgSize=\(img.size.width)x\(img.size.height)")
                     } else {
-                        minisLogger.warning("[MinisImage][MarkdownUI] downsample FAILED url=\(url.absoluteString) dataSize=\(fileSize)")
+                        minisLogger.warning("[MoonveilImage][MarkdownUI] downsample FAILED url=\(url.absoluteString) dataSize=\(fileSize)")
                     }
                     return img
                 }.value
                 if let image {
                     MinisMediaCache.shared.setImage(image, for: cacheKey)
                     loadedImage = image
-                    minisLogger.info("[MinisImage][MarkdownUI] SUCCESS url=\(url.absoluteString) attempt=\(attempt)")
+                    minisLogger.info("[MoonveilImage][MarkdownUI] SUCCESS url=\(url.absoluteString) attempt=\(attempt)")
                     // [T-attachment-size-invalidate] Placeholder (~fixed) → fit (variable, up to half-screen).
                     notifySizeChangeOnce()
                     return
                 }
             } else {
-                minisLogger.warning("[MinisImage][MarkdownUI] resolve FAILED attempt=\(attempt) url=\(url.absoluteString)")
+                minisLogger.warning("[MoonveilImage][MarkdownUI] resolve FAILED attempt=\(attempt) url=\(url.absoluteString)")
             }
         }
-        minisLogger.error("[MinisImage][MarkdownUI] GAVE UP after 6 attempts url=\(url.absoluteString)")
+        minisLogger.error("[MoonveilImage][MarkdownUI] GAVE UP after 6 attempts url=\(url.absoluteString)")
         loadAttempt = 0
     }
 

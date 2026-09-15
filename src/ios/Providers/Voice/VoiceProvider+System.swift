@@ -394,10 +394,10 @@ final class SystemVoiceProvider: NSObject, VoiceInputCapable, VoiceOutputCapable
     /// an English string. Falls back to English for everything else.
     static func sampleText(forLanguage langCode: String?) -> String {
         let lc = (langCode ?? "en").lowercased()
-        if lc.hasPrefix("zh") { return "你好，这是 Minis 的语音测试。" }
-        if lc.hasPrefix("ja") { return "こんにちは、これは Minis の音声テストです。" }
-        if lc.hasPrefix("ko") { return "안녕하세요, Minis 음성 테스트입니다." }
-        return "Hi! This is Minis testing this voice."
+        if lc.hasPrefix("zh") { return "你好，这是 Moonveil 的语音测试。" }
+        if lc.hasPrefix("ja") { return "こんにちは、これは Moonveil の音声テストです。" }
+        if lc.hasPrefix("ko") { return "안녕하세요, Moonveil 음성 테스트입니다." }
+        return "Hi! This is Moonveil testing this voice."
     }
 
     func stopSpeaking() {

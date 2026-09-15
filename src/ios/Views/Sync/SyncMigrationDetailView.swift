@@ -300,7 +300,7 @@ struct SyncMigrationDetailView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "pause.circle.fill")
                                 .foregroundStyle(.orange)
-                            Text("Paused — reopen Minis to continue")
+                            Text("Paused — reopen Moonveil to continue")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -675,7 +675,7 @@ struct SyncMigrationDetailView: View {
             }
             return AppLocalized("V1 sync (legacy) · another device's pre-v2 backup. Safe to delete if that device has migrated to V2.")
         case .system:
-            return AppLocalized("CloudKit built-in zone. Not used by Minis.")
+            return AppLocalized("CloudKit built-in zone. Not used by Moonveil.")
         case .other:
             return AppLocalized("Legacy or unknown zone. Inspect before deleting.")
         case .v2:

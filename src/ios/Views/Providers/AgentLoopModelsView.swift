@@ -59,7 +59,7 @@ struct AgentLoopModelsSection: View {
             }
         } header: {
             HStack {
-                Text("Models Minis Can Call at Runtime")
+                Text("Models Moonveil Can Call at Runtime")
                 Spacer()
                 if !currentEntries.isEmpty || !currentGroups.isEmpty {
                     EditButton()

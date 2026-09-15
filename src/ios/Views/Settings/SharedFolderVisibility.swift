@@ -13,7 +13,7 @@
 //    - Default = visible (all three are exposed on first launch).
 //    - Toggling an entry off does NOT delete any data — it just hides the
 //      subdir from the FileProvider enumerator so iOS Files no longer
-//      shows it under "On My iPhone → Minis".
+//      shows it under "On My iPhone → Moonveil".
 //
 
 import Foundation

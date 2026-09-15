@@ -245,7 +245,7 @@ final class BrowserUseManager: NSObject, ObservableObject {
         let printController = UIPrintInteractionController.shared
         let printInfo = UIPrintInfo.printInfo()
         printInfo.outputType = .general
-        printInfo.jobName = pageTitle.isEmpty ? "Minis" : pageTitle
+        printInfo.jobName = pageTitle.isEmpty ? "Moonveil" : pageTitle
         printController.printInfo = printInfo
         printController.printFormatter = webView.viewPrintFormatter()
         printController.present(animated: true) { _, completed, error in
@@ -2656,20 +2656,20 @@ extension BrowserUseManager: WKScriptMessageHandler {
 /// Handles `minis://` URLs in WKWebView by resolving them to local files.
 /// Supports `minis://workspace/file.html`, `minis://shared/...`, etc.
 final class MinisURLSchemeHandler: NSObject, WKURLSchemeHandler {
-    private let logger = AppLogger(category: "MinisScheme")
+    private let logger = AppLogger(category: "MoonveilScheme")
 
     func webView(_ webView: WKWebView, start urlSchemeTask: any WKURLSchemeTask) {
         let url = urlSchemeTask.request.url!
-        logger.info("[MinisScheme] start \(url.absoluteString)")
+        logger.info("[MoonveilScheme] start \(url.absoluteString)")
 
         guard let fileURL = AIChatViewModel.resolveMinisURL(url) else {
-            logger.warning("[MinisScheme] not found: \(url.absoluteString)")
+            logger.warning("[MoonveilScheme] not found: \(url.absoluteString)")
             urlSchemeTask.didFailWithError(URLError(.fileDoesNotExist))
             return
         }
 
         guard let data = try? Data(contentsOf: fileURL) else {
-            logger.warning("[MinisScheme] read failed: \(fileURL.path)")
+            logger.warning("[MoonveilScheme] read failed: \(fileURL.path)")
             urlSchemeTask.didFailWithError(URLError(.cannotOpenFile))
             return
         }
@@ -2684,7 +2684,7 @@ final class MinisURLSchemeHandler: NSObject, WKURLSchemeHandler {
         urlSchemeTask.didReceive(response)
         urlSchemeTask.didReceive(data)
         urlSchemeTask.didFinish()
-        logger.info("[MinisScheme] served \(url.absoluteString) → \(fileURL.lastPathComponent) (\(data.count) bytes, \(mimeType))")
+        logger.info("[MoonveilScheme] served \(url.absoluteString) → \(fileURL.lastPathComponent) (\(data.count) bytes, \(mimeType))")
     }
 
     func webView(_ webView: WKWebView, stop urlSchemeTask: any WKURLSchemeTask) {

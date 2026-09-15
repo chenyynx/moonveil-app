@@ -19,7 +19,7 @@ struct SendPromptIntent: AppIntent {
     // makes the text field appear. `inputConnectionBehavior` additionally lets
     // the field accept the previous action's output as a variable.
     @Parameter(title: "Prompt",
-               requestValueDialog: "What would you like to ask Minis?",
+               requestValueDialog: "What would you like to ask Moonveil?",
                inputConnectionBehavior: .connectToPreviousIntentResult)
     var prompt: String
 
@@ -178,7 +178,7 @@ struct SendPromptIntent: AppIntent {
             let promptPreview = String(prompt.prefix(50))
             ShortcutNotification.post(
                 id: "shortcut-start-\(sid)",
-                title: AppLocalized("Minis Task Started"),
+                title: AppLocalized("Moonveil Task Started"),
                 body: "\(modelName): \(promptPreview)\(prompt.count > 50 ? "…" : "")",
                 sessionId: sid
             )
@@ -200,7 +200,7 @@ struct SendPromptIntent: AppIntent {
             if sendCompletionNotification {
                 ShortcutNotification.post(
                     id: "shortcut-done-\(sid)",
-                    title: AppLocalized("Minis Task Completed"),
+                    title: AppLocalized("Moonveil Task Completed"),
                     body: "\(modelName): \(String(responseText.prefix(200)))",
                     sessionId: sid
                 )
@@ -235,7 +235,7 @@ struct SendPromptIntent: AppIntent {
             if capturedSendCompletionNotification {
                 ShortcutNotification.post(
                     id: "shortcut-done-\(capturedSid)",
-                    title: AppLocalized("Minis Task Completed"),
+                    title: AppLocalized("Moonveil Task Completed"),
                     body: "\(capturedModelName): \(summary)",
                     sessionId: capturedSid
                 )
@@ -265,7 +265,7 @@ struct SendPromptIntent: AppIntent {
     // the "Show More" section — `\.$files` first so the attachment slot is the
     // first thing surfaced when chaining from a previous action.
     static var parameterSummary: some ParameterSummary {
-        Summary("Send \(\.$prompt) to Minis") {
+        Summary("Send \(\.$prompt) to Moonveil") {
             \.$files
             \.$session
             \.$model

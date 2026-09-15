@@ -843,7 +843,7 @@ final class DebugJSONRPC: @unchecked Sendable {
             }
         case "mic":
             await MainActor.run {
-                NotificationCenter.default.post(name: Notification.Name("MinisDebugVoiceMicTap"), object: nil)
+                NotificationCenter.default.post(name: Notification.Name("MoonveilDebugVoiceMicTap"), object: nil)
             }
         default:
             throw RPCError(code: -32602, message: "Unknown action '\(action)' (open|close|mic)")

@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
 
 private let pasteLog = AppLogger(category: "PastableTV")
 
-private let minisLogger = AppLogger(category: "MinisURL")
+private let minisLogger = AppLogger(category: "MoonveilURL")
 struct SwipeToSendHint: View {
     let progress: CGFloat
     let armFraction: CGFloat

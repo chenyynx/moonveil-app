@@ -32,7 +32,7 @@ final class FileProviderItem: NSObject, NSFileProviderItem {
     }
 
     var filename: String {
-        if isRoot { return "Minis" }
+        if isRoot { return "Moonveil" }
         return fileURL.lastPathComponent
     }
 

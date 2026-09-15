@@ -161,7 +161,7 @@ struct MinisApp: App {
         Bundle.setLanguage(lang.isEmpty ? nil : lang)
         // [T-ios-soul-name-sidebar-stale] Pre-load cachedMetadata synchronously so
         // ContentView's `@State soulName` gets the real SOUL.md name on its very
-        // first render instead of the `.default` stub ("Minis"). Without this the
+        // first render instead of the `.default` stub ("Moonveil"). Without this the
         // @State initializer (evaluated at ContentView instantiation, before any
         // .onAppear refresh) locks the sidebar title to the default even when the
         // user set a custom name. refreshCache() only reads the tiny SOUL.md file.
@@ -657,7 +657,7 @@ struct MinisApp: App {
 
     private static let fileProviderDomain = NSFileProviderDomain(
         identifier: NSFileProviderDomainIdentifier("com.moonveil.app.files"),
-        displayName: "Minis"
+        displayName: "Moonveil"
     )
 
     /// Bumped when we need to force-rebuild the FileProvider domain on next launch

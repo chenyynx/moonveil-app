@@ -275,7 +275,7 @@ struct CloudSyncSettingsView: View {
         } header: {
             Text("Danger Zone")
         } footer: {
-            Text("Permanently erase all Minis data from iCloud. Local data on this device is not affected.")
+            Text("Permanently erase all Moonveil data from iCloud. Local data on this device is not affected.")
         }
     }
 

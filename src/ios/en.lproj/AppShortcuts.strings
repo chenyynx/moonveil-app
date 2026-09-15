@@ -1,4 +1,4 @@
-/* Siri invocation phrases for MinisShortcutsProvider (AppShortcuts).
+/* Siri invocation phrases for MoonveilShortcutsProvider (AppShortcuts).
    Keys must match the code phrases exactly, with `\(.applicationName)`
    spelled `${applicationName}`. Legacy .strings format (not .xcstrings)
    because the deployment target is iOS 16. */

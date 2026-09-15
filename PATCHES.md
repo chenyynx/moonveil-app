@@ -28,3 +28,18 @@ RemoteKit internals are ledgered separately (Packages/RemoteKit/Sources/AAV2/AA-
 - light slot ← v2.0.0 `logo/ios-dark-iOS-Default-1024@1x.png`, dark slot ← appiconset
   `ios-dark-iOS-Dark-1024@1x.png` (verbatim from moonveil-cloud tag v2.0.0).
 - Brand-artwork licensing: upstream README「图片来源与复现方式」— re-decide at open gate.
+
+## BR4 — Visible brand sweep Minis -> Moonveil (79 files, 419+/417-, 2026-09-15, pp directive)
+- Changed: all user-visible strings (UI copy incl. lock screen/About/settings/notifications/
+  Siri phrases/FileProvider labels), 9-language InfoPlist+AppShortcuts .strings, permission
+  usage descriptions (Info.plist), extension display names (pbxproj), app display name =
+  Moonveil, HTTP User-Agent (Minis/x -> Moonveil/x), log prefixes ([MinisImage]/[MinisScheme]/
+  [MinisSymlink]...), debug identifiers (MinisSoulMdChanged, MinisDebugVoiceMicTap), cache key
+  (MoonveilImageSizes_v1), share-sheet comment refs.
+- KEPT with reason (non-visible or contract-bearing): data-path anchors (MinisChat/, MinisConfig,
+  MinisFileProvider dirs, minis.db), iSH terminal escape protocol "MinisOpenURL=" (emitter+parser
+  pair), HTTP header name X-Minis-OAuth-UUID (server contract), minis:// URL scheme (deep-link
+  protocol), class/file/symbol names (MinisApp, AskMinisIntent...), symbolication example frame
+  (binary image name IS Minis), github.com/OpenMinis attribution (GPL), MinisTests fixtures,
+  one log string self-referencing a real function name.
+- UserDefaults-key renames are behavior-neutral for our installs (no shipped user base yet).

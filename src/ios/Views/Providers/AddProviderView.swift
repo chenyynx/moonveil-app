@@ -72,7 +72,7 @@ struct AIDataSharingConsentView: View {
                                 dataItem("API keys and tokens are stored only in the iOS Keychain on your device and are never sent to us")
                                 dataItem("Data is sent only to the specific provider you choose for each conversation")
                                 dataItem("You can remove any provider and its credentials at any time from Settings")
-                                dataItem("No data is shared with Minis or any other party beyond the provider you select")
+                                dataItem("No data is shared with Moonveil or any other party beyond the provider you select")
                             }
                         }
                     }

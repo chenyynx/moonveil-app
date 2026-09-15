@@ -251,7 +251,7 @@ struct MountDetailView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Show in Files app")
                     Text(visibleInFiles
-                         ? AppLocalized("This folder appears in Files → On My iPhone → Minis.")
+                         ? AppLocalized("This folder appears in Files → On My iPhone → Moonveil.")
                          : AppLocalized("This folder is hidden from the iOS Files app."))
                         .font(.caption)
                         .foregroundStyle(.secondary)

@@ -661,7 +661,7 @@ extension AIChatViewModel {
         let key = "lastKnownDataContainerUUID"
         let previous = UserDefaults.standard.string(forKey: key)
         if let previous, previous != current {
-            AppLogger(category: "MinisSymlink").warning("[MinisSymlink] Data container migrated \(previous.prefix(8))… → \(current.prefix(8))… (normal after an app update; contents were migrated by iOS). Session symlinks will be re-pointed as sessions mount.")
+            AppLogger(category: "MoonveilSymlink").warning("[MoonveilSymlink] Data container migrated \(previous.prefix(8))… → \(current.prefix(8))… (normal after an app update; contents were migrated by iOS). Session symlinks will be re-pointed as sessions mount.")
         }
         if previous != current {
             UserDefaults.standard.set(current, forKey: key)
@@ -704,7 +704,7 @@ extension AIChatViewModel {
                 let resolved = hostPath.resolvingSymlinksInPath().standardized.path
                 let expected = persistDir.resolvingSymlinksInPath().standardized.path
                 if resolved == expected { continue }
-                logger.info("[MinisSymlink] \(linuxDir): stale symlink (-> \(resolved), want \(expected)), replacing")
+                logger.info("[MoonveilSymlink] \(linuxDir): stale symlink (-> \(resolved), want \(expected)), replacing")
                 unlink(hostPath.path)
             } else if exists && (lstatBuf.st_mode & S_IFMT) == S_IFDIR {
                 // Real directory found where a symlink should be.
@@ -721,27 +721,27 @@ extension AIChatViewModel {
                                 try fm.moveItem(at: item, to: dest)
                                 moved += 1
                             } catch {
-                                logger.error("[MinisSymlink] \(linuxDir): migrate FAILED for \(item.lastPathComponent): \(error.localizedDescription)")
+                                logger.error("[MoonveilSymlink] \(linuxDir): migrate FAILED for \(item.lastPathComponent): \(error.localizedDescription)")
                             }
                         } else {
                             skipped += 1
                         }
                     }
                 }
-                logger.info("[MinisSymlink] \(linuxDir): real dir -> persistDir migration, moved=\(moved) skipped(existing)=\(skipped)")
+                logger.info("[MoonveilSymlink] \(linuxDir): real dir -> persistDir migration, moved=\(moved) skipped(existing)=\(skipped)")
                 try? fm.removeItem(at: hostPath)
             } else if exists {
                 // Regular file — unexpected, remove
-                logger.info("[MinisSymlink] \(linuxDir): unexpected regular file at \(hostPath.path), removing")
+                logger.info("[MoonveilSymlink] \(linuxDir): unexpected regular file at \(hostPath.path), removing")
                 unlink(hostPath.path)
             }
 
             // Create symlink
             do {
                 try fm.createSymbolicLink(at: hostPath, withDestinationURL: persistDir)
-                logger.info("[MinisSymlink] \(linuxDir): symlink created -> \(persistDir.path)")
+                logger.info("[MoonveilSymlink] \(linuxDir): symlink created -> \(persistDir.path)")
             } catch {
-                logger.error("[MinisSymlink] \(linuxDir): createSymbolicLink FAILED: \(error.localizedDescription)")
+                logger.error("[MoonveilSymlink] \(linuxDir): createSymbolicLink FAILED: \(error.localizedDescription)")
             }
         }
 
