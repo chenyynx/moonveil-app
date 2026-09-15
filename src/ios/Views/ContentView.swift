@@ -872,6 +872,7 @@ enum ToolSheet: String, Identifiable {
 }
 
 struct ContentView: View {
+    @ObservedObject private var tabRouter = RootTabRouter.shared
     /// Prefix for draft session IDs. Each new chat gets a unique suffix
     /// so SwiftUI's `.id()` correctly destroys old views and creates new ones.
     private static let newSessionPrefix = "__new__"
@@ -2730,7 +2731,7 @@ struct ContentView: View {
         }
         // [T-ios-migration-timer-toolbar-uaf-crash / T-ios-migration-timer-sessionlist-uaf-crash]
         // Own the migration-subtitle refresh driver here, on the stable sidebar list
-        // body, instead of on the churny toolbar principal item (see `titleLabel`).
+        // body, instead of on the churny toolbar principal item (now the ModeTabPicker capsule, B7-UI).
         // This Group has identity-stable lifetime across the sidebar's life — the
         // inner if/else only swaps which List renders, the wrapper itself is never
         // torn down — so the driver isn't rebuilt when the list content changes.
@@ -2749,7 +2750,7 @@ struct ContentView: View {
         // refreshMigrationSubtitle is idempotent (Task{@MainActor} + diff-before-assign).
         .task { await migrationSubtitleLoop() }
         // [T-ios-soul-name-sidebar-stale] Refresh the sidebar title from SOUL.md.
-        // Moved here off the churny toolbar `titleLabel` Text (which rebuilds on
+        // Moved here off the churny toolbar principal item (B7-UI capsule; rebuilds on
         // every canOpenSync/soulName/migrationSubtitle/isSelecting change) for the
         // same reason as the migration timer above: this Group's identity is stable
         // across the sidebar's life, so the sink is never torn down mid-transaction
@@ -3284,61 +3285,33 @@ struct ContentView: View {
                     if #available(iOS 17.0, *) { return SyncV2Bootstrap.isEnabled }
                     return false
                 }()
-                // Title text comes from SOUL.md (falls back to "Moonveil"). The
-                // leading sync indicator floats as an overlay so it doesn't
-                // take layout space — title stays perfectly centered in the
-                // navigation bar regardless of whether the indicator is visible.
-                // When iCloud sync isn't enabled the title is a plain Text;
-                // wrapping it in a `.disabled` Button would drain SwiftUI's
-                // default disabled-button tint into the label and render the
-                // SOUL name grey, which read as a styling bug rather than the
-                // intended "no sync detail to open" state.
-                // [T-ios-soul-name-sidebar-stale] The `.onReceive(soulMdChanged)`
-                // that refreshes `soulName` used to live HERE. It was moved to the
-                // stable `sessionList(useNavigationLinks:)` body for the SAME reason
-                // the migration timer was (see the T-ios-migration-timer note below):
-                // this toolbar principal item rebuilds on every canOpenSync /
-                // soulName / migrationSubtitle / isSelecting change, so a sink
-                // attached here gets torn down and re-created constantly and can
-                // drop a .soulMdChanged notification that arrives during the gap.
-                // This Text now only READS `soulName`.
-                let titleLabel = Text(soulName)
-                    .font(.system(size: 18.5, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .overlay(alignment: .leading) {
-                        if canOpenSync {
-                            Button {
-                                activeToolSheet = .syncMigrationDetail
-                            } label: {
-                                titleSyncIndicator(for: migrationSubtitle)
-                                    .contentShape(Rectangle())
-                                    .padding(4)
-                            }
-                            .buttonStyle(.plain)
-                            .offset(x: -27)
+                // B7-UI (pp 2026-09-15): the sidebar title position now hosts the
+                // Grok-style source-mode capsule (Moonveil / Remote). Upstream
+                // title behaviours PRESERVED, not deleted: tapping the selected
+                // local segment still opens sync-migration detail (onLocalRetap),
+                // the sync indicator still floats at the leading edge, and the
+                // isSelecting branch above is untouched. The [T-ios-soul-name-
+                // sidebar-stale] / [T-ios-migration-timer-toolbar-uaf-crash]
+                // invariants hold unchanged: this item only READS soulName /
+                // migrationSubtitle — their sinks live on the stable sessionList body.
+                ModeTabPicker(
+                    selection: $tabRouter.mode,
+                    localLabel: soulName,
+                    onLocalRetap: canOpenSync ? { activeToolSheet = .syncMigrationDetail } : nil
+                )
+                .frame(maxWidth: 220)
+                .overlay(alignment: .leading) {
+                    if canOpenSync {
+                        Button {
+                            activeToolSheet = .syncMigrationDetail
+                        } label: {
+                            titleSyncIndicator(for: migrationSubtitle)
+                                .contentShape(Rectangle())
+                                .padding(4)
                         }
+                        .buttonStyle(.plain)
+                        .offset(x: -27)
                     }
-                // [T-ios-migration-timer-toolbar-uaf-crash] The migration-subtitle
-                // refresh driver used to live HERE, on this `titleLabel` Text inside
-                // the churny toolbar principal item. That item rebuilds whenever
-                // canOpenSync / soulName / migrationSubtitle / isSelecting change, so
-                // AttributeGraph repeatedly tore down the driver's sink — a
-                // use-after-free release in the setBody transaction (EXC_BAD_ACCESS,
-                // build 309). The driver now lives on the stable
-                // `sessionList(useNavigationLinks:)` body (identity-stable across the
-                // sidebar lifetime) as a `.task` async loop, not a Combine timer sink
-                // (see migrationSubtitleLoop, T-ios-migration-timer-sessionlist-uaf-crash);
-                // this Text only READS the `migrationSubtitle` @State.
-
-                if canOpenSync {
-                    Button {
-                        activeToolSheet = .syncMigrationDetail
-                    } label: {
-                        titleLabel
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    titleLabel
                 }
             }
         }

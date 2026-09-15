@@ -521,6 +521,10 @@
 		RCL000119 /* BackupHistoryDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = RCL000219 /* BackupHistoryDetailView.swift */; };
 		RCL000120 /* BackupCategoryIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = RCL000220 /* BackupCategoryIcon.swift */; };
 		RCL000121 /* BackupHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = RCL000221 /* BackupHUD.swift */; };
+		D05AF00D00000000000000B1 /* ModeTabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A1 /* ModeTabPicker.swift */; };
+		D05AF00D00000000000000B2 /* RootTabRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A2 /* RootTabRouter.swift */; };
+		D05AF00D00000000000000B3 /* RootModeTabsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A3 /* RootModeTabsView.swift */; };
+		D05AF00D00000000000000B4 /* RemoteRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A4 /* RemoteRootView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1196,6 +1200,10 @@
 		RCL000219 /* BackupHistoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupHistoryDetailView.swift; sourceTree = "<group>"; };
 		RCL000220 /* BackupCategoryIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupCategoryIcon.swift; sourceTree = "<group>"; };
 		RCL000221 /* BackupHUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupHUD.swift; sourceTree = "<group>"; };
+		D05AF00D00000000000000A1 /* ModeTabPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModeTabPicker.swift; sourceTree = "<group>"; };
+		D05AF00D00000000000000A2 /* RootTabRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabRouter.swift; sourceTree = "<group>"; };
+		D05AF00D00000000000000A3 /* RootModeTabsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootModeTabsView.swift; sourceTree = "<group>"; };
+		D05AF00D00000000000000A4 /* RemoteRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteRootView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -1725,6 +1733,7 @@
 				F1V00013 /* Rootfs */,
 				F1V00011 /* Settings */,
 				F1V00016 /* Skills */,
+				D05AF00D00000000000000C1 /* ModeTabs */,
 				F1VMCPG0 /* MCP */,
 				EAB000060 /* Sync */,
 			);
@@ -2303,6 +2312,17 @@
 				F1VMCP04 /* SessionMCPsView.swift */,
 			);
 			path = MCP;
+			sourceTree = "<group>";
+		};
+		D05AF00D00000000000000C1 /* ModeTabs */ = {
+			isa = PBXGroup;
+			children = (
+				D05AF00D00000000000000A1 /* ModeTabPicker.swift */,
+				D05AF00D00000000000000A2 /* RootTabRouter.swift */,
+				D05AF00D00000000000000A3 /* RootModeTabsView.swift */,
+				D05AF00D00000000000000A4 /* RemoteRootView.swift */,
+			);
+			path = ModeTabs;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -3089,6 +3109,10 @@
 				8B886DA8A270E8FB58A9A1FA /* SpeechPlayerControl.swift in Sources */,
 				7A49962E84F115865D41B933 /* AudioSessionCoordinator.swift in Sources */,
 				C0B1AF9A75C90C3C178A8804 /* VoiceTextSanitizer.swift in Sources */,
+				D05AF00D00000000000000B1 /* ModeTabPicker.swift in Sources */,
+				D05AF00D00000000000000B2 /* RootTabRouter.swift in Sources */,
+				D05AF00D00000000000000B3 /* RootModeTabsView.swift in Sources */,
+				D05AF00D00000000000000B4 /* RemoteRootView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3452,7 +3476,7 @@
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -3507,7 +3531,7 @@
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
