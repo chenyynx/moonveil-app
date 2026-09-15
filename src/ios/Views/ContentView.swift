@@ -7718,10 +7718,12 @@ private struct SettingsSheet: View {
             .listStyle(.insetGrouped)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            // [T-8bfix] SheetCloseToolbar IS a ToolbarContent — it was wrapped in
+            // a ToolbarItem View closure in 8b (never typechecked until now). The
+            // other 4 usages expand directly; unify (leading-X placement lives in
+            // the component, matching upstream chrome). Dismiss semantics unchanged.
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    SheetCloseToolbar(action: { dismiss() })
-                }
+                SheetCloseToolbar(action: { dismiss() })
             }
             .navigationDestination(for: SettingsDestination.self) { dest in
                 switch dest {
