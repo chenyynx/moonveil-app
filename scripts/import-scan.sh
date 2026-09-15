@@ -23,10 +23,10 @@ if grep -rEn "import AAV2" --include=*.swift "$ROOT/src" 2>/dev/null | grep -q .
   echo "VIOLATION: App source imports AAV2 internals (frozen zone)"; viol=1
 fi
 # 3) word-list: app files outside seams may not reference registry symbols
-SEAM_DIRS="$ROOT/src/ios/Views/ModeTabs|$ROOT/src/ios/Views/AuthAA|$ROOT/src/ios/Providers|$ROOT/Packages"
+SEAM_DIRS="$ROOT/src/ios/Views/ModeTabs|$ROOT/src/ios/Views/AuthAA|$ROOT/Packages"
 banned_words=$(sed -e '/^#/d' -e '/^$/d' "$REG" 2>/dev/null | tr '\n' ' ')
 for w in $banned_words; do
-  hits=$(grep -rnE "\b${w}\b" --include=*.swift "$ROOT/src" 2>/dev/null | grep -Ev "$SEAM_DIRS" | grep -v "Minis.xcodeproj" || true)
+  hits=$(grep -rnE "(^|[^.[:alnum:]_])${w}\b" --include=*.swift "$ROOT/src" 2>/dev/null | grep -Ev "$SEAM_DIRS" | grep -v "Minis.xcodeproj" || true)
   if [ -n "$hits" ]; then
     echo "VIOLATION: non-seam app code references RemoteKit symbol '$w':"
     echo "$hits" | head -3

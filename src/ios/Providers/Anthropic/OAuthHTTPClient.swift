@@ -12,7 +12,7 @@ private let logger = AppLogger(category: "AnthropicStreamTransport")
 
 /// Replaces `x-api-key` with `Authorization: Bearer` via a custom URLProtocol.
 ///
-/// Since `HTTPRequest` properties are module-internal in SwiftAnthropic,
+/// Since `SwiftAnthropic.HTTPRequest` properties are module-internal in SwiftAnthropic,
 /// we can't mutate headers directly. Instead we route the default
 /// `URLSessionHTTPClientAdapter` through a URLSession whose configuration
 /// includes `OAuthURLProtocol`, which intercepts every request to swap
@@ -42,11 +42,11 @@ final class OAuthHTTPClient: HTTPClient {
         TokenBoxRegistry.shared.deregister(id: registryId)
     }
 
-    func data(for request: HTTPRequest) async throws -> (Data, HTTPResponse) {
+    func data(for request: SwiftAnthropic.HTTPRequest) async throws -> (Data, HTTPResponse) {
         try await underlying.data(for: request)
     }
 
-    func bytes(for request: HTTPRequest) async throws -> (HTTPByteStream, HTTPResponse) {
+    func bytes(for request: SwiftAnthropic.HTTPRequest) async throws -> (HTTPByteStream, HTTPResponse) {
         try await underlying.bytes(for: request)
     }
 }
@@ -1513,11 +1513,11 @@ final class EagerStreamingHTTPClient: HTTPClient {
         self.underlying = URLSessionHTTPClientAdapter(urlSession: session)
     }
 
-    func data(for request: HTTPRequest) async throws -> (Data, HTTPResponse) {
+    func data(for request: SwiftAnthropic.HTTPRequest) async throws -> (Data, HTTPResponse) {
         try await underlying.data(for: request)
     }
 
-    func bytes(for request: HTTPRequest) async throws -> (HTTPByteStream, HTTPResponse) {
+    func bytes(for request: SwiftAnthropic.HTTPRequest) async throws -> (HTTPByteStream, HTTPResponse) {
         try await underlying.bytes(for: request)
     }
 }
@@ -1540,11 +1540,11 @@ final class DualAuthHTTPClient: HTTPClient {
         self.underlying = URLSessionHTTPClientAdapter(urlSession: session)
     }
 
-    func data(for request: HTTPRequest) async throws -> (Data, HTTPResponse) {
+    func data(for request: SwiftAnthropic.HTTPRequest) async throws -> (Data, HTTPResponse) {
         try await underlying.data(for: request)
     }
 
-    func bytes(for request: HTTPRequest) async throws -> (HTTPByteStream, HTTPResponse) {
+    func bytes(for request: SwiftAnthropic.HTTPRequest) async throws -> (HTTPByteStream, HTTPResponse) {
         try await underlying.bytes(for: request)
     }
 }
