@@ -2,8 +2,27 @@
 # Upstream: ios/Agents Anywhere/Agents Anywhere/<path>  (mirror: chenyynx/moonveil-cloud tag v2.0.0)
 # Regenerate: cd this dir && find . -name '*.swift' -exec sha256sum {} \; | sed 's|\./||' | sort -k2 > FREEZE-MANIFEST.txt
 # Check:      cd this dir && sha256sum -c FREEZE-MANIFEST.txt   (see scripts/aav2-freeze-check.sh)
+0f711300028835f55bb27734e6bf8dfcd6a15c04fb20b3b9e8160bf3b86d9608  Business/V2BusinessError.swift
+22c385db4c54938eebf1a4e327ba379eeeffca2e883dc9e15be568249103560d  Domain/Attachment/V2AttachmentModels.swift
+1dac75c2c30a03e1a3152f0257b073d16cd1a02a6f6e47bd6a06853b064c3d27  Domain/Common/RuntimeLocalizedCopy.swift
+3968a48945efed4b9ce7e56ed741990d1f3d7e408b4c807094fb91fa0eafd81c  Domain/Common/V2ClientFailure.swift
+f7a0aa90609f7f1823f62128acbbc181cb0df93b2cd13d992494d9a27d468b1c  Domain/Common/V2Identifiers.swift
+d5a34c8245493bb10cf2eed4f706fc6bac9e47965070e097d4cad7a5296df870  Domain/Connector/V2Connector.swift
+cfcc5577354a196863dae3229d44dfc9c9f1b8d71c3fa5d3355eafd4f4f5dc9b  Domain/Realtime/V2RealtimeModels.swift
+927e5f531420acd0f4dd4bb0094e8cf936e87e47739fc05c52a6cb14392ce1e9  Domain/Runtime/V2RuntimeCapability.swift
+fcf9f658c47fbb6f6a351bd41e41432fed7cf0a5aefbcfed3ac55d7bc9beceb2  Domain/Runtime/V2RuntimeCatalog.swift
+569fbd24414bce178f2fe89f0e48f3563686bf6d8a82046152b49a60b49cc304  Domain/Runtime/V2RuntimeConfig.swift
+48999f2c628f37ba902b5d3ed443d90ea9125865eda88ab23701dce6f889ccf6  Domain/Runtime/V2RuntimeMessage.swift
+987755d4ce1a6b92931624ebf13115839f3f3404aa5dec51610ad8cc94f49689  Domain/Runtime/V2RuntimeNotice.swift
+6467b3faabcd56a0e76417db9090b794769fa8cc40ead4e8fb57916fcaea364a  Domain/Runtime/V2RuntimeState.swift
+051d990e2c170468aacfbfd7002f52200730bd01e5c22a38612df48a83ba27b2  Domain/Session/V2Project.swift
+d5d56699b0a4fa41a4eb61f594ba21f3f9030ca9c1a69e5e1bce10e496e174a7  Domain/Session/V2SessionData.swift
+19d24e3e7854f65dcd2455e253e24558af75b431c9c9ed5555e0c5a6cb1a0ac5  Domain/Session/V2SessionMeta.swift
+3bd0ca6ec5a40d579c8d851f792c7ef43e632a76126cbaa99f3ba84a2b2ac293  Domain/Session/V2SessionTimeline.swift
+eb6f8da104f90df7efa98c7e1872ee269d34824cb950b578e336b708cdf4c217  Domain/Session/V2TimelineItem.swift
 8570654994ea5ee97048342e456e7511f17bb8ad3d9f4ecdcebb7e0816dd1d56  Models/Session/V2SessionModel.swift
 1d350fb149e75c51f61e1967fd42647987f0eb65698e2800e8ff96e4e16d2cc4  Models/Session/V2SessionReadCoordinator.swift
+6139c95d2016516006dd8ac3ce2233b2794da24ae093cc7f29c3df46315b64a4  Network/HTTPError.swift
 0b7b306407e373680bfb64078a5dc2e28faf1546aa75f8f85560a029aebb8695  Repositories/V2LocalArchive.swift
 4dad69ac0aed9bd5a34d43ff194596c4124fcc5ff6b22767a8d3215de515ef23  Repositories/V2LocalStore.swift
 51bf7e380258c30f28971a4b968aac9359555ab411ced98972adf8dbd516b3e9  Repositories/V2SessionRepository.swift

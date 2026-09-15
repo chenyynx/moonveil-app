@@ -1,0 +1,23 @@
+name: RemoteKit Build
+# Fast compile gate for the AAV2 wiring ledger + Glue (swift build ~minutes, not the
+# full app build). Pushed only on RemoteKit changes to spare macOS minutes (10x).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Packages/RemoteKit/**'
+      - '.github/workflows/remotekit-build.yml'
+  pull_request:
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pin Xcode 26.2 (same pin as iOS Build; 26.6 OOM precedent)
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app
+      - name: swift build RemoteKit
+        run: |
+          cd Packages/RemoteKit
+          swift build 2>&1 | tail -60
+          swift build
