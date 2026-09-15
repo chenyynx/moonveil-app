@@ -34,6 +34,12 @@ let package = Package(
                 "Domain/Attachment",
                 "Network",
                 "Business",
+                // batch3 (2026-09-15): API/V2 transport-facing layer + WS client
+                // (closure of V2APIClient composition root; no UI deps — verified)
+                "API/V2",
+                "Domain/Account",
+                "Models/APIModels.swift",
+                "Models/WorkspaceDownloadedFile.swift",
                 "Views/Components/StableViewModel.swift",
             ],
             swiftSettings: [.swiftLanguageMode(.v5)]
