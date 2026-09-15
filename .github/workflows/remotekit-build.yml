@@ -29,5 +29,7 @@ jobs:
               grep -E 'error:' /tmp/rk-build.log | grep -v '`-' | sort -u | head -40
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
+            grep -E 'error:' /tmp/rk-build.log | grep -v '`-' | sort -u | head -25 | \
+              while IFS= read -r line; do echo "::error::${line:0:200}"; done
             exit 1
           fi

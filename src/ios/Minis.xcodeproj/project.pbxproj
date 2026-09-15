@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D05AF00F0000000000000010 /* AppSymbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00F0000000000000000 /* AppSymbol.swift */; };
+		D05AF00F0000000000000011 /* SettingsKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00F0000000000000001 /* SettingsKit.swift */; };
 		21FED4B7BB6F6D9476C9992E /* VoiceProvider+System.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88993FC8E3F0199C6638F664 /* VoiceProvider+System.swift */; };
 		241D530017827D7F0EB604DE /* VoiceProviderFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2941B643B8A2F048A2B154E /* VoiceProviderFactory.swift */; };
 		2A4FD49F872431D703328384 /* VoiceOutputPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 424510790AF3FB2452D3CCE3 /* VoiceOutputPlayer.swift */; };
@@ -525,6 +527,21 @@
 		D05AF00D00000000000000B2 /* RootTabRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A2 /* RootTabRouter.swift */; };
 		D05AF00D00000000000000B3 /* RootModeTabsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A3 /* RootModeTabsView.swift */; };
 		D05AF00D00000000000000B4 /* RemoteRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A4 /* RemoteRootView.swift */; };
+		D05AF00E000000000000B100 /* AAWordmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A100 /* AAWordmark.swift */; };
+		D05AF00E000000000000B101 /* AppFontRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A101 /* AppFontRegistry.swift */; };
+		D05AF00E000000000000B102 /* AppGlassButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A102 /* AppGlassButton.swift */; };
+		D05AF00E000000000000B103 /* AppSheetPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A103 /* AppSheetPresentation.swift */; };
+		D05AF00E000000000000B104 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A104 /* AppTheme.swift */; };
+		D05AF00E000000000000B105 /* AuthGlassCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A105 /* AuthGlassCompat.swift */; };
+		D05AF00E000000000000B106 /* AuthLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A106 /* AuthLayout.swift */; };
+		D05AF00E000000000000B107 /* ManualLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A107 /* ManualLoginView.swift */; };
+		D05AF00E000000000000B108 /* OAuthLoginCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A108 /* OAuthLoginCoordinator.swift */; };
+		D05AF00E000000000000B109 /* PrivacyPolicySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A109 /* PrivacyPolicySheet.swift */; };
+		D05AF00E000000000000B10A /* QRCodeLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A10A /* QRCodeLoginView.swift */; };
+		D05AF00E000000000000B10B /* QRCodeScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A10B /* QRCodeScannerView.swift */; };
+		D05AF00E000000000000B10C /* ServiceEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A10C /* ServiceEntryView.swift */; };
+		D05AF00E000000000000B10D /* SheetCloseButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A10D /* SheetCloseButton.swift */; };
+		D05AF00E000000000000F002 /* caveat_wght.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000F001 /* caveat_wght.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -609,6 +626,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		D05AF00F0000000000000000 /* AppSymbol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSymbol.swift; sourceTree = "<group>"; };
+		D05AF00F0000000000000001 /* SettingsKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsKit.swift; sourceTree = "<group>"; };
 		0ED149397BEA7E0408C92688 /* GroupVoiceModelsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupVoiceModelsView.swift; sourceTree = "<group>"; };
 		0F5379380323FA8C6477708C /* GroupSlotPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupSlotPicker.swift; sourceTree = "<group>"; };
 		16FF3462D09402F14B610CD6 /* VoiceWaveformView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceWaveformView.swift; sourceTree = "<group>"; };
@@ -1204,6 +1223,21 @@
 		D05AF00D00000000000000A2 /* RootTabRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabRouter.swift; sourceTree = "<group>"; };
 		D05AF00D00000000000000A3 /* RootModeTabsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootModeTabsView.swift; sourceTree = "<group>"; };
 		D05AF00D00000000000000A4 /* RemoteRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteRootView.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A100 /* AAWordmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AAWordmark.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A101 /* AppFontRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFontRegistry.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A102 /* AppGlassButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGlassButton.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A103 /* AppSheetPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSheetPresentation.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A104 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A105 /* AuthGlassCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthGlassCompat.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A106 /* AuthLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthLayout.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A107 /* ManualLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualLoginView.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A108 /* OAuthLoginCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthLoginCoordinator.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A109 /* PrivacyPolicySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicySheet.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A10A /* QRCodeLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeLoginView.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A10B /* QRCodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeScannerView.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A10C /* ServiceEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceEntryView.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A10D /* SheetCloseButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetCloseButton.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000F001 /* caveat_wght.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = caveat_wght.ttf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -1734,6 +1768,8 @@
 				F1V00011 /* Settings */,
 				F1V00016 /* Skills */,
 				D05AF00D00000000000000C1 /* ModeTabs */,
+				D05AF00F0000000000000F0 /* SettingsSkin */,
+				D05AF00E000000000000F100 /* AuthAA */,
 				F1VMCPG0 /* MCP */,
 				EAB000060 /* Sync */,
 			);
@@ -2325,6 +2361,35 @@
 			path = ModeTabs;
 			sourceTree = "<group>";
 		};
+		D05AF00F0000000000000F0 /* SettingsSkin */ = {
+			isa = PBXGroup;
+							D05AF00F0000000000000000 /* AppSymbol.swift */,
+D05AF00F0000000000000001 /* SettingsKit.swift */,
+			);
+			name = SettingsSkin; path = Views/SettingsSkin; sourceTree = "<group>";
+		};
+		D05AF00E000000000000F100 /* AuthAA */ = {
+			isa = PBXGroup;
+			children = (
+				D05AF00E000000000000A100 /* AAWordmark.swift */,
+				D05AF00E000000000000A101 /* AppFontRegistry.swift */,
+				D05AF00E000000000000A102 /* AppGlassButton.swift */,
+				D05AF00E000000000000A103 /* AppSheetPresentation.swift */,
+				D05AF00E000000000000A104 /* AppTheme.swift */,
+				D05AF00E000000000000A105 /* AuthGlassCompat.swift */,
+				D05AF00E000000000000A106 /* AuthLayout.swift */,
+				D05AF00E000000000000A107 /* ManualLoginView.swift */,
+				D05AF00E000000000000A108 /* OAuthLoginCoordinator.swift */,
+				D05AF00E000000000000A109 /* PrivacyPolicySheet.swift */,
+				D05AF00E000000000000A10A /* QRCodeLoginView.swift */,
+				D05AF00E000000000000A10B /* QRCodeScannerView.swift */,
+				D05AF00E000000000000A10C /* ServiceEntryView.swift */,
+				D05AF00E000000000000A10D /* SheetCloseButton.swift */,
+				D05AF00E000000000000F001 /* caveat_wght.ttf */,
+			);
+			path = AuthAA;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -2564,6 +2629,7 @@
 				E5JB00003 /* jieba.dict.utf8 in Resources */,
 				E5VC0000C /* zh_background_wordfreq.txt in Resources */,
 				E5JB00004 /* hmm_model.utf8 in Resources */,
+				D05AF00E000000000000F002 /* caveat_wght.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2690,6 +2756,8 @@
 				BB1000100F700000000000AA /* ContextPolicy.swift in Sources */,
 				AADDA9E12F6ECCF400B66649 /* ThumbnailCache.swift in Sources */,
 				E51000002 /* ContentView.swift in Sources */,
+				D05AF00F0000000000000010 /* AppSymbol.swift in Sources */,
+				D05AF00F0000000000000011 /* SettingsKit.swift in Sources */,
 				AA26CCBA2F31080100AECF2D /* ISHKernel.m in Sources */,
 				E5JB00001 /* JiebaWrapper.mm in Sources */,
 				E5JB00002 /* TextSegmenter.swift in Sources */,
@@ -3113,6 +3181,20 @@
 				D05AF00D00000000000000B2 /* RootTabRouter.swift in Sources */,
 				D05AF00D00000000000000B3 /* RootModeTabsView.swift in Sources */,
 				D05AF00D00000000000000B4 /* RemoteRootView.swift in Sources */,
+				D05AF00E000000000000B100 /* AAWordmark.swift in Sources */,
+				D05AF00E000000000000B101 /* AppFontRegistry.swift in Sources */,
+				D05AF00E000000000000B102 /* AppGlassButton.swift in Sources */,
+				D05AF00E000000000000B103 /* AppSheetPresentation.swift in Sources */,
+				D05AF00E000000000000B104 /* AppTheme.swift in Sources */,
+				D05AF00E000000000000B105 /* AuthGlassCompat.swift in Sources */,
+				D05AF00E000000000000B106 /* AuthLayout.swift in Sources */,
+				D05AF00E000000000000B107 /* ManualLoginView.swift in Sources */,
+				D05AF00E000000000000B108 /* OAuthLoginCoordinator.swift in Sources */,
+				D05AF00E000000000000B109 /* PrivacyPolicySheet.swift in Sources */,
+				D05AF00E000000000000B10A /* QRCodeLoginView.swift in Sources */,
+				D05AF00E000000000000B10B /* QRCodeScannerView.swift in Sources */,
+				D05AF00E000000000000B10C /* ServiceEntryView.swift in Sources */,
+				D05AF00E000000000000B10D /* SheetCloseButton.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

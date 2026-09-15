@@ -90,6 +90,10 @@ jobs:
             # the job summary so gh api check-runs/<id> always yields it.
             { echo '### xcodebuild error surface'; echo '```'; \
               grep -E 'error:' /tmp/ios-build.log | grep -v ' *|' | sort -u | head -60; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            # Also emit as annotations: retrievable via check-runs/<id>/annotations
+            # even when the blob-log store is down (summary endpoint proved empty today).
+            grep -E 'error:' /tmp/ios-build.log | grep -v ' *|' | sort -u | head -25 | \
+              while IFS= read -r line; do echo "::error::${line:0:200}"; done
             exit 1
           fi
           mkdir -p build/Payload
