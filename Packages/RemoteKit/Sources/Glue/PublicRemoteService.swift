@@ -68,6 +68,39 @@ public struct RemoteSessionCreated: Sendable {
     public let sessionMetaJSON: Data
 }
 
+// MARK: - Notices public surface (batch7 promise — delivered with the shell)
+
+public struct RemoteNoticeActionInput: Sendable {
+    public let required: Bool
+    public let schemaJSON: Data?
+    public let uiSchemaJSON: Data?
+}
+
+public struct RemoteNoticeAction: Sendable, Identifiable {
+    public let id: String          // official actionId
+    public let label: String
+    public let style: String?
+    public let input: RemoteNoticeActionInput
+}
+
+public struct RemoteNotice: Sendable, Identifiable {
+    public let id: String          // official noticeId
+    public let sessionId: String
+    public let type: String
+    public let title: String
+    public let message: String?
+    public let severity: String
+    public let status: String      // official V2RuntimeNoticeStatus rawValue verbatim
+    public let responseRequired: Bool
+    public let actions: [RemoteNoticeAction]
+    public let revision: Int
+    public let expiresAt: String?
+    /// Full wire object (official `raw` JSONValue re-encoded). Anything beyond
+    /// the typed fields (blocking/context/metadata) stays reachable here —
+    /// D2: no invented second schema, this IS the payload.
+    public let rawJSON: Data
+}
+
 @MainActor
 public final class RemoteService: ObservableObject {
 
@@ -193,6 +226,44 @@ public final class RemoteService: ObservableObject {
             events: try r.events.map { try RemoteWireEvent(from: $0, encoder: self.encoder) },
             nextCursor: r.nextCursor,
             snapshotRequired: r.snapshotRequired
+        )
+    }
+
+    // MARK: Notices (batch7)
+
+    public func noticeSnapshot(sessionId: String) async throws -> [RemoteNotice] {
+        let snap = try await attempt { try await self.engine.noticeSnapshot(sessionId: sessionId) }
+        return try snap.notices.map { try self.mapNotice($0) }
+    }
+
+    /// actionId/input mirror the official V2RuntimeNoticeRespondRequest exactly
+    /// (input = raw JSON, decoded into the official JSONValue — passthrough).
+    public func respondToNotice(sessionId: String, noticeId: String,
+                                actionId: String, inputJSON: Data?) async throws -> Data {
+        let input = try inputJSON.map { try JSONDecoder().decode(JSONValue.self, from: $0) }
+        let req = V2RuntimeNoticeRespondRequest(actionId: actionId, input: input)
+        return try absorb(try await attempt {
+            try await self.engine.respondToNotice(sessionId: sessionId, noticeId: noticeId, request: req)
+        })
+    }
+
+    private func mapNotice(_ n: V2RuntimeNotice) throws -> RemoteNotice {
+        RemoteNotice(
+            id: n.noticeId, sessionId: n.sessionId, type: n.type,
+            title: n.title, message: n.message, severity: n.severity,
+            status: n.status.rawValue, responseRequired: n.responseRequired,
+            actions: n.actions.map { a in
+                RemoteNoticeAction(
+                    id: a.actionId, label: a.label, style: a.style,
+                    input: RemoteNoticeActionInput(
+                        required: a.input.required,
+                        schemaJSON: try? a.input.schema.map { try self.encoder.encode($0) },
+                        uiSchemaJSON: try? a.input.uiSchema.map { try self.encoder.encode($0) }
+                    )
+                )
+            },
+            revision: n.revision, expiresAt: n.expiresAt,
+            rawJSON: try encoder.encode(n.raw)
         )
     }
 
