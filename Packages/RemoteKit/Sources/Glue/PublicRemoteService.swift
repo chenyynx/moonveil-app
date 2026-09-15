@@ -154,13 +154,20 @@ public final class RemoteService: ObservableObject {
     public func checkServer(_ value: String) async -> URL? {
         authErrorText = nil; needsLocalNetworkSettings = false
         isWorking = true; defer { isWorking = false }
-        guard let url = URL(string: value.trimmingCharacters(in: .whitespacesAndNewlines)),
-              url.scheme?.hasPrefix("http") == true else {
-            authErrorText = "Invalid server address"
+        do {
+            // Upstream normaliser (AAV2/API/APIClient.swift:177): a bare host gets
+            // https:// prepended; empty/unparseable throws invalidServerURL, whose
+            // own localized description is surfaced below via finishAuth — exactly
+            // the shape AppState.checkServer has. (B8-AUTH had replaced this with a
+            // stricter URL(string:) guard + a hardcoded English string: both were
+            // deviations from official behaviour; device report 2026-09-16 05:24.)
+            let url = try URL.agentsServer(from: value)
+            try await engine.probeServer(url)
+            return url
+        } catch {
+            finishAuth(error)
             return nil
         }
-        do { try await engine.probeServer(url); return url }
-        catch { finishAuth(error); return nil }
     }
 
     /// Manual-login completion: OAuth coordinator returned a token against a
