@@ -96,6 +96,16 @@ jobs:
             # even when the blob-log store is down (summary endpoint proved empty today).
             grep -E 'error:' /tmp/ios-build.log | grep -v ' *|' | sort -u | head -25 | \
               while IFS= read -r line; do echo "::error::${line:0:200}"; done
+            # [PROBE 2026-09-15] permitsRetry paradox: same 6.2 compiler, macOS
+            # swift-build(v5-pinned)=green vs Xcode=red. What did the frontend ACTUALLY
+            # receive? Emit histogram + effective settings via proven annotation channel.
+            { grep -oE -- '-swift-version [^ ]+' /tmp/ios-build.log | sort | uniq -c | \
+                while IFS= read -r l; do echo "::error::PROBE version-histogram:${l}"; done; \
+              grep -c 'permitsRetry' /tmp/ios-build.log | xargs -I{} echo "::error::PROBE permitsRetry-lines:{}"; \
+              xcodebuild -showBuildSettings -project Minis.xcodeproj -target Minis \
+                -configuration Release 2>/dev/null | grep -E 'SWIFT_VERSION|STRICT_CONCURRENCY|SWIFT_UPCOMING_FEATURE' | \
+                sed 's/^ *//' | while IFS= read -r l; do echo "::error::PROBE setting:${l:0:120}"; done; \
+            } | head -15
             exit 1
           fi
           mkdir -p build/Payload
