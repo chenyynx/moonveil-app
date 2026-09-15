@@ -36,14 +36,13 @@ struct ServiceEntryView: View {
                         onManualLogin()
                     }
 
-                    Button(action: onLocalEntry) {
-                        Text(String(localized: "Use local AI directly"))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .frame(minHeight: 44)
+                    // JO-6 本地入口（pp 2026-09-16 改判：必须是一颗胶囊，不是一行灰字）。
+                    // Same component/same row rhythm as 手动登录 — AA's own glass
+                    // capsule, no invented third button style. Hierarchy is carried
+                    // by the icon + copy, not by shrinking it into invisible text.
+                    AuthGlassButton(String(localized: "Use local AI directly"), systemImage: "iphone") {
+                        onLocalEntry()
                     }
-                    .buttonStyle(.plain)
-                    .padding(.top, 6)
                 }
                 .frame(maxWidth: 340)
 

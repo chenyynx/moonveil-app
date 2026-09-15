@@ -1,6 +1,6 @@
 // RootModeTabsView.swift — the single fork point (D4 §2) + 首启入口终案接线:
-// 未登录且落在远程 tab → AA 官方登录页全屏盖（扫码/手动两颗 CTA + JO-6 本地灰字
-// 入口）；登录成功 → 远程 tab；本地入口 → 本机 tab；lastTab 记忆（RootTabRouter）。
+// 未登录且落在远程 tab → AA 官方登录页全屏盖（扫码/手动/本地三颗胶囊 CTA）；
+// 登录成功 → 远程 tab；本地入口 → 本机 tab；lastTab 记忆（RootTabRouter）。
 // 恢复：官方 restoreSession 语义（UserDefaults server + keychain token）。
 // 隔离：本机 tab = upstream ContentView 本体零改动；登录盖只在远程侧出现。
 // B9-LANDING: lastTab 为空（全新安装）时落 .remote —— U1 §6 拍板「首启入口 =
