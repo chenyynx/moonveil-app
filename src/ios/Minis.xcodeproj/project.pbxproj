@@ -2361,12 +2361,15 @@
 			path = ModeTabs;
 			sourceTree = "<group>";
 		};
-		D05AF00F0000000000000F0 /* SettingsSkin */ = {
+				D05AF00F0000000000000F0 /* SettingsSkin */ = {
 			isa = PBXGroup;
-							D05AF00F0000000000000000 /* AppSymbol.swift */,
-D05AF00F0000000000000001 /* SettingsKit.swift */,
+			children = (
+				D05AF00F0000000000000000 /* AppSymbol.swift */,
+				D05AF00F0000000000000001 /* SettingsKit.swift */,
 			);
-			name = SettingsSkin; path = Views/SettingsSkin; sourceTree = "<group>";
+			name = SettingsSkin;
+			path = Views/SettingsSkin;
+			sourceTree = "<group>";
 		};
 		D05AF00E000000000000F100 /* AuthAA */ = {
 			isa = PBXGroup;
