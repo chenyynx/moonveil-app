@@ -11,8 +11,15 @@ let package = Package(
     name: "RemoteKit",
     platforms: [.iOS(.v18), .macOS(.v14)],
     products: [.library(name: "RemoteKit", targets: ["RemoteKit"])],
+    // Language mode pinned to Swift 5 = upstream's SWIFT_VERSION (5.0 in the
+    // v2.0.0 Xcode project, verified 2026-09-15). The frozen AAV2 code leans on
+    // Swift-5 warning-level actor isolation (HTTPReadRetryPolicy.permitsRetry is
+    // @MainActor, called from a nonisolated retry loop; HTTPTransport.swift:56).
+    // tools-version 6.0 defaults every target to Swift 6 mode, which hard-errors
+    // the verbatim official sources — align the build config, freeze zone untouched.
     targets: [
-        .target(name: "RemoteKit", dependencies: ["AAV2"], path: "Sources/Glue"),
+        .target(name: "RemoteKit", dependencies: ["AAV2"], path: "Sources/Glue",
+                swiftSettings: [.swiftLanguageMode(.v5)]),
         .target(
             name: "AAV2",
             dependencies: [],
@@ -28,7 +35,8 @@ let package = Package(
                 "Network",
                 "Business",
                 "Views/Components/StableViewModel.swift",
-            ]
+            ],
+            swiftSettings: [.swiftLanguageMode(.v5)]
         ),
     ]
 )
