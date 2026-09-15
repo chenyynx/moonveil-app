@@ -808,7 +808,7 @@ Trigger a model-list refresh for an instance (re-queries `/v1/models` or the equ
 
 ### `provider.models.setAgentLoop`
 
-Toggle whether a specific model entry is exposed to the in-shell `minis-model-use` agent. Equivalent to the "Available in Agent Loop" toggle in the model entry detail screen — agent-loop visibility is what determines if the in-shell tool can list and invoke a model.
+Toggle whether a specific model entry is exposed to the in-shell `moonveil-model-use` agent. Equivalent to the "Available in Agent Loop" toggle in the model entry detail screen — agent-loop visibility is what determines if the in-shell tool can list and invoke a model.
 
 **Params:**
 
@@ -964,7 +964,7 @@ Returns `-32602` if `groupId` is non-null but doesn't exist.
 
 ### `provider.groups.setAgentLoop`
 
-Toggle whether a model group is exposed to the in-shell `minis-model-use` agent (parallel to `provider.models.setAgentLoop` but for groups).
+Toggle whether a model group is exposed to the in-shell `moonveil-model-use` agent (parallel to `provider.models.setAgentLoop` but for groups).
 
 **Params:**
 

@@ -4,8 +4,8 @@ import Foundation
 
 private let logger = AppLogger(category: "Backup")
 
-/// Passphrase-based encryption for `.minisbak` packages
-/// (docs/backup-restore-design.md §5, scheme `minisbak-enc/1`).
+/// Passphrase-based encryption for `.moonveilbak` packages
+/// (docs/backup-restore-design.md §5, scheme `moonveilbak-enc/1`).
 ///
 /// ## Chosen parameters, and the Android equivalent for each
 ///
@@ -41,7 +41,7 @@ private let logger = AppLogger(category: "Backup")
 /// rather than guessed at.
 enum BackupCrypto {
 
-    static let scheme = "minisbak-enc/1"
+    static let scheme = "moonveilbak-enc/1"
     static let pbkdf2Iterations = 600_000
     static let saltBytes = 16
 
@@ -76,19 +76,19 @@ enum BackupCrypto {
                     info: Data(info.utf8),
                     outputByteCount: 32))
             }
-            dataKey = sub("minisbak/data")
-            secretsKey = sub("minisbak/secrets")
-            macKey = sub("minisbak/mac")
-            verifierKey = sub("minisbak/verify")
+            dataKey = sub("moonveilbak/data")
+            secretsKey = sub("moonveilbak/secrets")
+            macKey = sub("moonveilbak/mac")
+            verifierKey = sub("moonveilbak/verify")
         }
 
-        /// `HMAC(verifier_key, "minisbak-v1")` truncated to 16 bytes (§5.2).
+        /// `HMAC(verifier_key, "moonveilbak-v1")` truncated to 16 bytes (§5.2).
         /// Written to the manifest at export; recomputed at import so a wrong
         /// passphrase fails instantly instead of surfacing as a decrypt error
         /// halfway through a multi-GB restore.
         var verifier: String {
             var mac = HMAC<SHA256>(key: verifierKey)
-            mac.update(data: Data("minisbak-v1".utf8))
+            mac.update(data: Data("moonveilbak-v1".utf8))
             return Data(mac.finalize().prefix(16)).base64EncodedString()
         }
     }

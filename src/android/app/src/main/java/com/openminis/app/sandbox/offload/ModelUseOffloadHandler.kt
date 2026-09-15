@@ -19,13 +19,13 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * `minis-model-use` — list, search, and invoke LLM models from Alpine shell.
+ * `moonveil-model-use` — list, search, and invoke LLM models from Alpine shell.
  * Mirrors iOS ModelUseOffload.m + ModelUseOffloadBridge.swift.
  *
  * Subcommands:
- *   minis-model-use list [--provider <name>] [--modality <m>]
- *   minis-model-use search <query> [--provider <name>] [--modality <m>]
- *   minis-model-use run --model <id_or_name> [--input <path>] [--output <path>]
+ *   moonveil-model-use list [--provider <name>] [--modality <m>]
+ *   moonveil-model-use search <query> [--provider <name>] [--modality <m>]
+ *   moonveil-model-use run --model <id_or_name> [--input <path>] [--output <path>]
  *                       [--system <text>] [--system-file <path>]
  *                       [--max-tokens N] [--temperature F]
  *
@@ -48,7 +48,7 @@ class ModelUseOffloadHandler(
                 "list" -> cmdList(args)
                 "search" -> cmdSearch(args)
                 "run" -> cmdRun(args, request)
-                else -> NativeOffloadResult(2, "minis-model-use: unknown subcommand '$sub'\n$HELP")
+                else -> NativeOffloadResult(2, "moonveil-model-use: unknown subcommand '$sub'\n$HELP")
             }
         } catch (e: Throwable) {
             Log.w(TAG, "uncaught: ${e.message}", e)
@@ -88,7 +88,7 @@ class ModelUseOffloadHandler(
         val query = args.positional.getOrNull(1)
             ?: return NativeOffloadResult(
                 2,
-                "minis-model-use search: no query. Usage: minis-model-use search <query>\n",
+                "moonveil-model-use search: no query. Usage: moonveil-model-use search <query>\n",
             )
         val q = query.lowercase()
         val modalityFilter = args.get("modality")?.lowercase()
@@ -114,7 +114,7 @@ class ModelUseOffloadHandler(
 
     private fun cmdRun(args: OffloadArgs, request: NativeOffloadRequest): NativeOffloadResult {
         val modelArg = args.get("model")
-            ?: return NativeOffloadResult(2, "--model is required. Usage: minis-model-use run --model <id_or_name>\n")
+            ?: return NativeOffloadResult(2, "--model is required. Usage: moonveil-model-use run --model <id_or_name>\n")
 
         // Optional provider scoping — disambiguates when multiple instances expose the same model_id.
         val providerFilter = args.get("provider")
@@ -127,7 +127,7 @@ class ModelUseOffloadHandler(
                     .put(
                         "message",
                         if (providerFilter != null)
-                            "No model '$modelArg' under provider '$providerFilter'. Use 'minis-model-use list' to see available combinations."
+                            "No model '$modelArg' under provider '$providerFilter'. Use 'moonveil-model-use list' to see available combinations."
                         else
                             "Model '$modelArg' not visible to the agent. Add it in Settings > Model Groups > Available Models in Agent Loop.",
                     )
@@ -153,7 +153,7 @@ class ModelUseOffloadHandler(
                         "message",
                         "--output must be an absolute path (e.g. /var/minis/workspace/out.jpg). " +
                             "Got the relative path '$outputPath', which cannot be resolved because " +
-                            "minis-model-use does not inherit the shell's working directory.",
+                            "moonveil-model-use does not inherit the shell's working directory.",
                     )
                     .toString() + "\n",
             )
@@ -180,7 +180,7 @@ class ModelUseOffloadHandler(
             return NativeOffloadResult(
                 2,
                 JSONObject().put("error", "modality_not_supported")
-                    .put("message", "Model '${entry.model.displayName}' does not support $requiredModality. Supported modalities: ${supported.joinToString(", ")}. Use 'minis-model-use list' to find a model with the required capability.")
+                    .put("message", "Model '${entry.model.displayName}' does not support $requiredModality. Supported modalities: ${supported.joinToString(", ")}. Use 'moonveil-model-use list' to find a model with the required capability.")
                     .toString() + "\n",
             )
         }
@@ -193,7 +193,7 @@ class ModelUseOffloadHandler(
             args.get("input") != null -> readLinuxPath(args.get("input")!!)
                 ?: return NativeOffloadResult(
                     2,
-                    "minis-model-use run: cannot read --input '${args.get("input")}'\n",
+                    "moonveil-model-use run: cannot read --input '${args.get("input")}'\n",
                 )
             else -> ""
         }
@@ -234,7 +234,7 @@ class ModelUseOffloadHandler(
                         "message",
                         "Model '${entry.model.displayName}' does not support audio_input, " +
                             "but the input contains an input_audio block. " +
-                            "Use 'minis-model-use list --modality audio' to find an audio-capable model.",
+                            "Use 'moonveil-model-use list --modality audio' to find an audio-capable model.",
                     )
                     .toString() + "\n",
             )
@@ -270,7 +270,7 @@ class ModelUseOffloadHandler(
                     .toString() + "\n",
             )
         val instance = providerRepository.instance(entry.providerInstanceId)
-            ?: return NativeOffloadResult(2, "minis-model-use run: provider instance not found\n")
+            ?: return NativeOffloadResult(2, "moonveil-model-use run: provider instance not found\n")
         val provider = ProviderFactory.create(instance, apiKey, entry.model, context)
 
         // [GH#67] input_audio serialization is implemented for the OpenAI
@@ -414,7 +414,7 @@ class ModelUseOffloadHandler(
                 ?: PRootKernel.resolveHostPath(outputPath)
                 ?: return NativeOffloadResult(
                     2,
-                    "minis-model-use run: cannot resolve --output '$outputPath'\n",
+                    "moonveil-model-use run: cannot resolve --output '$outputPath'\n",
                 )
             val firstMedia = response.mediaAttachments.firstOrNull()
             val outputIsMedia = isImageExt(outputExt) || isAudioExt(outputExt) || isVideoExt(outputExt)
@@ -1205,7 +1205,7 @@ class ModelUseOffloadHandler(
                 ?: PRootKernel.resolveHostPath(outputPath)
                 ?: return NativeOffloadResult(
                     2,
-                    "minis-model-use run: cannot resolve --output '$outputPath'\n",
+                    "moonveil-model-use run: cannot resolve --output '$outputPath'\n",
                 )
             val outputIsMedia = isImageExt(outputExt)
             if (firstMedia != null && outputIsMedia) {
@@ -1609,7 +1609,7 @@ class ModelUseOffloadHandler(
         // http(s):// — surface the iOS-parity message
         if (url.startsWith("http://") || url.startsWith("https://")) {
             throw ImageInputError(
-                "http(s):// image URLs are not supported by minis-model-use. " +
+                "http(s):// image URLs are not supported by moonveil-model-use. " +
                     "Download first with `shell_execute` (curl/wget) into " +
                     "/var/minis/workspace/, then reference the local path."
             )
@@ -1690,7 +1690,7 @@ class ModelUseOffloadHandler(
          *  `entry_id` (UUID) also works but is opaque; prefer the human-readable forms.
          */
         private const val USAGE_HINT =
-            "To invoke a model, pass `--model <model_id>` to `minis-model-use run`. " +
+            "To invoke a model, pass `--model <model_id>` to `moonveil-model-use run`. " +
             "If multiple providers expose the same `model_id`, disambiguate either with " +
             "`--model <instance_label>/<model_id>` (e.g. `--model deepseek/deepseek-v4-flash`) " +
             "or with `--model <model_id> --provider <instance_label>` " +
@@ -1709,12 +1709,12 @@ class ModelUseOffloadHandler(
             "top-level field (forwarded verbatim; enables provider-specific params like Seedream " +
             "image-to-image). Read the target model's `hint` for concrete examples."
 
-        private const val HELP = """minis-model-use — list, search, and invoke LLM models
+        private const val HELP = """moonveil-model-use — list, search, and invoke LLM models
 
 Usage:
-  minis-model-use list [--provider <name>] [--modality <mod>]
-  minis-model-use search <query> [--provider <name>] [--modality <mod>]
-  minis-model-use run --model <id_or_name> [--provider <label_or_id>]
+  moonveil-model-use list [--provider <name>] [--modality <mod>]
+  moonveil-model-use search <query> [--provider <name>] [--modality <mod>]
+  moonveil-model-use run --model <id_or_name> [--provider <label_or_id>]
                       [--input <path>] [--output <path>]
                       [--system <text>] [--system-file <path>]
                       [--max-tokens N] [--temperature F]
@@ -1804,14 +1804,14 @@ Image generation fields (only for image_output models):
      "generation_config":{"aspect_ratio":"16:9","image_size":"2K"}}
 
 Examples:
-  minis-model-use list
-  minis-model-use list --modality image_input
-  minis-model-use search gemini
-  minis-model-use run --model claude-sonnet-4-6 --input /var/minis/workspace/prompt.json
-  minis-model-use run --model deepseek/deepseek-v4-flash --input msgs.json   # qualified form
-  minis-model-use run --model deepseek-v4-flash --provider deepseek --input msgs.json   # equivalent
-  echo 'What is 2+2?' | minis-model-use run --model gpt-4o
-  minis-model-use run --model gemini-2.5-flash --system 'You are a poet' \
+  moonveil-model-use list
+  moonveil-model-use list --modality image_input
+  moonveil-model-use search gemini
+  moonveil-model-use run --model claude-sonnet-4-6 --input /var/minis/workspace/prompt.json
+  moonveil-model-use run --model deepseek/deepseek-v4-flash --input msgs.json   # qualified form
+  moonveil-model-use run --model deepseek-v4-flash --provider deepseek --input msgs.json   # equivalent
+  echo 'What is 2+2?' | moonveil-model-use run --model gpt-4o
+  moonveil-model-use run --model gemini-2.5-flash --system 'You are a poet' \
                       --input msgs.json --output /var/minis/workspace/out.txt
 """
     }

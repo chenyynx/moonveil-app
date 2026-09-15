@@ -18,11 +18,11 @@ struct OffloadPermissionSettingsView: View {
             }
 
             Section {
-                Toggle("Allow minis-config", isOn: $configGate.enabled)
+                Toggle("Allow moonveil-config", isOn: $configGate.enabled)
             } header: {
                 Text("Configuration Tool")
             } footer: {
-                Text("When disabled, the agent cannot read or modify any settings via minis-config. The change history at Logs → Config Changes remains accessible. The agent will receive a permission_denied error and can guide you via deep links instead.")
+                Text("When disabled, the agent cannot read or modify any settings via moonveil-config. The change history at Logs → Config Changes remains accessible. The agent will receive a permission_denied error and can guide you via deep links instead.")
             }
 
             Section("Privacy") {
@@ -78,7 +78,7 @@ struct OffloadPermissionSettingsView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Set All Bypass") {
                     manager.setAllBypass()
-                    // The minis-config master switch is a separate
+                    // The moonveil-config master switch is a separate
                     // store from OffloadPermissionManager (different
                     // subsystem) so its own setAllBypass doesn't touch
                     // it. Flip it on here so "Set All Bypass" really

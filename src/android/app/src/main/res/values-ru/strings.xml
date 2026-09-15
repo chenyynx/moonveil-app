@@ -149,7 +149,7 @@
     <string name="mcp_add">Добавить сервер MCP</string>
     <string name="mcp_edit">Изменить сервер MCP</string>
     <string name="mcp_section_servers">Серверы</string>
-    <string name="mcp_section_footer">Серверы MCP позволяют Minis Agent вызывать внешние инструменты через minis-mcp-cli. Конфигурация хранится в /var/minis/mcp-servers/servers.json (совместимо с Claude Desktop).</string>
+    <string name="mcp_section_footer">Серверы MCP позволяют Minis Agent вызывать внешние инструменты через moonveil-mcp-cli. Конфигурация хранится в /var/minis/mcp-servers/servers.json (совместимо с Claude Desktop).</string>
     <string name="mcp_empty_title">Нет серверов MCP</string>
     <string name="mcp_empty_action">Добавьте сервер кнопкой +.</string>
     <string name="mcp_transport_http">HTTP</string>
@@ -720,8 +720,8 @@
     <string name="perm_agent_policy">Разрешение Minis Agent</string>
     <string name="perm_a11y_system_ready">Служба включена</string>
     <string name="perm_a11y_system_disabled">Служба не включена</string>
-    <string name="perm_allow_minis_config">Разрешить minis-config</string>
-    <string name="perm_minis_config_desc">Когда отключено, Agent не может считывать или изменять какие-либо настройки через minis-config. История изменений в Журналы → Изменения настроек остаётся доступной. Agent получит ошибку permission_denied и сможет вместо этого направить вас через глубокие ссылки.</string>
+    <string name="perm_allow_minis_config">Разрешить moonveil-config</string>
+    <string name="perm_minis_config_desc">Когда отключено, Agent не может считывать или изменять какие-либо настройки через moonveil-config. История изменений в Журналы → Изменения настроек остаётся доступной. Agent получит ошибку permission_denied и сможет вместо этого направить вас через глубокие ссылки.</string>
     <string name="perm_section_privacy">Конфиденциальность</string>
     <string name="perm_section_media">Медиа</string>
     <string name="perm_section_system">Система</string>
@@ -1165,7 +1165,7 @@
     <string name="settings_dynamic_island_footer">Показывать статус Minis Agent на чипе состояния Android 16. Когда включено, заменяет плавающий оверлей, чтобы не было двух индикаторов сразу.</string>
     <string name="settings_dynamic_island_unsupported">Ваша версия системы пока не поддерживает Live Updates (нужен Android 16+ с включённой функцией).</string>
     <string name="agent_loop_section_title">Модели, которые Minis может вызывать во время выполнения</string>
-    <string name="agent_loop_section_footer">Во время задачи Minis агент вызывает эти модели для подзадач, таких как генерация изображения или создание сводки — работы, которую не может выполнить его собственная модель. Также вызываются из терминала через minis-model-use. Только они видны Minis Agent.</string>
+    <string name="agent_loop_section_footer">Во время задачи Minis агент вызывает эти модели для подзадач, таких как генерация изображения или создание сводки — работы, которую не может выполнить его собственная модель. Также вызываются из терминала через moonveil-model-use. Только они видны Minis Agent.</string>
     <string name="agent_loop_section_empty_hint">Модели и группы не добавлены</string>
     <string name="agent_loop_section_add_models">Добавить модели</string>
     <string name="agent_loop_section_add_groups">Добавить группы</string>
@@ -1312,7 +1312,7 @@
     <string name="backup_share_chooser">Поделиться копией</string>
     <string name="backup_save_to_files">Сохранить в «Файлы»…</string>
     <string name="backup_choose_file">Выбрать файл копии…</string>
-    <string name="backup_choose_file_footer">Выберите файл .minisbak в «Файлах», Drive или любом подключённом хранилище.</string>
+    <string name="backup_choose_file_footer">Выберите файл .moonveilbak в «Файлах», Drive или любом подключённом хранилище.</string>
     <string name="backup_restore_destinations">Назначения копий</string>
     <string name="backup_restore_destinations_footer">Нажмите на назначение, чтобы просмотреть его и выбрать копию.</string>
     <string name="backup_restore_other_sources">Другие источники</string>
@@ -1380,7 +1380,7 @@
     <string name="backup_dest_trust_certificate_warning">Сертификат не удалось проверить. Включайте это только для сервера, который контролируете вы — тот, кто способен перехватить соединение, сможет выдать себя за него.</string>
     <string name="backup_dest_cancel">Отмена</string>
     <string name="restore_browse_header">Копии в этой папке</string>
-    <string name="restore_browse_footer">Список файлов .minisbak в этой папке на сервере.</string>
+    <string name="restore_browse_footer">Список файлов .moonveilbak в этой папке на сервере.</string>
     <string name="restore_browse_footer_empty">Это актуальный список на сервере, а не ваша история копий.</string>
     <string name="restore_browse_empty">Здесь нет ни папок, ни копий.</string>
     <string name="restore_download_title">Загрузить эту копию?</string>

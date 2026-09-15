@@ -193,7 +193,7 @@ enum DebugMethodRegistry {
         ),
         MethodSpec(
             name: "debug.backup.export",
-            description: "Build a .minisbak package (export only; unencrypted, stage 1).",
+            description: "Build a .moonveilbak package (export only; unencrypted, stage 1).",
             params: [
                 ParamSpec(name: "categories", type: "array", required: false, default: nil,
                           description: "Category raw values; default = all. Known: chats, shared_files, skills, memory, providers, mcp_servers, voice_corrections"),
@@ -204,7 +204,7 @@ enum DebugMethodRegistry {
                 ParamSpec(name: "includeCredentials", type: "boolean", required: false, default: true,
                           description: "Include Keychain credentials in secrets.json. false = share copy."),
                 ParamSpec(name: "passphrase", type: "string", required: false, default: nil,
-                          description: "Encrypt the package (minisbak-enc/1). REQUIRED when credentials are included."),
+                          description: "Encrypt the package (moonveilbak-enc/1). REQUIRED when credentials are included."),
                 ParamSpec(name: "deliver", type: "boolean", required: false, default: false,
                           description: "Move the package into Files-visible shared storage (Moonveil ▸ Backups), the path the Backup UI uses."),
             ],
@@ -213,10 +213,10 @@ enum DebugMethodRegistry {
         ),
         MethodSpec(
             name: "debug.backup.restore",
-            description: "Import a .minisbak package (stage 2: Merge mode, unencrypted).",
+            description: "Import a .moonveilbak package (stage 2: Merge mode, unencrypted).",
             params: [
                 ParamSpec(name: "path", type: "string", required: true, default: nil,
-                          description: "Path to the .minisbak file"),
+                          description: "Path to the .moonveilbak file"),
                 ParamSpec(name: "categories", type: "array", required: false, default: nil,
                           description: "Category raw values; default = all present in the package"),
                 ParamSpec(name: "skipIntegrityCheck", type: "boolean", required: false, default: false,
@@ -225,21 +225,21 @@ enum DebugMethodRegistry {
                           description: "Required to restore an encrypted package"),
             ],
             returns: "{backupId, durationMs, integrityChecked, integrityFailed, rolledBack, totals, categories, warnings}",
-            example: ["path": "/…/backup.minisbak"]
+            example: ["path": "/…/backup.moonveilbak"]
         ),
         MethodSpec(
             name: "debug.backup.cleanup",
-            description: "Delete .minisbak packages left in Documents by export {keep:true}.",
+            description: "Delete .moonveilbak packages left in Documents by export {keep:true}.",
             params: [],
             returns: "{removed, count, freedBytes}",
             example: [:]
         ),
         MethodSpec(
             name: "debug.backup.rescue",
-            description: "Salvage what can be read from a damaged .minisbak: rescue.json, manifest.json, its tail copy, and the surviving member list.",
+            description: "Salvage what can be read from a damaged .moonveilbak: rescue.json, manifest.json, its tail copy, and the surviving member list.",
             params: [
                 ParamSpec(name: "path", type: "string", required: true, default: nil,
-                          description: "Path to the (possibly damaged) .minisbak file"),
+                          description: "Path to the (possibly damaged) .moonveilbak file"),
             ],
             returns: "{stages, backupId, blobCount, sessionCount, sessions, blobs, categories, missingMembers, notImplemented}",
             example: [:]
@@ -251,30 +251,30 @@ enum DebugMethodRegistry {
                 ParamSpec(name: "select", type: "array", required: false, default: nil,
                           description: "Mount ids to set as destinations"),
                 ParamSpec(name: "deliver", type: "string", required: false, default: nil,
-                          description: "Path to a .minisbak to copy to every destination"),
+                          description: "Path to a .moonveilbak to copy to every destination"),
             ],
             returns: "{mounts, selectedIds, eligibleCount, packagesInDestinations, delivered?}",
             example: [:]
         ),
         MethodSpec(
             name: "debug.backup.open",
-            description: "Drive the 'opened a .minisbak from Files' entry point (BackupOpenRouter.handle) and report whether the root restore sheet would present.",
+            description: "Drive the 'opened a .moonveilbak from Files' entry point (BackupOpenRouter.handle) and report whether the root restore sheet would present.",
             params: [
                 ParamSpec(name: "path", type: "string", required: true, default: nil,
-                          description: "Path to the .minisbak file to open"),
+                          description: "Path to the .moonveilbak file to open"),
             ],
             returns: "{recognisedAsPackage, handled, pendingPackage, hasPendingPackage, appIsLocked, sheetWouldPresent}",
-            example: ["path": "/…/backup-20260814-0230.minisbak"]
+            example: ["path": "/…/backup-20260814-0230.moonveilbak"]
         ),
         MethodSpec(
             name: "debug.backup.inspect",
-            description: "List a .minisbak package's entries and read back its manifest.",
+            description: "List a .moonveilbak package's entries and read back its manifest.",
             params: [
                 ParamSpec(name: "path", type: "string", required: true, default: nil,
-                          description: "Path to the .minisbak file"),
+                          description: "Path to the .moonveilbak file"),
             ],
             returns: "{path, entryCount, entries, manifest, lineCounts}",
-            example: ["path": "/…/backup-20260814-0230.minisbak"]
+            example: ["path": "/…/backup-20260814-0230.moonveilbak"]
         ),
         MethodSpec(
             name: "debug.auth.list",
@@ -322,7 +322,7 @@ enum DebugMethodRegistry {
                 ParamSpec(name: "name", type: "string", required: true, default: nil, description: "DB name from debug.db.list."),
             ],
             returns: "{db, tables: [{name, type}]}",
-            example: ["name": "minis"]
+            example: ["name": "moonveil"]
         ),
         MethodSpec(
             name: "debug.db.schema",
@@ -332,7 +332,7 @@ enum DebugMethodRegistry {
                 ParamSpec(name: "table", type: "string", required: false, default: nil, description: "Optional table name; omit for the whole-db DDL dump."),
             ],
             returns: "{db, table?, columns?, indexes?, objects?}",
-            example: ["name": "minis", "table": "messages"]
+            example: ["name": "moonveil", "table": "messages"]
         ),
         MethodSpec(
             name: "debug.db.query",
@@ -343,7 +343,7 @@ enum DebugMethodRegistry {
                 ParamSpec(name: "limit", type: "int", required: false, default: 200, description: "Max rows. Clamped to [1, 2000]."),
             ],
             returns: "{db, columns:[...], rows:[{col:val}], rowCount, truncated}",
-            example: ["name": "minis", "sql": "SELECT role, COUNT(*) c FROM messages GROUP BY role", "limit": 20]
+            example: ["name": "moonveil", "sql": "SELECT role, COUNT(*) c FROM messages GROUP BY role", "limit": 20]
         ),
         MethodSpec(
             name: "debug.browser.listTabs",
@@ -1020,7 +1020,7 @@ enum DebugMethodRegistry {
         ),
         MethodSpec(
             name: "provider.models.setAgentLoop",
-            description: "Toggle whether a model entry is exposed to the in-shell `minis-model-use` agent.",
+            description: "Toggle whether a model entry is exposed to the in-shell `moonveil-model-use` agent.",
             params: [
                 ParamSpec(name: "entryId", type: "string", required: true, default: nil, description: "Target entry UUID."),
                 ParamSpec(name: "inLoop", type: "bool", required: true, default: nil, description: "true = expose to agent loop; false = remove."),
@@ -1056,10 +1056,10 @@ enum DebugMethodRegistry {
             example: ["configJson": "{\"version\":1,\"config\":{...}}"]
         ),
 
-        // MARK: minis-config (remote CLI driver)
+        // MARK: moonveil-config (remote CLI driver)
         MethodSpec(
             name: "config.get",
-            description: "Read one minis-config path through the real ConfigOffloadBridge — identical to `minis-config get <path>` in the iSH guest. Works for flat fields, collection children (`<base>.<id>.<leaf>`) and read-only aggregates.",
+            description: "Read one moonveil-config path through the real ConfigOffloadBridge — identical to `moonveil-config get <path>` in the iSH guest. Works for flat fields, collection children (`<base>.<id>.<leaf>`) and read-only aggregates.",
             params: [
                 ParamSpec(name: "path", type: "string", required: true, default: nil, description: "Registered path, e.g. `thinkingrules` or `thinkingrules.<instanceId>:<ruleId>.scope`."),
                 ParamSpec(name: "filter", type: "string", required: false, default: nil, description: "Whitespace-split AND terms, matched case-insensitively against each array element's JSON."),
@@ -1071,7 +1071,7 @@ enum DebugMethodRegistry {
         ),
         MethodSpec(
             name: "config.set",
-            description: "Write minis-config path(s) through the real write batch — the same code path as `minis-config set`, including collection add/remove (`<base>.add` / `<base>.remove`) and array append. By DEFAULT this triggers the on-device confirmation sheet and blocks until it is answered (120s gate timeout); pass skipConfirmation to bypass it for unattended runs.",
+            description: "Write moonveil-config path(s) through the real write batch — the same code path as `moonveil-config set`, including collection add/remove (`<base>.add` / `<base>.remove`) and array append. By DEFAULT this triggers the on-device confirmation sheet and blocks until it is answered (120s gate timeout); pass skipConfirmation to bypass it for unattended runs.",
             params: [
                 ParamSpec(name: "path", type: "string", required: false, default: nil, description: "Single-write path. Use `items` for a batch."),
                 ParamSpec(name: "value_json", type: "string", required: false, default: "null", description: "Value as a JSON STRING, matching the CLI's argv contract (a string value is \"\\\"abc\\\"\")."),
@@ -1085,14 +1085,14 @@ enum DebugMethodRegistry {
         ),
         MethodSpec(
             name: "config.topics",
-            description: "Every registered minis-config topic — the index `minis-config --help` prints. Use it to confirm a collection is actually registered.",
+            description: "Every registered moonveil-config topic — the index `moonveil-config --help` prints. Use it to confirm a collection is actually registered.",
             params: [],
             returns: "{topics:[string]}",
             example: [:]
         ),
         MethodSpec(
             name: "config.topicHelp",
-            description: "Field schema for one topic, as `minis-config <topic> --help` prints it. This is how the writable paths of a collection are discovered.",
+            description: "Field schema for one topic, as `moonveil-config <topic> --help` prints it. This is how the writable paths of a collection are discovered.",
             params: [
                 ParamSpec(name: "topic", type: "string", required: true, default: nil, description: "Topic name, e.g. `thinkingrules`."),
             ],
@@ -1101,7 +1101,7 @@ enum DebugMethodRegistry {
         ),
         MethodSpec(
             name: "config.audit",
-            description: "Recent minis-config audit rows, to prove a write was recorded with the expected actor/status rather than merely returning ok.",
+            description: "Recent moonveil-config audit rows, to prove a write was recorded with the expected actor/status rather than merely returning ok.",
             params: [
                 ParamSpec(name: "limit", type: "int", required: false, default: "20", description: "Max rows."),
                 ParamSpec(name: "scope", type: "string", required: false, default: nil, description: "Optional scope filter."),
@@ -1170,7 +1170,7 @@ enum DebugMethodRegistry {
         ),
         MethodSpec(
             name: "provider.groups.setAgentLoop",
-            description: "Toggle whether a group is exposed to the in-shell minis-model-use agent.",
+            description: "Toggle whether a group is exposed to the in-shell moonveil-model-use agent.",
             params: [
                 ParamSpec(name: "groupId", type: "string", required: true, default: nil, description: "Target group UUID."),
                 ParamSpec(name: "inLoop", type: "bool", required: true, default: nil, description: "true = expose; false = remove."),
@@ -1445,9 +1445,9 @@ enum DebugMethodRegistry {
         ),
         MethodSpec(
             name: "debug.providers.quickTest",
-            description: "Run Quick Test on a specific model entry (same as the UI Quick Test sheet). Tests applicable modalities (text, speechOut, transcription, imageGen) concurrently and returns results. Use `minis-config get models` to find entry IDs.",
+            description: "Run Quick Test on a specific model entry (same as the UI Quick Test sheet). Tests applicable modalities (text, speechOut, transcription, imageGen) concurrently and returns results. Use `moonveil-config get models` to find entry IDs.",
             params: [
-                ParamSpec(name: "entryId", type: "string", required: true, default: nil, description: "The model entry ID to test (from `minis-config get models`)."),
+                ParamSpec(name: "entryId", type: "string", required: true, default: nil, description: "The model entry ID to test (from `moonveil-config get models`)."),
                 ParamSpec(name: "kinds", type: "string[]", required: false, default: nil, description: "Optional list of test kinds to run: 'text', 'speechOut', 'transcription', 'imageGen'. Omit to auto-detect from model modalities."),
             ],
             returns: "{model, results: [{kind, status, elapsed, detail}]}",

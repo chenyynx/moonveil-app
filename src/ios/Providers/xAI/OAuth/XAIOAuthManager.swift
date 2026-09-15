@@ -119,7 +119,7 @@ final class XAIOAuthManager: NSObject, ObservableObject {
             URLQueryItem(name: "state", value: state),
             URLQueryItem(name: "nonce", value: nonce),
             URLQueryItem(name: "plan", value: "generic"),
-            URLQueryItem(name: "referrer", value: "minis"),
+            URLQueryItem(name: "referrer", value: "moonveil"),
         ]
         let authorizationURL = components.url!
         logger.info("Authorization URL: \(authorizationURL.absoluteString)")

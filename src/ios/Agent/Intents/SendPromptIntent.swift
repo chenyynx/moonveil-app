@@ -7,7 +7,7 @@ import UserNotifications
 /// The agent continues running in the background — use Get Session Status to poll for completion.
 struct SendPromptIntent: AppIntent {
     static var title: LocalizedStringResource = "Send Prompt"
-    static var description = IntentDescription("Sends a prompt to the Minis AI agent. Returns session info immediately while the task runs in the background.")
+    static var description = IntentDescription("Sends a prompt to the Moonveil AI agent. Returns session info immediately while the task runs in the background.")
     static var openAppWhenRun = false
 
     // [T-shortcuts-automation-no-prompt-field] `requestValueDialog` alone marks

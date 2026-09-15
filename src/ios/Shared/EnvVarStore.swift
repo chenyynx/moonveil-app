@@ -336,7 +336,7 @@ final class EnvVarStore: ObservableObject {
     }
 
     /// Update only the human-readable note without touching the
-    /// Keychain-stored value. Used by minis-config so the agent can
+    /// Keychain-stored value. Used by moonveil-config so the agent can
     /// annotate variables without ever seeing or overwriting the
     /// secret.
     func updateNote(id: String, note: String) {

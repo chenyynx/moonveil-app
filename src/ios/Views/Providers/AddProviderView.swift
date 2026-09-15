@@ -26,7 +26,7 @@ struct AIDataSharingConsentView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("We Do Not Collect Your Data")
                                 .font(.headline)
-                            Text("Minis does not operate any server and does not collect, store, or process any of your personal data. All data stays on your device.")
+                            Text("Moonveil does not operate any server and does not collect, store, or process any of your personal data. All data stays on your device.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             Text("However, when you add a third-party AI provider and use it for conversations, the following data may be sent directly from your device to that provider's servers:")

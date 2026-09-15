@@ -25,9 +25,9 @@ struct ProviderConfig: Codable, Equatable {
     var defaultSubGroupId: String?
     /// Stores per-session model bindings keyed by sessionId.
     var sessionBindings: [String: SessionModelBinding]
-    /// ModelEntry IDs for individual models available in agent loop (minis-model-use).
+    /// ModelEntry IDs for individual models available in agent loop (moonveil-model-use).
     var agentLoopModelEntryIds: [String]
-    /// ModelGroup IDs whose members are available in agent loop (minis-model-use).
+    /// ModelGroup IDs whose members are available in agent loop (moonveil-model-use).
     var agentLoopGroupIds: [String]
     /// Model group used for voice INPUT (speech-to-text), parallel to the
     /// Default Primary/Sub group selectors. Per-device (local-only, not synced).
@@ -1463,7 +1463,7 @@ final class ProviderConfigStore: ObservableObject {
         return nil
     }
 
-    /// [T-ios-minis-config-entry-id-composite] Normalize an entry reference in
+    /// [T-ios-moonveil-config-entry-id-composite] Normalize an entry reference in
     /// any historical form (composite key, legacy random uuid, legacy ":"
     /// composite) to the entry's CURRENT id (the composite key). Returns the
     /// input unchanged when nothing resolves — callers validate afterwards, so

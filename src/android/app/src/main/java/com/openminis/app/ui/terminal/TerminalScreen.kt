@@ -166,10 +166,10 @@ fun TerminalScreen(
         onDispose { MinisOpenUrlBroker.setTerminalVisible(false) }
     }
 
-    // OSC 1337 MinisOpenURL emitted by `/usr/local/bin/minis-open` is parsed
+    // OSC 1337 MoonveilOpenURL emitted by `/usr/local/bin/moonveil-open` is parsed
     // by TerminalEmulator and forwarded to MinisOpenUrlBroker. From the
     // standalone terminal we only route web schemes (http(s)/about) into an
-    // in-app WebView preview; minis://-style chat resources need ChatScreen's
+    // in-app WebView preview; moonveil://-style chat resources need ChatScreen's
     // resolver and aren't reachable here, so we still consume them to avoid
     // leaking a stale pendingUrl back to chat on next attach.
     var previewUrl by remember { mutableStateOf<String?>(null) }

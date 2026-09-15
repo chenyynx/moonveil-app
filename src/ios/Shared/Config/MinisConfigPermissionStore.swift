@@ -2,16 +2,16 @@ import Foundation
 import Combine
 
 /// Master switch controlling whether the agent can use the
-/// `minis-config` CLI at all.
+/// `moonveil-config` CLI at all.
 ///
 /// This is intentionally a separate store from `OffloadPermissionManager`
 /// — that one tracks per-command privacy levels (camera, healthkit, …)
 /// for shell offloads, while this one is a single boolean gate at the
-/// top of the entire minis-config subsystem. Disabling it short-circuits
+/// top of the entire moonveil-config subsystem. Disabling it short-circuits
 /// every CLI call before any field lookup, ConfirmationGate enqueue,
 /// or audit write.
 ///
-/// The flag itself is intentionally *not* settable through minis-config:
+/// The flag itself is intentionally *not* settable through moonveil-config:
 /// the registry registers a hidden placeholder on the same path so any
 /// agent attempt to flip the switch (off → silence, on → self-grant)
 /// returns `permission_denied`.

@@ -5,7 +5,7 @@ import UserNotifications
 
 private let gateLogger = AppLogger(category: "ConfigConfirmGate")
 
-/// Funnels every minis-config write through user confirmation.
+/// Funnels every moonveil-config write through user confirmation.
 ///
 /// The gate is a single global queue: at most one ConfirmSheet shows
 /// at a time. Subsequent requests stack up so the agent can fire a

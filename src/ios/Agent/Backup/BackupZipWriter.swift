@@ -78,7 +78,7 @@ final class BackupZipWriter {
         "mp4", "mov", "m4v", "avi", "mkv", "webm",
         "mp3", "m4a", "aac", "ogg", "opus", "flac", "wav",
         "zip", "gz", "bz2", "xz", "7z", "rar", "pdf",
-        "minisbak", "enc",
+        "moonveilbak", "enc",
     ]
 
     static func shouldStore(name: String) -> Bool {

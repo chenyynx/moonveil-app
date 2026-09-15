@@ -314,7 +314,7 @@ SUBCOMMANDS:
 
 Android-only (DEBUG_ONLY_METHODS in DebugMethodRegistry):
   shizuku <argv...>                  Invoke android-shizuku-cli (debug.shizuku.exec)
-  model-use <argv...>                Invoke minis-model-use (debug.modelUse.exec)
+  model-use <argv...>                Invoke moonveil-model-use (debug.modelUse.exec)
 
 Escape hatch (for any method not listed above):
   call <method> [--params '<json>']  Invoke an arbitrary registered method

@@ -24,8 +24,8 @@ struct ISHTerminalView: View {
     /// software keyboard can be hidden while the input view remains first
     /// responder and continues to receive hardware key events.
     @State private var softwareKeyboardVisible = false
-    /// URL captured from an OSC `MinisOpenURL` marker emitted by
-    /// /usr/local/bin/minis-open — presented in an in-app WKWebView sheet.
+    /// URL captured from an OSC `MoonveilOpenURL` marker emitted by
+    /// /usr/local/bin/moonveil-open — presented in an in-app WKWebView sheet.
     @State private var linkPreviewURL: URL?
     /// Track whether a sheet is presented so we can resign first responder
     /// and stop fighting with text fields inside the sheet.
@@ -157,13 +157,13 @@ struct ISHTerminalView: View {
                 RootfsManagementView()
             }
         }
-        // In-app WKWebView preview for URLs emitted by `minis-open` via
-        // the OSC 1337 MinisOpenURL marker. `TerminalEmulator` parses the
+        // In-app WKWebView preview for URLs emitted by `moonveil-open` via
+        // the OSC 1337 MoonveilOpenURL marker. `TerminalEmulator` parses the
         // marker and forwards the URL through `MinisOpenURLBroker`.
         // `.dropFirst()` skips the broker's current value on first attach
         // so a stale URL from an earlier session isn't re-presented.
         .onReceive(MinisOpenURLBroker.shared.$pendingURL.dropFirst().compactMap { $0 }) { url in
-            // Only web schemes are routed here — minis:// resource
+            // Only web schemes are routed here — moonveil:// resource
             // previews need AIChatView's `handleMinisURLTap` and aren't
             // reachable from the standalone terminal. Consume either way
             // so the broker doesn't leak a stale pendingURL back to chat

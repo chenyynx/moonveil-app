@@ -25,7 +25,7 @@ export PAGER=less
 # www-browser / x-www-browser / gnome-open / kde-open wrappers live as
 # real files in default_mount/usr/local/bin/ and are overlaid on every
 # boot.
-export BROWSER=/usr/local/bin/minis-open
+export BROWSER=/usr/local/bin/moonveil-open
 
 # T222: PRoot's link2symlink extension creates .l2s.* sentinel files alongside
 # every hardlinked file. uv's default `hardlink` mode tries to re-link these

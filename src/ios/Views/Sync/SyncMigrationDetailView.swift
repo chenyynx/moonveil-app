@@ -603,7 +603,7 @@ struct SyncMigrationDetailView: View {
         } header: {
             Text("iCloud Zones")
         } footer: {
-            Text("Every zone Minis has created in your iCloud private database. **V2** holds the current sync engine's data; **V1** holds legacy per-device backups from older builds. Deleting a zone is permanent and removes everything inside (records + assets). Use this to reclaim space after migration completes.")
+            Text("Every zone Moonveil has created in your iCloud private database. **V2** holds the current sync engine's data; **V1** holds legacy per-device backups from older builds. Deleting a zone is permanent and removes everything inside (records + assets). Use this to reclaim space after migration completes.")
                 .font(.caption)
         }
     }

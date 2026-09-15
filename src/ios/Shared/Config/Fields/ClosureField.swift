@@ -109,7 +109,7 @@ struct UnavailableField: ConfigField {
 /// additionally masks the written value in the audit log / confirm sheet /
 /// response (ConfigValue.secretObjectKeys), so the plaintext only reaches the
 /// writer closure (→ Keychain). Not revertable (no old value to restore to).
-/// [T-minis-config-provider-add]
+/// [T-moonveil-config-provider-add]
 struct WriteOnlySecretField: ConfigField {
     let path: String
     let displayName: String

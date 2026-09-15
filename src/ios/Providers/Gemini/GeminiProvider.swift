@@ -378,7 +378,7 @@ final class GeminiProvider: LLMProvider {
             config["responseModalities"] = ["TEXT", "IMAGE"]
         }
 
-        // Merge extra generation config (e.g. aspect ratio from minis-model-use)
+        // Merge extra generation config (e.g. aspect ratio from moonveil-model-use)
         if let extra = extraGenerationConfig {
             for (key, value) in extra {
                 config[key] = value

@@ -10,7 +10,7 @@ import XCTest
 ///     pick the root directory" report.
 ///   * NOT stripping it on WebDAV lets the path escape the configured folder
 ///     and resolve against the server root — a package written to
-///     `http://host/backup-….minisbak` instead of `…/backups/…`, which is the
+///     `http://host/backup-….moonveilbak` instead of `…/backups/…`, which is the
 ///     shipped bug commit 1dec9e650 fixed.
 /// So these tests pin the split, not just the new behaviour.
 @MainActor
@@ -34,8 +34,8 @@ final class SFTPAbsolutePathTests: XCTestCase {
     // MARK: - join()
 
     func testSFTPJoinKeepsLeadingSlash() {
-        XCTAssertEqual(remote(backend: "sftp", path: "/srv/backup").join("pkg.minisbak"),
-                       "/srv/backup/pkg.minisbak")
+        XCTAssertEqual(remote(backend: "sftp", path: "/srv/backup").join("pkg.moonveilbak"),
+                       "/srv/backup/pkg.moonveilbak")
     }
 
     func testSFTPJoinHandlesRootAndHomeRelative() {

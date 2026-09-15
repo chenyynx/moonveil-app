@@ -62,7 +62,7 @@ final class ShareCoordinator: ObservableObject {
     /// cutoff — within that window the user's intent to inject clearly stands.
     private static let bufferTTL: TimeInterval = 300
 
-    /// Set to true when a `minis://share` URL is received.
+    /// Set to true when a `moonveil://share` URL is received.
     @Published var hasPendingShare = false {
         didSet {
             shareLog.info("[Share] hasPendingShare changed: \(oldValue) → \(self.hasPendingShare)")

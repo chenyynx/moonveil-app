@@ -62,7 +62,7 @@ final class ConfigRegistry {
     }
 
     /// All registered top-level field paths (excluding hidden), used by
-    /// `minis-config list-all` and the `--help` topic enumerator.
+    /// `moonveil-config list-all` and the `--help` topic enumerator.
     func allVisibleFieldPaths() -> [String] {
         fields.values
             .filter { $0.access != .hidden }

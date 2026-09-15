@@ -89,7 +89,7 @@ struct MinisApp: App {
     @StateObject private var shareCoordinator = ShareCoordinator.shared
     @ObservedObject private var fontSettings = FontSettings.shared
     @ObservedObject private var configConfirmGate = ConfigConfirmationGate.shared
-    /// [review S14] Drives the root-level restore sheet for a `.minisbak`
+    /// [review S14] Drives the root-level restore sheet for a `.moonveilbak`
     /// opened from outside the app.
     @ObservedObject private var openRouter = BackupOpenRouter.shared
     /// Observed so the restore sheet re-evaluates when the app locks/unlocks.
@@ -200,7 +200,7 @@ struct MinisApp: App {
                     guard !locked, let url = pendingURLWhileLocked else { return }
                     pendingURLWhileLocked = nil
                     if BackupOpenRouter.handle(url) {
-                        // .minisbak → restore flow, not the attachment pipeline.
+                        // .moonveilbak → restore flow, not the attachment pipeline.
                     } else if ExternalFileImporter.canIngest(url) {
                         ExternalFileImporter.ingest(url, into: shareCoordinator)
                         return
@@ -218,7 +218,7 @@ struct MinisApp: App {
                 // Re-keying the root drops + re-mounts every descendant,
                 // re-running their bodies under the new languageBundle.
                 .id(appLanguage)
-                // Confirmation gate for every minis-config write. Mounted
+                // Confirmation gate for every moonveil-config write. Mounted
                 // at the root so the sheet appears regardless of which
                 // screen is active when the agent triggers a change.
                 // Bind to the @ObservedObject's published `pending` so
@@ -231,7 +231,7 @@ struct MinisApp: App {
                 )) { _ in
                     ConfigConfirmSheet(gate: configConfirmGate)
                 }
-                // [review S14] Restore flow for a `.minisbak` opened from
+                // [review S14] Restore flow for a `.moonveilbak` opened from
                 // Files / AirDrop / a share sheet. Mounted HERE rather than in
                 // BackupSettingsView, which was the only observer before: the
                 // user opening a backup is almost always mid device-migration
@@ -257,7 +257,7 @@ struct MinisApp: App {
                 )) { pending in
                     NavigationStack {
                         // Opens on the RESTORE tab with the package already
-                        // loaded. Someone who just tapped a .minisbak is mid
+                        // loaded. Someone who just tapped a .moonveilbak is mid
                         // device-migration — landing them on the backup form
                         // and making them find the switch would be exactly
                         // backwards.
@@ -284,7 +284,7 @@ struct MinisApp: App {
                         return
                     }
                     if BackupOpenRouter.handle(url) {
-                        // .minisbak → restore flow, not the attachment pipeline.
+                        // .moonveilbak → restore flow, not the attachment pipeline.
                     } else if ExternalFileImporter.canIngest(url) {
                         ExternalFileImporter.ingest(url, into: shareCoordinator)
                         return
@@ -293,7 +293,7 @@ struct MinisApp: App {
                 }
                 // Fullscreen immersive WebView for HTML web-app shortcuts.
                 // Driven by `.openWebAppDeepLink` (posted by DeepLinkRouter
-                // for `minis://open?session=…&path=…`). Mounted at the
+                // for `moonveil://open?session=…&path=…`). Mounted at the
                 // WindowGroup root so it covers the chat list / draft / any
                 // other foreground state.
                 // [T-ios-remove-open-webapp-shortcut-intent] The
@@ -1130,7 +1130,7 @@ struct MinisApp: App {
     // (`presentWebAppDeepLink`) is the remaining WebApp presentation path.
 
     /// Resolves a transient `WebAppShortcut` reconstructed from a
-    /// `minis://open?session=…&path=…` deep link (openminis.app launcher
+    /// `moonveil://open?session=…&path=…` deep link (openminis.app launcher
     /// round-trip) and presents the immersive WebView. Does not touch
     /// ChatStore — the launcher URL is fully self-describing.
     @MainActor

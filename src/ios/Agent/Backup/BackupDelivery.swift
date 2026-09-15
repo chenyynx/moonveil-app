@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 
 private let logger = AppLogger(category: "Backup")
 
-/// Hands a finished `.minisbak` package to the user
+/// Hands a finished `.moonveilbak` package to the user
 /// (docs/backup-restore-design.md §6.2 path 1).
 ///
 /// Until this existed, `BackupExporter` left the package in the app's `tmp/`
@@ -19,7 +19,7 @@ private let logger = AppLogger(category: "Backup")
 /// needed for the destinations §6.2 lists.
 enum BackupDelivery {
 
-    /// The registered UTI for `.minisbak` (Info.plist `UTExportedTypeDeclarations`).
+    /// The registered UTI for `.moonveilbak` (Info.plist `UTExportedTypeDeclarations`).
     ///
     /// Registering it matters for two reasons beyond tidiness:
     ///   1. `MinisShareSheet.sanitizedShareURL` copies the file to a `.bin`
@@ -29,7 +29,7 @@ enum BackupDelivery {
     ///      declared, the extension resolves and no copy happens.
     ///   2. It sets up "open the file to import it", which the restore side
     ///      will want.
-    static let contentTypeIdentifier = "com.moonveil.app.minisbak"
+    static let contentTypeIdentifier = "com.moonveil.app.moonveilbak"
 
     static var contentType: UTType {
         UTType(contentTypeIdentifier)
@@ -135,7 +135,7 @@ enum BackupDelivery {
     /// previous version copied straight to the final name, and NSFileCoordinator
     /// guarantees coordination with the FileProvider — not atomicity of the
     /// underlying byte transfer. A suspension or dropped share mid-copy left a
-    /// TRUNCATED file carrying a perfectly valid `.minisbak` name, which then
+    /// TRUNCATED file carrying a perfectly valid `.moonveilbak` name, which then
     /// appeared in the restore picker with a plausible size and date. The user
     /// would discover it only when the restore failed, plausibly on a new device
     /// after wiping the old one. A rename within one volume is atomic and cheap,

@@ -27,7 +27,7 @@ final class BackupCategoryCountTests: XCTestCase {
     func testCountsEveryDeclaredServer() throws {
         let url = try writeServers("""
         {"mcpServers": {
-            "fs":      {"command": "minis-mcp-cli"},
+            "fs":      {"command": "moonveil-mcp-cli"},
             "github":  {"command": "gh-mcp"},
             "sqlite":  {"command": "sqlite-mcp"},
             "fetch":   {"command": "fetch-mcp"},

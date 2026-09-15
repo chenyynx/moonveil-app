@@ -85,7 +85,7 @@ struct ThinkingRulesSection: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: "info.circle")
                     .foregroundStyle(.secondary)
-                Text("This provider uses an official protocol, so its thinking parameters are maintained by Minis. Custom rules apply to OpenAI-compatible providers on the Chat Completions API.")
+                Text("This provider uses an official protocol, so its thinking parameters are maintained by Moonveil. Custom rules apply to OpenAI-compatible providers on the Chat Completions API.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

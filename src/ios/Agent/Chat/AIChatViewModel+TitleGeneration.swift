@@ -659,7 +659,7 @@ extension AIChatViewModel {
     ///
     /// Resolution order:
     ///   1. The user's explicit `appLanguage` (Settings → Language, also
-    ///      writable via minis-config `appearance.language`). Honors changes
+    ///      writable via moonveil-config `appearance.language`). Honors changes
     ///      made after launch — `Bundle.main.preferredLocalizations` is
     ///      computed once at launch from `AppleLanguages` and does NOT update
     ///      when `setLanguage(...)` rewrites that key at runtime, so reading

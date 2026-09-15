@@ -177,7 +177,7 @@
     <string name="mcp_add">Add MCP Server</string>
     <string name="mcp_edit">Edit MCP Server</string>
     <string name="mcp_section_servers">Servers</string>
-    <string name="mcp_section_footer">MCP servers let the Agent call external tools via minis-mcp-cli. Configs are stored in /var/minis/mcp-servers/servers.json (Claude Desktop compatible).</string>
+    <string name="mcp_section_footer">MCP servers let the Agent call external tools via moonveil-mcp-cli. Configs are stored in /var/minis/mcp-servers/servers.json (Claude Desktop compatible).</string>
     <string name="mcp_empty_title">No MCP servers</string>
     <string name="mcp_empty_action">Add a server with the + button.</string>
     <string name="mcp_transport_http">HTTP</string>
@@ -778,7 +778,7 @@
          Label rewritten to match the real behavior. -->
     <string name="perm_level_ask_once">Once per launch</string>
     <string name="perm_level_not_allowed">Not Allowed</string>
-    <!-- T296: Permissions screen — section headers, minis-config switch, tool titles -->
+    <!-- T296: Permissions screen — section headers, moonveil-config switch, tool titles -->
     <string name="perm_section_config_tool">Configuration Tool</string>
     <!-- T336: dedicated SectionCard per integration CLI. Each surfaces
          the CLI title + description, the agent tri-state policy, and
@@ -797,8 +797,8 @@
     <string name="perm_agent_policy">Agent permission</string>
     <string name="perm_a11y_system_ready">Service enabled</string>
     <string name="perm_a11y_system_disabled">Service not enabled</string>
-    <string name="perm_allow_minis_config">Allow minis-config</string>
-    <string name="perm_minis_config_desc">When disabled, the Agent cannot read or modify any settings via minis-config. The change history at Logs → Config Changes remains accessible. The Agent will receive a permission_denied error and can guide you via deep links instead.</string>
+    <string name="perm_allow_minis_config">Allow moonveil-config</string>
+    <string name="perm_minis_config_desc">When disabled, the Agent cannot read or modify any settings via moonveil-config. The change history at Logs → Config Changes remains accessible. The Agent will receive a permission_denied error and can guide you via deep links instead.</string>
     <string name="perm_section_privacy">Privacy</string>
     <string name="perm_section_media">Media</string>
     <string name="perm_section_system">System</string>
@@ -1280,7 +1280,7 @@
 
     <!-- T182 agent loop section i18n -->
     <string name="agent_loop_section_title">Models Minis Can Call at Runtime</string>
-    <string name="agent_loop_section_footer">During a Minis task, the agent calls these models for sub-tasks such as generating an image or summarizing text — work its own model can\'t do. Also callable from the terminal via minis-model-use. Only these are visible to the Agent.</string>
+    <string name="agent_loop_section_footer">During a Minis task, the agent calls these models for sub-tasks such as generating an image or summarizing text — work its own model can\'t do. Also callable from the terminal via moonveil-model-use. Only these are visible to the Agent.</string>
     <string name="agent_loop_section_empty_hint">No models or groups added</string>
     <string name="agent_loop_section_add_models">Add Models</string>
     <string name="agent_loop_section_add_groups">Add Groups</string>
@@ -1440,7 +1440,7 @@
     <string name="backup_save_to_files">Save to Files…</string>
     <!-- Restore -->
     <string name="backup_choose_file">Choose Backup File…</string>
-    <string name="backup_choose_file_footer">Pick a .minisbak file from Files, Drive, or any connected storage.</string>
+    <string name="backup_choose_file_footer">Pick a .moonveilbak file from Files, Drive, or any connected storage.</string>
     <string name="backup_restore_destinations">Backup Destinations</string>
     <string name="backup_restore_destinations_footer">Tap a destination to browse it and pick a backup.</string>
     <string name="backup_restore_other_sources">Other Sources</string>
@@ -1510,7 +1510,7 @@
     <string name="backup_dest_trust_certificate_warning">The certificate could not be verified. Only turn this on for a server you control — anyone able to intercept the connection could impersonate it.</string>
     <string name="backup_dest_cancel">Cancel</string>
     <string name="restore_browse_header">Backups in This Folder</string>
-    <string name="restore_browse_footer">Listing the .minisbak files in this folder on the server.</string>
+    <string name="restore_browse_footer">Listing the .moonveilbak files in this folder on the server.</string>
     <string name="restore_browse_footer_empty">This is a live listing of the server, not your backup history.</string>
     <string name="restore_browse_empty">No folders or backups here.</string>
     <string name="restore_download_title">Download this backup?</string>

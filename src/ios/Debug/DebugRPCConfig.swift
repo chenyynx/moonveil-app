@@ -1,9 +1,9 @@
 #if DEBUG
 import Foundation
 
-/// [T-config-debug-rpc] Remote driver for `minis-config`.
+/// [T-config-debug-rpc] Remote driver for `moonveil-config`.
 ///
-/// WHY THIS EXISTS. `minis-config` is a binary inside the iSH guest that calls into
+/// WHY THIS EXISTS. `moonveil-config` is a binary inside the iSH guest that calls into
 /// `ConfigOffloadBridge` over the ObjC bridge. That makes the whole config surface —
 /// every collection, the confirmation gate, the audit log — untestable from outside the
 /// device: there was no shell RPC and no config RPC, so a change to a `ConfigCollection`
@@ -24,7 +24,7 @@ enum DebugRPCConfig {
 
     /// `config.get` — read one registered path.
     ///
-    /// Mirrors `minis-config get <path> [--filter …] [--page N] [--page-size N]`.
+    /// Mirrors `moonveil-config get <path> [--filter …] [--page N] [--page-size N]`.
     /// Returns the bridge's envelope verbatim so the caller sees exactly what the CLI
     /// prints, including the `ok:false` error shapes.
     static func get(params: [String: Any]) async throws -> [String: Any] {
@@ -86,7 +86,7 @@ enum DebugRPCConfig {
         }
     }
 
-    /// `config.topics` — every registered topic, i.e. `minis-config --help`'s index.
+    /// `config.topics` — every registered topic, i.e. `moonveil-config --help`'s index.
     /// Useful on its own to confirm a newly registered collection is actually wired in.
     static func topics(params: [String: Any]) async throws -> [String: Any] {
         await withCheckedContinuation { cont in
@@ -96,7 +96,7 @@ enum DebugRPCConfig {
         }
     }
 
-    /// `config.topicHelp` — the field schema for one topic, as `minis-config <topic>
+    /// `config.topicHelp` — the field schema for one topic, as `moonveil-config <topic>
     /// --help` prints it. This is how a caller discovers a collection's writable paths.
     static func topicHelp(params: [String: Any]) async throws -> [String: Any] {
         let topic = try need(params["topic"] as? String, "topic")

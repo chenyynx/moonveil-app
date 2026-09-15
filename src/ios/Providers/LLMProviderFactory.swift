@@ -1,7 +1,7 @@
 import Foundation
 
 /// Shared factory for creating LLMProvider instances from a ModelEntry.
-/// Used by both the agent loop (AIChatViewModel) and minis-model-use offload bridge.
+/// Used by both the agent loop (AIChatViewModel) and moonveil-model-use offload bridge.
 @MainActor
 enum LLMProviderFactory {
 

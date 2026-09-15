@@ -596,7 +596,7 @@ class MainActivity : ComponentActivity() {
                     initialDeepLink = launchDeepLink,
                 )
 
-                // T-config: root-level minis-config confirm dialog.
+                // T-config: root-level moonveil-config confirm dialog.
                 // Bound to ConfigConfirmationGate.pending — the gate
                 // fires whenever a CLI write is awaiting user OK. The
                 // dialog is rendered on top of any active screen, so
@@ -770,7 +770,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             is DeepLinkAction.OpenAlarmList -> {
-                // T297: minis://views/alarm now opens the system Clock app
+                // T297: moonveil://views/alarm now opens the system Clock app
                 // directly via AlarmClock.ACTION_SHOW_ALARMS — the in-app
                 // AlarmListScreen was a one-button passthrough that did the
                 // exact same thing. The android-alarm tool envelope still

@@ -5,7 +5,7 @@ private let auditLogger = AppLogger(category: "ConfigAudit")
 
 /// SQLite-backed rolling log of config changes.
 ///
-/// Storage: a dedicated `minis-config-audit.db` next to the chat db.
+/// Storage: a dedicated `moonveil-config-audit.db` next to the chat db.
 /// Keeping it separate from `minis.db` means the audit table never
 /// gets caught in sync-dirty queries and can be wiped independently
 /// if it ever corrupts. Capacity: most-recent **1000** rows; older
@@ -27,7 +27,7 @@ final class ConfigAuditLog: ObservableObject {
         let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
         let base = library.appendingPathComponent("MinisChat", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-        self.dbURL = base.appendingPathComponent("minis-config-audit.db")
+        self.dbURL = base.appendingPathComponent("moonveil-config-audit.db")
         openAndMigrate()
         // [T-config-audit-wal-loss] See checkpoint(): a disappeared log and a
         // never-used one look identical without this line.
@@ -154,7 +154,7 @@ final class ConfigAuditLog: ObservableObject {
     }
 
     /// Clear ALL entries. Surfaced via Logs UI as a manual action; not
-    /// callable through `minis-config` (would let the agent erase its
+    /// callable through `moonveil-config` (would let the agent erase its
     /// own trail).
     func clearAll() {
         guard db != nil else { return }

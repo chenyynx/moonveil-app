@@ -490,7 +490,7 @@ class BrowserTabPool(private val context: Context) {
         Log.i(TAG, "download finished: ${dest.name} ($sizeText) → ${dest.absolutePath}")
         // [T-android-browser-download-ux] iOS v3 semantics: the human-facing
         // notice is just name+size (middle-truncated) — the old full
-        // "/var/minis/workspace/… — minis://workspace/…" path+link tail
+        // "/var/minis/workspace/… — moonveil://workspace/…" path+link tail
         // wrapped badly in the bubble, and path navigation is the downloads
         // panel's job now.
         onDownloadEvent?.invoke("Downloaded ${middleTruncated(dest.name)} ($sizeText)")
@@ -796,7 +796,7 @@ class BrowserTabPool(private val context: Context) {
         val webView = WebView(context)
         // [T-android-minis-url-session-scope] Hand the manager a LIVE reader of
         // this pool's session id (set later via setSession) plus a context, so
-        // `minis://workspace/...` resolves against this chat's sandbox instead
+        // `moonveil://workspace/...` resolves against this chat's sandbox instead
         // of the global, last-writer-wins bind-mount map.
         val manager = BrowserUseManager(
             webView,

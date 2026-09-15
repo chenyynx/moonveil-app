@@ -13,7 +13,7 @@ private let logger = AppLogger(category: "AskMinisIntent")
 /// New session when `session` is nil; follow-up when a `SessionEntity` is given.
 struct AskMinisIntent: AppIntent {
     static var title: LocalizedStringResource = "Ask Moonveil"
-    static var description = IntentDescription("Opens Minis, sends your prompt, and shows the conversation. Starts a new session, or continues an existing one when you pick a session.")
+    static var description = IntentDescription("Opens Moonveil, sends your prompt, and shows the conversation. Starts a new session, or continues an existing one when you pick a session.")
 
     // Open the app and land in the conversation (the Siri experience). The send
     // itself still goes through the normal in-app pipeline.

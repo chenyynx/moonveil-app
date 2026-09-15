@@ -2,12 +2,12 @@
 //  ConfigOffload.m
 //  MinisApp
 //
-//  Native offload handler for `minis-config`.
+//  Native offload handler for `moonveil-config`.
 //  Subcommands: list-topics, topic-help, get, set, set-batch,
 //               audit-list, audit-get, audit-revert.
 //
 //  Argument format is intentionally low-level — the user-facing CLI
-//  shell wrapper at /usr/local/bin/minis-config translates the friendly
+//  shell wrapper at /usr/local/bin/moonveil-config translates the friendly
 //  flag form into these positional arguments before invoking us.
 //
 
@@ -15,8 +15,8 @@
 #import "NativeOffloadUtils.h"
 #include "kernel/native_offload.h"
 
-#if __has_include("Minis-Swift.h")
-#import "Minis-Swift.h"
+#if __has_include("Moonveil-Swift.h")
+#import "Moonveil-Swift.h"
 #else
 @interface ConfigOffloadBridge : NSObject
 + (BOOL)isEnabled;
@@ -44,7 +44,7 @@
 @end
 #endif
 
-static NSString *const TOOL_NAME = @"minis-config";
+static NSString *const TOOL_NAME = @"moonveil-config";
 
 // Exit codes — match the CLI contract documented in the user agreement:
 //   0   success
@@ -57,10 +57,10 @@ static NSString *const TOOL_NAME = @"minis-config";
 #define EXIT_PERMISSION_DENIED 126
 
 static NSString *const HELP_TEXT =
-    @"minis-config - read or change Minis app settings (logged + revertable)\n"
+    @"moonveil-config - read or change Moonveil app settings (logged + revertable)\n"
      "\n"
      "USAGE:\n"
-     "  minis-config <subcommand> [args]\n"
+     "  moonveil-config <subcommand> [args]\n"
      "\n"
      "DISCOVERY:\n"
      "  list-topics                  Show all configurable topics.\n"
@@ -212,7 +212,7 @@ static int cmd_get(int argc, char **argv, int stdout_fd, int stderr_fd,
 
 static int cmd_set(int argc, char **argv, int stdout_fd, int stderr_fd,
                    BOOL compact, BOOL quiet) {
-    // [T-ios-minis-config-set-shell-escape] (issue #36) `--file <path>` reads
+    // [T-ios-moonveil-config-set-shell-escape] (issue #36) `--file <path>` reads
     // the value-json from a file instead of argv[3]. The value normally rides
     // through the shell as a positional arg, so busybox ash mangles embedded
     // double-quotes / backslashes / newlines / $ / backticks before this
@@ -450,11 +450,11 @@ static int config_handler(int argc, char **argv,
 }
 
 void config_offload_register(void) {
-    int err = native_offload_add_handler("minis-config", config_handler);
+    int err = native_offload_add_handler("moonveil-config", config_handler);
     if (err == 0) {
-        noff_ensure_guest_stub("/usr/local/bin/minis-config");
-        NSLog(@"NativeOffloads: minis-config handler registered");
+        noff_ensure_guest_stub("/usr/local/bin/moonveil-config");
+        NSLog(@"NativeOffloads: moonveil-config handler registered");
     } else {
-        NSLog(@"NativeOffloads: failed to register minis-config handler (err=%d)", err);
+        NSLog(@"NativeOffloads: failed to register moonveil-config handler (err=%d)", err);
     }
 }

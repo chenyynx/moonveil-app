@@ -570,8 +570,8 @@ final class TerminalEmulator: ObservableObject {
             break
         case 2: // Set Window Title
             title = payload
-        case 1337: // iTerm2 proprietary — used by /usr/local/bin/minis-open
-            // Payload looks like `MinisOpenURL=https://example.com`. Forward
+        case 1337: // iTerm2 proprietary — used by /usr/local/bin/moonveil-open
+            // Payload looks like `MoonveilOpenURL=https://example.com`. Forward
             // the URL to MinisOpenURLBroker so the host can present the in-app
             // WKWebView preview. ANSIParser already stripped the ESC]…BEL
             // envelope, so `payload` is just `key=value` here.
@@ -582,10 +582,10 @@ final class TerminalEmulator: ObservableObject {
     }
 
     private func handleITermOSC(payload: String) {
-        // Payload is `key=value` — we only recognise `MinisOpenURL=<url>`,
-        // emitted by `/usr/local/bin/minis-open` in the rootfs overlay.
+        // Payload is `key=value` — we only recognise `MoonveilOpenURL=<url>`,
+        // emitted by `/usr/local/bin/moonveil-open` in the rootfs overlay.
         guard let eq = payload.firstIndex(of: "="),
-              payload[..<eq] == "MinisOpenURL" else { return }
+              payload[..<eq] == "MoonveilOpenURL" else { return }
         let urlString = String(payload[payload.index(after: eq)...])
         guard !urlString.isEmpty, let url = URL(string: urlString) else { return }
         // The broker is @MainActor. `feed()` is already called on the main

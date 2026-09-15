@@ -1,7 +1,7 @@
 import XCTest
 @testable import Minis
 
-/// Tests for the two ways a `.minisbak` can be INCOMPLETE while still looking
+/// Tests for the two ways a `.moonveilbak` can be INCOMPLETE while still looking
 /// fine (review findings S9 and S7).
 ///
 /// Both bugs shared one shape: content was missing from the package, and the

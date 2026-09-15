@@ -147,7 +147,7 @@
     <string name="mcp_add">Agregar servidor MCP</string>
     <string name="mcp_edit">Editar servidor MCP</string>
     <string name="mcp_section_servers">Servidores</string>
-    <string name="mcp_section_footer">Los servidores MCP permiten que Minis Agent llame a herramientas externas mediante minis-mcp-cli. Las configuraciones se guardan en /var/minis/mcp-servers/servers.json (compatible con Claude Desktop).</string>
+    <string name="mcp_section_footer">Los servidores MCP permiten que Minis Agent llame a herramientas externas mediante moonveil-mcp-cli. Las configuraciones se guardan en /var/minis/mcp-servers/servers.json (compatible con Claude Desktop).</string>
     <string name="mcp_empty_title">Sin servidores MCP</string>
     <string name="mcp_empty_action">Agrega un servidor con el botón +.</string>
     <string name="mcp_transport_http">HTTP</string>
@@ -718,8 +718,8 @@
     <string name="perm_agent_policy">Permiso de Minis Agent</string>
     <string name="perm_a11y_system_ready">Servicio activado</string>
     <string name="perm_a11y_system_disabled">Servicio no activado</string>
-    <string name="perm_allow_minis_config">Permitir minis-config</string>
-    <string name="perm_minis_config_desc">Cuando está desactivado, Minis Agent no puede leer ni modificar ningún ajuste mediante minis-config. El historial de cambios en Registros → Cambios de configuración sigue disponible. El Agent recibirá un error permission_denied y podrá guiarte con enlaces directos.</string>
+    <string name="perm_allow_minis_config">Permitir moonveil-config</string>
+    <string name="perm_minis_config_desc">Cuando está desactivado, Minis Agent no puede leer ni modificar ningún ajuste mediante moonveil-config. El historial de cambios en Registros → Cambios de configuración sigue disponible. El Agent recibirá un error permission_denied y podrá guiarte con enlaces directos.</string>
     <string name="perm_section_privacy">Privacidad</string>
     <string name="perm_section_media">Multimedia</string>
     <string name="perm_section_system">Sistema</string>
@@ -1163,7 +1163,7 @@
     <string name="settings_dynamic_island_footer">Muestra el estado de Minis Agent en vivo en el chip de estado de Android 16. Al activarlo, reemplaza la superposición flotante para que no veas dos indicadores de estado a la vez.</string>
     <string name="settings_dynamic_island_unsupported">Tu versión actual del sistema aún no admite Live Updates (requiere Android 16+ con la función activada).</string>
     <string name="agent_loop_section_title">Modelos que Minis puede invocar en tiempo de ejecución</string>
-    <string name="agent_loop_section_footer">Durante una tarea de Minis, el agente invoca estos modelos para subtareas como generar una imagen o resumir texto, trabajo que su propio modelo no puede hacer. También se pueden invocar desde la terminal con minis-model-use. Solo estos son visibles para Minis Agent.</string>
+    <string name="agent_loop_section_footer">Durante una tarea de Minis, el agente invoca estos modelos para subtareas como generar una imagen o resumir texto, trabajo que su propio modelo no puede hacer. También se pueden invocar desde la terminal con moonveil-model-use. Solo estos son visibles para Minis Agent.</string>
     <string name="agent_loop_section_empty_hint">No se agregaron modelos ni grupos</string>
     <string name="agent_loop_section_add_models">Agregar modelos</string>
     <string name="agent_loop_section_add_groups">Agregar grupos</string>
@@ -1308,7 +1308,7 @@
     <string name="backup_share_chooser">Compartir copia de seguridad</string>
     <string name="backup_save_to_files">Guardar en Archivos…</string>
     <string name="backup_choose_file">Elegir archivo de copia…</string>
-    <string name="backup_choose_file_footer">Elige un archivo .minisbak desde Archivos, Drive o cualquier almacenamiento conectado.</string>
+    <string name="backup_choose_file_footer">Elige un archivo .moonveilbak desde Archivos, Drive o cualquier almacenamiento conectado.</string>
     <string name="backup_restore_destinations">Destinos de copia</string>
     <string name="backup_restore_destinations_footer">Toca un destino para explorarlo y elegir una copia.</string>
     <string name="backup_restore_other_sources">Otras fuentes</string>
@@ -1376,7 +1376,7 @@
     <string name="backup_dest_trust_certificate_warning">No se pudo verificar el certificado. Activa esta opción solo para un servidor que controles: cualquiera que pueda interceptar la conexión podría suplantarlo.</string>
     <string name="backup_dest_cancel">Cancelar</string>
     <string name="restore_browse_header">Copias en esta carpeta</string>
-    <string name="restore_browse_footer">Se listan los archivos .minisbak de esta carpeta del servidor.</string>
+    <string name="restore_browse_footer">Se listan los archivos .moonveilbak de esta carpeta del servidor.</string>
     <string name="restore_browse_footer_empty">Este es un listado en vivo del servidor, no tu historial de copias.</string>
     <string name="restore_browse_empty">Aquí no hay carpetas ni copias.</string>
     <string name="restore_download_title">¿Descargar esta copia?</string>

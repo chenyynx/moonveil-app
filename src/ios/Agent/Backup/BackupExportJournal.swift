@@ -36,7 +36,7 @@ enum BackupExportJournal {
 
     /// Staging directory for an export run.
     ///
-    /// Deliberately still named `minisbak-<backupId>`: `archive()` zips this
+    /// Deliberately still named `moonveilbak-<backupId>`: `archive()` zips this
     /// directory, so its NAME becomes the top-level folder inside every
     /// package, and the integrity map is keyed on paths relative to it. Naming
     /// it `staging-…` (one character shorter) silently shifted every integrity
@@ -45,7 +45,7 @@ enum BackupExportJournal {
     /// entries. Caught on device; keeping the historical name keeps packages
     /// byte-compatible with what previous builds produced.
     static func stagingRoot(backupId: String) -> URL {
-        supportDir.appendingPathComponent("minisbak-\(backupId)", isDirectory: true)
+        supportDir.appendingPathComponent("moonveilbak-\(backupId)", isDirectory: true)
     }
 
     /// What an interrupted export was doing, so it can be picked up again.
@@ -157,11 +157,11 @@ enum BackupExportJournal {
     /// ever resume it, and it is only occupying disk.
     static func sweepAbandoned() {
         let fm = FileManager.default
-        let keep = interrupted().map { "minisbak-\($0.backupId)" }
+        let keep = interrupted().map { "moonveilbak-\($0.backupId)" }
 
         var removed = 0
         for name in (try? fm.contentsOfDirectory(atPath: supportDir.path)) ?? [] {
-            guard name.hasPrefix("minisbak-"), name != keep else { continue }
+            guard name.hasPrefix("moonveilbak-"), name != keep else { continue }
             try? fm.removeItem(at: supportDir.appendingPathComponent(name))
             removed += 1
         }
@@ -173,13 +173,13 @@ enum BackupExportJournal {
         // up because a killed backup never cleaned up after itself.
         //
         // Prefixes, and what leaks without them:
-        //   minisbak-        pre-resume export staging; import/peek work dirs
+        //   moonveilbak-        pre-resume export staging; import/peek work dirs
         //   backup-          a half-written STREAMING package produced by a
         //                    build older than [T-backup-package-name-device]
         //   restore-         a package downloaded from a mounted folder
         //   server-restore-  a package downloaded from an rclone remote
         //
-        // Plus ANY `*.minisbak` in tmp/, which is what actually catches the
+        // Plus ANY `*.moonveilbak` in tmp/, which is what actually catches the
         // half-written streaming package now. That package is the big one — it
         // is the whole backup, so it can be gigabytes — and it used to be
         // matched by the `backup-` prefix alone. Package names now lead with
@@ -191,7 +191,7 @@ enum BackupExportJournal {
         // Nothing here is ever resumable: exports resume from staging in
         // Application Support, and a partial download is always re-fetched.
         let tmp = fm.temporaryDirectory
-        let prefixes = ["minisbak-", "backup-", "restore-", "server-restore-"]
+        let prefixes = ["moonveilbak-", "backup-", "restore-", "server-restore-"]
         let packageSuffix = "." + BackupFormat.fileExtension
         for name in (try? fm.contentsOfDirectory(atPath: tmp.path)) ?? []
         where prefixes.contains(where: name.hasPrefix) || name.hasSuffix(packageSuffix) {

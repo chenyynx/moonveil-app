@@ -1,5 +1,5 @@
-// Tests for [T-backup-package-name-device] — `.minisbak` filenames are now
-// `<device>-<yyyyMMdd>-<sortable-id>.minisbak` so that packages from several
+// Tests for [T-backup-package-name-device] — `.moonveilbak` filenames are now
+// `<device>-<yyyyMMdd>-<sortable-id>.moonveilbak` so that packages from several
 // devices sharing one NAS folder can be told apart.
 //
 // The load-bearing claim is the ORDERING one: the clock time (`HHmm`) was
@@ -98,7 +98,7 @@ func packageFileName(backupId: String, at date: Date, deviceName: String,
     let device = filenameDeviceToken(deviceName)
     let stamp = filenameFormatter.string(from: date)
     let suffix = encrypted ? "-encrypted" : ""
-    return "\(device)-\(stamp)-\(sortableID(backupId: backupId, at: date))\(suffix).minisbak"
+    return "\(device)-\(stamp)-\(sortableID(backupId: backupId, at: date))\(suffix).moonveilbak"
 }
 
 // MARK: - Ordering (the reason this change is safe)
@@ -250,7 +250,7 @@ do {
     let t = Date(timeIntervalSince1970: 1_787_000_000)
     let name = packageFileName(backupId: "F69C0012-3456", at: t, deviceName: "Ethan's iPhone")
     check("starts with the device", name.hasPrefix("Ethans-iPhone-"))
-    check("ends with the extension", name.hasSuffix(".minisbak"))
+    check("ends with the extension", name.hasSuffix(".moonveilbak"))
     check("no 'backup-' prefix any more", !name.hasPrefix("backup-"))
     // Date present, clock time absent.
     let stamp = filenameFormatter.string(from: t)
@@ -258,7 +258,7 @@ do {
     // Structure check: with the device token reduced to a single dash-free
     // word, the name must be exactly device / date / id.
     let simple = packageFileName(backupId: "F69C0012-3456", at: t, deviceName: "iPhone")
-    let fields = simple.replacingOccurrences(of: ".minisbak", with: "").split(separator: "-")
+    let fields = simple.replacingOccurrences(of: ".moonveilbak", with: "").split(separator: "-")
     checkEq("exactly 3 dash-separated fields", fields.count, 3)
     checkEq("field 1 is the device", String(fields[0]), "iPhone")
     checkEq("field 2 is the date", String(fields[1]), stamp)
@@ -284,7 +284,7 @@ do {
     let enc = packageFileName(backupId: "abc", at: t, deviceName: "iPhone", encrypted: true)
     check("plain package carries no marker", !plain.contains("-encrypted"))
     check("encrypted package is marked", enc.contains("-encrypted"))
-    check("marker sits before the extension", enc.hasSuffix("-encrypted.minisbak"))
+    check("marker sits before the extension", enc.hasSuffix("-encrypted.moonveilbak"))
     check("default is unencrypted", packageFileName(backupId: "abc", at: t,
                                                     deviceName: "iPhone") == plain)
     // Same run, same everything except the flag: only the suffix differs, so
@@ -305,12 +305,12 @@ do {
     checkEq("mixed encrypted/plain still sorts chronologically", names.sorted(), names)
 
     // A file browser filtering on the extension must still match.
-    check("still ends in .minisbak", enc.hasSuffix(".minisbak"))
+    check("still ends in .moonveilbak", enc.hasSuffix(".moonveilbak"))
     // ...and the encrypted one is still one dash-group longer, not a new field
     // order — device / date / id / marker.
     let fields = packageFileName(backupId: "abc", at: t, deviceName: "iPhone",
                                  encrypted: true)
-        .replacingOccurrences(of: ".minisbak", with: "").split(separator: "-")
+        .replacingOccurrences(of: ".moonveilbak", with: "").split(separator: "-")
     checkEq("exactly 4 dash-separated fields when encrypted", fields.count, 4)
     checkEq("marker is the last field", String(fields[3]), "encrypted")
 }

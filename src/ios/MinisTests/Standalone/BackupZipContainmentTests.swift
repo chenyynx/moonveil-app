@@ -102,14 +102,14 @@ if let out = oldGuard(attack, destination: root) {
 }
 
 print("\nLegitimate package contents — new guard must NOT reject")
-for (label, name) in [("wrapper + nested file", "minisbak-UUID/data/messages.jsonl"),
-                      ("blob path", "minisbak-UUID/blobs/ab/abcdef0123.blob"),
-                      ("unicode filename", "minisbak-UUID/文件/résumé.md"),
-                      ("empty directory entry", "minisbak-UUID/blobs/"),
-                      ("deep non-existent leaf", "minisbak-UUID/a/b/c/d.json"),
+for (label, name) in [("wrapper + nested file", "moonveilbak-UUID/data/messages.jsonl"),
+                      ("blob path", "moonveilbak-UUID/blobs/ab/abcdef0123.blob"),
+                      ("unicode filename", "moonveilbak-UUID/文件/résumé.md"),
+                      ("empty directory entry", "moonveilbak-UUID/blobs/"),
+                      ("deep non-existent leaf", "moonveilbak-UUID/a/b/c/d.json"),
                       ("symlink staying inside root", "inner/ok.txt"),
-                      ("dot in filename", "minisbak-UUID/data/a.b.c.jsonl"),
-                      ("space in filename", "minisbak-UUID/my file.txt")] {
+                      ("dot in filename", "moonveilbak-UUID/data/a.b.c.jsonl"),
+                      ("space in filename", "moonveilbak-UUID/my file.txt")] {
     check("new allows \(label)", newGuard(name, destination: root) != nil, true)
 }
 

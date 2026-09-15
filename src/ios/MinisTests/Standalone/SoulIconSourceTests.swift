@@ -1,5 +1,5 @@
-// Tests for [T-soul-icon-config-images] — `minis-config set soul.icon` now
-// accepts images (data URI, bare base64, minis:// resource, local path,
+// Tests for [T-soul-icon-config-images] — `moonveil-config set soul.icon` now
+// accepts images (data URI, bare base64, moonveil:// resource, local path,
 // http(s) URL) and must funnel every one of them through the SAME rules the
 // Settings picker uses.
 //
@@ -61,7 +61,7 @@ func isProbablyBareBase64(_ s: String) -> Bool {
 func looksLikeImageSource(_ raw: String) -> Bool {
     let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
     if s.isEmpty { return false }
-    if s.hasPrefix("data:") || s.hasPrefix("minis://") { return true }
+    if s.hasPrefix("data:") || s.hasPrefix("moonveil://") { return true }
     if s.hasPrefix("http://") || s.hasPrefix("https://") { return true }
     if s.hasPrefix("/") || s.hasPrefix("~/") { return true }
     if s.count > 64, isProbablyBareBase64(s) { return true }
@@ -155,8 +155,8 @@ for (label, s, want) in [
     ("empty", "", false),
     ("short text", "hello", false),
     ("data URI", "data:image/png;base64,iVBORw0KGgo=", true),
-    ("minis attachments", "minis://attachments/icon.png", true),
-    ("minis workspace", "minis://workspace/icon.png", true),
+    ("minis attachments", "moonveil://attachments/icon.png", true),
+    ("minis workspace", "moonveil://workspace/icon.png", true),
     ("https", "https://example.com/icon.png", true),
     ("http", "http://example.com/icon.png", true),
     ("absolute path", "/var/minis/attachments/icon.png", true),
@@ -296,8 +296,8 @@ check("containment resolves symlinks on both sides",
 
 print("\ntopic-help — the description IS the API doc")
 for needle in ["data:image/png;base64,iVBORw0KGgo",
-               "minis://attachments/icon.png",
-               "minis://workspace/icon.png",
+               "moonveil://attachments/icon.png",
+               "moonveil://workspace/icon.png",
                "/var/minis/attachments/icon.png",
                "https://example.com/icon.png",
                "bare base64",
@@ -307,7 +307,7 @@ for needle in ["data:image/png;base64,iVBORw0KGgo",
     check("help mentions `\(needle)`", builtinsSource.contains(needle))
 }
 check("help gives a runnable quoted example",
-      builtinsSource.contains("minis-config set soul.icon '\\\"minis://attachments/icon.png\\\"'"))
+      builtinsSource.contains("moonveil-config set soul.icon '\\\"moonveil://attachments/icon.png\\\"'"))
 check("help warns --file takes the JSON value, not the image",
       builtinsSource.contains("reads the JSON VALUE"))
 check("help does NOT claim SVG support (it does not decode)",

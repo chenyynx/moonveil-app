@@ -678,7 +678,7 @@ private fun parseInline(
 // ─── Media blocks (inline image / video / audio) ────────────────────────────
 
 /**
- * Resolve a URL used in Markdown (`minis://...` or a plain path) to a host
+ * Resolve a URL used in Markdown (`moonveil://...` or a plain path) to a host
  * File, suitable for MediaPlayer, MediaMetadataRetriever, or file share
  * intents. Returns null when the path can't be resolved or the file is
  * missing. Mirrors MinisImageFetcher's resolution logic so inline media
@@ -687,12 +687,12 @@ private fun parseInline(
 private fun resolveMediaFile(url: String): File? {
     if (url.isBlank()) return null
     // Strip a real query string, but NOT `#`: attachment filenames can
-    // contain '#' (e.g. `foo #China.mp4`). `minis://` URLs don't use
+    // contain '#' (e.g. `foo #China.mp4`). `moonveil://` URLs don't use
     // fragments, so truncating at '#' would lose part of the filename.
     val stripped = url.substringBefore('?')
     val hostFile: File? = when {
-        stripped.startsWith("minis://") -> {
-            val decoded = java.net.URLDecoder.decode(stripped.removePrefix("minis://"), "UTF-8")
+        stripped.startsWith("moonveil://") -> {
+            val decoded = java.net.URLDecoder.decode(stripped.removePrefix("moonveil://"), "UTF-8")
             PRootKernel.resolveHostPath("/var/minis/$decoded")
         }
         stripped.startsWith("file://") -> File(Uri.parse(stripped).path ?: return null)

@@ -8,7 +8,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 
 /**
- * Cross-platform crypto vectors for `minisbak-enc/1`.
+ * Cross-platform crypto vectors for `moonveilbak-enc/1`.
  *
  * The design doc's test plan requires that both platforms agree byte-for-byte
  * on the encryption layer, because a package written on one must open on the
@@ -77,12 +77,12 @@ class BackupCryptoInteropTest {
     @Test
     fun `manifest sidecar MAC matches iOS over identical raw bytes`() {
         val k = keys()
-        val raw = """{"format":"minisbak/1","backup_id":"vector"}""".toByteArray(Charsets.UTF_8)
+        val raw = """{"format":"moonveilbak/1","backup_id":"vector"}""".toByteArray(Charsets.UTF_8)
         assertEquals("14yuPzidILM2o72V74e2Nau1bMWeji2FxCXgEWVV3fI=", BackupCrypto.manifestMac(raw, k.macKey))
         // Must not throw for the good MAC…
         BackupCrypto.verifyManifestMac(raw, "14yuPzidILM2o72V74e2Nau1bMWeji2FxCXgEWVV3fI=", k.macKey)
         // …and must reject an edited manifest.
-        val tampered = """{"format":"minisbak/1","backup_id":"forged"}""".toByteArray(Charsets.UTF_8)
+        val tampered = """{"format":"moonveilbak/1","backup_id":"forged"}""".toByteArray(Charsets.UTF_8)
         var threw = false
         try {
             BackupCrypto.verifyManifestMac(
@@ -111,7 +111,7 @@ class BackupCryptoInteropTest {
             ByteArrayInputStream(member, 4, member.size - 4),
             out, k.dataKey, "data/sessions.jsonl.enc",
         )
-        assertEquals("hello minisbak — 跨平台备份\n", out.toString("UTF-8"))
+        assertEquals("hello moonveilbak — 跨平台备份\n", out.toString("UTF-8"))
     }
 
     /**
@@ -171,7 +171,7 @@ class BackupCryptoInteropTest {
     }
 
     private fun createTempFile() =
-        java.io.File.createTempFile("minisbak-test", null).apply { deleteOnExit() }
+        java.io.File.createTempFile("moonveilbak-test", null).apply { deleteOnExit() }
 
     companion object {
         /**

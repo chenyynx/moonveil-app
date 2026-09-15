@@ -236,7 +236,7 @@ struct ModelsCollection: ConfigCollection {
 
     // MARK: - Capability fields (modalities / contextWindow / derived)
 
-    /// Canonical names matching `minis-model-use list` so the two tools
+    /// Canonical names matching `moonveil-model-use list` so the two tools
     /// agree on terminology. Order is meaningful for `modalitiesField`'s
     /// stable output.
     private static let modalityNamesInOrder: [(name: String, flag: ModelModality)] = [

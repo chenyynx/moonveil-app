@@ -2,7 +2,7 @@ import CryptoKit
 import XCTest
 @testable import Minis
 
-/// Tests for `minisbak-enc/1` (docs/backup-restore-design.md §5).
+/// Tests for `moonveilbak-enc/1` (docs/backup-restore-design.md §5).
 ///
 /// The review singled out the AAD binding as "the core anti-tampering claim,
 /// currently entirely unverified". That claim is what stops an attacker

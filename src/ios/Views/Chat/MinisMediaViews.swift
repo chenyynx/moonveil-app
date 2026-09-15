@@ -5,18 +5,18 @@ import QuickLook
 
 
 private let minisLogger = AppLogger(category: "MoonveilMedia")
-// MARK: - minis:// Media Provider
+// MARK: - moonveil:// Media Provider
 
 // MARK: Media Cache — avoids re-loading/decoding when LazyVStack recycles cells
 
 final class MinisMediaCache {
     static let shared = MinisMediaCache()
 
-    /// Downsampled UIImage cache keyed by absolute minis:// URL string.
+    /// Downsampled UIImage cache keyed by absolute moonveil:// URL string.
     private let imageCache = NSCache<NSString, UIImage>()
     /// Video thumbnail cache keyed by file path.
     private let thumbnailCache = NSCache<NSString, UIImage>()
-    /// Resolved host file URL cache keyed by minis:// URL string.
+    /// Resolved host file URL cache keyed by moonveil:// URL string.
     private let resolvedURLCache = NSCache<NSString, NSURL>()
 
     private init() {
@@ -55,7 +55,7 @@ final class MinisMediaCache {
     ///
     /// `minisMediaCacheKey` is evaluated inside `body` (it feeds `.task(id:)`),
     /// so it runs on the main actor once per tile per body pass. Its `stat()`
-    /// was previously uncached, and for a `minis://mounts/<name>/…` source the
+    /// was previously uncached, and for a `moonveil://mounts/<name>/…` source the
     /// underlying resolve also touches the mount's backing volume — on a slow
     /// or unreachable SMB / FileProvider share that blocks the main thread and
     /// trips the scene-update watchdog. A short TTL keeps the mtime-based
@@ -85,7 +85,7 @@ final class MinisMediaCache {
     }
 
     /// Drop a cached fingerprint so the next read re-stats immediately. Called
-    /// after we write to a minis:// path ourselves, where waiting out the TTL
+    /// after we write to a moonveil:// path ourselves, where waiting out the TTL
     /// would leave a visibly stale thumbnail.
     func invalidateFingerprint(for path: String) {
         fingerprintLock.lock()
@@ -113,10 +113,10 @@ func downsampleImage(data: Data, maxPixelSize: CGFloat = 2048) -> UIImage? {
     return UIImage(cgImage: cgImage)
 }
 
-/// Resolve a minis:// URL with caching to avoid repeated FileManager lookups.
+/// Resolve a moonveil:// URL with caching to avoid repeated FileManager lookups.
 ///
 /// Cache key is scoped by the active session id because per-session paths
-/// (e.g. `minis://attachments/foo.png`) resolve to different files in
+/// (e.g. `moonveil://attachments/foo.png`) resolve to different files in
 /// `Library/MinisChat/minis/<sessionId>/…` depending on which session is
 /// active. Keying on `url.absoluteString` alone caused cross-session hits
 /// where a bubble in session B resolved to session A's file.
@@ -150,7 +150,7 @@ func resolveMinisFileURLCached(url: URL) -> URL? {
 /// caches naturally invalidate whenever the file on disk is rewritten
 /// (e.g. the agent regenerates a chart at the same path).
 ///
-/// For `minis://` sources we resolve to the host file URL and stat it.
+/// For `moonveil://` sources we resolve to the host file URL and stat it.
 /// For `http(s)://` and anything we can't resolve we fall back to the
 /// plain source string — remote caches are managed by URL loading layers
 /// above us, and a stale in-memory hit there is acceptable for this tool.
@@ -163,7 +163,7 @@ func minisMediaCacheKey(for source: String) -> String {
 func minisMediaCacheKey(for url: URL) -> String {
     let base = url.absoluteString
     // Non-minis schemes: return as-is, we don't own that file's lifecycle.
-    guard url.scheme == "minis" else { return base }
+    guard url.scheme == "moonveil" else { return base }
     guard let fileURL = resolveMinisFileURLCached(url: url) else {
         // File not resolvable (yet) — use the base key so a later real
         // fingerprint load replaces it naturally.
@@ -215,7 +215,7 @@ let minisDocumentExtensions: Set<String> = [
     "rtf", "rtfd",
 ]
 
-/// Resolve a minis:// URL to a host filesystem URL.
+/// Resolve a moonveil:// URL to a host filesystem URL.
 /// Maps directly to persistent storage: Library/MinisChat/minis/<sessionId>/<subdir>/<path>
 /// No dependency on iSH boot or bind mounts.
 func resolveMinisFileURL(url: URL) -> URL? {
@@ -259,7 +259,7 @@ func resolveMinisFileURL(url: URL) -> URL? {
         }
     }
 
-    // User-mounted external folders: minis://mounts/<name>/<path>
+    // User-mounted external folders: moonveil://mounts/<name>/<path>
     // → resolve <name> through MountedFoldersManager, then append <path>.
     if host == "mounts" {
         for subPath in subPaths {
@@ -313,11 +313,11 @@ func resolveMinisFileURL(url: URL) -> URL? {
     }
 
     // [T-ios-minisurl-cross-session-isolation] DO NOT scan other sessions.
-    // minis://attachments/<file> is session-scoped: it must only resolve
+    // moonveil://attachments/<file> is session-scoped: it must only resolve
     // inside the ACTIVE session's directory (handled above), plus the genuinely
     // global dirs (skills/memory/shared) and user-mounted folders. The old
     // "scan all session directories and return the first same-named file"
-    // fallback was a P0 isolation leak — minis-model-use emits fixed names like
+    // fallback was a P0 isolation leak — moonveil-model-use emits fixed names like
     // model-use-zimage-0.jpg, so session B referencing that path would silently
     // resolve to session A's image. Not-found is the correct, safe result for a
     // cross-session reference.
@@ -325,7 +325,7 @@ func resolveMinisFileURL(url: URL) -> URL? {
     return nil
 }
 
-// MARK: - minis:// Link Handling
+// MARK: - moonveil:// Link Handling
 
 /// SF Symbol icon for a given file extension.
 private func minisFileIcon(for ext: String) -> String {
@@ -354,7 +354,7 @@ private func minisFileIcon(for ext: String) -> String {
     }
 }
 
-/// Tappable file chip for minis:// links in Markdown.
+/// Tappable file chip for moonveil:// links in Markdown.
 private struct MinisFileChipView: View {
     let url: URL
     @State private var showShareSheet = false
@@ -419,7 +419,7 @@ struct AsyncImageTile: View {
         }
         .buttonStyle(.plain)
         // Fingerprint id (path + size + mtime) so an in-place rewrite of
-        // the underlying minis:// file invalidates the displayed
+        // the underlying moonveil:// file invalidates the displayed
         // thumbnail (T-image-cache-mtime-35133). URL string alone would
         // keep the stale image until the cell recycles.
         .task(id: minisMediaCacheKey(for: meta.minisURL)) { loadThumbnail() }
@@ -427,7 +427,7 @@ struct AsyncImageTile: View {
 
     private func loadThumbnail() {
         // Fingerprint key captures file size + mtime so a rewrite of the
-        // same minis:// path invalidates the cache automatically.
+        // same moonveil:// path invalidates the cache automatically.
         let cacheKey = "attach:\(minisMediaCacheKey(for: meta.minisURL))"
         if let cached = NativeMediaImageCache.shared.image(for: cacheKey) {
             thumbnail = cached
@@ -486,7 +486,7 @@ struct AsyncVideoTile: View {
         }
         .buttonStyle(.plain)
         // Fingerprint id (path + size + mtime) so an in-place rewrite of
-        // the underlying minis:// file invalidates the displayed
+        // the underlying moonveil:// file invalidates the displayed
         // thumbnail (T-image-cache-mtime-35133). URL string alone would
         // keep the stale image until the cell recycles.
         .task(id: minisMediaCacheKey(for: meta.minisURL)) { loadThumbnail() }
@@ -561,7 +561,7 @@ struct AsyncCacheURLImageTile: View {
     }
 }
 
-/// Environment action for handling minis:// and http(s):// URL taps.
+/// Environment action for handling moonveil:// and http(s):// URL taps.
 ///
 /// Cell-level views (MessageRowView, MarkdownBlockView) live inside UICollectionView
 /// cells whose window hierarchy is unstable. Presenting a sheet from those views causes
@@ -614,7 +614,7 @@ private struct MinisImageView: View {
     @State private var didNotifySizeChange = false
 
     var body: some View {
-        if let url, url.scheme == "minis" {
+        if let url, url.scheme == "moonveil" {
             let ext = url.pathExtension.lowercased()
             let _ = minisLogger.info("[MoonveilImage][View] render url=\(url.absoluteString) ext=\(ext) hasLoadedImage=\(self.loadedImage != nil) attempt=\(self.loadAttempt)")
             if minisAudioExtensions.contains(ext) {
@@ -772,7 +772,7 @@ private struct MinisImageView: View {
 
 
 
-// MARK: - minis:// Image File Preview (from URL handler)
+// MARK: - moonveil:// Image File Preview (from URL handler)
 
 /// Fullscreen image preview loading from a local file URL.
 struct MinisImageFilePreviewView: View {
@@ -811,7 +811,7 @@ struct MinisImageFilePreviewView: View {
     }
 }
 
-// MARK: - minis:// Text/Code Preview
+// MARK: - moonveil:// Text/Code Preview
 
 /// File-preview navigation title that toggles between the file's last path
 /// component and its full path on tap. Long paths get middle-truncated since
@@ -842,7 +842,7 @@ struct PreviewTitleToggle: View {
 /// appearance). The bubble image path already solved this with
 /// `.task(id: minisMediaCacheKey(...))`; mirror it here with a cheap stat so a
 /// same-path rewrite re-reads the file. Unlike minisMediaCacheKey this takes the
-/// already-resolved disk URL directly (no minis:// re-resolve).
+/// already-resolved disk URL directly (no moonveil:// re-resolve).
 private func filePreviewFingerprint(_ url: URL) -> String {
     // Evaluated inline in `body` as a `.task(id:)` argument, so it runs on the
     // main actor on every body pass. `fileURL` can point into a mounted
@@ -958,7 +958,7 @@ private struct MinisTextView: UIViewRepresentable {
     }
 }
 
-// MARK: - minis:// Markdown Preview
+// MARK: - moonveil:// Markdown Preview
 
 /// On iPad the default `.sheet` presents as a ~540pt-wide form sheet which
 /// wastes most of the screen for long-form markdown. iOS 18 introduced
@@ -1059,7 +1059,7 @@ struct MinisMarkdownPreviewView: View {
     }
 }
 
-// MARK: - minis:// HTML Preview
+// MARK: - moonveil:// HTML Preview
 
 struct MinisHTMLPreviewView: View {
     let fileURL: URL
@@ -1136,7 +1136,7 @@ struct MinisHTMLPreviewView: View {
 }
 
 
-// MARK: - minis:// Document Preview
+// MARK: - moonveil:// Document Preview
 
 import QuickLook
 

@@ -199,13 +199,13 @@
                  itself never appears in the launcher directly, but all
                  internal Intent(this, MainActivity::class.java) startActivity
                  calls keep working because MainActivity is always enabled.
-                 The minis:// deep-link filter stays on MainActivity since
+                 The moonveil:// deep-link filter stays on MainActivity since
                  deep-links never go through the LAUNCHER category. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="minis" />
+                <data android:scheme="moonveil" />
             </intent-filter>
         </activity>
 
@@ -230,7 +230,7 @@
             <!-- T-android-app-icon-shortcuts: app-icon long-press quick
                  actions (mirrors iOS QuickActionRouter / UIApplicationShortcutItem).
                  Three static shortcuts (new_chat / voice_chat / camera_chat)
-                 launch MainActivity via minis://action/<name> deep-link.
+                 launch MainActivity via moonveil://action/<name> deep-link.
                  The shortcuts meta-data must live on the alias that owns
                  the LAUNCHER filter, not on MainActivity itself. -->
             <meta-data

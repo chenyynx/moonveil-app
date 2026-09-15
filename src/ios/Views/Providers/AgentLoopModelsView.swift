@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Inline section for ModelGroupsView — manages models available via minis-model-use.
+/// Inline section for ModelGroupsView — manages models available via moonveil-model-use.
 /// Supports both individual model entries and entire model groups.
 /// Sheet bindings are passed in from the parent to avoid hanging .sheet on a Section inside a List.
 struct AgentLoopModelsSection: View {
@@ -67,7 +67,7 @@ struct AgentLoopModelsSection: View {
                 }
             }
         } footer: {
-            Text("During a Minis task, the agent calls these models for sub-tasks such as generating an image or summarizing text — work its own model can't do. Also callable from the terminal via minis-model-use. Only these are visible to the agent.")
+            Text("During a Moonveil task, the agent calls these models for sub-tasks such as generating an image or summarizing text — work its own model can't do. Also callable from the terminal via moonveil-model-use. Only these are visible to the agent.")
         }
     }
 

@@ -97,7 +97,7 @@ object PRootKernel {
         // so non-login shells (which never source /etc/profile.d/minis.sh)
         // still route webbrowser.open()/etc into the host OpenOffloadHandler.
         // Mirrors iOS ISHShellExecutor.m:333.
-        customEnvironment["BROWSER"] = "/usr/local/bin/minis-open"   // T195: force override; user dotfile BROWSER= would otherwise win
+        customEnvironment["BROWSER"] = "/usr/local/bin/moonveil-open"   // T195: force override; user dotfile BROWSER= would otherwise win
 
         // ash-specific: ENV points at a file the shell sources on startup.
         // Our /etc/profile sources /etc/profile.d/*.sh, so non-login shells
@@ -191,7 +191,7 @@ object PRootKernel {
     fun registerGlobalBindMounts(context: Context) {
         val globalBase = File(context.filesDir, "minis-global")
         // [T-mcp-integration-android] mcp-servers is global (like memory/skills):
-        // binding it here makes the in-PRoot minis-mcp-cli read/write the SAME
+        // binding it here makes the in-PRoot moonveil-mcp-cli read/write the SAME
         // servers.json the Android Settings UI does (host: minis-global/mcp-servers).
         listOf("memory", "skills", "shared", "mcp-servers").forEach { subdir ->
             val hostDir = File(globalBase, subdir).also { it.mkdirs() }

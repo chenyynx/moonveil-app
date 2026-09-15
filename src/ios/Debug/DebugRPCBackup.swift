@@ -92,7 +92,7 @@ enum DebugRPCBackup {
         ]
     }
 
-    /// `debug.backup.restore` — import a `.minisbak` package (stage 2, Merge).
+    /// `debug.backup.restore` — import a `.moonveilbak` package (stage 2, Merge).
     ///
     /// Params:
     ///   - `path` (required): package to restore.
@@ -156,7 +156,7 @@ enum DebugRPCBackup {
         ]
     }
 
-    /// `debug.backup.open` — drive the "opened a .minisbak from Files" entry
+    /// `debug.backup.open` — drive the "opened a .moonveilbak from Files" entry
     /// point and report whether the restore sheet is now presentable.
     ///
     /// [review S14] Exists to verify the routing headlessly. The real trigger
@@ -562,7 +562,7 @@ enum DebugRPCBackup {
     /// Test packages can be hundreds of MB, and `keep` deliberately moves them
     /// somewhere that survives tmp cleanup — so there has to be a way to remove
     /// them again without reaching for a destructive shell command.
-    /// Scoped to Documents and to the `.minisbak` extension so it cannot touch
+    /// Scoped to Documents and to the `.moonveilbak` extension so it cannot touch
     /// anything else.
     static func cleanup(params: [String: Any]) async throws -> [String: Any] {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]

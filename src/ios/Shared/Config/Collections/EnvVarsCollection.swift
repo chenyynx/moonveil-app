@@ -7,7 +7,7 @@ import Foundation
 /// the actual secret only ever moves through Keychain and the user-
 /// facing UI. Adding a variable goes through this collection too, but
 /// the agent must use the existing
-/// `minis://settings/environments?create_key=…` deep link if it wants
+/// `moonveil://settings/environments?create_key=…` deep link if it wants
 /// the user to populate the value — there's no programmatic write
 /// path that accepts a value.
 @MainActor
@@ -36,14 +36,14 @@ struct EnvVarsCollection: ConfigCollection {
                 path: "envvars.\(id).value",
                 displayName: "Value",
                 description: "Hidden — manage via Settings → Environment Variables.",
-                reason: "Env var values are stored in Keychain and never exposed to minis-config"
+                reason: "Env var values are stored in Keychain and never exposed to moonveil-config"
             ),
         ]
     }
 
     func add(_ payload: ConfigValue) throws -> String {
         throw ConfigError.permissionDenied(
-            reason: "Use the deep link `minis://settings/environments?create_key=…` so the user enters the value directly"
+            reason: "Use the deep link `moonveil://settings/environments?create_key=…` so the user enters the value directly"
         )
     }
 

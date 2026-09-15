@@ -19,7 +19,7 @@ import java.io.File
  * SQLite table:
  *   - Server configs live in `/var/minis/mcp-servers/servers.json` (host:
  *     `minis-global/mcp-servers/servers.json`) in the `{ "mcpServers": { … } }`
- *     format. This is the SAME file the `minis-mcp-cli` Python tool reads/writes
+ *     format. This is the SAME file the `moonveil-mcp-cli` Python tool reads/writes
  *     inside PRoot, and the file browser can edit — so all three surfaces stay
  *     in sync without an Android-side sync layer (matches Android's local-only
  *     skills/provider model; no CloudKit / whole-file sync here).
@@ -64,7 +64,7 @@ class MCPRepository(private val context: Context) {
         /**
          * Per-server startup/handshake timeout (seconds) for a STDIO server's
          * first MCP `initialize`. Minis config, not MCP protocol; enforcement is
-         * entirely in the in-guest `minis-mcp-cli` daemon. Round-tripped verbatim
+         * entirely in the in-guest `moonveil-mcp-cli` daemon. Round-tripped verbatim
          * so an edit/import/export never drops it. Null = daemon default (60s).
          * [T-mcp-startup-timeout]
          */
@@ -448,7 +448,7 @@ class MCPRepository(private val context: Context) {
         val selected = enabled.take(MAX_MCPS_IN_PROMPT)
 
         return buildString {
-            append("Available MCP Servers (use minis-mcp-cli to discover and call):\n")
+            append("Available MCP Servers (use moonveil-mcp-cli to discover and call):\n")
             for (s in selected) {
                 var note = s.note ?: ""
                 if (note.length > MAX_NOTE_LENGTH) note = note.substring(0, MAX_NOTE_LENGTH) + "…"
@@ -457,12 +457,12 @@ class MCPRepository(private val context: Context) {
                 append("\n")
             }
             append("\n")
-            append("To use: run `minis-mcp-cli tools <server>` to see available tools,\n")
-            append("then `minis-mcp-cli call <server> <tool> [args]` to invoke.\n")
+            append("To use: run `moonveil-mcp-cli tools <server>` to see available tools,\n")
+            append("then `moonveil-mcp-cli call <server> <tool> [args]` to invoke.\n")
             // [T-mcp-dollar-var-systemprompt-android] Document the $$VAR runtime
             // env placeholder (mirrors iOS 5fa9e6a9). Agent-facing English — not
             // localized; wording must match iOS verbatim.
-            append("When adding or modifying an MCP server config (via minis-mcp-cli add / the UI), use \$\$VARNAME in env/headers/url values as a placeholder resolved at runtime from the system/App environment variables — do not hardcode secrets; reference an existing App environment variable as \$\$NAME.")
+            append("When adding or modifying an MCP server config (via moonveil-mcp-cli add / the UI), use \$\$VARNAME in env/headers/url values as a placeholder resolved at runtime from the system/App environment variables — do not hardcode secrets; reference an existing App environment variable as \$\$NAME.")
         }
     }
 

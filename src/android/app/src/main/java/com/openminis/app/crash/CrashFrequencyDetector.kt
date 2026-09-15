@@ -398,7 +398,7 @@ object CrashFrequencyDetector {
         // tracking down what the agent was doing right before the
         // crash; the user opts in when they care about that context.
         val dailyLogs = (logsDir.listFiles { f ->
-            f.name.startsWith("minis-") && f.name.endsWith(".log")
+            f.name.startsWith("moonveil-") && f.name.endsWith(".log")
         } ?: emptyArray<File>())
             .toList()
             .filter { now - it.lastModified() <= PICK_RUN_LOG_WINDOW_MS }

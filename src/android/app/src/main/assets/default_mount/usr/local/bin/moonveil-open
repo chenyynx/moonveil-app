@@ -1,5 +1,5 @@
 #!/bin/sh
-# minis-open — MinisApp URL interceptor for the PRoot sandbox.
+# moonveil-open — MinisApp URL interceptor for the PRoot sandbox.
 #
 # Stands in for xdg-open / sensible-browser / www-browser / BROWSER, and also
 # doubles as the in-app preview opener for chat resources. Any argument is
@@ -7,8 +7,8 @@
 # host parses and routes to the appropriate built-in viewer:
 #
 #   * http:// https:// about:*                 → in-app WebView preview
-#   * /var/minis/<host>/<path>  (absolute)     → converted to minis://<host>/<path>
-#     minis://attachments/...  minis://workspace/...  minis://shared/... etc.
+#   * /var/minis/<host>/<path>  (absolute)     → converted to moonveil://<host>/<path>
+#     moonveil://attachments/...  moonveil://workspace/...  moonveil://shared/... etc.
 #                                              → routed by extension:
 #                                                 images → image viewer
 #                                                 markdown → markdown preview
@@ -17,7 +17,7 @@
 #                                                 audio/video → media player
 #                                                 else → share sheet
 #
-# Protocol: ESC ] 1337 ; MinisOpenURL = <url> BEL
+# Protocol: ESC ] 1337 ; MoonveilOpenURL = <url> BEL
 #   - ESC = 0x1B, BEL = 0x07
 #   - Host scanner strips the whole sequence from the displayed output.
 #
@@ -30,7 +30,7 @@ ESC=$(printf '\033')
 BEL=$(printf '\007')
 
 emit_marker() {
-    printf '%s]1337;MinisOpenURL=%s%s\n' "$ESC" "$1" "$BEL"
+    printf '%s]1337;MoonveilOpenURL=%s%s\n' "$ESC" "$1" "$BEL"
 }
 
 emit() {
@@ -39,13 +39,13 @@ emit() {
             emit_marker "$1"
             printf 'Opened in Minis browser: %s\n' "$1"
             ;;
-        minis://*)
-            # Already a minis:// URL — pass through.
+        moonveil://*)
+            # Already a moonveil:// URL — pass through.
             emit_marker "$1"
             printf 'Opened in Minis preview: %s\n' "$1"
             ;;
         /var/minis/*)
-            # Convert /var/minis/<host>/<path> → minis://<host>/<path>
+            # Convert /var/minis/<host>/<path> → moonveil://<host>/<path>
             # so the host can resolve it to the real sandbox location and
             # pick the right in-app preview by extension.
             rel="${1#/var/minis/}"
@@ -53,13 +53,13 @@ emit() {
                 */*)
                     host="${rel%%/*}"
                     path="${rel#*/}"
-                    emit_marker "minis://$host/$path"
-                    printf 'Opened in Minis preview: minis://%s/%s\n' "$host" "$path"
+                    emit_marker "moonveil://$host/$path"
+                    printf 'Opened in Minis preview: moonveil://%s/%s\n' "$host" "$path"
                     ;;
                 *)
                     # e.g. /var/minis/workspace with no trailing path — a bare
                     # directory. Not previewable; treat as non-URL.
-                    printf 'minis-open: not a previewable resource: %s\n' "$1" >&2
+                    printf 'moonveil-open: not a previewable resource: %s\n' "$1" >&2
                     return 0
                     ;;
             esac
@@ -67,15 +67,15 @@ emit() {
         *)
             # Non-URL, non-/var/minis path: print a hint but don't fail — mimic
             # xdg-open best-effort so shell scripts that chain it don't abort.
-            printf 'minis-open: not a URL or chat resource, ignoring: %s\n' "$1" >&2
+            printf 'moonveil-open: not a URL or chat resource, ignoring: %s\n' "$1" >&2
             return 0
             ;;
     esac
 }
 
 if [ $# -eq 0 ]; then
-    echo "Usage: minis-open <url-or-path>" >&2
-    echo "  url-or-path: http(s):// URL, minis:// URL, or /var/minis/<host>/<path>" >&2
+    echo "Usage: moonveil-open <url-or-path>" >&2
+    echo "  url-or-path: http(s):// URL, moonveil:// URL, or /var/minis/<host>/<path>" >&2
     exit 1
 fi
 

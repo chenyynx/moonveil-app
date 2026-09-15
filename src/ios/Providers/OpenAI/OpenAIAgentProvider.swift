@@ -1057,7 +1057,7 @@ final class OpenAIAgentProvider: AgentProvider {
         let trace = ThinkingRuleResolver.apply(to: &body, ctx: ctx)
         // [T-thinking-rules-observability] Design §8 / OpenMinis#100: which rule actually
         // won must be inspectable, or a rule layer just replaces one hidden variable with
-        // a more complicated one. minis-config exposure is Phase 2.
+        // a more complicated one. moonveil-config exposure is Phase 2.
         //
         // [T-thinking-vision-diag] `trace.logLine` now also carries `gates=[…]` whenever a
         // gate intervened, so this single INFO line answers both "which rule won" and

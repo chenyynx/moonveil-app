@@ -47,7 +47,7 @@ struct BackupFileTreeExporter {
     }
 
     /// True for anything that is itself a backup artifact — a delivered
-    /// `.minisbak` package, or the directory they are delivered into.
+    /// `.moonveilbak` package, or the directory they are delivered into.
     ///
     /// Matched on the leading path component as well as the extension so a
     /// whole `Backups/` tree is skipped in one step rather than file by file.

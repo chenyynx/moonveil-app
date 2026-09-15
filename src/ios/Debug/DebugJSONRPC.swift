@@ -365,7 +365,7 @@ final class DebugJSONRPC: @unchecked Sendable {
             return try await DebugRPCProvider.thinkingRulesDelete(params: params)
         case "provider.thinkingRules.resolve":
             return try await DebugRPCProvider.thinkingRulesResolve(params: params)
-        // [T-config-debug-rpc] minis-config, driven remotely through the same
+        // [T-config-debug-rpc] moonveil-config, driven remotely through the same
         // ConfigOffloadBridge entry points the in-guest CLI binary calls.
         case "config.get":
             return try await DebugRPCConfig.get(params: params)
@@ -3035,7 +3035,7 @@ final class DebugJSONRPC: @unchecked Sendable {
         let chatBase = library.appendingPathComponent("MinisChat", isDirectory: true)
         let rootfs = RootfsManager.shared.rootfsPath
         return [
-            ("minis", chatBase.appendingPathComponent("minis.db")),
+            ("moonveil", chatBase.appendingPathComponent("minis.db")),
             ("skills", chatBase.appendingPathComponent("minis").appendingPathComponent("skills.db")),
             ("provider-config", chatBase.appendingPathComponent("provider-config.db")),
             ("voice-correction", chatBase.appendingPathComponent("voice-correction.db")),

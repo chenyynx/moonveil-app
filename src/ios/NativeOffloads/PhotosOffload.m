@@ -159,7 +159,7 @@ static BOOL requestPhotosAccess(NSString **outError) {
     if (!granted && outError) {
         *outError = @"Photo library access not granted. "
                      "To grant access, open Settings > Privacy & Security > Photos "
-                     "and enable Minis.";
+                     "and enable Moonveil.";
     }
     return granted;
 }

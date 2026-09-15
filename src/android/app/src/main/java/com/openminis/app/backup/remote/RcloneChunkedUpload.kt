@@ -20,12 +20,12 @@ import java.util.TimeZone
  * restarts from zero. That bought resumability at a real cost: every package
  * over 8 MiB lived on the server as a directory of anonymous fragments —
  * unusable by hand, dependent on our own reassembly logic on the restore side,
- * and invisible to the iOS restore picker, which lists `.minisbak` files only.
+ * and invisible to the iOS restore picker, which lists `.moonveilbak` files only.
  * A user looking at their NAS saw no backup at all.
  *
  * iOS re-evaluated the trade on 2026-08-16 and decided it the other way; this
  * is the Android side of that change. The server always holds a clean,
- * self-contained `.minisbak` a user can grab with any client, and an
+ * self-contained `.moonveilbak` a user can grab with any client, and an
  * interrupted upload simply re-runs. A failure is surfaced per-destination by
  * the caller, so it is visible, not silent.
  *
@@ -116,7 +116,7 @@ class RcloneChunkedUpload(private val context: Context) {
         // object on the user's NAS after every interrupted upload.
         //
         // A plain suffix is invisible to that filter and still cannot be
-        // mistaken for a backup: the restore list matches `.minisbak` exactly.
+        // mistaken for a backup: the restore list matches `.moonveilbak` exactly.
         val partial = remote.join("$name.$PARTIAL_SUFFIX")
         val final = remote.join(name)
 
@@ -214,7 +214,7 @@ class RcloneChunkedUpload(private val context: Context) {
      * Delete `.partial` scratch objects left by interrupted uploads.
      *
      * A killed transfer leaves its scratch file on the server for good. They
-     * are hidden from the restore list (the filter requires a `.minisbak`
+     * are hidden from the restore list (the filter requires a `.moonveilbak`
      * suffix) so they never look like backups, but they are full-size — one per
      * interruption, each potentially gigabytes, quietly consuming the user's
      * NAS. Nothing else ever removes them.
@@ -222,7 +222,7 @@ class RcloneChunkedUpload(private val context: Context) {
      * Best-effort by design: a server that refuses the listing or the delete
      * must not fail the backup that is about to run — the point is to reclaim
      * space, not to gate the transfer on housekeeping. It deletes ONLY
-     * `.partial` scratch objects, never a user's `.minisbak` and never the
+     * `.partial` scratch objects, never a user's `.moonveilbak` and never the
      * historical `.minis-parts` directory.
      */
     private fun sweepAbandonedPartials(remote: RcloneRemoteStore.Remote, keeping: String) {
@@ -373,12 +373,12 @@ class RcloneChunkedUpload(private val context: Context) {
     }
 
     /**
-     * Everything restorable in [remote]: whole `.minisbak` packages, plus any
+     * Everything restorable in [remote]: whole `.moonveilbak` packages, plus any
      * chunked upload a PREVIOUS build left behind.
      *
      * In-flight scratch files never show up here: they are named
-     * `<package>.minisbak.partial`, and the filter below requires the name to
-     * END in `.minisbak`.
+     * `<package>.moonveilbak.partial`, and the filter below requires the name to
+     * END in `.moonveilbak`.
      */
     fun listPackages(remote: RcloneRemoteStore.Remote): List<RemotePackage> {
         val found = mutableListOf<RemotePackage>()

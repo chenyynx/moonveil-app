@@ -2,7 +2,7 @@ import Foundation
 
 /// Exposes ProviderInstance fields under `providers.<id>.…`.
 ///
-/// [T-minis-config-provider-add] Write is open, secret READ stays shut.
+/// [T-moonveil-config-provider-add] Write is open, secret READ stays shut.
 /// The agent CAN now create a provider (`add`) and write its credential
 /// (`apiKey`, literal or `$$ENV` reference) and other settings — every write
 /// goes through the confirmation sheet + revertable audit, and the user
@@ -43,7 +43,7 @@ struct ProvidersCollection: ConfigCollection {
             customUserAgent(for: id),
             appendV1Suffix(for: id),
             imageEndpointMode(for: id),
-            // [T-minis-config-provider-add] API key is now WRITABLE (literal or
+            // [T-moonveil-config-provider-add] API key is now WRITABLE (literal or
             // `$$ENV`) but reading it still returns permission_denied — the
             // secret only ever moves INTO Keychain, never back out.
             apiKeyField(for: id),
@@ -53,7 +53,7 @@ struct ProvidersCollection: ConfigCollection {
                 path: "providers.\(id).oauthToken",
                 displayName: "OAuth Token",
                 description: "Hidden — managed by the in-app OAuth login flow.",
-                reason: "OAuth tokens are never exposed to minis-config"
+                reason: "OAuth tokens are never exposed to moonveil-config"
             ),
         ]
     }
@@ -170,13 +170,13 @@ struct ProvidersCollection: ConfigCollection {
     /// `$$ENV` reference (resolved to the real value, then stored in Keychain);
     /// reading always returns permission_denied. The bridge masks the value in
     /// the audit/confirm surfaces (ConfigValue.secretObjectKeys).
-    /// [T-minis-config-provider-add]
+    /// [T-moonveil-config-provider-add]
     private func apiKeyField(for id: String) -> ConfigField {
         WriteOnlySecretField(
             path: "providers.\(id).apiKey",
             displayName: "API Key",
             description: "Write a literal API key or a `$$ENV_VAR` reference (resolved at write time). Cannot be read back.",
-            readDenyReason: "API keys are never exposed to minis-config",
+            readDenyReason: "API keys are never exposed to moonveil-config",
             writer: { v in
                 guard case .string(let raw) = v else {
                     throw ConfigError.typeMismatch(expected: "string")

@@ -422,12 +422,12 @@ struct BackupSettingsView: View {
                     if localCopyRemoved {
                         Text("Delivered to all \(deliveryResults.count) destination(s) and verified. The copy on this iPhone was removed to save space.")
                     } else if deliveryResults.isEmpty {
-                        Text("Saved in Minis ▸ Backups. Use Save to Files to copy it to iCloud Drive, a connected server, or another cloud provider.")
+                        Text("Saved in Moonveil ▸ Backups. Use Save to Files to copy it to iCloud Drive, a connected server, or another cloud provider.")
                     } else {
                         let ok = deliveryResults.filter(\.succeeded).count
                         // The local copy is stated explicitly so a user whose
                         // NAS was offline can see the backup still exists.
-                        Text("Saved in Minis ▸ Backups, and copied to \(ok) of \(deliveryResults.count) selected folder(s).")
+                        Text("Saved in Moonveil ▸ Backups, and copied to \(ok) of \(deliveryResults.count) selected folder(s).")
                     }
                 }
             }
@@ -532,7 +532,7 @@ struct BackupSettingsView: View {
         }
         // [review S14] The `pendingPackage` sheet used to live here. It is now
         // mounted at the WindowGroup root (MinisApp.swift) so opening a
-        // .minisbak from Files works from ANY screen — this view is the one
+        // .moonveilbak from Files works from ANY screen — this view is the one
         // place the user is least likely to already be standing when they
         // migrate to a new device.
     }

@@ -2,7 +2,7 @@ import SwiftUI
 
 private let confirmSheetLogger = AppLogger(category: "ConfigConfirmSheet")
 
-/// The user-facing sheet that gates every minis-config write.
+/// The user-facing sheet that gates every moonveil-config write.
 ///
 /// Mounted at app root; observes ConfigConfirmationGate.shared.pending
 /// and presents a sheet whenever a change is queued. Users can:

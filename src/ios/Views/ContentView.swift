@@ -1474,7 +1474,7 @@ struct ContentView: View {
             }
         }
         // Something else is taking over the screen (an incoming share, a
-        // WebApp deep link, a `.minisbak` opened from Files). iOS will not
+        // WebApp deep link, a `.moonveilbak` opened from Files). iOS will not
         // present a second sheet from the same root while one is up, so a tool
         // sheet left open here silently swallows the new presentation — which
         // is exactly how opening a backup while sitting in Settings did
@@ -7924,7 +7924,7 @@ private struct SettingsSheet: View {
         |-------|-------|
         | Platform | iOS |
         | OS Version | iOS \(iosVersion) |
-        | Minis Version | \(appVersion) (build \(build)) |
+        | Moonveil Version | \(appVersion) (build \(build)) |
         | Device Model | \(device) |
 
         ## 🔁 Steps to Reproduce

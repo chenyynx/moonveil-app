@@ -316,10 +316,10 @@ extension AIChatViewModel {
         minisConfigRoot.appendingPathComponent("mcp-servers", isDirectory: true)
     }
 
-    /// Resolve a `minis://` URL to a host filesystem URL.
+    /// Resolve a `moonveil://` URL to a host filesystem URL.
     /// Shared resolution logic used by Markdown link handlers and the browser's WKURLSchemeHandler.
     nonisolated static func resolveMinisURL(_ url: URL) -> URL? {
-        guard url.scheme == "minis", let host = url.host else { return nil }
+        guard url.scheme == "moonveil", let host = url.host else { return nil }
         // Tolerate double-encoded links (%25E6…) alongside the correct
         // single-encoded form. [T-fix-double-encoding]
         let subPaths = MinisURLPathDecoding.subPathCandidates(for: url)

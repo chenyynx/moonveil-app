@@ -1,6 +1,6 @@
 import Foundation
 
-/// On-the-wire types for the `.minisbak` backup package.
+/// On-the-wire types for the `.moonveilbak` backup package.
 ///
 /// Spec: `docs/backup-restore-design.md` §2 / §2.1. Everything in this file is
 /// the FORMAT, deliberately kept free of any read-side dependency so the
@@ -16,10 +16,10 @@ enum BackupFormat {
     /// Format major version. A reader that doesn't recognise it must refuse the
     /// package and tell the user to update (§2.2 rule 1) — never attempt a
     /// best-effort parse.
-    static let current = "minisbak/1"
+    static let current = "moonveilbak/1"
 
     /// File extension registered to the app for "open to import".
-    static let fileExtension = "minisbak"
+    static let fileExtension = "moonveilbak"
 
     /// Cap for a single JSONL shard (§2). Beyond this the writer rolls over to
     /// `messages-0002.jsonl` etc. Exists so the importer never has to hold one

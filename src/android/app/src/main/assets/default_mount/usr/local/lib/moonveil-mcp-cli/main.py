@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""minis-mcp-cli — MCP client CLI for the Minis agent (iSH / PRoot).
+"""moonveil-mcp-cli — MCP client CLI for the Minis agent (iSH / PRoot).
 
 Subcommands:
   list [--all] [--pretty]                       list configured servers
@@ -24,7 +24,7 @@ list / tools / ping / call run through a self-forked daemon that keeps MCP
 server connections warm (per-server 10-minute idle TTL); the first such call
 spawns the daemon, later calls reuse it. IPC is 127.0.0.1 loopback TCP (iSH's
 fakefs cannot host an AF_UNIX socket), with the daemon's ephemeral port
-published in /tmp/minis-mcp-daemon.port. info / add / remove / enable / disable
+published in /tmp/moonveil-mcp-daemon.port. info / add / remove / enable / disable
 stay pure-local (servers.json only) and never touch the daemon.
 """
 
@@ -41,9 +41,9 @@ from utils import config  # noqa: E402
 
 LOG_PATH = "/var/minis/mcp-servers/mcp-cli.log"
 
-PID_FILE = "/tmp/minis-mcp-daemon.pid"
-PORT_FILE = "/tmp/minis-mcp-daemon.port"  # daemon publishes its 127.0.0.1 port here
-LOCK_FILE = "/tmp/minis-mcp-daemon.lock"  # cold-start fork guard (one winner forks)
+PID_FILE = "/tmp/moonveil-mcp-daemon.pid"
+PORT_FILE = "/tmp/moonveil-mcp-daemon.port"  # daemon publishes its 127.0.0.1 port here
+LOCK_FILE = "/tmp/moonveil-mcp-daemon.lock"  # cold-start fork guard (one winner forks)
 CONN_TIMEOUT = 310.0  # socket recv timeout, slightly above the 300s RPC timeout
 LOCK_STALE_SECONDS = 12.0  # reclaim a cold-start lock older than this (crashed start)
 
@@ -510,9 +510,9 @@ def cmd_set_enabled(args, pretty, enabled):
     _emit({"server": name, "enabled": enabled}, pretty)
 
 
-USAGE = """minis-mcp-cli — MCP (Model Context Protocol) client for the Minis agent.
+USAGE = """moonveil-mcp-cli — MCP (Model Context Protocol) client for the Minis agent.
 
-Usage: minis-mcp-cli <command> [args] [--pretty]
+Usage: moonveil-mcp-cli <command> [args] [--pretty]
 
 Commands:
   list [--all]                          List configured servers (--all includes disabled).
@@ -558,13 +558,13 @@ Files:
   Log:      /var/minis/mcp-servers/mcp-cli.log
 
 Examples:
-  minis-mcp-cli list --pretty
-  minis-mcp-cli tools notion
-  minis-mcp-cli call notion search --input '{"q":"x"}'
-  minis-mcp-cli add --name notion --url https://mcp.notion.so/mcp --header "Authorization: Bearer $NOTION_TOKEN"
-  minis-mcp-cli add --name github --command npx --args "-y @modelcontextprotocol/server-github" --env "GITHUB_TOKEN=$GITHUB_TOKEN"
-  minis-mcp-cli add --name atlassian --command uvx --args "mcp-atlassian" --startup-timeout 120
-  minis-mcp-cli add --name gworkspace --url https://my-gws-mcp.example.com/mcp \
+  moonveil-mcp-cli list --pretty
+  moonveil-mcp-cli tools notion
+  moonveil-mcp-cli call notion search --input '{"q":"x"}'
+  moonveil-mcp-cli add --name notion --url https://mcp.notion.so/mcp --header "Authorization: Bearer $NOTION_TOKEN"
+  moonveil-mcp-cli add --name github --command npx --args "-y @modelcontextprotocol/server-github" --env "GITHUB_TOKEN=$GITHUB_TOKEN"
+  moonveil-mcp-cli add --name atlassian --command uvx --args "mcp-atlassian" --startup-timeout 120
+  moonveil-mcp-cli add --name gworkspace --url https://my-gws-mcp.example.com/mcp \
       --oauth-client-id "1234.apps.googleusercontent.com" --oauth-client-secret "GOCSPX-..." \
       --oauth-auth-endpoint "https://accounts.google.com/o/oauth2/auth" \
       --oauth-token-endpoint "https://oauth2.googleapis.com/token" \
@@ -629,7 +629,7 @@ def main():
         else:
             # Keep the JSON error on stdout for programmatic callers; add a
             # human hint on stderr pointing at --help.
-            sys.stderr.write("Run 'minis-mcp-cli --help' for usage.\n")
+            sys.stderr.write("Run 'moonveil-mcp-cli --help' for usage.\n")
             _fail("unknown subcommand: %s" % cmd, "PARSE_ERROR", None, pretty)
     except MCPError as exc:
         _fail(exc.message, exc.code, None, pretty)

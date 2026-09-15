@@ -461,7 +461,7 @@ class MinisApp : Application(), ImageLoaderFactory {
         com.openminis.app.agent.SoulStore.ensureExists(this)
         com.openminis.app.agent.SoulStore.refreshCache(this)
 
-        // T-config: minis-config CLI surface — registry / audit log /
+        // T-config: moonveil-config CLI surface — registry / audit log /
         // master-switch store. Initialized eagerly here so
         // ConfigRegistry.get() is safe from any thread for the rest of
         // the process. Mirrors iOS ConfigRegistry.shared.registerBuiltinsIfNeeded().
@@ -544,12 +544,12 @@ class MinisApp : Application(), ImageLoaderFactory {
         NativeOffloadServer.register("android-weather", WeatherOffloadHandler(this))
         // T323: UI-layer automation backed by MinisAccessibilityService.
         NativeOffloadServer.register("android-a11y-cli", AccessibilityOffloadHandler(this))
-        NativeOffloadServer.register("minis-model-use", ModelUseOffloadHandler(this, providerRepository))
-        // T-config: minis-config — agent-facing settings management
+        NativeOffloadServer.register("moonveil-model-use", ModelUseOffloadHandler(this, providerRepository))
+        // T-config: moonveil-config — agent-facing settings management
         // (read/write registered ConfigFields with audit + revert).
         // Mirrors iOS `config_offload_register()` in ISHKernel.m.
         NativeOffloadServer.register(
-            "minis-config",
+            "moonveil-config",
             com.openminis.app.sandbox.offload.ConfigOffloadHandler(),
         )
         NativeOffloadServer.register("minis-browser-use", BrowserUseOffloadHandler(this))
@@ -630,7 +630,7 @@ class MinisApp : Application(), ImageLoaderFactory {
         }
 
         // [T-android-config-confirm-timeout] Wire the config-confirm background
-        // notifier into the (Context-free) gate, so a minis-config approval that
+        // notifier into the (Context-free) gate, so a moonveil-config approval that
         // is waiting while the app is backgrounded nudges the user before the
         // 120s timeout. Mirrors iOS ConfigConfirmationGate.notifyIfBackgrounded.
         val configConfirmNotifier = com.openminis.app.notification.ConfigConfirmNotifier(
@@ -853,8 +853,8 @@ class MinisApp : Application(), ImageLoaderFactory {
     }
 
     /**
-     * Coil global ImageLoader — registers [MinisImageFetcher] so `minis://`
-     * URIs in Markdown images (e.g. `![alt](minis://attachments/x.png)`)
+     * Coil global ImageLoader — registers [MinisImageFetcher] so `moonveil://`
+     * URIs in Markdown images (e.g. `![alt](moonveil://attachments/x.png)`)
      * resolve to local files under /var/minis/.
      */
     override fun newImageLoader(): ImageLoader =
@@ -864,7 +864,7 @@ class MinisApp : Application(), ImageLoaderFactory {
                 add(MinisImageFetcher.UriFactory())
                 // T-image-cache-mtime-35133: include File.lastModified() in
                 // memory + disk cache key so Grok-style in-place rewrites of
-                // minis://attachments/foo.jpg invalidate Coil's cached bitmap.
+                // moonveil://attachments/foo.jpg invalidate Coil's cached bitmap.
                 add(MinisImageFetcher.MtimeKeyer())
                 add(MinisImageFetcher.StringMtimeKeyer())
             }

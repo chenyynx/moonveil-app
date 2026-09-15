@@ -199,7 +199,7 @@ final class BackupPackagingTests: XCTestCase {
 
     func testCentralDirectoryListsEveryEntry() throws {
         let zip = try makeZip(files: [
-            "manifest.json": Data(#"{"format":"minisbak/1"}"#.utf8),
+            "manifest.json": Data(#"{"format":"moonveilbak/1"}"#.utf8),
             "data/sessions.jsonl": Data("{\"id\":1}\n{\"id\":2}\n".utf8),
             "blobs/aa/hash": Data(repeating: 7, count: 5000),
         ])
@@ -213,7 +213,7 @@ final class BackupPackagingTests: XCTestCase {
     /// Round-trip through our own extractor: every file must come back byte-identical.
     func testExtractRestoresContentExactly() throws {
         let payloads: [String: Data] = [
-            "manifest.json": Data(#"{"format":"minisbak/1","device_name":"x"}"#.utf8),
+            "manifest.json": Data(#"{"format":"moonveilbak/1","device_name":"x"}"#.utf8),
             "data/a.jsonl": Data((0..<200).map { "line \($0)\n" }.joined().utf8),
             "blobs/bb/big": Data(repeating: 0x33, count: 60_000),
         ]

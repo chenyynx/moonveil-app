@@ -455,13 +455,13 @@ class PhotosOffloadHandler(private val context: Context) : NativeOffloadHandler 
     /**
      * Copy the asset bytes into the CALLING SESSION's offloads dir
      * (`<filesDir>/minis-sessions/<sessionId>/offloads/`) and report the
-     * sandbox-visible `/var/minis/offloads/<name>` path plus a `minis://`
+     * sandbox-visible `/var/minis/offloads/<name>` path plus a `moonveil://`
      * URL, matching iOS `PhotosOffload.m` (which exports to
      * `/var/minis/offloads/` directly).
      *
      * [GH#139] This used to write to `<filesDir>/photos-export/` and return
      * only `host_path`. That path is inside no PRoot bind mount, so the
-     * Linux sandbox cannot read it and `minis-open` rejects it (it accepts
+     * Linux sandbox cannot read it and `moonveil-open` rejects it (it accepts
      * only http/https/about/minis URLs) — the agent could list photo
      * metadata but never actually look at an exported photo. An older
      * comment here claimed the handler "doesn't see the session id"; that
@@ -556,22 +556,22 @@ class PhotosOffloadHandler(private val context: Context) : NativeOffloadHandler 
                 .put("format", if (size == "original") "original" else "jpeg")
                 .put("export_size", size)
             // [GH#139] Hand back the paths the agent can actually USE: the
-            // sandbox path for shell tools, and the minis:// URL that
-            // `minis-open` accepts for in-chat preview / model rendering.
+            // sandbox path for shell tools, and the moonveil:// URL that
+            // `moonveil-open` accepts for in-chat preview / model rendering.
             if (sandboxVisible) {
                 data.put("linux_path", "/var/minis/offloads/${outFile.name}")
-                    .put("minis_url", "minis://offloads/${outFile.name}")
+                    .put("minis_url", "moonveil://offloads/${outFile.name}")
                     .put(
                         "note",
                         "Exported into this chat's offloads dir. Use `linux_path` from shell " +
-                            "tools, or `minis_url` with minis-open to preview it in chat.",
+                            "tools, or `minis_url` with moonveil-open to preview it in chat.",
                     )
             } else {
                 data.put(
                     "note",
                     "No chat session for this offload (interactive terminal), so the export " +
                         "went to app-private storage: `host_path` is NOT reachable from the " +
-                        "Linux sandbox and minis-open cannot open it. Run the export from a " +
+                        "Linux sandbox and moonveil-open cannot open it. Run the export from a " +
                         "chat to get a /var/minis/offloads path.",
                 )
             }
@@ -1051,7 +1051,7 @@ Android edge cases vs apple-photos:
     since the CLI sandbox can't show the system consent dialog.
   - Export writes into the calling chat's offloads dir and returns
     `linux_path` (/var/minis/offloads/...) and `minis_url`
-    (minis://offloads/...) alongside `host_path`, matching iOS. Outside a
+    (moonveil://offloads/...) alongside `host_path`, matching iOS. Outside a
     chat (interactive terminal) there is no session dir, so only
     `host_path` is returned and the note says it is not reachable from
     the Linux sandbox.

@@ -604,7 +604,7 @@ struct ProviderInstanceDetailView: View {
         } header: {
             Text(AppLocalized("Custom User-Agent"))
         } footer: {
-            Text(AppLocalized("Override the User-Agent header sent to this endpoint. Leave empty to use the Minis default. Useful for relays that only accept specific clients (e.g. \"claude-cli/1.0\")."))
+            Text(AppLocalized("Override the User-Agent header sent to this endpoint. Leave empty to use the Moonveil default. Useful for relays that only accept specific clients (e.g. \"claude-cli/1.0\")."))
         }
     }
 

@@ -70,7 +70,7 @@ enum RcloneRemoteStore {
         /// ROOT as the destination: `path` is "" and the join yields "/name" —
         /// a LEADING-SLASH path that rclone's WebDAV backend resolves against
         /// the server root, ESCAPING the folder baked into the fs URL. Seen
-        /// live: a package assembled to `http://host:8099/backup-….minisbak`
+        /// live: a package assembled to `http://host:8099/backup-….moonveilbak`
         /// instead of `…/backups/…`, then reported missing. Trimming slashes
         /// on both sides keeps every produced path fs-relative.
         func join(_ name: String) -> String {

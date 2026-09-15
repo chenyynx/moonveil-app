@@ -832,7 +832,7 @@ static void handle_process_exit(struct task *task, int code) {
 /// that (`deps/ish/fs/sock.c:280`). The compiled-in default is `/tmp/ishsock`
 /// (`fs/sock.c:229`), i.e. the iOS host `/tmp`, which no sandboxed app may
 /// write. Every guest `bind()` therefore failed with EPERM: Terraform/OpenTofu
-/// provider handshakes could never start (GH#175), and the minis-mcp-cli daemon
+/// provider handshakes could never start (GH#175), and the moonveil-mcp-cli daemon
 /// had to fall back to loopback TCP.
 ///
 /// Upstream iSH fixed this in 2019 (`7704024a`) inside `app/AppDelegate.m`.
@@ -1079,7 +1079,7 @@ static void handle_process_exit(struct task *task, int code) {
         // Mirrors ISHShellExecutor: route browser-open calls to the in-app
         // preview shim. Needed for interactive terminal sessions too, where
         // Python's webbrowser module picks $BROWSER before $DISPLAY probing.
-        KERNEL_ENVP_APPEND("BROWSER=/usr/local/bin/minis-open");
+        KERNEL_ENVP_APPEND("BROWSER=/usr/local/bin/moonveil-open");
 
         // Inject device timezone so iSH userspace sees local time.
         // Use POSIX TZ format with a fixed name to avoid abbreviations like "GMT+8"

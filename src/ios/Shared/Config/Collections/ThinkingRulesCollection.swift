@@ -1,6 +1,6 @@
 import Foundation
 
-/// Exposes per-provider thinking rules to `minis-config` under
+/// Exposes per-provider thinking rules to `moonveil-config` under
 /// `thinkingrules.<instanceId>:<ruleId>.…`.
 ///
 /// WHY THE COMPOSITE CHILD ID. A rule belongs to a provider instance, so the natural

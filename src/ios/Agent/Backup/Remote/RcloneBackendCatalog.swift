@@ -53,7 +53,7 @@ enum RcloneBackendCatalog {
     /// Every other backend here is URL/prefix-based, where a leading `/`
     /// resolves against the SERVER root and escapes the folder baked into the
     /// remote's fs spec. That is the WebDAV escape fixed in 1dec9e650 (a
-    /// package written to `http://host/backup-….minisbak` instead of
+    /// package written to `http://host/backup-….moonveilbak` instead of
     /// `…/backups/…`), so their stripping must stay exactly as it is.
     static func usesAbsolutePaths(_ backendType: String) -> Bool {
         backendType == "sftp"

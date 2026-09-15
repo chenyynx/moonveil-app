@@ -709,7 +709,7 @@ struct UserAttachmentList: View {
         }
         .buttonStyle(.plain)
         // WebApp entry point — only for .html / .htm. Long-press → context
-        // menu → "Add to Home Screen". The sheet resolves the minis://
+        // menu → "Add to Home Screen". The sheet resolves the moonveil://
         // URL to a host URL via resolveMinisFileURLCached and hands off
         // to WebAppAddToHomeSheet for classification, icon extraction, and
         // persistence.
@@ -730,7 +730,7 @@ struct UserAttachmentList: View {
 
 /// Adds the WebApp "Add to Home Screen" long-press menu to a chat-rendered
 /// attachment file tile. Inert for non-HTML attachments. Resolves the
-/// minis:// URL to a host URL on tap and presents `WebAppAddToHomeSheet`.
+/// moonveil:// URL to a host URL on tap and presents `WebAppAddToHomeSheet`.
 private struct WebAppAddToHomeMenuModifier: ViewModifier {
     let meta: AttachmentMeta
     @State private var showAddSheet = false

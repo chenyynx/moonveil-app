@@ -2,7 +2,7 @@
 //  ModelUseOffload.h
 //  MinisApp
 //
-//  Native offload handler for `minis-model-use`.
+//  Native offload handler for `moonveil-model-use`.
 //  Lists, searches, and invokes LLM models from the terminal.
 //
 

@@ -6,7 +6,7 @@ private let logger = AppLogger(category: "Backup")
 /// to answer one question when the rest of the package cannot be read:
 /// *what was this blob, and who did it belong to?*
 ///
-/// A `.minisbak` is a ZIP, which already survives partial damage well — every
+/// A `.moonveilbak` is a ZIP, which already survives partial damage well — every
 /// member is stored independently and local headers carry a magic that can be
 /// scanned for. The single points of failure are the two indexes:
 ///

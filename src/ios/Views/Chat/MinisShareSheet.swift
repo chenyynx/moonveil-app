@@ -3,7 +3,7 @@
 //  MinisApp
 //
 //  UIKit UIActivityViewController wrapper used throughout the chat UI
-//  to share minis:// files, images, audio, video, links, and previews.
+//  to share moonveil:// files, images, audio, video, links, and previews.
 //  Extracted from AIChatView.swift.
 //
 
@@ -32,7 +32,7 @@ struct MinisShareSheet: UIViewControllerRepresentable {
     /// `UTType`, copy the file to a `.bin` neighbor in `tmp/` so the
     /// share sheet sees a vanilla `public.data` UTI and skips the
     /// PDF-detection assert. http/https URLs pass through unchanged;
-    /// other schemes (minis://, file:// with no path, etc.) return
+    /// other schemes (moonveil://, file:// with no path, etc.) return
     /// nil so the caller can fall back to the raw URL — those scheme
     /// strings reach ShareKit through a different code path and have
     /// not been observed to crash.

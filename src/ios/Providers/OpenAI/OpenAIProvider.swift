@@ -114,7 +114,7 @@ final class OpenAIProvider: LLMProvider {
     var extraHeaders: [String: String] = [:]
 
     /// [T-model-use-image-passthrough GH#62] Arbitrary extra fields merged into the
-    /// /images/generations JSON body, so `minis-model-use` can pass provider-specific
+    /// /images/generations JSON body, so `moonveil-model-use` can pass provider-specific
     /// params our fixed schema never modeled (e.g. Volcengine Seedream's `image` for
     /// image-to-image, `watermark`, `tools`). User keys WIN over our defaults
     /// (response_format) but never replace the resolved `model`. Empty = no passthrough.
@@ -123,7 +123,7 @@ final class OpenAIProvider: LLMProvider {
     /// [T-model-use-chat-passthrough GH#72] Arbitrary extra fields merged into
     /// the chat/completions and responses request bodies, mirroring
     /// `imageExtraBody` on the image path. Populated per-call by the
-    /// minis-model-use bridge from the input JSON's explicit `extra_body`
+    /// moonveil-model-use bridge from the input JSON's explicit `extra_body`
     /// envelope (never from implicit top-level keys — the chat schema owns
     /// its top level). User keys WIN over our defaults (e.g. `plugins`,
     /// `web_search_options`, provider-specific knobs) but `model` is
@@ -440,7 +440,7 @@ final class OpenAIProvider: LLMProvider {
         // (line ~132), so every caller that hits a Codex-OAuth instance
         // got that 400 before the model was ever invoked. Concrete
         // breakage observed in the wild:
-        //   • `minis-model-use run --model gpt-5.5 --input X.json`
+        //   • `moonveil-model-use run --model gpt-5.5 --input X.json`
         //     without `--stream` — ModelUseOffloadBridge picks
         //     sendMessage vs streamMessage based on streamFd; the
         //     non-streaming default failed every time. User reported
@@ -1276,7 +1276,7 @@ final class OpenAIProvider: LLMProvider {
     /// `input_text`, and image blocks must be `input_image` with `image_url`
     /// as a string (not `{url: ...}`). Mirrors the shape emitted by
     /// `OpenAIAgentProvider.convertMessagesResponsesAPI` for the agent path,
-    /// so plain `streamMessage` calls (minis-model-use, title gen, etc.)
+    /// so plain `streamMessage` calls (moonveil-model-use, title gen, etc.)
     /// land the same Codex backend without a 400 on `image_url`.
     static func responsesAPIMessageDict(_ msg: LLMMessage) -> [String: Any] {
         if msg.images.isEmpty && msg.audios.isEmpty {

@@ -153,7 +153,7 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             logger.info("[Share] scene \(phase) URL: \(url.absoluteString)")
             Task { @MainActor in
                 let coordinator = ShareCoordinator.shared
-                // A .minisbak must reach the restore flow, not the attachment
+                // A .moonveilbak must reach the restore flow, not the attachment
                 // pipeline — canIngest() accepts any file URL, so this has to
                 // be checked first.
                 if BackupOpenRouter.handle(url) {

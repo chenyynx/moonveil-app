@@ -473,7 +473,7 @@ struct AIChatView: View {
     @State private var isChatViewVisible: Bool = false
 
 
-    // minis:// link preview sheet state — hoisted from MinisOpenURLHandler so
+    // moonveil:// link preview sheet state — hoisted from MinisOpenURLHandler so
     // sheet presentation originates from a stable window-hierarchy root and
     // plays its slide-up transition correctly. See MinisOpenURLHandler for rationale.
     @State private var previewImageFile: URL?
@@ -489,7 +489,7 @@ struct AIChatView: View {
     @State private var fullBrowserURL: URL?
     @State private var fullBrowserIsLocal = false
     /// Filename to show in the "file missing" alert. Set by `handleMinisURLTap`
-    /// when `resolveMinisFileURL` returns nil for a tapped `minis://` link
+    /// when `resolveMinisFileURL` returns nil for a tapped `moonveil://` link
     /// (file was deleted, the session was pruned, or iCloud hasn't synced yet).
     @State private var missingMinisFileName: String?
 
@@ -929,13 +929,13 @@ struct AIChatView: View {
             })
         }
         // Auto-present the in-app preview when a shell tool's stdout emits
-        // an OSC MinisOpenURL marker (via /usr/local/bin/minis-open).
+        // an OSC MoonveilOpenURL marker (via /usr/local/bin/moonveil-open).
         //
         // Dispatch by scheme:
         //  - http/https/about: in-chat WKWebView preview. ToolLiveSheet
         //    observes the same broker and takes priority for web URLs when
         //    it is on top (broker.toolSheetVisible).
-        //  - minis://...: chat-resource file preview (image/markdown/html/
+        //  - moonveil://...: chat-resource file preview (image/markdown/html/
         //    pdf/...). Routed through handleMinisURLTap which already
         //    picks the right sheet by extension. Always dispatched here
         //    because ToolLiveSheet cannot host fullscreen file previews.
@@ -2632,12 +2632,12 @@ struct AIChatView: View {
                 onRetryMessage: { vm.retryFromMessage($0); vm.forceScrollToBottom.send() },
                 onRetryLast: { vm.retry(); vm.forceScrollToBottom.send() },
                 // [T-ios-assistant-header-open-soul] Routed through the same
-                // handler every `minis://` link in the transcript uses, so the
+                // handler every `moonveil://` link in the transcript uses, so the
                 // identity row and an agent-authored
-                // `[Soul](minis://settings/soul)` link land identically —
+                // `[Soul](moonveil://settings/soul)` link land identically —
                 // no second navigation path to keep in sync.
                 onOpenSoulSettings: {
-                    guard let url = URL(string: "minis://settings/soul") else { return }
+                    guard let url = URL(string: "moonveil://settings/soul") else { return }
                     _ = handleMinisURLTap(url)
                 },
                 onEdit: { [self] msgId in
@@ -2896,7 +2896,7 @@ struct AIChatView: View {
     // MARK: - Drag & Drop Import
 
     /// Handle items dropped onto the chat from outside the app (Files, Photos, Safari, etc.).
-    /// Handle a minis:// or http(s):// URL tap forwarded from a cell-level
+    /// Handle a moonveil:// or http(s):// URL tap forwarded from a cell-level
     /// view. Routes deep links and opens the appropriate file preview sheet
     /// (state lives on AIChatView so sheet animations play correctly).
     /// Route a tap on a markdown-embedded image into a paged gallery covering
@@ -2990,7 +2990,7 @@ struct AIChatView: View {
         imageGallery = GalleryPresentation(items: items, startIndex: startIndex)
     }
 
-    /// Load a markdown image source (already canonicalized to minis:// or
+    /// Load a markdown image source (already canonicalized to moonveil:// or
     /// http(s)://) off the main thread. Caches in the shared
     /// `NativeMediaImageCache` using a fingerprint-derived key so
     /// in-place rewrites of local files are picked up on the next render.
@@ -3001,7 +3001,7 @@ struct AIChatView: View {
         }
         guard let url = URL(string: source) else { return nil }
         let img: UIImage?
-        if url.scheme == "minis" {
+        if url.scheme == "moonveil" {
             guard let fileURL = resolveMinisFileURLCached(url: url),
                   let data = try? Data(contentsOf: fileURL) else { return nil }
             img = downsampleImageData(data, maxPixelSize: 2048)
@@ -3018,9 +3018,9 @@ struct AIChatView: View {
             withAnimation { safariURL = url }
             return .handled
         }
-        guard url.scheme == "minis" else { return .systemAction }
+        guard url.scheme == "moonveil" else { return .systemAction }
 
-        // Terminal deep link: minis://open_terminal?init_command=...
+        // Terminal deep link: moonveil://open_terminal?init_command=...
         if url.host == "open_terminal" {
             let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
             let initCmd = comps?.queryItems?.first(where: { $0.name == "init_command" })?.value
@@ -3029,12 +3029,12 @@ struct AIChatView: View {
             dl.showTerminal = true
             return .handled
         }
-        // View deep links: minis://views/alarm
+        // View deep links: moonveil://views/alarm
         if url.host == "views" && url.path == "/alarm" {
             DeepLinkCoordinator.shared.showAlarmList = true
             return .handled
         }
-        // Any minis://settings/<path> goes through DeepLinkRouter so all
+        // Any moonveil://settings/<path> goes through DeepLinkRouter so all
         // supported settings sub-paths (logs, providers, model-groups,
         // usage, skills, memory, storage, mounts, shared-folders,
         // appearance, background, about, permissions, environments,

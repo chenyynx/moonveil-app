@@ -385,7 +385,7 @@ class TerminalEmulator(cols: Int = 80, rows: Int = 24) {
 
     private fun handleITermOsc(payload: String) {
         val eq = payload.indexOf('=')
-        if (eq <= 0 || payload.substring(0, eq) != "MinisOpenURL") return
+        if (eq <= 0 || payload.substring(0, eq) != "MoonveilOpenURL") return
         val urlString = payload.substring(eq + 1)
         if (urlString.isEmpty()) return
         com.openminis.app.terminal.MinisOpenUrlBroker.offer(urlString)

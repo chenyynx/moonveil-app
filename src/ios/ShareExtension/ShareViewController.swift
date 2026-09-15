@@ -69,8 +69,8 @@ class ShareViewController: UIViewController {
     // MARK: - Redirect to main app
 
     private func redirectToHostApp() {
-        guard let url = URL(string: "minis://share") else {
-            NSLog("[ShareExt] ERROR: Failed to create minis://share URL")
+        guard let url = URL(string: "moonveil://share") else {
+            NSLog("[ShareExt] ERROR: Failed to create moonveil://share URL")
             return
         }
 

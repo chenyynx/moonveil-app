@@ -453,9 +453,9 @@ struct ToolLiveSheet: View {
             MinisOpenURLBroker.shared.toolSheetVisible = false
         }
         // Auto-present an in-app browser preview when a shell tool emits an
-        // OSC MinisOpenURL marker while this sheet is visible.
+        // OSC MoonveilOpenURL marker while this sheet is visible.
         //
-        // Only intercepts http/https/about: URLs — `minis://` chat-resource
+        // Only intercepts http/https/about: URLs — `moonveil://` chat-resource
         // previews (images, markdown, QuickLook, ...) are left for
         // AIChatView to handle since this sheet cannot host file previews.
         //

@@ -24,7 +24,7 @@ struct BackupAndRestoreView: View {
     @State private var tab: Tab
 
     /// A package to open immediately in the restore tab — set when the user
-    /// opened a `.minisbak` from Files / AirDrop.
+    /// opened a `.moonveilbak` from Files / AirDrop.
     private let initialPackageURL: URL?
 
     init(initialTab: Tab = .backup, initialPackageURL: URL? = nil) {

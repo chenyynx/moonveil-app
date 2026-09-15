@@ -121,7 +121,7 @@ extension ConfigRegistry {
 
         // [T-soul-custom-icon] [T-soul-icon-config-images] Emoji OR an image.
         //
-        // An image may be given as a data URI, bare base64, a `minis://`
+        // An image may be given as a data URI, bare base64, a `moonveil://`
         // resource, a path inside the minis directories, or an http(s) URL.
         // Whatever the source, it is decoded and pushed through the SAME
         // `SoulIconImage.encode` the Settings picker uses — alpha check,
@@ -138,14 +138,14 @@ extension ConfigRegistry {
         // data URI. See `SoulIconSource` for why.
         //
         // Reading stays summarized: a data URI is reported as `<image>` so
-        // `minis-config get` never floods the context with base64, and the
+        // `moonveil-config get` never floods the context with base64, and the
         // same substitution keeps the confirmation sheet and the audit log
         // clean. Clearing (empty string) restores the default sparkle.
         r.register(ClosureField(
             path: "soul.icon",
             displayName: "Soul icon",
             // [T-soul-icon-config-images] The description IS the API doc —
-            // `minis-config topic-help soul` renders it verbatim, so every
+            // `moonveil-config topic-help soul` renders it verbatim, so every
             // accepted form is spelled out with a runnable example. Claims
             // here are limited to what is actually implemented: the decodable
             // formats were checked against ImageIO on-device rather than
@@ -163,7 +163,7 @@ extension ConfigRegistry {
                 + "      data:image/png;base64,iVBORw0KGgo...\n"
                 + "      MIME may be image/png, image/jpeg, image/webp, image/gif, image/heic or image/tiff.\n"
                 + "  • bare base64 (no data: prefix) — auto-detected, e.g. iVBORw0KGgo...\n"
-                + "  • minis:// resource, e.g. minis://attachments/icon.png or minis://workspace/icon.png\n"
+                + "  • moonveil:// resource, e.g. moonveil://attachments/icon.png or moonveil://workspace/icon.png\n"
                 + "  • local path inside the minis directories, e.g. /var/minis/attachments/icon.png\n"
                 + "  • https:// URL, e.g. https://example.com/icon.png (http:// also works; "
                 + "private/loopback/link-local hosts are refused)\n"
@@ -182,16 +182,16 @@ extension ConfigRegistry {
                 + "READING — `get soul.icon` returns \"<image>\" for an image, never the base64.\n"
                 + "\n"
                 + "EXAMPLES (note the value is JSON, so the string needs its own quotes)\n"
-                + "  minis-config set soul.icon '\"⚡\"'\n"
-                + "  minis-config set soul.icon '\"minis://attachments/icon.png\"'\n"
-                + "  minis-config set soul.icon '\"https://example.com/icon.png\"'\n"
-                + "  minis-config set soul.icon '\"data:image/png;base64,iVBORw0KGgo...\"'\n"
-                + "  minis-config set soul.icon '\"\"'    # back to the default sparkle\n"
+                + "  moonveil-config set soul.icon '\"⚡\"'\n"
+                + "  moonveil-config set soul.icon '\"moonveil://attachments/icon.png\"'\n"
+                + "  moonveil-config set soul.icon '\"https://example.com/icon.png\"'\n"
+                + "  moonveil-config set soul.icon '\"data:image/png;base64,iVBORw0KGgo...\"'\n"
+                + "  moonveil-config set soul.icon '\"\"'    # back to the default sparkle\n"
                 + "A long data URI is easier to pass via a file. --file reads the JSON VALUE "
                 + "(a quoted string), not the raw image — write the quoted data URI to the file first:\n"
                 + "  printf '\"%s\"' \"data:image/png;base64,$(base64 -w0 icon.png)\" > /tmp/icon-value.json\n"
-                + "  minis-config set soul.icon --file /tmp/icon-value.json\n"
-                + "Simpler still: point at the file directly with minis:// or a path and skip base64 entirely.",
+                + "  moonveil-config set soul.icon --file /tmp/icon-value.json\n"
+                + "Simpler still: point at the file directly with moonveil:// or a path and skip base64 entirely.",
             // Wide enough for an inline base64 argument; `SoulIconSource`
             // applies the real byte/pixel limits once it knows the source
             // kind. Emoji validation below is unchanged.
@@ -429,7 +429,7 @@ extension ConfigRegistry {
                                          store: ProviderConfigStore) throws -> SessionModelSource {
         if s.hasPrefix("entry:") {
             let raw = String(s.dropFirst("entry:".count))
-            // [T-ios-minis-config-entry-id-composite] Same normalize-then-
+            // [T-ios-moonveil-config-entry-id-composite] Same normalize-then-
             // validate as defaults.agentLoopEntries: entry ids are composite
             // keys now, but the agent may pass a legacy random uuid. Store the
             // normalized (current) id so the binding never carries a stale ref.
@@ -437,7 +437,7 @@ extension ConfigRegistry {
             guard !raw.isEmpty,
                   store.config.modelEntries.contains(where: { $0.id == entryId }) else {
                 throw ConfigError.invalidValue(
-                    "Unknown model entry id: \(raw) (expected {instanceId}/{modelId} composite form; run `minis-config get models` for valid entry_id values)"
+                    "Unknown model entry id: \(raw) (expected {instanceId}/{modelId} composite form; run `moonveil-config get models` for valid entry_id values)"
                 )
             }
             return .directEntry(modelEntryId: entryId)
@@ -497,7 +497,7 @@ extension ConfigRegistry {
         r.register(EnvVarsCollection())
         r.register(ThinkingRulesCollection())
 
-        // [T-thinking-rules-minis-config] One `order` field per provider instance.
+        // [T-thinking-rules-moonveil-config] One `order` field per provider instance.
         // These are flat fields rather than collection children because the collection
         // keys its children `<instanceId>:<ruleId>`, so `<instanceId>.order` would not
         // resolve as a child path. Registered at launch from the instances that exist
@@ -534,7 +534,7 @@ extension ConfigRegistry {
             }
         ))
 
-        // Aggregate read-only summary so `minis-config get providers`
+        // Aggregate read-only summary so `moonveil-config get providers`
         // returns a useful list of configured instances. Credentials
         // (apiKey / oauthToken) are deliberately omitted — only the
         // identity / type / endpoint-config fields ship.
@@ -561,7 +561,7 @@ extension ConfigRegistry {
             }
         ))
 
-        // Aggregate read-only summary so `minis-config get models`
+        // Aggregate read-only summary so `moonveil-config get models`
         // returns every model entry along with its provider context —
         // enough for the agent to find an entry_id to feed into
         // `defaults.agentLoopEntries.append`.
@@ -596,7 +596,7 @@ extension ConfigRegistry {
             }
         ))
 
-        // Aggregate read-only summary so `minis-config get envvars`
+        // Aggregate read-only summary so `moonveil-config get envvars`
         // returns every env var key with its non-secret metadata. The
         // value (stored in Keychain) is never exposed; agents only see
         // the key, note, and createdAt.
@@ -639,7 +639,7 @@ extension ConfigRegistry {
             }
         ))
 
-        // Aggregate read-only summary so `minis-config get groups`
+        // Aggregate read-only summary so `moonveil-config get groups`
         // returns every model group with its expanded entries. Each
         // entry is enriched with display_name + provider info so the
         // agent doesn't need to cross-reference `models` to know what
@@ -746,10 +746,10 @@ extension ConfigRegistry {
         r.register(ClosureField(
             path: "defaults.agentLoopEntries",
             displayName: "Agent loop model entries",
-            description: "Model entries available via minis-model-use. Replace with full list to set.",
+            description: "Model entries available via moonveil-model-use. Replace with full list to set.",
             valueSchema: .array(.string()),
             risk: .sensitive, revertable: true,
-            // [T-ios-minis-config-entry-id-composite] Emit normalized ids so
+            // [T-ios-moonveil-config-entry-id-composite] Emit normalized ids so
             // the agent never sees (and round-trips) a stale legacy uuid that
             // survived in storage from before the composite-key migration.
             // [T-ios-agentloop-dirty-data-skip] Normalize, then drop any id that
@@ -766,7 +766,7 @@ extension ConfigRegistry {
             writer: { v in
                 guard case .array(let arr) = v else { throw ConfigError.typeMismatch(expected: "array") }
                 let rawIds: [String] = arr.compactMap { if case .string(let s) = $0 { return s } else { return nil } }
-                // [T-ios-minis-config-entry-id-composite] Entry ids became
+                // [T-ios-moonveil-config-entry-id-composite] Entry ids became
                 // composite keys ("{instanceId}/{modelId}"); lists written by
                 // the agent may still carry legacy random uuids (read from an
                 // un-normalized store or older notes). Normalize each ref
@@ -793,7 +793,7 @@ extension ConfigRegistry {
         r.register(ClosureField(
             path: "defaults.agentLoopGroups",
             displayName: "Agent loop groups",
-            description: "Whole groups exposed via minis-model-use.",
+            description: "Whole groups exposed via moonveil-model-use.",
             valueSchema: .array(.string()),
             risk: .sensitive, revertable: true,
             // [T-ios-agentloop-dirty-data-skip] Filter unknown group ids on read.
@@ -856,7 +856,7 @@ extension ConfigRegistry {
         // The whole sync stack (CloudSyncEngine V2 + its Settings entry) is
         // iOS 17+ — ContentView doesn't even show the iCloud Sync row on
         // iOS 16. Register the same paths as UnavailableField stubs there so
-        // minis-config answers with a clear feature_unavailable instead of
+        // moonveil-config answers with a clear feature_unavailable instead of
         // silently flipping cloudSync.* UserDefaults keys no engine will
         // ever read — or worse, keys a later OS upgrade would suddenly honor
         // without the user ever having seen a sync consent surface.
@@ -867,7 +867,7 @@ extension ConfigRegistry {
         // UserDefaults keys while the Settings UI and the engine that actually
         // runs (SyncCore/v2) use `cloudSync.v2.*`. The two sets diverge
         // permanently after `SyncV2Bootstrap.isEnabled` inherits v1 once, so
-        // `minis-config get sync.enabled` could report `false` while the UI
+        // `moonveil-config get sync.enabled` could report `false` while the UI
         // showed "ON / Running" — and, worse, `set sync.files false` wrote a key
         // no running engine reads and still reported success. Both sides were
         // "current"; they described different subsystems.
@@ -1041,7 +1041,7 @@ extension ConfigRegistry {
 
         r.register(ClosureField(
             path: "permissions.minisConfig.enabled",
-            displayName: "Allow minis-config",
+            displayName: "Allow moonveil-config",
             description: "Master switch. Read-only here — toggle via Settings → Permissions.",
             valueSchema: .bool,
             access: .readonly,
@@ -1396,7 +1396,7 @@ extension ConfigRegistry {
         // entirely on devices where ActivityKit doesn't work (iPad < iPadOS
         // 17, iOS-on-Mac, failed runtime probe — see
         // AgentLiveActivityManager.isLiveActivitySupported). Same gate here:
-        // where the UI hides the toggle, minis-config returns
+        // where the UI hides the toggle, moonveil-config returns
         // feature_unavailable instead of flipping a switch that does nothing.
         // Routed through BackgroundKeepAliveManager (not raw UserDefaults) so
         // the didSet side effects run: OFF tears down the currently displayed

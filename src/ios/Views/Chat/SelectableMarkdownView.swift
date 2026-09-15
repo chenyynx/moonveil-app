@@ -10,15 +10,15 @@ private let attachLogger = AppLogger(category: "AttachDebug")
 /// [T-ios-resign-first-responder-graph-reentry] Deferred responder-chain walks.
 private let responderLogger = AppLogger(category: "MarkdownResponder")
 
-// MARK: - minis:// URL encoding [T-minis-url-fullwidth-pipe-ios]
+// MARK: - moonveil:// URL encoding [T-minis-url-fullwidth-pipe-ios]
 
-/// Percent-encode the path of a `minis://` destination that contains raw,
+/// Percent-encode the path of a `moonveil://` destination that contains raw,
 /// unencoded bytes (e.g. a filename with U+FF5C `｜`, CJK, emoji the LLM emitted
-/// unencoded inside a minis:// link), returning a parseable URL (or nil if it
+/// unencoded inside a moonveil:// link), returning a parseable URL (or nil if it
 /// still can't be formed). Used by both the link path (SelectableMarkdownTheme)
 /// and the image path (ImageAttachment), so it lives at file scope.
 func encodeRawMinisURL(_ destination: String) -> URL? {
-    let prefix = "minis://"
+    let prefix = "moonveil://"
     guard destination.hasPrefix(prefix) else { return URL(string: destination) }
     let rest = String(destination.dropFirst(prefix.count))
     let encoded = rest.split(separator: "/", omittingEmptySubsequences: false)
@@ -1119,7 +1119,7 @@ fileprivate final class MarkdownNSRenderer {
     /// double percent-encoding when present.
     ///
     /// [T-ios-file-preview-stale-cache] file_write returns a singly-encoded
-    /// minis_url (e.g. `minis://workspace/GitHub%E7%83%AD….md`). When the model
+    /// minis_url (e.g. `moonveil://workspace/GitHub%E7%83%AD….md`). When the model
     /// embeds it in `[text](url)` and it passes through the markdown render
     /// pipeline, the literal `%` can get re-encoded to `%25`, yielding a
     /// double-encoded destination (`…%25E7…`). `URL(string:).path` then only
@@ -1131,14 +1131,14 @@ fileprivate final class MarkdownNSRenderer {
     /// resolver-side `subPathCandidates` tolerance stays as a backstop.
     private func normalizedLinkURL(from destination: String) -> URL? {
         let fallback = URL(string: destination)
-        // Only minis:// links are affected; everything else is untouched.
-        guard destination.hasPrefix("minis://") else {
+        // Only moonveil:// links are affected; everything else is untouched.
+        guard destination.hasPrefix("moonveil://") else {
             return fallback
         }
         // [T-minis-url-fullwidth-pipe-ios] URL(string:) returned nil — on iOS
         // Foundation this happens when the destination carries raw non-ASCII in
         // the path (e.g. a filename with U+FF5C `｜`, CJK, emoji that the LLM
-        // emitted unencoded inside a minis:// link). The link would otherwise be
+        // emitted unencoded inside a moonveil:// link). The link would otherwise be
         // dead (no .link attribute → not tappable). Percent-encode the path
         // portion segment-by-segment and retry. Idempotent: a segment that is
         // ALREADY validly encoded is left untouched, so an already-%EF%BD%9C URL
@@ -1156,7 +1156,7 @@ fileprivate final class MarkdownNSRenderer {
         // existence check (subPathCandidates) remains the final disambiguator.
         guard base.path.contains("%"),
               let once = destination.removingPercentEncoding,
-              once.hasPrefix("minis://"),
+              once.hasPrefix("moonveil://"),
               let fixed = URL(string: once) else {
             return base
         }
@@ -3637,7 +3637,7 @@ final class ImageAttachment: NSTextAttachment {
     /// shows grey boxes, re-entering fixes it" family).
     private var loadGeneration: Int = 0
     private var isLoading = false
-    /// Set when a minis:// file was not found; allows retry on next render.
+    /// Set when a moonveil:// file was not found; allows retry on next render.
     private var fileNotFound = false
     /// Number of file-not-found retries remaining (prevents infinite polling).
     private var retriesRemaining = 15
@@ -3668,7 +3668,7 @@ final class ImageAttachment: NSTextAttachment {
     /// the active session's workspace directory. Paths that already carry
     /// a URL scheme (`http`, `https`, `minis`, `file`, …) are returned
     /// unchanged. Bare filenames and relative paths (e.g. `foo.png`,
-    /// `./foo.png`, `subdir/bar.jpg`) become `minis://workspace/<path>`
+    /// `./foo.png`, `subdir/bar.jpg`) become `moonveil://workspace/<path>`
     /// with non-ASCII segments percent-encoded so `URL(string:)` parses
     /// them cleanly.
     static func canonicalizeMarkdownImageSource(_ src: String) -> String {
@@ -3677,12 +3677,12 @@ final class ImageAttachment: NSTextAttachment {
             let maybeScheme = src[src.startIndex..<colon]
             // Only accept alphabetic-prefixed schemes (RFC 3986 § 3.1).
             if !maybeScheme.isEmpty && maybeScheme.allSatisfy({ $0.isLetter }) {
-                // [T-minis-url-fullwidth-pipe-ios] Exception: a minis:// source the
+                // [T-minis-url-fullwidth-pipe-ios] Exception: a moonveil:// source the
                 // model emitted with raw non-ASCII in the path (e.g. `｜`, CJK) that
                 // URL(string:) can't parse. Re-encode the path so the image resolves
                 // instead of bailing with a dead source. Idempotent for already-
                 // encoded URLs (encodeRawMinisURL decodes-then-encodes per segment).
-                if src.hasPrefix("minis://"), URL(string: src) == nil,
+                if src.hasPrefix("moonveil://"), URL(string: src) == nil,
                    let fixed = encodeRawMinisURL(src) {
                     return fixed.absoluteString
                 }
@@ -3699,7 +3699,7 @@ final class ImageAttachment: NSTextAttachment {
         let encoded = segments.map { seg -> String in
             String(seg).addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? String(seg)
         }.joined(separator: "/")
-        return "minis://workspace/\(encoded)"
+        return "moonveil://workspace/\(encoded)"
     }
 
     /// Drop the currently-loaded bitmap so the next `beginLoadingIfNeeded`
@@ -3886,7 +3886,7 @@ final class ImageAttachment: NSTextAttachment {
     }
 
     func beginLoadingIfNeeded() {
-        // Canonicalize scheme-less / relative sources to minis://workspace/…
+        // Canonicalize scheme-less / relative sources to moonveil://workspace/…
         // so the rest of the pipeline (cache key, resolve, fingerprint)
         // treats them uniformly. Agents writing plain markdown like
         // `![img](foo.png)` or `![img](subdir/foo.png)` land here.
@@ -3902,7 +3902,7 @@ final class ImageAttachment: NSTextAttachment {
         // early and never saw the cache, even after that load had populated
         // it: the exact window every "first open shows grey boxes, re-enter
         // fixes it" report landed in. Fingerprint-keyed so an in-place rewrite
-        // of the same minis:// path misses and falls through to a fresh decode.
+        // of the same moonveil:// path misses and falls through to a fresh decode.
         let fpKey = minisMediaCacheKey(for: canonicalSrc)
         if loadedImage == nil, let cached = NativeMediaImageCache.shared.image(for: fpKey) {
             adoptLoaded(cached, fingerprint: fpKey, canonicalSrc: canonicalSrc, via: "memory-cache")
@@ -3932,10 +3932,10 @@ final class ImageAttachment: NSTextAttachment {
         imgLogger.info("[MoonveilImage][Load] START gen=\(gen) src=\(canonicalSrc) scheme=\(parsedURL?.scheme ?? "nil") host=\(parsedURL?.host ?? "nil") path=\(parsedURL?.path ?? "nil") ext=\(parsedURL?.pathExtension ?? "nil") retriesRemaining=\(self.retriesRemaining)")
 
         let src = canonicalSrc
-        let isMinisURL = URL(string: src).map { $0.scheme == "minis" } ?? false
+        let isMinisURL = URL(string: src).map { $0.scheme == "moonveil" } ?? false
         // [T-ios-failed-image-refetch-storm] For remote (non-minis) URLs that
         // failed recently, don't re-dispatch a network fetch on every cell
-        // recycle — render the placeholder and bail. minis:// is exempt: those
+        // recycle — render the placeholder and bail. moonveil:// is exempt: those
         // are local files that may be written shortly after the markdown
         // references them, so the retriesRemaining-scheduled flow must stay.
         if !isMinisURL, NativeMediaImageCache.shared.isRecentlyFailed(src) {
@@ -3951,10 +3951,10 @@ final class ImageAttachment: NSTextAttachment {
         Task.detached(priority: .userInitiated) {
             var fileURL: URL?
             let img: UIImage?
-            if let url = URL(string: src), url.scheme == "minis" {
-                imgLogger.info("[MoonveilImage][Load] resolving minis:// URL src=\(src) host=\(url.host ?? "nil") path=\(url.path)")
+            if let url = URL(string: src), url.scheme == "moonveil" {
+                imgLogger.info("[MoonveilImage][Load] resolving moonveil:// URL src=\(src) host=\(url.host ?? "nil") path=\(url.path)")
                 if let resolved = resolveMinisFileURLForNativeText(url: url) {
-                    imgLogger.info("[MoonveilImage][Load] minis:// resolved to localPath=\(resolved.path)")
+                    imgLogger.info("[MoonveilImage][Load] moonveil:// resolved to localPath=\(resolved.path)")
                     fileURL = resolved
                     // [T-ios-image-squish-probe] Publish the true aspect ratio
                     // from the file header before paying for the full decode.
@@ -3992,7 +3992,7 @@ final class ImageAttachment: NSTextAttachment {
                 imgLogger.info("[MoonveilImage][Load] trying file/relative URL scheme=\(url.scheme ?? "nil") path=\(url.path)")
                 fileURL = url
                 // [T-ios-image-squish-probe] Same early header probe as the
-                // minis:// branch. HTTP(S) is deliberately NOT probed — a
+                // moonveil:// branch. HTTP(S) is deliberately NOT probed — a
                 // range-request header fetch isn't worth the complexity; the
                 // full download records the size as before.
                 Self.probeAndPublishSize(at: url, canonicalSrc: src)
@@ -4026,7 +4026,7 @@ final class ImageAttachment: NSTextAttachment {
                 // [T-ios-failed-image-refetch-storm] Negative-cache remote
                 // failures so cell recycling during scroll doesn't re-fetch the
                 // same broken URL every recycle (the image-session decel storm).
-                // minis:// is exempt — its not-yet-written-file case is handled
+                // moonveil:// is exempt — its not-yet-written-file case is handled
                 // by the retriesRemaining-scheduled retry below.
                 if !isMinisURL { NativeMediaImageCache.shared.recordFailure(src) }
             }
@@ -4279,7 +4279,7 @@ final class VideoAttachment: NSTextAttachment {
         let src = source
         Task.detached(priority: .userInitiated) {
             var fileURL: URL?
-            if let url = URL(string: src), url.scheme == "minis" {
+            if let url = URL(string: src), url.scheme == "moonveil" {
                 fileURL = resolveMinisFileURLForNativeText(url: url)
             } else if let url = URL(string: src) {
                 fileURL = url
@@ -4515,7 +4515,7 @@ final class AudioAttachment: NSTextAttachment {
         } else {
             cleanSource = source
         }
-        if let url = URL(string: cleanSource), url.scheme == "minis" {
+        if let url = URL(string: cleanSource), url.scheme == "moonveil" {
             resolvedURL = resolveMinisFileURLForNativeText(url: url)
         } else if let url = URL(string: cleanSource) {
             resolvedURL = url
@@ -6314,7 +6314,7 @@ final class SelectableMarkdownTextView: UITextView, UIGestureRecognizerDelegate 
             } else if let table = attachment as? TableAttachment {
                 // Re-wire every render: the prior closure may have captured a
                 // since-deallocated coordinator (`[weak self] → nil`), in which
-                // case taps fell through to UIApplication.open and minis://
+                // case taps fell through to UIApplication.open and moonveil://
                 // links failed silently. Closure assignment is cheap.
                 table.onOpenURL = { [weak self] url in
                     if let coordinator = self?.delegate as? SelectableMarkdownView.Coordinator,
@@ -9075,17 +9075,17 @@ struct SelectableMarkdownView: UIViewRepresentable {
 
 // MARK: - Minis URL Resolution (bridged from AIChatView)
 
-/// Resolves a `minis://` URL to a local file URL.
+/// Resolves a `moonveil://` URL to a local file URL.
 /// Keeps resolution behavior aligned with AIChatView's minis resolver.
 private func resolveMinisFileURLForNativeText(url: URL) -> URL? {
-    guard url.scheme == "minis" else { return nil }
+    guard url.scheme == "moonveil" else { return nil }
     guard let host = url.host else {
         imgLogger.warning("[MoonveilImage][Resolve] no host in URL: \(url.absoluteString)")
         return nil
     }
     // Try the single-decoded subpath first; fall back to a double-decoded
     // variant when an inline-image link arrives double-encoded. This is the
-    // same tolerant resolution the other 4 minis:// resolvers already use; this
+    // same tolerant resolution the other 4 moonveil:// resolvers already use; this
     // one (the inline-markdown image resolver) was the remaining single-decode
     // holdout, so double-encoded non-ASCII inline image names still failed here.
     // [T-ios-file-preview-stale-cache, completing T-fix-double-encoding 2026-06-01]
@@ -9139,7 +9139,7 @@ private func resolveMinisFileURLForNativeText(url: URL) -> URL? {
     // This is the main image-render resolve path; the old "scan every session
     // and return the first same-named file" loop was the same P0 isolation
     // leak fixed in resolveMinisFileURL — session B rendering
-    // model-use-zimage-0.jpg would resolve to session A's image. minis:// is
+    // model-use-zimage-0.jpg would resolve to session A's image. moonveil:// is
     // session-scoped; not-found is the correct result for a cross-session ref.
     //
     // The rootfs `/var/minis/<host>` fallback is kept ONLY for the global,

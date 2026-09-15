@@ -3,7 +3,7 @@ import SwiftUI
 
 private let logger = AppLogger(category: "Backup")
 
-/// Routes a `.minisbak` file opened from outside the app (Files, AirDrop, a
+/// Routes a `.moonveilbak` file opened from outside the app (Files, AirDrop, a
 /// share sheet) into the restore flow.
 ///
 /// Without this, `ExternalFileImporter.canIngest` accepts ANY file URL and a
@@ -76,7 +76,7 @@ final class BackupOpenRouter: ObservableObject {
             // The restore sheet is mounted at the WindowGroup root, and iOS
             // will not present a second sheet from the same root while one is
             // already up. Settings is itself a `.sheet`, so a user who opened a
-            // .minisbak while sitting in Settings got nothing at all — the
+            // .moonveilbak while sitting in Settings got nothing at all — the
             // package was staged, `pendingPackage` was set, and the sheet
             // silently never appeared. That is the primary device-migration
             // entry point failing in the one place a user is most likely to be

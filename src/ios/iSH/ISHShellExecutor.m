@@ -539,8 +539,8 @@ static int32_t _sweptContexts = 0;
     // Python's stdlib `webbrowser` module honours $BROWSER before probing
     // $DISPLAY, so setting it here lets `python -c "import webbrowser;
     // webbrowser.open(...)"` and similar non-login shell invocations reach
-    // /usr/local/bin/minis-open which emits an OSC marker parsed by the host.
-    ENVP_APPEND("BROWSER=/usr/local/bin/minis-open");
+    // /usr/local/bin/moonveil-open which emits an OSC marker parsed by the host.
+    ENVP_APPEND("BROWSER=/usr/local/bin/moonveil-open");
 
     // Inject device timezone so iSH userspace sees local time.
     // Use POSIX TZ format with a fixed name to avoid abbreviations like "GMT+8"

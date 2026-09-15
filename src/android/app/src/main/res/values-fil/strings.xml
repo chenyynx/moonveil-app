@@ -147,7 +147,7 @@
     <string name="mcp_add">Magdagdag ng MCP Server</string>
     <string name="mcp_edit">I-edit ang MCP Server</string>
     <string name="mcp_section_servers">Mga Server</string>
-    <string name="mcp_section_footer">Pinapayagan ng mga MCP server ang Agent na tumawag ng panlabas na tool sa pamamagitan ng minis-mcp-cli. Nakaimbak ang mga config sa /var/minis/mcp-servers/servers.json (tugma sa Claude Desktop).</string>
+    <string name="mcp_section_footer">Pinapayagan ng mga MCP server ang Agent na tumawag ng panlabas na tool sa pamamagitan ng moonveil-mcp-cli. Nakaimbak ang mga config sa /var/minis/mcp-servers/servers.json (tugma sa Claude Desktop).</string>
     <string name="mcp_empty_title">Walang MCP server</string>
     <string name="mcp_empty_action">Magdagdag ng server gamit ang + na button.</string>
     <string name="mcp_transport_http">HTTP</string>
@@ -718,8 +718,8 @@
     <string name="perm_agent_policy">Pahintulot ng Agent</string>
     <string name="perm_a11y_system_ready">Naka-enable ang service</string>
     <string name="perm_a11y_system_disabled">Hindi naka-enable ang service</string>
-    <string name="perm_allow_minis_config">Payagan ang minis-config</string>
-    <string name="perm_minis_config_desc">Kapag naka-disable, hindi mababasa o mababago ng Agent ang anumang setting sa pamamagitan ng minis-config. Mananatiling naa-access ang kasaysayan ng pagbabago sa Mga Log → Mga Pagbabago sa Config. Makakatanggap ang Agent ng permission_denied error at sa halip ay maaari ka nitong gabayan sa pamamagitan ng deep link.</string>
+    <string name="perm_allow_minis_config">Payagan ang moonveil-config</string>
+    <string name="perm_minis_config_desc">Kapag naka-disable, hindi mababasa o mababago ng Agent ang anumang setting sa pamamagitan ng moonveil-config. Mananatiling naa-access ang kasaysayan ng pagbabago sa Mga Log → Mga Pagbabago sa Config. Makakatanggap ang Agent ng permission_denied error at sa halip ay maaari ka nitong gabayan sa pamamagitan ng deep link.</string>
     <string name="perm_section_privacy">Privacy</string>
     <string name="perm_section_media">Media</string>
     <string name="perm_section_system">System</string>
@@ -1163,7 +1163,7 @@
     <string name="settings_dynamic_island_footer">Ipakita ang live na status ng Agent sa status chip ng Android 16. Kapag naka-on, pinapalitan nito ang lumulutang na overlay para hindi ka makakita ng dalawang indicator nang sabay.</string>
     <string name="settings_dynamic_island_unsupported">Hindi pa sinusuportahan ng kasalukuyang bersyon ng system mo ang Live Updates (kailangan ang Android 16+ na may naka-enable na feature).</string>
     <string name="agent_loop_section_title">Mga Model na Matatawag ng Minis Habang Tumatakbo</string>
-    <string name="agent_loop_section_footer">Habang may gawain, tinatawag ng Minis ang mga model na ito para sa mga sub-task gaya ng paggawa ng larawan o pagbubuod ng teksto — mga bagay na hindi kayang gawin ng sarili nitong model. Matatawag din mula sa terminal sa pamamagitan ng minis-model-use. Ang mga ito lang ang nakikita ng Agent.</string>
+    <string name="agent_loop_section_footer">Habang may gawain, tinatawag ng Minis ang mga model na ito para sa mga sub-task gaya ng paggawa ng larawan o pagbubuod ng teksto — mga bagay na hindi kayang gawin ng sarili nitong model. Matatawag din mula sa terminal sa pamamagitan ng moonveil-model-use. Ang mga ito lang ang nakikita ng Agent.</string>
     <string name="agent_loop_section_empty_hint">Walang naidagdag na model o group</string>
     <string name="agent_loop_section_add_models">Magdagdag ng Model</string>
     <string name="agent_loop_section_add_groups">Magdagdag ng Group</string>
@@ -1308,7 +1308,7 @@
     <string name="backup_share_chooser">Ibahagi ang backup</string>
     <string name="backup_save_to_files">I-save sa Files…</string>
     <string name="backup_choose_file">Pumili ng Backup File…</string>
-    <string name="backup_choose_file_footer">Pumili ng .minisbak na file mula sa Files, Drive, o anumang nakakonektang storage.</string>
+    <string name="backup_choose_file_footer">Pumili ng .moonveilbak na file mula sa Files, Drive, o anumang nakakonektang storage.</string>
     <string name="backup_restore_destinations">Mga Destinasyon ng Backup</string>
     <string name="backup_restore_destinations_footer">I-tap ang isang destinasyon para tingnan ito at pumili ng backup.</string>
     <string name="backup_restore_other_sources">Iba Pang Pinagmulan</string>
@@ -1376,7 +1376,7 @@
     <string name="backup_dest_trust_certificate_warning">Hindi mapatunayan ang certificate. I-on lang ito para sa server na kontrolado mo — puwedeng magpanggap bilang server ang sinumang makakaharang sa koneksyon.</string>
     <string name="backup_dest_cancel">Kanselahin</string>
     <string name="restore_browse_header">Mga Backup sa Folder na Ito</string>
-    <string name="restore_browse_footer">Inililista ang mga .minisbak na file sa folder na ito sa server.</string>
+    <string name="restore_browse_footer">Inililista ang mga .moonveilbak na file sa folder na ito sa server.</string>
     <string name="restore_browse_footer_empty">Live na listahan ito mula sa server, hindi ang kasaysayan ng backup mo.</string>
     <string name="restore_browse_empty">Walang folder o backup dito.</string>
     <string name="restore_download_title">I-download ang backup na ito?</string>

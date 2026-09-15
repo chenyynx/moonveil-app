@@ -29,7 +29,7 @@
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.moonveil.app.minisbak</string>
+				<string>com.moonveil.app.moonveilbak</string>
 			</array>
 		</dict>
 	</array>
@@ -161,7 +161,7 @@
 			<string>Moonveil Share</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>minis</string>
+				<string>moonveil</string>
 			</array>
 		</dict>
 		<dict>
@@ -169,7 +169,7 @@
 			<string>MCP OAuth Callback</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>minis-mcp</string>
+				<string>moonveil-mcp</string>
 			</array>
 		</dict>
 	</array>
@@ -246,16 +246,16 @@
 			<key>UTTypeDescription</key>
 			<string>Moonveil Backup</string>
 			<key>UTTypeIdentifier</key>
-			<string>com.moonveil.app.minisbak</string>
+			<string>com.moonveil.app.moonveilbak</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
 				<array>
-					<string>minisbak</string>
+					<string>moonveilbak</string>
 				</array>
 				<key>public.mime-type</key>
 				<array>
-					<string>application/x-minisbak</string>
+					<string>application/x-moonveilbak</string>
 				</array>
 			</dict>
 		</dict>

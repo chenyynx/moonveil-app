@@ -147,7 +147,7 @@
     <string name="mcp_add">MCP Sunucusu Ekle</string>
     <string name="mcp_edit">MCP Sunucusunu Düzenle</string>
     <string name="mcp_section_servers">Sunucular</string>
-    <string name="mcp_section_footer">MCP sunucuları, Agent\'ın minis-mcp-cli aracılığıyla dış araçları çağırmasını sağlar. Yapılandırmalar /var/minis/mcp-servers/servers.json içinde saklanır (Claude Desktop ile uyumlu).</string>
+    <string name="mcp_section_footer">MCP sunucuları, Agent\'ın moonveil-mcp-cli aracılığıyla dış araçları çağırmasını sağlar. Yapılandırmalar /var/minis/mcp-servers/servers.json içinde saklanır (Claude Desktop ile uyumlu).</string>
     <string name="mcp_empty_title">MCP sunucusu yok</string>
     <string name="mcp_empty_action">+ düğmesiyle bir sunucu ekleyin.</string>
     <string name="mcp_transport_http">HTTP</string>
@@ -718,8 +718,8 @@
     <string name="perm_agent_policy">Agent izni</string>
     <string name="perm_a11y_system_ready">Hizmet etkin</string>
     <string name="perm_a11y_system_disabled">Hizmet etkin değil</string>
-    <string name="perm_allow_minis_config">minis-config\'e izin ver</string>
-    <string name="perm_minis_config_desc">Devre dışı bırakıldığında Agent, minis-config aracılığıyla hiçbir ayarı okuyamaz ya da değiştiremez. Günlükler → Yapılandırma Değişiklikleri bölümündeki değişiklik geçmişine erişim sürer. Agent bir permission_denied hatası alır ve bunun yerine sizi derin bağlantılarla yönlendirebilir.</string>
+    <string name="perm_allow_minis_config">moonveil-config\'e izin ver</string>
+    <string name="perm_minis_config_desc">Devre dışı bırakıldığında Agent, moonveil-config aracılığıyla hiçbir ayarı okuyamaz ya da değiştiremez. Günlükler → Yapılandırma Değişiklikleri bölümündeki değişiklik geçmişine erişim sürer. Agent bir permission_denied hatası alır ve bunun yerine sizi derin bağlantılarla yönlendirebilir.</string>
     <string name="perm_section_privacy">Gizlilik</string>
     <string name="perm_section_media">Medya</string>
     <string name="perm_section_system">Sistem</string>
@@ -1163,7 +1163,7 @@
     <string name="settings_dynamic_island_footer">Agent durumunu Android 16 durum çipinde canlı gösterir. Açıkken yüzen yer paylaşımının yerini alır, böylece aynı anda iki durum göstergesi görmezsiniz.</string>
     <string name="settings_dynamic_island_unsupported">Geçerli sistem sürümünüz Live Updates özelliğini henüz desteklemiyor (Android 16+ ve özelliğin etkin olması gerekir).</string>
     <string name="agent_loop_section_title">Minis\'in Çalışırken Çağırabileceği Modeller</string>
-    <string name="agent_loop_section_footer">Bir görev sırasında Minis, kendi modelinin yapamadığı görsel üretme ya da metin özetleme gibi alt görevler için bu modelleri çağırır. Ayrıca terminalden minis-model-use ile de çağrılabilirler. Agent yalnızca bunları görür.</string>
+    <string name="agent_loop_section_footer">Bir görev sırasında Minis, kendi modelinin yapamadığı görsel üretme ya da metin özetleme gibi alt görevler için bu modelleri çağırır. Ayrıca terminalden moonveil-model-use ile de çağrılabilirler. Agent yalnızca bunları görür.</string>
     <string name="agent_loop_section_empty_hint">Eklenmiş model ya da grup yok</string>
     <string name="agent_loop_section_add_models">Model Ekle</string>
     <string name="agent_loop_section_add_groups">Grup Ekle</string>
@@ -1308,7 +1308,7 @@
     <string name="backup_share_chooser">Yedeği paylaş</string>
     <string name="backup_save_to_files">Files\'a Kaydet…</string>
     <string name="backup_choose_file">Yedek Dosyası Seç…</string>
-    <string name="backup_choose_file_footer">Files, Drive ya da bağlı herhangi bir depolamadan bir .minisbak dosyası seçin.</string>
+    <string name="backup_choose_file_footer">Files, Drive ya da bağlı herhangi bir depolamadan bir .moonveilbak dosyası seçin.</string>
     <string name="backup_restore_destinations">Yedekleme Hedefleri</string>
     <string name="backup_restore_destinations_footer">Göz atıp yedek seçmek için bir hedefe dokunun.</string>
     <string name="backup_restore_other_sources">Diğer Kaynaklar</string>
@@ -1376,7 +1376,7 @@
     <string name="backup_dest_trust_certificate_warning">Sertifika doğrulanamadı. Bunu yalnızca sizin denetlediğiniz bir sunucu için açın — bağlantıyı araya girip dinleyebilen biri sunucunun kimliğine bürünebilir.</string>
     <string name="backup_dest_cancel">İptal</string>
     <string name="restore_browse_header">Bu Klasördeki Yedekler</string>
-    <string name="restore_browse_footer">Sunucudaki bu klasörde bulunan .minisbak dosyaları listeleniyor.</string>
+    <string name="restore_browse_footer">Sunucudaki bu klasörde bulunan .moonveilbak dosyaları listeleniyor.</string>
     <string name="restore_browse_footer_empty">Bu, yedekleme geçmişiniz değil, sunucunun canlı listesidir.</string>
     <string name="restore_browse_empty">Burada klasör ya da yedek yok.</string>
     <string name="restore_download_title">Bu yedek indirilsin mi?</string>

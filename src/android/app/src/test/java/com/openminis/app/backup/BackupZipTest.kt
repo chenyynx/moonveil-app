@@ -21,7 +21,7 @@ class BackupZipTest {
 
     @Before
     fun setUp() {
-        tmp = File.createTempFile("minisbak-zip", "").apply { delete(); mkdirs() }
+        tmp = File.createTempFile("moonveilbak-zip", "").apply { delete(); mkdirs() }
     }
 
     @After
@@ -31,7 +31,7 @@ class BackupZipTest {
 
     private fun staging(): File = File(tmp, "staging").apply {
         mkdirs()
-        File(this, "manifest.json").writeText("""{"format":"minisbak/1"}""")
+        File(this, "manifest.json").writeText("""{"format":"moonveilbak/1"}""")
         File(this, "data").mkdirs()
         File(this, "data/sessions.jsonl").writeText("{\"t\":\"session\",\"v\":1,\"d\":{}}\n")
         File(this, "blobs/ab").mkdirs()
@@ -60,7 +60,7 @@ class BackupZipTest {
         // 40 MB of zeros: maximally compressible, and over the deflate cap.
         File(st, "data/huge.jsonl").writeBytes(ByteArray(40 * 1024 * 1024))
 
-        val out = File(tmp, "p.minisbak")
+        val out = File(tmp, "p.moonveilbak")
         BackupZip.archive(st, out)
 
         java.util.zip.ZipFile(out).use { zf ->
@@ -75,7 +75,7 @@ class BackupZipTest {
     /** Names are package-relative and slash-separated, matching the manifest's integrity keys. */
     @Test
     fun `entry names are package-relative with forward slashes`() {
-        val out = File(tmp, "p.minisbak")
+        val out = File(tmp, "p.moonveilbak")
         BackupZip.archive(staging(), out)
         val names = BackupZip.listEntries(out).toSet()
         assertEquals(setOf("manifest.json", "data/sessions.jsonl", "blobs/ab/abcdef"), names)
@@ -83,12 +83,12 @@ class BackupZipTest {
 
     @Test
     fun `round-trips content through archive and extract`() {
-        val out = File(tmp, "p.minisbak")
+        val out = File(tmp, "p.moonveilbak")
         BackupZip.archive(staging(), out)
         val dest = File(tmp, "extracted")
         BackupZip.extract(out, dest)
 
-        assertEquals("""{"format":"minisbak/1"}""", File(dest, "manifest.json").readText())
+        assertEquals("""{"format":"moonveilbak/1"}""", File(dest, "manifest.json").readText())
         assertTrue(File(dest, "blobs/ab/abcdef").readBytes().contentEquals(ByteArray(4096) { it.toByte() }))
     }
 
@@ -106,7 +106,7 @@ class BackupZipTest {
 
         var message: String? = null
         try {
-            BackupZip.archive(dir, File(tmp, "too-many.minisbak"))
+            BackupZip.archive(dir, File(tmp, "too-many.moonveilbak"))
         } catch (e: BackupZip.ZipException) {
             message = e.message
         }
@@ -156,7 +156,7 @@ class BackupZipTest {
         assertEquals(flat, BackupZip.packageRoot(flat))
 
         val wrapped = File(tmp, "wrapped").apply { mkdirs() }
-        val inner = File(wrapped, "minisbak-1234").apply { mkdirs() }
+        val inner = File(wrapped, "moonveilbak-1234").apply { mkdirs() }
         File(inner, "manifest.json").writeText("{}")
         assertEquals(inner, BackupZip.packageRoot(wrapped))
     }
@@ -167,9 +167,9 @@ class BackupZipTest {
         val wrapped = File(tmp, "w.zip")
         ZipOutputStream(wrapped.outputStream()).use { zos ->
             zos.setMethod(ZipOutputStream.STORED)
-            val payload = """{"format":"minisbak/1"}""".toByteArray()
+            val payload = """{"format":"moonveilbak/1"}""".toByteArray()
             val crc = CRC32().apply { update(payload) }
-            val e = ZipEntry("minisbak-abcd/manifest.json").apply {
+            val e = ZipEntry("moonveilbak-abcd/manifest.json").apply {
                 method = ZipEntry.STORED
                 size = payload.size.toLong()
                 compressedSize = payload.size.toLong()
@@ -178,6 +178,6 @@ class BackupZipTest {
             zos.putNextEntry(e); zos.write(payload); zos.closeEntry()
         }
         val bytes = BackupZip.readEntry(wrapped, "manifest.json")
-        assertEquals("""{"format":"minisbak/1"}""", bytes?.toString(Charsets.UTF_8))
+        assertEquals("""{"format":"moonveilbak/1"}""", bytes?.toString(Charsets.UTF_8))
     }
 }

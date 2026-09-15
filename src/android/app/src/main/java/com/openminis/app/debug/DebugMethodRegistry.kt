@@ -56,9 +56,9 @@ object DebugMethodRegistry {
         ),
         MethodSpec(
             name = "debug.modelUse.exec",
-            description = "DEBUG-only: invoke ModelUseOffloadHandler directly with the given argv. Parallels debug.shizuku.exec — lets harnesses trigger `minis-model-use run/list/search` without an in-shell prompt.",
+            description = "DEBUG-only: invoke ModelUseOffloadHandler directly with the given argv. Parallels debug.shizuku.exec — lets harnesses trigger `moonveil-model-use run/list/search` without an in-shell prompt.",
             params = listOf(
-                ParamSpec("args", "[string]", required = false, description = "argv past `minis-model-use` (e.g. [\"run\", \"--model\", \"gpt-5.3-codex\"])."),
+                ParamSpec("args", "[string]", required = false, description = "argv past `moonveil-model-use` (e.g. [\"run\", \"--model\", \"gpt-5.3-codex\"])."),
                 ParamSpec("command", "string", required = false, description = "Whitespace-separated alternative to args."),
                 ParamSpec("input", "string", required = false, description = "Raw JSON/text fed to the handler as the --input file contents (written to a temp file under /tmp)."),
             ),
@@ -82,7 +82,7 @@ object DebugMethodRegistry {
         ),
         MethodSpec(
             name = "debug.minisConfig.exec",
-            description = "DEBUG-only: drive minis-config through the REAL ConfigBridge (same code path as the in-shell CLI), so a harness can exercise every collection, the confirmation gate and the audit log without an in-shell prompt. Subcommands: set, get, topics, topic-help, audit-list.",
+            description = "DEBUG-only: drive moonveil-config through the REAL ConfigBridge (same code path as the in-shell CLI), so a harness can exercise every collection, the confirmation gate and the audit log without an in-shell prompt. Subcommands: set, get, topics, topic-help, audit-list.",
             params = listOf(
                 ParamSpec("subcommand", "string", required = true, description = "One of: set, get, topics, topic-help, audit-list."),
                 ParamSpec("path", "string", required = false, description = "Config path, for get and single-path set (e.g. \"thinkingrules.<inst>:<rule>.label\")."),
@@ -664,7 +664,7 @@ object DebugMethodRegistry {
         ),
         MethodSpec(
             name = "provider.models.setAgentLoop",
-            description = "Toggle whether a model entry is exposed to the in-shell minis-model-use agent.",
+            description = "Toggle whether a model entry is exposed to the in-shell moonveil-model-use agent.",
             params = listOf(
                 ParamSpec("entryId", "string", required = true, description = "Target entry UUID."),
                 ParamSpec("inLoop", "bool", required = true, description = "true to add, false to remove."),
@@ -718,7 +718,7 @@ object DebugMethodRegistry {
         ),
         MethodSpec(
             name = "provider.groups.setAgentLoop",
-            description = "Toggle whether a model group is exposed to the in-shell minis-model-use agent.",
+            description = "Toggle whether a model group is exposed to the in-shell moonveil-model-use agent.",
             params = listOf(
                 ParamSpec("groupId", "string", required = true, description = "Target group UUID."),
                 ParamSpec("inLoop", "bool", required = true, description = "true to add, false to remove."),

@@ -2,7 +2,7 @@
 //  ModelUseOffloadBridge.swift
 //  MinisApp
 //
-//  Swift bridge for minis-model-use offload — lists, searches,
+//  Swift bridge for moonveil-model-use offload — lists, searches,
 //  and invokes LLM models using configured providers.
 //
 
@@ -83,7 +83,7 @@ private let logger = AppLogger(category: "ModelUseOffload")
     ///      preferred when the model_id itself contains slashes.
     /// `entry_id` (UUID) also works but is opaque; prefer the human-readable forms.
     private static let usageHint =
-        "To invoke a model, pass `--model <model_id>` to `minis-model-use run`. " +
+        "To invoke a model, pass `--model <model_id>` to `moonveil-model-use run`. " +
         "If multiple providers expose the same `model_id`, disambiguate either with " +
         "`--model <instance_label>/<model_id>` (e.g. `--model deepseek/deepseek-v4-flash`) " +
         "or with `--model <model_id> --provider <instance_label>` " +
@@ -922,7 +922,7 @@ private let logger = AppLogger(category: "ModelUseOffload")
                 return inst.label.lowercased() == pf || inst.id.lowercased() == pf
             }
             if filtered.isEmpty {
-                throw ModelUseError.modelNotFound("No provider matches --provider '\(providerFilter)'. Use 'minis-model-use list' to see provider labels.")
+                throw ModelUseError.modelNotFound("No provider matches --provider '\(providerFilter)'. Use 'moonveil-model-use list' to see provider labels.")
             }
             agentEntries = filtered
         }
@@ -1040,7 +1040,7 @@ private let logger = AppLogger(category: "ModelUseOffload")
                               let imgObj = part["image_url"] as? [String: Any],
                               let url = imgObj["url"] as? String {
                         // [T-model-use-image-url-resolution] resolveImageURL
-                        // now throws on unresolvable URLs (minis:// to a
+                        // now throws on unresolvable URLs (moonveil:// to a
                         // missing file, file:// to nonexistent path, http(s)
                         // not yet supported, unknown scheme). Previously it
                         // returned nil silently, so the agent's call would
@@ -1709,13 +1709,13 @@ private let logger = AppLogger(category: "ModelUseOffload")
     /// Supports:
     ///   - `data:<mime>;base64,...` — decode inline base64
     ///   - `file:///path` — read local file, infer MIME from extension
-    ///   - `minis://<scope>/<path>` — resolve to host storage via the
+    ///   - `moonveil://<scope>/<path>` — resolve to host storage via the
     ///     per-session lookup used by the in-app image preview
     ///     (attachments, workspace, offloads, shared, skills, memory,
     ///     mounts). Active session id is inferred from the calling
     ///     agent's chat context.
     ///   - `/var/minis/<scope>/<path>` — bare Linux paths under
-    ///     `/var/minis/`, mapped to the same scopes as `minis://`.
+    ///     `/var/minis/`, mapped to the same scopes as `moonveil://`.
     ///   - `/<absolute/host/path>` (other) — fall back to direct iSH
     ///     rootfs lookup.
     ///
@@ -1740,23 +1740,23 @@ private let logger = AppLogger(category: "ModelUseOffload")
             return LLMMessage.ImageAttachment(mimeType: mime, data: data)
         }
 
-        // minis:// — route through the in-app minis URL resolver so
+        // moonveil:// — route through the in-app minis URL resolver so
         // attachments/workspace/shared/etc. all work without the caller
         // knowing host paths.
-        if url.hasPrefix("minis://") {
+        if url.hasPrefix("moonveil://") {
             guard let parsed = URL(string: url),
                   let resolved = AIChatViewModel.resolveMinisURL(parsed) else {
-                throw ModelUseError.invalidInput("Could not resolve minis:// URL '\(url)' — file not found in any session scope. Try /var/minis/<scope>/<path> or file:///<host-path>.")
+                throw ModelUseError.invalidInput("Could not resolve moonveil:// URL '\(url)' — file not found in any session scope. Try /var/minis/<scope>/<path> or file:///<host-path>.")
             }
             guard let data = FileManager.default.contents(atPath: resolved.path) else {
-                throw ModelUseError.invalidInput("minis:// URL '\(url)' resolved to \(resolved.path) but the file is unreadable")
+                throw ModelUseError.invalidInput("moonveil:// URL '\(url)' resolved to \(resolved.path) but the file is unreadable")
             }
             let mime = Self.imageMimeForExtension(url)
             return LLMMessage.ImageAttachment(mimeType: mime, data: data)
         }
 
         // /var/minis/<scope>/<path> — Linux bare path equivalent of
-        // minis://<scope>/<path>. Rewrite to a minis:// URL and reuse
+        // moonveil://<scope>/<path>. Rewrite to a moonveil:// URL and reuse
         // the same resolver so behavior is identical.
         if url.hasPrefix("/var/minis/") {
             let stripped = String(url.dropFirst("/var/minis/".count))
@@ -1768,7 +1768,7 @@ private let logger = AppLogger(category: "ModelUseOffload")
             }
             let scope = parts[0]
             let sub = parts.count > 1 ? parts[1] : ""
-            let minisURLStr = sub.isEmpty ? "minis://\(scope)" : "minis://\(scope)/\(sub)"
+            let minisURLStr = sub.isEmpty ? "moonveil://\(scope)" : "moonveil://\(scope)/\(sub)"
             guard let parsed = URL(string: minisURLStr),
                   let resolved = AIChatViewModel.resolveMinisURL(parsed) else {
                 throw ModelUseError.invalidInput("Could not resolve '\(url)' — file not found in scope '\(scope)'. Check the path and that the file exists.")
@@ -1782,7 +1782,7 @@ private let logger = AppLogger(category: "ModelUseOffload")
 
         // http(s):// — not supported. Tell the agent how to do it.
         if url.hasPrefix("http://") || url.hasPrefix("https://") {
-            throw ModelUseError.invalidInput("http(s):// image URLs are not supported by minis-model-use. Download first with `shell_execute` (curl/wget) into /var/minis/workspace/, then reference the local path.")
+            throw ModelUseError.invalidInput("http(s):// image URLs are not supported by moonveil-model-use. Download first with `shell_execute` (curl/wget) into /var/minis/workspace/, then reference the local path.")
         }
 
         // file:// — keep behavior, but throw on missing.
@@ -1805,10 +1805,10 @@ private let logger = AppLogger(category: "ModelUseOffload")
                 let mime = Self.imageMimeForExtension(url)
                 return LLMMessage.ImageAttachment(mimeType: mime, data: data)
             }
-            throw ModelUseError.invalidInput("Image file not found at '\(url)'. For minis-scope files prefer /var/minis/<scope>/<path> or minis://<scope>/<path>.")
+            throw ModelUseError.invalidInput("Image file not found at '\(url)'. For minis-scope files prefer /var/minis/<scope>/<path> or moonveil://<scope>/<path>.")
         }
 
-        throw ModelUseError.invalidInput("Unsupported image_url '\(url)'. Use a data: URL, file:///host/path, /var/minis/<scope>/<path>, or minis://<scope>/<path>.")
+        throw ModelUseError.invalidInput("Unsupported image_url '\(url)'. Use a data: URL, file:///host/path, /var/minis/<scope>/<path>, or moonveil://<scope>/<path>.")
     }
 
     /// Read a file given a Linux-side path. Tries the iSH rootfs data
@@ -2162,11 +2162,11 @@ enum ModelUseError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .modelNotFound(let id):
-            return "Model '\(id)' not found. Use 'minis-model-use list' to see available models."
+            return "Model '\(id)' not found. Use 'moonveil-model-use list' to see available models."
         case .invalidInput(let msg):
             return msg
         case .modalityNotSupported(let model, let required, let supported):
-            return "Model '\(model)' does not support \(required). Supported modalities: \(supported.joined(separator: ", ")). Use 'minis-model-use list' to find a model with the required capability."
+            return "Model '\(model)' does not support \(required). Supported modalities: \(supported.joined(separator: ", ")). Use 'moonveil-model-use list' to find a model with the required capability."
         }
     }
 }

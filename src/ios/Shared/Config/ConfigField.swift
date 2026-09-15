@@ -57,7 +57,7 @@ enum ConfigValue: Codable, Hashable, Equatable, CustomStringConvertible {
 
     /// Object/array keys whose VALUES are credentials and must never be
     /// persisted to the audit log or shown in the confirmation sheet in
-    /// plaintext. [T-minis-config-provider-add] minis-config can now WRITE a
+    /// plaintext. [T-moonveil-config-provider-add] moonveil-config can now WRITE a
     /// provider apiKey (literal or `$$ENV` reference), but the secret must not
     /// leak through the audit/confirm surfaces — the red line is "writable, not
     /// readable". A `$$ENV` reference is left intact (it's a pointer, not the
@@ -247,7 +247,7 @@ protocol ConfigField {
     /// unsupported hardware). The offload bridge short-circuits both reads
     /// and writes with a `feature_unavailable` error BEFORE validation or
     /// the confirmation sheet — the Settings UI hides these entries
-    /// entirely, and minis-config must not be a side door around that gate.
+    /// entirely, and moonveil-config must not be a side door around that gate.
     var unavailableReason: String? { get }
 
     @MainActor func read() throws -> ConfigValue

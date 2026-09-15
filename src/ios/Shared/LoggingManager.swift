@@ -324,7 +324,7 @@ final class LoggingManager: ObservableObject {
 
         logFileHandle?.closeFile()
 
-        let fileURL = logDirectory.appendingPathComponent("minis-\(today).log")
+        let fileURL = logDirectory.appendingPathComponent("moonveil-\(today).log")
         if !FileManager.default.fileExists(atPath: fileURL.path) {
             FileManager.default.createFile(atPath: fileURL.path, contents: nil)
         }
@@ -348,7 +348,7 @@ final class LoggingManager: ObservableObject {
     private static let logRetentionDays = 15
 
     /// The log's OWN date: parsed from the filename when it matches a known
-    /// pattern (`minis-YYYY-MM-DD.log`, `crash-YYYYMMDD-HHmmss.log`) — the
+    /// pattern (`moonveil-YYYY-MM-DD.log`, `crash-YYYYMMDD-HHmmss.log`) — the
     /// filename day is the log's true content day, immune to mtime drift from
     /// backups/copies — falling back to the modification date otherwise.
     private static func logDate(of url: URL) -> Date? {
@@ -356,9 +356,9 @@ final class LoggingManager: ObservableObject {
         let df = DateFormatter()
         df.locale = Locale(identifier: "en_US_POSIX")
         df.timeZone = .current
-        if name.hasPrefix("minis-") {
+        if name.hasPrefix("moonveil-") {
             df.dateFormat = "yyyy-MM-dd"
-            if let d = df.date(from: String(name.dropFirst("minis-".count))) { return d }
+            if let d = df.date(from: String(name.dropFirst("moonveil-".count))) { return d }
         } else if name.hasPrefix("crash-") {
             df.dateFormat = "yyyyMMdd-HHmmss"
             if let d = df.date(from: String(name.dropFirst("crash-".count))) { return d }
@@ -422,7 +422,7 @@ final class LoggingManager: ObservableObject {
     // MARK: - Log File Management
 
     /// Lists all `.log` files in the Logs directory, tagging each with a `type`:
-    /// `"running"` for `minis-*.log`, `"crash"` for `crash-*.log` (written by
+    /// `"running"` for `moonveil-*.log`, `"crash"` for `crash-*.log` (written by
     /// CrashReporter into the same directory), `"other"` for anything else.
     func logFiles() -> [(name: String, url: URL, date: Date, size: Int64, type: String)] {
         let fm = FileManager.default
@@ -440,7 +440,7 @@ final class LoggingManager: ObservableObject {
                 let date = values?.contentModificationDate ?? Date.distantPast
                 let name = url.lastPathComponent
                 let type: String
-                if name.hasPrefix("minis-") {
+                if name.hasPrefix("moonveil-") {
                     type = "running"
                 } else if name.hasPrefix("crash-") {
                     type = "crash"
@@ -486,7 +486,7 @@ final class LoggingManager: ObservableObject {
         writerQueue.async { [weak self] in
             guard let self else { return }
             let today = self.fileDateFormatter.string(from: Date())
-            if url.lastPathComponent == "minis-\(today).log" {
+            if url.lastPathComponent == "moonveil-\(today).log" {
                 self.logFileHandle?.closeFile()
                 self.logFileHandle = nil
                 self.currentLogDate = ""

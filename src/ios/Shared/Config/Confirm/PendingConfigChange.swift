@@ -37,7 +37,7 @@ final class PendingConfigChange: Identifiable, ObservableObject {
     let id: String                      // UUID per request
     /// Items in this batch. Mutable so the UI can flip per-row toggles.
     @Published var items: [PendingConfigChangeItem]
-    /// Free-form caption ("minis-config models hide …") shown above
+    /// Free-form caption ("moonveil-config models hide …") shown above
     /// the row table. Helps the user understand what the agent ran.
     let caption: String?
     /// Final disposition. Sheet sets this, gate observes.

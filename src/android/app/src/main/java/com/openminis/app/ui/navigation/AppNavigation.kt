@@ -447,7 +447,7 @@ fun AppNavigation(
     }
 
     // Pinned-shortcut cold start: when launched via
-     // `minis://session/<id>/<resource-path>`, set the pending HTML
+     // `moonveil://session/<id>/<resource-path>`, set the pending HTML
      // preview synchronously and start NavHost directly at the matching
      // chat so ChatScreen's LaunchedEffect consumes the pending state on
      // first composition — no sessions-list flash, no launch-session

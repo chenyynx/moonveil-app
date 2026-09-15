@@ -146,7 +146,7 @@
     <string name="mcp_add">新增 MCP 伺服器</string>
     <string name="mcp_edit">編輯 MCP 伺服器</string>
     <string name="mcp_section_servers">伺服器</string>
-    <string name="mcp_section_footer">MCP 伺服器讓 AI 透過 minis-mcp-cli 呼叫外部工具。設定儲存在 /var/minis/mcp-servers/servers.json（與 Claude Desktop 相容）。</string>
+    <string name="mcp_section_footer">MCP 伺服器讓 AI 透過 moonveil-mcp-cli 呼叫外部工具。設定儲存在 /var/minis/mcp-servers/servers.json（與 Claude Desktop 相容）。</string>
     <string name="mcp_empty_title">尚無 MCP 伺服器</string>
     <string name="mcp_empty_action">點擊 + 按鈕新增伺服器。</string>
     <string name="mcp_transport_http">HTTP</string>
@@ -717,8 +717,8 @@
     <string name="perm_agent_policy">Agent 權限</string>
     <string name="perm_a11y_system_ready">已啟用</string>
     <string name="perm_a11y_system_disabled">未啟用</string>
-    <string name="perm_allow_minis_config">允許 minis-config</string>
-    <string name="perm_minis_config_desc">停用後，Agent 將無法透過 minis-config 讀取或修改任何設定。「記錄」→「設定變更」中的變更歷史仍可查閱。Agent 會收到 permission_denied 錯誤，改以深層連結引導您操作。</string>
+    <string name="perm_allow_minis_config">允許 moonveil-config</string>
+    <string name="perm_minis_config_desc">停用後，Agent 將無法透過 moonveil-config 讀取或修改任何設定。「記錄」→「設定變更」中的變更歷史仍可查閱。Agent 會收到 permission_denied 錯誤，改以深層連結引導您操作。</string>
     <string name="perm_section_privacy">隱私</string>
     <string name="perm_section_media">媒體</string>
     <string name="perm_section_system">系統</string>
@@ -1162,7 +1162,7 @@
     <string name="settings_dynamic_island_footer">在 Android 16 狀態膠囊上顯示即時的助手狀態。開啟後將取代懸浮視窗，避免同時出現兩個狀態指示。</string>
     <string name="settings_dynamic_island_unsupported">目前系統版本尚不支援即時更新（需 Android 16 以上並已開啟該功能）。</string>
     <string name="agent_loop_section_title">Minis 執行時可調用的模型</string>
-    <string name="agent_loop_section_footer">在 Minis 任務中，Agent 會調用這些模型來完成生圖、總結等子任務 —— 也就是它自身模型做不到的工作。也可在終端機透過 minis-model-use 呼叫。只有這些對 Agent 可見。</string>
+    <string name="agent_loop_section_footer">在 Minis 任務中，Agent 會調用這些模型來完成生圖、總結等子任務 —— 也就是它自身模型做不到的工作。也可在終端機透過 moonveil-model-use 呼叫。只有這些對 Agent 可見。</string>
     <string name="agent_loop_section_empty_hint">尚未新增模型或群組</string>
     <string name="agent_loop_section_add_models">新增模型</string>
     <string name="agent_loop_section_add_groups">新增群組</string>
@@ -1306,7 +1306,7 @@
     <string name="backup_share_chooser">分享備份</string>
     <string name="backup_save_to_files">儲存到「檔案」…</string>
     <string name="backup_choose_file">選擇備份檔案…</string>
-    <string name="backup_choose_file_footer">從「檔案」、雲端硬碟或任何已連接的儲存空間中挑選 .minisbak 檔案。</string>
+    <string name="backup_choose_file_footer">從「檔案」、雲端硬碟或任何已連接的儲存空間中挑選 .moonveilbak 檔案。</string>
     <string name="backup_restore_destinations">備份目的地</string>
     <string name="backup_restore_destinations_footer">點擊目的地即可瀏覽並挑選備份。</string>
     <string name="backup_restore_other_sources">其他來源</string>
@@ -1374,7 +1374,7 @@
     <string name="backup_dest_trust_certificate_warning">無法驗證憑證。請只對您自己掌控的伺服器開啟此選項——任何能攔截連線的人都可能藉此冒充它。</string>
     <string name="backup_dest_cancel">取消</string>
     <string name="restore_browse_header">這個資料夾中的備份</string>
-    <string name="restore_browse_footer">列出伺服器上這個資料夾中的 .minisbak 檔案。</string>
+    <string name="restore_browse_footer">列出伺服器上這個資料夾中的 .moonveilbak 檔案。</string>
     <string name="restore_browse_footer_empty">這是伺服器上的即時清單，不是您的備份紀錄。</string>
     <string name="restore_browse_empty">這裡沒有資料夾或備份。</string>
     <string name="restore_download_title">要下載這份備份嗎？</string>

@@ -1164,7 +1164,7 @@ private fun isBlockquoteLine(trimmed: String): Boolean {
  * references stay inline (Compose doesn't render inline bitmap attachments in
  * text here, but the `[alt]` link fallback is acceptable for images).
  *
- * Why: LLMs very commonly emit `"Here's the video: ![robot](minis://attachments/x.mp4)"`
+ * Why: LLMs very commonly emit `"Here's the video: ![robot](moonveil://attachments/x.mp4)"`
  * on a single line alongside explanatory text. Without this split, the line
  * becomes one Paragraph and the video markdown is rendered as just a blue
  * `[alt]` link — no preview card, no tap-to-play.
@@ -1896,7 +1896,7 @@ private fun RenderBlock(block: MdBlock) {
             val context = LocalContext.current
             val sessionId = LocalMarkdownSessionId.current
             // Resolve to a host File via the session-scoped resolver before
-            // handing off to Coil. AsyncImage(model = "minis://...") routes
+            // handing off to Coil. AsyncImage(model = "moonveil://...") routes
             // through MinisImageFetcher → PRootKernel.resolveHostPath, which
             // reads the *global* bindMounts map — last-writer-wins across
             // sessions. When another session booted its shell more recently,
@@ -2249,7 +2249,7 @@ private fun BrokenImagePlaceholder(alt: String?) {
 // ─── Media helpers ──────────────────────────────────────────────────────────
 
 /**
- * Resolve a markdown media URL (`minis://attachments/foo.mp4`, file://, or
+ * Resolve a markdown media URL (`moonveil://attachments/foo.mp4`, file://, or
  * plain absolute path) to a host File.
  *
  * First tries `PRootKernel.resolveHostPath` (same as MinisImageFetcher). If
@@ -2263,13 +2263,13 @@ private fun BrokenImagePlaceholder(alt: String?) {
 internal fun resolveMdMediaFile(context: Context, url: String, sessionId: String? = null): File? {
     if (url.isBlank()) return null
     // Strip a real query (`?`), but NOT `#` — attachment filenames legitimately
-    // contain '#' (hashtags). `minis://` URLs don't carry fragments anyway,
+    // contain '#' (hashtags). `moonveil://` URLs don't carry fragments anyway,
     // and truncating here would hide the '.mp4' extension and the file's real
     // name from the resolver.
     val stripped = url.substringBefore('?')
     val primary: File? = when {
-        stripped.startsWith("minis://") -> {
-            val decoded = java.net.URLDecoder.decode(stripped.removePrefix("minis://"), "UTF-8")
+        stripped.startsWith("moonveil://") -> {
+            val decoded = java.net.URLDecoder.decode(stripped.removePrefix("moonveil://"), "UTF-8")
             val linuxPath = "/var/minis/$decoded"
             // Prefer the session-scoped resolver when the caller supplied a
             // sessionId: the global `bindMounts` map is overwritten every time
@@ -2293,11 +2293,11 @@ internal fun resolveMdMediaFile(context: Context, url: String, sessionId: String
     // draft session whose bind mount has already switched over, and the case
     // where `resolveHostPath`'s global bindMounts map points at a different
     // session than the one owning this message.
-    if (!stripped.startsWith("minis://")) {
+    if (!stripped.startsWith("moonveil://")) {
         android.util.Log.d("MdStream", "resolveMdMediaFile primary miss url=$url (non-minis scheme, no fallback)")
         return null
     }
-    val decoded = java.net.URLDecoder.decode(stripped.removePrefix("minis://"), "UTF-8")
+    val decoded = java.net.URLDecoder.decode(stripped.removePrefix("moonveil://"), "UTF-8")
     val basename = decoded.substringAfterLast('/')
     val subdir = decoded.substringBefore('/', missingDelimiterValue = "").takeIf { it.isNotEmpty() } ?: "attachments"
     val root = File(context.filesDir, "minis-sessions")

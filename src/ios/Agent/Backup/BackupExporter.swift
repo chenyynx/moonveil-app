@@ -3,7 +3,7 @@ import UIKit
 
 private let logger = AppLogger(category: "Backup")
 
-/// Builds a `.minisbak` package (docs/backup-restore-design.md §2, §9 stage 1).
+/// Builds a `.moonveilbak` package (docs/backup-restore-design.md §2, §9 stage 1).
 ///
 /// Current scope: export only, **unencrypted**. The Providers category now
 /// carries credentials (§3.3, stage 3a) as base64 in `secrets.json` — base64 is
@@ -224,7 +224,7 @@ actor BackupExporter {
         // path below. This filename is what `RcloneChunkedUpload` uploads
         // under (it takes `packageURL.lastPathComponent`), so it is the name
         // the user sees on their NAS — and the streaming path used to produce
-        // a bare `backup-f9c34c.minisbak` with no date, leaving a folder of
+        // a bare `backup-f9c34c.moonveilbak` with no date, leaving a folder of
         // packages that cannot be told apart. See `packageFileName` for the
         // current shape and why it leads with the device.
         //
@@ -1131,15 +1131,15 @@ actor BackupExporter {
     /// browsing their NAS, not just unique.
     ///
     /// [T-backup-package-name-device] Shape is
-    /// `<device>-<yyyyMMdd>-<sortable-id>.minisbak`, e.g.
-    /// `Ethans-iPhone-20260823-mf3k9q2phz.minisbak`. Three deliberate changes
-    /// from the old `backup-20260823-1259-f69c00.minisbak`:
+    /// `<device>-<yyyyMMdd>-<sortable-id>.moonveilbak`, e.g.
+    /// `Ethans-iPhone-20260823-mf3k9q2phz.moonveilbak`. Three deliberate changes
+    /// from the old `backup-20260823-1259-f69c00.moonveilbak`:
     ///
     ///  - **Device first.** Several devices back up into one NAS folder and
     ///    the old names were indistinguishable. Leading with the device makes
     ///    a name-sorted listing group each device's packages together, which
     ///    is the question someone browsing that folder actually has. The
-    ///    `backup-` prefix is dropped to pay for it — `.minisbak` already says
+    ///    `backup-` prefix is dropped to pay for it — `.moonveilbak` already says
     ///    what the file is.
     ///  - **Date only, no `HHmm`.** The id below is what separates two runs;
     ///    the clock time was just making the name longer.
@@ -1147,7 +1147,7 @@ actor BackupExporter {
     ///
     /// [T-backup-package-name-encrypted] An encrypted package additionally
     /// carries `-encrypted` before the extension, e.g.
-    /// `Ethans-iPhone-20260823-mf3k9q2phz-encrypted.minisbak`. Whether a
+    /// `Ethans-iPhone-20260823-mf3k9q2phz-encrypted.moonveilbak`. Whether a
     /// package needs its passphrase is otherwise invisible until someone tries
     /// to open it — which, for a backup found on a NAS months later, is
     /// exactly the wrong moment to find out. It goes AFTER the id rather than

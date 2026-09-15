@@ -13,7 +13,7 @@ enum ConfigError: Error, CustomStringConvertible {
     case invalidValue(String)
     case outOfRange(min: Double?, max: Double?)
     case regexMismatch(pattern: String)
-    case permissionDenied(reason: String = "Hidden from minis-config")
+    case permissionDenied(reason: String = "Hidden from moonveil-config")
     case unknownPath(String)
     case io(String)
 

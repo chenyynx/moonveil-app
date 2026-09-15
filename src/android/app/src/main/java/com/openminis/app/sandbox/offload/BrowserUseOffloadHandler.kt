@@ -166,7 +166,7 @@ class BrowserUseOffloadHandler(private val app: MinisApp) : NativeOffloadHandler
         // set_cookies: a JSON array of cookie objects. Either inline via
         // --cookies '<json>' or, to dodge busybox-ash shell mangling of the
         // JSON's quotes / braces / colons, from a file via --cookies-file <path>
-        // (mirrors `minis-config set --file`). Parse failures throw so the
+        // (mirrors `moonveil-config set --file`). Parse failures throw so the
         // handler surfaces an explicit invalid_args error instead of silently
         // dropping the array (which used to reach set_cookies as empty).
         val cookiesFile = args.get("cookies-file", "cookies_file")
@@ -261,7 +261,7 @@ class BrowserUseOffloadHandler(private val app: MinisApp) : NativeOffloadHandler
                     val linuxPath = "$VAR_MINIS_BROWSER/$filename"
                     persistedImagePath = linuxPath
                     out.put("image_path", linuxPath)
-                    out.put("minis_url", "minis://browser/$filename")
+                    out.put("minis_url", "moonveil://browser/$filename")
                 } else {
                     Log.w(TAG, "Failed to persist screenshot to ${dest.absolutePath}")
                 }
@@ -290,7 +290,7 @@ class BrowserUseOffloadHandler(private val app: MinisApp) : NativeOffloadHandler
                     val dest = File(browserHostDir, fname)
                     if (runCatching { dest.writeBytes(data) }.isSuccess) {
                         out.put("fetched_path", "$VAR_MINIS_BROWSER/$fname")
-                        out.put("fetched_minis_url", "minis://browser/$fname")
+                        out.put("fetched_minis_url", "moonveil://browser/$fname")
                     } else {
                         Log.w(TAG, "Failed to persist fetched file to ${dest.absolutePath}")
                     }
@@ -464,12 +464,12 @@ OUTPUT:
     success           true / false
     page_url          URL after the action (when applicable)
     image_path        Linux path of the persisted JPEG under /var/minis/browser/
-    minis_url         minis://browser/<filename> — stable reference for
+    minis_url         moonveil://browser/<filename> — stable reference for
                       read_image / downstream tools
     image_base64      Base64 JPEG (only when --with-base64 is set)
     fetched_file      Filename of the downloaded resource (fetch action)
     fetched_path      Linux path of the persisted download under /var/minis/browser/
-    fetched_minis_url minis://browser/<filename> for the download
+    fetched_minis_url moonveil://browser/<filename> for the download
 
 EXAMPLES:
   minis-browser-use navigate --url https://example.com

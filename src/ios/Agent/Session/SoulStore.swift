@@ -88,7 +88,7 @@ enum SoulIconImage {
     }
 }
 
-/// [T-soul-icon-config-images] Turns whatever `minis-config set soul.icon`
+/// [T-soul-icon-config-images] Turns whatever `moonveil-config set soul.icon`
 /// was given into a stored icon value, so the tool and the Settings picker
 /// end up applying the SAME rules.
 ///
@@ -147,7 +147,7 @@ enum SoulIconSource {
                 return "no file at \(p)"
             case .outsideAllowedDirs(let p):
                 return "\(p) is outside the directories this tool may read. "
-                     + "Use a minis:// URL (e.g. minis://attachments/icon.png) "
+                     + "Use a moonveil:// URL (e.g. moonveil://attachments/icon.png) "
                      + "or a path under the session's minis directories."
             case .badURL(let s):
                 return "couldn't parse '\(s)' as an image source"
@@ -172,7 +172,7 @@ enum SoulIconSource {
         let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if s.isEmpty { return false }
         if s.hasPrefix("data:") { return true }
-        if s.hasPrefix("minis://") { return true }
+        if s.hasPrefix("moonveil://") { return true }
         if s.hasPrefix("http://") || s.hasPrefix("https://") { return true }
         if s.hasPrefix("/") || s.hasPrefix("~/") { return true }
         // A bare base64 blob: long, and only base64 characters. The length
@@ -194,7 +194,7 @@ enum SoulIconSource {
         let data: Data
         if s.hasPrefix("data:") {
             data = try decodeDataURI(s)
-        } else if s.hasPrefix("minis://") {
+        } else if s.hasPrefix("moonveil://") {
             data = try readMinisURL(s)
         } else if s.hasPrefix("http://") || s.hasPrefix("https://") {
             data = try await download(s)
@@ -250,7 +250,7 @@ enum SoulIconSource {
         return d
     }
 
-    /// `minis://` goes through the app's own resolver, which is what enforces
+    /// `moonveil://` goes through the app's own resolver, which is what enforces
     /// session scoping — this must not reach into another session's files.
     private static func readMinisURL(_ s: String) throws -> Data {
         guard let url = URL(string: s) else { throw SourceError.badURL(s) }
@@ -654,7 +654,7 @@ enum SoulStore {
     // MARK: - Body length rules (unified token count)
     //
     // The personality body has a single hard cap of 2000 tokens, applied
-    // at every write surface (Settings UI Save button, minis-config writer,
+    // at every write surface (Settings UI Save button, moonveil-config writer,
     // and the prompt-build-time fallback in `SystemPromptBuilder`).
     //
     // Counting rules — see `tokenCount(_:)`:
@@ -941,7 +941,7 @@ enum SystemPromptBuilder {
         let soulEditHint =
             "---\n" +
             "SOUL.md fields (name / icon / style / lang / body) can be edited two ways:\n" +
-            "1. Tool: call `minis-config` to propose changes (user must approve).\n" +
+            "1. Tool: call `moonveil-config` to propose changes (user must approve).\n" +
             "2. UI: ask the user to go to Settings → Soul to edit directly.\n" +
             "Pick whichever the user finds easier in context. Do not say you cannot change your personality."
 

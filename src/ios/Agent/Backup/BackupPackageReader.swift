@@ -1,7 +1,7 @@
 import Compression
 import Foundation
 
-/// Minimal read-side access to a `.minisbak` archive.
+/// Minimal read-side access to a `.moonveilbak` archive.
 ///
 /// Scope is deliberately narrow: list entry names, and pull ONE small entry
 /// (manifest / index) by name. It exists so stage 1's export can be verified —
@@ -47,7 +47,7 @@ enum BackupPackageReader {
     ///
     /// `name` is matched on suffix as well as equality, because
     /// `NSFileCoordinator(.forUploading)` wraps the staging directory in an
-    /// outer folder — entries arrive as `minisbak-<uuid>/manifest.json`, not
+    /// outer folder — entries arrive as `moonveilbak-<uuid>/manifest.json`, not
     /// bare `manifest.json`.
     static func readEntry(at url: URL, named name: String) throws -> Data? {
         let entries = try readCentralDirectory(at: url)

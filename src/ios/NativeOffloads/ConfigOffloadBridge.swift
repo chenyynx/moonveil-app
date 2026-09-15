@@ -2,7 +2,7 @@
 //  ConfigOffloadBridge.swift
 //  MinisApp
 //
-//  Swift bridge for `minis-config`.
+//  Swift bridge for `moonveil-config`.
 //  All registry / gate / audit logic lives here; the .m handler just
 //  parses argv and routes to one of the @objc entry points below.
 //
@@ -29,15 +29,15 @@ private let logger = AppLogger(category: "ConfigOffload")
         return enabled
     }
 
-    /// JSON envelope for the "minis-config is disabled" error path.
+    /// JSON envelope for the "moonveil-config is disabled" error path.
     /// Includes the `user_message` so the agent relays guidance back
     /// to the user instead of silently failing or retrying.
     @objc public static func disabledErrorEnvelope() -> NSDictionary {
         return [
             "ok": false,
             "error": "permission_denied",
-            "reason": "minis-config is disabled in Settings → Permissions.",
-            "user_message": "I tried to change a setting but minis-config is currently disabled. You can enable it at [Settings → Permissions](minis://settings/permissions), then ask me again. Or change the setting yourself directly through the relevant Settings screen.",
+            "reason": "moonveil-config is disabled in Settings → Permissions.",
+            "user_message": "I tried to change a setting but moonveil-config is currently disabled. You can enable it at [Settings → Permissions](moonveil://settings/permissions), then ask me again. Or change the setting yourself directly through the relevant Settings screen.",
         ]
     }
 
@@ -56,7 +56,7 @@ private let logger = AppLogger(category: "ConfigOffload")
     // MARK: - Topic / list / help discovery
 
     /// All visible topics in the registry. Sorted alphabetical. The CLI
-    /// prints these in `minis-config --help`.
+    /// prints these in `moonveil-config --help`.
     @objc public static func allTopics() -> [String] {
         let sem = DispatchSemaphore(value: 0)
         var topics: [String] = []
@@ -244,13 +244,13 @@ private let logger = AppLogger(category: "ConfigOffload")
             return "No items under '\(path)'."
         }
         if page > totalPages {
-            return "Page \(page) is out of range (only \(totalPages) page\(totalPages == 1 ? "" : "s") available). Try: minis-config get \(path)\(filterFragment) --page \(totalPages)"
+            return "Page \(page) is out of range (only \(totalPages) page\(totalPages == 1 ? "" : "s") available). Try: moonveil-config get \(path)\(filterFragment) --page \(totalPages)"
         }
         if totalPages <= 1 {
             return "Showing all \(total) item\(total == 1 ? "" : "s") (1 page)."
         }
         if page < totalPages {
-            return "Showing page \(page) of \(totalPages) (\(pageCount) of \(total) items). To get more, use: minis-config get \(path)\(filterFragment) --page \(page + 1) --page-size \(pageSize)"
+            return "Showing page \(page) of \(totalPages) (\(pageCount) of \(total) items). To get more, use: moonveil-config get \(path)\(filterFragment) --page \(page + 1) --page-size \(pageSize)"
         }
         return "Showing page \(page) of \(totalPages) (\(pageCount) of \(total) items). This is the last page."
     }
@@ -276,7 +276,7 @@ private let logger = AppLogger(category: "ConfigOffload")
             return [
                 "ok": false,
                 "error": "permission_denied",
-                "reason": "'\(path)' is intentionally not exposed to minis-config.",
+                "reason": "'\(path)' is intentionally not exposed to moonveil-config.",
             ]
         }
         if let reason = field.unavailableReason {
@@ -421,9 +421,9 @@ private let logger = AppLogger(category: "ConfigOffload")
             // exactly a registered collection's basePath (no further
             // dotted segments), dispatch to the ConfigCollection's
             // add(_:)/remove(id:) instead of trying to resolve a field.
-            // This is how `minis-config set models.append <json>` and
-            // `minis-config set models.remove <entry-id>` reach
-            // ModelsCollection.add / .remove (T-minis-config-models-add).
+            // This is how `moonveil-config set models.append <json>` and
+            // `moonveil-config set models.remove <entry-id>` reach
+            // ModelsCollection.add / .remove (T-moonveil-config-models-add).
             if (isAppend || isAdd || isRemove),
                let collection = ConfigRegistry.shared.collection(basePath: resolvePath) {
                 guard let parsedValue = ConfigValue.decode(json: valueJSON) else {
@@ -482,7 +482,7 @@ private let logger = AppLogger(category: "ConfigOffload")
                             "reason": String(describing: error),
                         ]
                     }
-                    // [T-minis-config-provider-add] Redact credential values
+                    // [T-moonveil-config-provider-add] Redact credential values
                     // (apiKey / oauthToken) before they reach the audit log or
                     // the confirmation sheet. The collection's add() still
                     // receives the un-redacted `parsedValue` so it can write the
@@ -518,7 +518,7 @@ private let logger = AppLogger(category: "ConfigOffload")
             }
             if field.access != .readwrite {
                 let reason = field.access == .hidden
-                    ? "'\(rawPath)' is intentionally not exposed to minis-config."
+                    ? "'\(rawPath)' is intentionally not exposed to moonveil-config."
                     : "'\(rawPath)' is read-only."
                 return [
                     "ok": false, "error": "permission_denied", "reason": reason,
@@ -637,7 +637,7 @@ private let logger = AppLogger(category: "ConfigOffload")
                 }
             }
 
-            // [T-minis-config-provider-add] If this field holds a credential
+            // [T-moonveil-config-provider-add] If this field holds a credential
             // (path ends in a secret key, e.g. providers.<id>.apiKey), mask the
             // value persisted to the audit and shown in the confirm sheet. The
             // field's writer still receives the REAL `newValue` to store in
@@ -773,7 +773,7 @@ private let logger = AppLogger(category: "ConfigOffload")
                     case .fieldWrite(let field, let oldValue, let newValue, let auditNewValue):
                         // Apply the REAL newValue; echo the masked auditNewValue
                         // back so a credential write never surfaces the secret in
-                        // the response. [T-minis-config-provider-add]
+                        // the response. [T-moonveil-config-provider-add]
                         try field.write(newValue)
                         finalKey = field.path
                         appliedRow = [
@@ -870,8 +870,8 @@ private let logger = AppLogger(category: "ConfigOffload")
                 "ok": true,
                 "applied": applied,
                 "audit_ids": auditIds,
-                "audit_url": "minis://settings/logs?tab=config-audit",
-                "user_message": "Settings updated. Review or revert at [Logs → Config Changes](minis://settings/logs?tab=config-audit).",
+                "audit_url": "moonveil://settings/logs?tab=config-audit",
+                "user_message": "Settings updated. Review or revert at [Logs → Config Changes](moonveil://settings/logs?tab=config-audit).",
             ]
         }
     }
@@ -889,7 +889,7 @@ private let logger = AppLogger(category: "ConfigOffload")
         // `newValue` is applied to the field's writer; `auditNewValue` is the
         // (possibly secret-masked) copy persisted to the audit and shown in the
         // confirm sheet. They differ only for credential fields.
-        // [T-minis-config-provider-add]
+        // [T-moonveil-config-provider-add]
         case fieldWrite(field: ConfigField, oldValue: ConfigValue, newValue: ConfigValue, auditNewValue: ConfigValue)
         case collectionAdd(collection: ConfigCollection, payload: ConfigValue, payloadJSON: String)
         case collectionRemove(collection: ConfigCollection, childId: String, snapshotJSON: String)
@@ -907,7 +907,7 @@ private let logger = AppLogger(category: "ConfigOffload")
         switch r {
         case .fieldWrite(let f, let old, _, let auditNew):
             // Persist the masked auditNewValue, never the raw secret.
-            // [T-minis-config-provider-add]
+            // [T-moonveil-config-provider-add]
             return (f.scope, f.path, old.jsonString(), auditNew.jsonString(), f.displayName)
         case .collectionAdd(let c, _, let json):
             return (c.basePath, "\(c.basePath).<new>", "", json, c.displayName)
@@ -1082,7 +1082,7 @@ private let logger = AppLogger(category: "ConfigOffload")
             ]
             let res = await Self.performWriteBatch(
                 items: [revertItem],
-                caption: "minis-config audit revert \(entry.id.prefix(8))",
+                caption: "moonveil-config audit revert \(entry.id.prefix(8))",
                 actorRaw: actorRaw,
                 sessionId: sessionId,
                 skipConfirmation: skipConfirmation

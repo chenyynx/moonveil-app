@@ -313,7 +313,7 @@ object UpdateChecker {
             val safeName = versionName
                 ?.replace(Regex("[^A-Za-z0-9._-]"), "_")
                 ?.takeIf { it.isNotEmpty() }
-                ?.let { "minis-$it.apk" }
+                ?.let { "moonveil-$it.apk" }
                 ?: DOWNLOAD_FILENAME
             val outFile = File(outDir, safeName)
             // A previous, possibly-aborted download could leave a stale APK

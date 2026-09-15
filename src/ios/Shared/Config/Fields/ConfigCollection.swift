@@ -7,7 +7,7 @@ import Foundation
 /// collection adds two more capabilities:
 ///
 ///   1. Enumerate runtime children (`childIds()`) — the bridge uses
-///      this for `minis-config <topic> list` and to resolve dynamic
+///      this for `moonveil-config <topic> list` and to resolve dynamic
 ///      paths like `models.<uuid>.maxOutputTokens`.
 ///
 ///   2. Define `add` / `remove` semantics — these create or dispose

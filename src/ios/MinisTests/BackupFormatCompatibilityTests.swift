@@ -1,7 +1,7 @@
 import XCTest
 @testable import Minis
 
-/// Regression tests for `.minisbak` format acceptance and manifest tolerance
+/// Regression tests for `.moonveilbak` format acceptance and manifest tolerance
 /// (docs/backup-restore-design.md §2.2; review findings S1 and S3).
 ///
 /// Both behaviours are the kind that fail silently: S3 accepted a package
@@ -19,11 +19,11 @@ final class BackupFormatCompatibilityTests: XCTestCase {
     /// formats and refused same-major minor bumps.
     func testFormatAcceptanceMatrix() {
         // Accepted: same prefix, same major.
-        XCTAssertTrue(BackupImporter.isFormatSupported("minisbak/1"))
+        XCTAssertTrue(BackupImporter.isFormatSupported("moonveilbak/1"))
         // Same major with a minor component — §2.2 rule 2 requires this to
         // import. The pre-fix code REFUSED it (Int("1.1") == nil).
-        XCTAssertTrue(BackupImporter.isFormatSupported("minisbak/1.1"))
-        XCTAssertTrue(BackupImporter.isFormatSupported("minisbak/1.0.3"))
+        XCTAssertTrue(BackupImporter.isFormatSupported("moonveilbak/1.1"))
+        XCTAssertTrue(BackupImporter.isFormatSupported("moonveilbak/1.0.3"))
 
         // Refused: a different product that happens to use the same shape.
         // The pre-fix code ACCEPTED this — there was no prefix check at all.
@@ -31,15 +31,15 @@ final class BackupFormatCompatibilityTests: XCTestCase {
         // Refused: no prefix whatsoever. Also accepted pre-fix.
         XCTAssertFalse(BackupImporter.isFormatSupported("1"))
         // Refused: a future major. Rule 1 is a hard refusal.
-        XCTAssertFalse(BackupImporter.isFormatSupported("minisbak/2"))
-        XCTAssertFalse(BackupImporter.isFormatSupported("minisbak/2.0"))
+        XCTAssertFalse(BackupImporter.isFormatSupported("moonveilbak/2"))
+        XCTAssertFalse(BackupImporter.isFormatSupported("moonveilbak/2.0"))
     }
 
     func testFormatAcceptanceRejectsMalformedStrings() {
         XCTAssertFalse(BackupImporter.isFormatSupported(""))
-        XCTAssertFalse(BackupImporter.isFormatSupported("minisbak"))
-        XCTAssertFalse(BackupImporter.isFormatSupported("minisbak/"))
-        XCTAssertFalse(BackupImporter.isFormatSupported("minisbak/x"))
+        XCTAssertFalse(BackupImporter.isFormatSupported("moonveilbak"))
+        XCTAssertFalse(BackupImporter.isFormatSupported("moonveilbak/"))
+        XCTAssertFalse(BackupImporter.isFormatSupported("moonveilbak/x"))
         XCTAssertFalse(BackupImporter.isFormatSupported("/1"))
         // Case matters: the prefix is compared literally.
         XCTAssertFalse(BackupImporter.isFormatSupported("MinisBak/1"))
@@ -81,18 +81,18 @@ final class BackupFormatCompatibilityTests: XCTestCase {
     /// A newer writer adding fields must not break an older reader.
     func testUnknownFieldsAreIgnored() throws {
         let m = try decode("""
-        {"format":"minisbak/1","device_name":"iPhone",
+        {"format":"moonveilbak/1","device_name":"iPhone",
          "future_field":{"nested":[1,2,3]},"another":"x"}
         """)
         XCTAssertEqual(m.deviceName, "iPhone")
-        XCTAssertEqual(m.format, "minisbak/1")
+        XCTAssertEqual(m.format, "moonveilbak/1")
     }
 
     /// §2.2 rule 2 turned into a test case directly: drop each optional key in
     /// turn from a complete manifest and assert the result still decodes.
     func testEveryOptionalFieldMayBeAbsent() throws {
         let full: [String: Any] = [
-            "format": "minisbak/1",
+            "format": "moonveilbak/1",
             "created_at": "2026-08-14T00:00:00Z",
             "app": ["platform": "ios", "version": "1.13", "build": "42"],
             "device_name": "iPhone",
@@ -119,7 +119,7 @@ final class BackupFormatCompatibilityTests: XCTestCase {
     /// was a missing `limits.skipped_files`.
     func testNestedOptionalCountersMayBeAbsent() throws {
         let m = try decode("""
-        {"format":"minisbak/1","limits":{},
+        {"format":"moonveilbak/1","limits":{},
          "categories":{"chats":{},"providers":{"entries":2}},
          "app":{}}
         """)
@@ -138,7 +138,7 @@ final class BackupFormatCompatibilityTests: XCTestCase {
     /// of bug this file exists to stop.
     func testSnakeCaseKeysAreTheWireFormat() throws {
         let m = try decode("""
-        {"format":"minisbak/1","device_name":"A","backup_id":"B",
+        {"format":"moonveilbak/1","device_name":"A","backup_id":"B",
          "limits":{"max_file_bytes":7,"skipped_files":8,"skipped_bytes":9},
          "categories":{"providers":{"entries":1,"includes_credentials":true}},
          "manifest_mac":"TUFD"}
@@ -160,7 +160,7 @@ final class BackupFormatCompatibilityTests: XCTestCase {
     /// is actually enforced rather than merely documented.
     func testKDFAlgAndSaltAreRequired() {
         let base = """
-        {"format":"minisbak/1","encryption":{"scheme":"minisbak-enc/1",
+        {"format":"moonveilbak/1","encryption":{"scheme":"moonveilbak-enc/1",
          "verifier":"dg==","kdf":{%@}}}
         """
         func manifest(_ kdf: String) -> Data {
@@ -191,7 +191,7 @@ final class BackupFormatCompatibilityTests: XCTestCase {
     /// The optional Argon2 parameters may be absent even though alg/salt aren't.
     func testKDFOptionalParametersMayBeAbsent() throws {
         let m = try decode("""
-        {"format":"minisbak/1","encryption":{"scheme":"minisbak-enc/1",
+        {"format":"moonveilbak/1","encryption":{"scheme":"moonveilbak-enc/1",
          "verifier":"dg==","kdf":{"alg":"pbkdf2-hmac-sha256","salt":"c2FsdA==",
          "iterations":600000}}}
         """)

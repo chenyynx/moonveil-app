@@ -154,7 +154,7 @@ struct BackupHistoryDetailView: View {
                 // [T-backup-file-row-two-column] `LabeledContent` reflows to a
                 // VERTICAL stack of its own accord once the value cannot sit
                 // comfortably beside the label, and a package name — now
-                // `iPhone-17-Pro-20260823-m0pyx0fq1dg.minisbak`, longer than
+                // `iPhone-17-Pro-20260823-m0pyx0fq1dg.moonveilbak`, longer than
                 // before the device prefix landed — is always past that
                 // threshold. Asking it to wrap the value (`.fixedSize` for
                 // vertical growth) made the value taller and so pushed it

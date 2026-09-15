@@ -27,7 +27,7 @@ impossible.
 
 Peak local usage ≈ **one copy** — the finished package — while keeping:
 
-- a single self-contained `.minisbak` file on the destination (users can copy
+- a single self-contained `.moonveilbak` file on the destination (users can copy
   it off a NAS by hand; this was a deliberate decision when chunked upload was
   removed on 2026-08-16 and it stands);
 - resumability of an interrupted export;
@@ -208,7 +208,7 @@ regardless of whether the rest lands.
 
 ## Explicitly unchanged
 
-- `.minisbak` stays a standard zip. Restore of existing packages is unaffected.
+- `.moonveilbak` stays a standard zip. Restore of existing packages is unaffected.
 - The destination still receives one self-contained file.
 - rclone still uploads a complete local file (`operations/copyfile` takes a
   path), which is why peak cannot go below one package without abandoning the

@@ -11,7 +11,7 @@ private let importLog = AppLogger(category: "Share")
 /// detection path. [T-ios-json-open-provider-import-prompt]
 enum ExternalFileImporter {
 
-    /// True if `url` is a local file we should ingest (vs a `minis://` deep link).
+    /// True if `url` is a local file we should ingest (vs a `moonveil://` deep link).
     static func canIngest(_ url: URL) -> Bool {
         url.isFileURL
     }

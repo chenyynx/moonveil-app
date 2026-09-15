@@ -188,9 +188,9 @@ class DebugRPCHandler(private val context: Context) {
                 }
                 handleSessionsExec(params)
             }
-            // [T-minis-config-provider-add] DEBUG-only invocation of the
+            // [T-moonveil-config-provider-add] DEBUG-only invocation of the
             // ConfigOffloadHandler — parallels debug.modelUse.exec so test
-            // harnesses can exercise minis-config (get / set / set-batch /
+            // harnesses can exercise moonveil-config (get / set / set-batch /
             // audit-*) without driving an in-shell prompt. The handler
             // re-uses the production ConfigBridge code path; we override
             // skipConfirmation under the hood via a dedicated arg the
@@ -878,7 +878,7 @@ class DebugRPCHandler(private val context: Context) {
      * Run a command inside the PRoot sandbox for the given session and return
      * `{ output, exit_code }`. Mirrors iOS `debug.shellExecute`. Debug-only;
      * meant for integration-test harnesses that need to drive shell tools
-     * (`minis-browser-use`, `minis-open`, …) without going through the agent.
+     * (`minis-browser-use`, `moonveil-open`, …) without going through the agent.
      *
      * Params:
      *   command  (string, required) — command line to run under /bin/sh -c.
@@ -895,9 +895,9 @@ class DebugRPCHandler(private val context: Context) {
         val timeoutSec = params.optInt("timeout", 60).coerceIn(1, 900)
 
         // Mirror ChatViewModel's terminal lineCallback: scan raw lines for
-        // OSC MinisOpenURL markers before TerminalSanitizer strips them and
+        // OSC MoonveilOpenURL markers before TerminalSanitizer strips them and
         // hand captured URLs to the broker so test harnesses driving
-        // `minis-open` via this RPC trigger the same in-app preview flow as
+        // `moonveil-open` via this RPC trigger the same in-app preview flow as
         // real chat shell output.
         val capturedUrls = mutableListOf<String>()
         val result = try {
@@ -1189,7 +1189,7 @@ class DebugRPCHandler(private val context: Context) {
     /**
      * Direct invocation of [com.openminis.app.sandbox.offload.ModelUseOffloadHandler]
      * for e2e harnesses. Mirrors [handleShizukuExec]; lets callers exercise the
-     * `minis-model-use` CLI without going through a real Alpine shell prompt.
+     * `moonveil-model-use` CLI without going through a real Alpine shell prompt.
      * DEBUG-only.
      */
     private fun handleModelUseExec(params: JSONObject): JSONObject {
@@ -1224,7 +1224,7 @@ class DebugRPCHandler(private val context: Context) {
         val handler = com.openminis.app.sandbox.offload.ModelUseOffloadHandler(context, app.providerRepository)
         val request = com.openminis.app.sandbox.NativeOffloadRequest(
             pid = -1,
-            argv = listOf("minis-model-use") + finalArgv,
+            argv = listOf("moonveil-model-use") + finalArgv,
             env = emptyMap(),
             cwd = "/",
             sessionId = null,
@@ -1276,7 +1276,7 @@ class DebugRPCHandler(private val context: Context) {
     }
 
     /**
-     * [T-minis-config-provider-add] DEBUG-only minis-config invocation
+     * [T-moonveil-config-provider-add] DEBUG-only moonveil-config invocation
      * that BYPASSES the user-confirmation gate. Targets the same code
      * path the offload CLI hits (ConfigBridge.performWriteBatch /
      * readField / auditList), so harnesses can verify add / set / get
@@ -1375,8 +1375,8 @@ class DebugRPCHandler(private val context: Context) {
                 )
             }
             // Discovery. Without these a caller has to know a collection's
-            // writable paths in advance; `topics` is `minis-config --help`'s
-            // index and `topic-help` is `minis-config <topic> --help`.
+            // writable paths in advance; `topics` is `moonveil-config --help`'s
+            // index and `topic-help` is `moonveil-config <topic> --help`.
             "topics" -> JSONObject().apply {
                 put("ok", true)
                 put("topics", com.openminis.app.config.ConfigBridge.allTopics())

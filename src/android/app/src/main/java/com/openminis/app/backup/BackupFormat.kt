@@ -85,7 +85,7 @@ object Iso8601MillisNullableSerializer : KSerializer<Long?> {
 }
 
 /**
- * On-the-wire types for the `.minisbak` backup package.
+ * On-the-wire types for the `.moonveilbak` backup package.
  *
  * Spec: `docs/backup-restore-design.md` §2 / §2.1. This is the FORMAT layer,
  * mirroring `src/ios/Agent/Backup/BackupFormat.swift` field-for-field —
@@ -101,21 +101,21 @@ object Iso8601MillisNullableSerializer : KSerializer<Long?> {
  */
 object BackupFormat {
     /** Format major version. An unrecognised value must refuse the package. */
-    const val CURRENT = "minisbak/1"
+    const val CURRENT = "moonveilbak/1"
 
     /** File extension registered to the app for "open to import". */
-    const val FILE_EXTENSION = "minisbak"
+    const val FILE_EXTENSION = "moonveilbak"
 
     /**
-     * MIME type for a `.minisbak` package.
+     * MIME type for a `.moonveilbak` package.
      *
-     * Matches the `application/x-minisbak` iOS declares for the
-     * `com.openminis.app.minisbak` UTI (src/ios/Info.plist), so both platforms
+     * Matches the `application/x-moonveilbak` iOS declares for the
+     * `com.openminis.app.moonveilbak` UTI (src/ios/Info.plist), so both platforms
      * describe the same artefact. Used with SAF's CreateDocument, where the
      * MIME type drives the extension the picker appends: the generic
      * `application/octet-stream` made it save the package as `.bin`.
      */
-    const val MIME_TYPE = "application/x-minisbak"
+    const val MIME_TYPE = "application/x-moonveilbak"
 
     /**
      * Cap for a single JSONL shard (§2). Beyond this the writer rolls over to

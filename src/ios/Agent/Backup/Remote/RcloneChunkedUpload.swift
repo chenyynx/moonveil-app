@@ -16,7 +16,7 @@ private let logger = AppLogger(category: "Rclone")
 /// parts/whole distinction leaking into every list/download call site.
 ///
 /// The trade was re-evaluated (2026-08-16) and decided the other way: the
-/// server always holds a clean, self-contained `.minisbak` a user can grab
+/// server always holds a clean, self-contained `.moonveilbak` a user can grab
 /// with any client, and an interrupted upload simply re-runs. Interruption is
 /// rare in practice — the upload runs under BackupBackgroundAssertion with
 /// the user typically watching the progress screen — and a failure is
@@ -114,7 +114,7 @@ enum RcloneTransfer {
         // a full-size object on the user's NAS permanently.
         //
         // A plain suffix is invisible to that filter and still cannot be
-        // mistaken for a backup — the restore list matches `.minisbak` exactly
+        // mistaken for a backup — the restore list matches `.moonveilbak` exactly
         // (see `packages(in:)`), and the sweep below matches the suffix.
         let partial = remote.join("\(name).partial")
         let final = remote.join(name)
@@ -206,7 +206,7 @@ enum RcloneTransfer {
             // from listings (alist, verified) — precisely the servers whose
             // leftovers it was written to reclaim. Dropping the prefix test
             // also lets it clear scratch files written by older builds, since
-            // `.pkg.minisbak.partial` still ends in `.partial` and is still
+            // `.pkg.moonveilbak.partial` still ends in `.partial` and is still
             // matched here whenever the server does list it.
             guard e["IsDir"] as? Bool != true,
                   name.hasSuffix(".partial") else { continue }
@@ -244,11 +244,11 @@ enum RcloneTransfer {
         let modified: Date?
     }
 
-    /// Every `.minisbak` in `remote`'s backup directory, newest first.
+    /// Every `.moonveilbak` in `remote`'s backup directory, newest first.
     ///
     /// In-flight scratch files never show up as restorable backups: they are
-    /// named `<package>.minisbak.partial`, whose suffix is `.partial`, and the
-    /// filter below requires the name to END in `.minisbak`.
+    /// named `<package>.moonveilbak.partial`, whose suffix is `.partial`, and the
+    /// filter below requires the name to END in `.moonveilbak`.
     /// [T-backup-webdav-hidden-partial] That suffix test — not the leading dot
     /// this comment used to rely on — is what excludes them, which is why the
     /// scratch name could stop being dot-prefixed (dotfiles are invisible to
@@ -296,7 +296,7 @@ enum RcloneTransfer {
     }
 
     /// List ONE directory of a remote: its subdirectories, plus the
-    /// `.minisbak` files directly inside it.
+    /// `.moonveilbak` files directly inside it.
     ///
     /// [T-restore-browse-tree] Deliberately one level, and NOT recursive. The
     /// restore browser used to show every package under the destination's

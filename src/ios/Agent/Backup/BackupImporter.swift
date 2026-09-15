@@ -2,7 +2,7 @@ import Foundation
 
 private let logger = AppLogger(category: "Backup")
 
-/// Restores a `.minisbak` package (docs/backup-restore-design.md §8).
+/// Restores a `.moonveilbak` package (docs/backup-restore-design.md §8).
 ///
 /// Stage 2 scope: **Merge mode only**, unencrypted packages, with integrity
 /// verification, preflight, and a staging rollback point. Replace / Skip
@@ -131,7 +131,7 @@ actor BackupImporter {
         // is the worst possible outcome.
         progress?("Opening package…")
         let work = fm.temporaryDirectory
-            .appendingPathComponent("minisbak-import-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("moonveilbak-import-\(UUID().uuidString)", isDirectory: true)
         defer { try? fm.removeItem(at: work) }
         let root = try unpack(packageURL, to: work)
 
@@ -273,7 +273,7 @@ actor BackupImporter {
     /// what's in here before they commit" step of §8.1.
     func inspect(packageURL: URL) throws -> BackupManifest {
         let work = fm.temporaryDirectory
-            .appendingPathComponent("minisbak-peek-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("moonveilbak-peek-\(UUID().uuidString)", isDirectory: true)
         defer { try? fm.removeItem(at: work) }
         let root = try unpack(packageURL, to: work)
         return try readManifest(at: root)
@@ -282,7 +282,7 @@ actor BackupImporter {
     // MARK: - Package opening
 
     /// Expand the ZIP. Uses the same NSFileCoordinator trick as the exporter in
-    /// reverse; the archive nests everything under `minisbak-<uuid>/`, so the
+    /// reverse; the archive nests everything under `moonveilbak-<uuid>/`, so the
     /// real root is that single child directory.
     private func unpack(_ packageURL: URL, to work: URL) throws -> URL {
         try fm.createDirectory(at: work, withIntermediateDirectories: true)
@@ -360,7 +360,7 @@ actor BackupImporter {
     /// [review S3] The previous implementation took everything after the "/",
     /// which is not the major version and got both directions wrong: it
     /// ACCEPTED `otherformat/1` and a bare `1` (no prefix check at all), and
-    /// REFUSED `minisbak/1.1` even though §2.2 rule 2 says same-major must
+    /// REFUSED `moonveilbak/1.1` even though §2.2 rule 2 says same-major must
     /// import. Verified both by execution.
     private func checkFormat(_ manifest: BackupManifest) throws {
         guard Self.isFormatSupported(manifest.format) else {

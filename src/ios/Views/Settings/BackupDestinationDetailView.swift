@@ -111,7 +111,7 @@ struct BackupDestinationDetailView: View {
         }
         // [T-backup-remote-delete] Deleting the FILE, not the destination.
         // `item:` rather than a bool so the message can name the package —
-        // a list of `backup-<date>-<hex>.minisbak` all look alike, and the
+        // a list of `backup-<date>-<hex>.moonveilbak` all look alike, and the
         // user has to see which one they are about to lose.
         .alert(item: $pendingDelete) { pkg in
             Alert(

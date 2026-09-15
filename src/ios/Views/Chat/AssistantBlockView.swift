@@ -501,7 +501,7 @@ struct ToolCapsuleView: View {
             Button(AppLocalized("Go Enable")) {
                 // Deep-link to Settings → Permissions → Background, nudging the
                 // recommended rows ON — they highlight only while still OFF
-                // (= minis://settings/background?focus=…:true,…:true). Location
+                // (= moonveil://settings/background?focus=…:true,…:true). Location
                 // Tracking is included so the background heartbeat that keeps the
                 // task Live Activity refreshing in real time gets enabled too.
                 DeepLinkCoordinator.shared.setFocus(
