@@ -47,6 +47,10 @@ let package = Package(
                 "AAV2/Domain/Account",
                 "AAV2/Models/APIModels.swift",
                 "AAV2/Models/WorkspaceDownloadedFile.swift",
+                // batch8a (2026-09-15): login-page service pair (local-network probe
+                // + keychain token store); Foundation-only, consumed by Glue engine
+                "AAV2/Services",
+                "AAV2/Stores",
                 "AAV2/Views/Components/StableViewModel.swift",
                 // batch5 (2026-09-15): the seam itself (first real Glue)
                 "Glue",

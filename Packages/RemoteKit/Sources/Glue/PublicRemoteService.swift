@@ -101,6 +101,31 @@ public struct RemoteNotice: Sendable, Identifiable {
     public let rawJSON: Data
 }
 
+// MARK: - Auth surface (B8-AUTH: feeds the ported AA login page)
+
+/// Public mirror of the official MobileLoginPayload (QR payload fields verbatim,
+/// String-typed — the app never sees internal types).
+public struct RemotePairingPayload: Sendable, Hashable {
+    public let userId: String
+    public let loginToken: String
+    public let webUrl: String
+
+    public init?(qrJSON: Data) {
+        guard let decoded = try? JSONDecoder().decode(MobileLoginPayload.self, from: qrJSON),
+              decoded.userId.isEmpty == false, decoded.loginToken.isEmpty == false,
+              decoded.type == "agents-anywhere.mobile-login", decoded.version == 1 else { return nil }
+        userId = decoded.userId
+        loginToken = decoded.loginToken
+        webUrl = decoded.webUrl
+    }
+}
+
+public struct RemoteProfile: Sendable, Equatable {
+    public let userId: String
+    public let displayName: String
+    public let email: String?
+}
+
 @MainActor
 public final class RemoteService: ObservableObject {
 
@@ -111,6 +136,97 @@ public final class RemoteService: ObservableObject {
 
     public init(clientId: String = UUID().uuidString) {
         engine = RemoteSessionBackend(clientId: clientId)
+    }
+
+    // MARK: Auth published state (page bindings, AppState→facade swap, B8-AUTH)
+    @Published public private(set) var authErrorText: String?
+    @Published public private(set) var needsLocalNetworkSettings = false
+    @Published public private(set) var profile: RemoteProfile?
+
+    @Published public private(set) var isWorking = false
+
+    /// Upstream checkServer surface (AppState:147): clear errors, probe chain,
+    /// return the validated URL or publish the error (incl. local-network flag).
+    public func checkServer(_ value: String) async -> URL? {
+        authErrorText = nil; needsLocalNetworkSettings = false
+        isWorking = true; defer { isWorking = false }
+        guard let url = URL(string: value.trimmingCharacters(in: .whitespacesAndNewlines)),
+              url.scheme?.hasPrefix("http") == true else {
+            authErrorText = "Invalid server address"
+            return nil
+        }
+        do { try await engine.probeServer(url); return url }
+        catch { finishAuth(error); return nil }
+    }
+
+    /// Manual-login completion: OAuth coordinator returned a token against a
+    /// probed server (upstream completeOAuthLogin semantics: bootstrap + me).
+    public func completeManualLogin(serverURL: URL, token: String) async -> Bool {
+        engine.bootstrap(serverURL: serverURL, accessToken: token)
+        syncState()
+        profile = try? await engine.fetchProfile()
+            .map { RemoteProfile(userId: $0.userId, displayName: $0.displayName, email: $0.email) }
+        return profile != nil
+    }
+
+    /// Launch-time session restore (upstream restoreSession). Call from app root.
+    @discardableResult
+    public func restoreSession() -> Bool {
+        guard case .idle = stateMapping, let pair = RemoteSessionBackend.restore() else { return false }
+        engine.bootstrap(serverURL: pair.0, accessToken: pair.1)
+        Task { @MainActor in self.profile = try? await self.engine.fetchProfile()
+                            .map { RemoteProfile(userId: $0.userId, displayName: $0.displayName, email: $0.email) } }
+        syncState()
+        return true
+    }
+
+    private var stateMapping: RemoteServiceState { state }
+
+    /// Sign out: wipe keychain+defaults (official logout), then drop clients.
+    public func signOut() {
+        engine.forgetSession()
+        reset()
+        profile = nil
+        authErrorText = nil
+    }
+
+    /// request → poll → exchange, error-text published like upstream AppState
+    /// (views read authErrorText instead of stringifying errors themselves).
+    public func requestPairing(payload: RemotePairingPayload, deviceName: String) async -> Bool {
+        await runAuth { try await self.engine.beginPairing(deviceName: deviceName, payload: payload.toOfficial()) }
+    }
+
+    public func pairingStatus(payload: RemotePairingPayload) async -> RemotePairingStatus? {
+        do {
+            let r = try await attempt { try await self.engine.pollPairing(payload: payload.toOfficial()) }
+            needsLocalNetworkSettings = false
+            return .init(status: r.status, deviceName: r.deviceName, expiresAt: r.expiresAt)
+        } catch { finishAuth(error); return nil }
+    }
+
+    /// Completes pairing AND surfaces the signed-in profile (me != nil gate).
+    public func completePairing(payload: RemotePairingPayload) async -> Bool {
+        guard await runAuth({ try await self.engine.completePairing(payload: payload.toOfficial()) }) else { return false }
+        profile = engine.profile.map { RemoteProfile(userId: $0.userId, displayName: $0.displayName, email: $0.email) }
+        return profile != nil
+    }
+
+    private func runAuth(_ op: () async throws -> Any?) async -> Bool {
+        do { _ = try await attempt(op); needsLocalNetworkSettings = false; return true }
+        catch { finishAuth(error); return false }
+    }
+
+    private func finishAuth(_ error: Error) {
+        authErrorText = error.localizedDescription
+        // iOS local-network denial surfaces as networkPermissionDenied (AA gates
+        // the same setting sheet on this; LocalNetworkAccess service ports with
+        // the views in the next B8 step).
+        if let url = error as? URLError, url.code == .networkPermissionDenied {
+            needsLocalNetworkSettings = true
+        } else if let transport = error as? RemoteServiceError, case .transport(let inner) = transport,
+                  let url = inner as? URLError, url.code == .networkPermissionDenied {
+            needsLocalNetworkSettings = true
+        }
     }
 
     // MARK: Wiring (engine observation without exposing internal types)
@@ -314,5 +430,11 @@ private extension RemoteWireEvent {
         self.sessionId = e.sessionId
         self.emittedAt = e.emittedAt
         self.payloadJSON = try encoder.encode(e.payload)
+    }
+}
+
+extension RemotePairingPayload {
+    func toOfficial() -> MobileLoginPayload {
+        MobileLoginPayload(type: "mobile-login", version: 1, webUrl: webUrl, userId: userId, loginToken: loginToken)
     }
 }

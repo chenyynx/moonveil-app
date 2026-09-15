@@ -42,11 +42,19 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
     func completePairing(payload: MobileLoginPayload) async throws {
         let exchange = try await requireAuth().exchangeMobileLogin(payload: payload)
         bootstrap(serverURL: try requireServerURL(), accessToken: exchange.auth.accessToken)
+        profile = try? await fetchProfile()   // upstream gate: me != nil means signed in
     }
+
+    private(set) var profile: AuthMe?
 
     // MARK: - Phase 2: bootstrap (also the re-auth path)
 
     func bootstrap(serverURL: URL, accessToken: String) {
+        // Official persistence: keychain "accessToken" + UserDefaults server
+        // (AppState tokenAccount/serverDefaultsKey), so restoreSession works
+        // across launches. KeychainStore is the verbatim official service.
+        try? keychain.saveString(accessToken, account: Self.tokenAccount)
+        UserDefaults.standard.set(serverURL.absoluteString, forKey: Self.serverDefaultsKey)
         let provider = MutableAuthTokenProvider(token: accessToken)
         let client = V2APIClient(serverURL: serverURL, tokenProvider: provider)
         tokenProvider = provider
@@ -60,6 +68,27 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
     /// MutableAuthTokenProvider semantics: refresh never resets repos/drafts).
     func updateToken(_ accessToken: String) {
         tokenProvider?.update(accessToken)
+        lastAccessToken = accessToken
+    }
+
+    /// In-memory only (D3): kept so `me()` can be re-fetched after exchange;
+    /// never written to disk here — persistence is the app's KeychainStore call.
+    private(set) var lastAccessToken: String?
+
+    /// Official checkServer chain (AppState.swift:147-157 verbatim semantics):
+    /// LocalNetworkAccess.prepare → health → authConfig. Throws like upstream so
+    /// the facade can set needsLocalNetworkSettings on permission denial.
+    func probeServer(_ url: URL) async throws {
+        try await LocalNetworkAccess.prepare(for: url)
+        let client = APIClient(serverURL: url)
+        _ = try await client.health()
+        _ = try await client.authConfig()
+    }
+
+    /// Official /auth/me with the in-memory token (profile mirror for the UI).
+    func fetchProfile() async throws -> AuthMe {
+        guard let token = lastAccessToken else { throw RemoteBackendError.notReady }
+        return try await requireAuth().me(token: token)
     }
 
     // MARK: - Session lifecycle (thin pass-throughs)
@@ -129,6 +158,28 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
 
     // MARK: - Reset
 
+    static let tokenAccount = "accessToken"                 // upstream AppState:51
+    static let serverDefaultsKey = "agentsAnywhere.serverURL"  // upstream AppState:50 (verified)
+    private let keychain = KeychainStore()
+
+    /// Upstream restoreSession semantics (AppState:75-83): stored server +
+    /// keychain token ⇒ re-bootstrap silently; missing either ⇒ stay signed out.
+    static func restore() -> (URL, String)? {
+        guard let serverValue = UserDefaults.standard.string(forKey: serverDefaultsKey),
+              let url = URL(string: serverValue),
+              let token = try? KeychainStore().readString(account: tokenAccount),
+              !token.isEmpty else { return nil }
+        return (url, token)
+    }
+
+    func forgetSession() {
+        // upstream logout: keychain delete (AppState:656); we also drop our
+        // RemoteRootView mirror key so the guide shows fresh.
+        try? keychain.delete(account: Self.tokenAccount)
+        UserDefaults.standard.removeObject(forKey: Self.serverDefaultsKey)
+        UserDefaults.standard.removeObject(forKey: "remote.serverURL")
+    }
+
     func reset() {
         // Zero the token before dropping refs (best effort; the provider is
         // the only holder of the secret inside this module).
@@ -137,6 +188,8 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
         tokenProvider = nil
         api = nil
         creationService = nil
+        profile = nil
+        lastAccessToken = nil
         connectionState = .idle
     }
 
