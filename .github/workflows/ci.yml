@@ -8,6 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # full history: gitleaks range-scans multi-commit pushes; shallow clone
+          # made `base^..head` unresolvable -> ERR "partial scan" exit 1 (2026-09-15)
+          fetch-depth: 0
       - name: secret-scan
         uses: gitleaks/gitleaks-action@v2
       - name: import-direction
