@@ -591,6 +591,7 @@
 		RKD06B12A781024DCDB1C15E /* HTTPRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK963035789D4C045D9730D7 /* HTTPRequest.swift */; };
 		RKD07C09338B9887FD2BE5A6 /* V2ConnectorAPI+Download.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKF7F69447FE82772862631F /* V2ConnectorAPI+Download.swift */; };
 		RKD33B2E987B21CF60A8F24D /* V2BusinessError.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKF693C48379EBEA047D26D8 /* V2BusinessError.swift */; };
+		RKD791F879F7201DF9527FC6 /* OAuthCallback.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKAB787BD866772CEB341AC2 /* OAuthCallback.swift */; };
 		RKDF11F6542C8616B33E415D /* V2RuntimeMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK65B8B97CCA72C7ECCCAA58 /* V2RuntimeMessage.swift */; };
 		RKE25F80EAA59E3319CA8BC6 /* RemoteKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK51378A9A3646786BF43394 /* RemoteKit.swift */; };
 		RKF73F37D7D31F51FBE85BDE /* V2AttachmentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK4F75C6B113E154F1DE28C0 /* V2AttachmentModels.swift */; };
@@ -1325,6 +1326,7 @@
 		RK975D1D109E9280B7DB9295 /* V2ConnectorAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2ConnectorAPI.swift; sourceTree = "<group>"; };
 		RK98C07A0911EE1CE0859A2E /* V2SessionMeta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionMeta.swift; sourceTree = "<group>"; };
 		RKA5D26506D4BAF7CA21B752 /* V2ClientFailure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2ClientFailure.swift; sourceTree = "<group>"; };
+		RKAB787BD866772CEB341AC2 /* OAuthCallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthCallback.swift; sourceTree = "<group>"; };
 		RKB870D1ED44FE2243A19E0C /* AuthTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthTokenProvider.swift; sourceTree = "<group>"; };
 		RKB9EE2C1582D4CC31B57C8C /* V2DevicePairing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2DevicePairing.swift; sourceTree = "<group>"; };
 		RKBBB2102086175F480C8A8C /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
@@ -2622,6 +2624,7 @@
 		RKAfe59e93955aca3c934afb /* Auth */ = {
 			isa = PBXGroup;
 			children = (
+				RKAB787BD866772CEB341AC2 /* OAuthCallback.swift */,
 				RK3F64C2DFF3744F87C6BE91 /* ServerNetworkPolicy.swift */,
 			);
 			path = "Auth";
@@ -3558,6 +3561,7 @@
 				RK86F2B9CC41AC95FDFC40F5 /* V2SessionTimeline.swift in Sources */,
 				RKA917BE9E53EAE776E6BD14 /* V2TimelineItem.swift in Sources */,
 				RK283F943A91E5BD98BBF1F9 /* APIModels.swift in Sources */,
+				RKD791F879F7201DF9527FC6 /* OAuthCallback.swift in Sources */,
 				RKA4CFDBEF763E72A84880D5 /* ServerNetworkPolicy.swift in Sources */,
 				RK9BF36B7435E35A6A198A71 /* WorkspaceDownloadedFile.swift in Sources */,
 				RK26B9870ECB7A52B65FDBA3 /* AsyncResultGate.swift in Sources */,

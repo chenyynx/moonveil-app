@@ -38,6 +38,11 @@ protocol RemoteSessionServing: AnyObject {
     /// Direct bootstrap for an already-held access token (self-host / re-auth).
     func bootstrap(serverURL: URL, accessToken: String)
 
+    /// One-shot profile fetch with an EXPLICIT server+token, no engine state
+    /// required (upstream completeOAuthLogin: client = APIClient(serverURL);
+    /// client.me(token:)). Used by the manual OAuth login completion path.
+    func fetchProfile(serverURL: URL, accessToken: String) async throws -> AuthMe
+
     /// Session lifecycle — thin pass-throughs onto official services.
     @discardableResult
     func startSession(

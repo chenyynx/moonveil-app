@@ -164,14 +164,21 @@ public final class RemoteService: ObservableObject {
     }
 
     /// Manual-login completion: OAuth coordinator returned a token against a
-    /// probed server (upstream completeOAuthLogin semantics: bootstrap + me).
-    public func completeManualLogin(serverURL: URL, token: String) async -> Bool {
-        engine.bootstrap(serverURL: serverURL, accessToken: token)
-        syncState()
-        if let me = try? await engine.fetchProfile() {
+    /// probed server. Upstream AppState.completeOAuthLogin shape: takes the full
+    /// OAuthTokenResponse, fetches me FIRST, persists session only on success
+    /// (a failed profile fetch must not leave a half-saved session).
+    func completeManualLogin(serverURL: URL, token: OAuthTokenResponse) async -> Bool {
+        authErrorText = nil
+        do {
+            let me = try await engine.fetchProfile(serverURL: serverURL, accessToken: token.accessToken)
+            engine.bootstrap(serverURL: serverURL, accessToken: token.accessToken)  // upstream saveSession
             profile = RemoteProfile(userId: me.userId, displayName: me.displayName, email: me.email)
+            syncState()
+            return true
+        } catch {
+            authErrorText = error.localizedDescription
+            return false
         }
-        return profile != nil
     }
 
     /// Launch-time session restore (upstream restoreSession). Call from app root.

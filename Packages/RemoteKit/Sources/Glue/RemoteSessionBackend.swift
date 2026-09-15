@@ -91,6 +91,10 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
         return try await requireAuth().me(token: token)
     }
 
+    func fetchProfile(serverURL: URL, accessToken: String) async throws -> AuthMe {
+        try await APIClient(serverURL: serverURL).me(token: accessToken)
+    }
+
     // MARK: - Session lifecycle (thin pass-throughs)
 
     func startSession(
