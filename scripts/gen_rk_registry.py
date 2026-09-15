@@ -7,7 +7,7 @@ import os, re, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RKSRC = os.path.join(ROOT, "Packages/RemoteKit/Sources")
 APPSRC = os.path.join(ROOT, "src/ios")
-DECL = re.compile(r'^(?:public\s+|internal\s+|final\s+|actor\s+)*(?:class|struct|enum|protocol|actor)\s+([A-Za-z_]\w*)', re.M)
+DECL = re.compile(r'^(?!private|fileprivate)(?:(?:public|internal|final|actor|nonisolated|remote|indirect)\s+)*(?:class|struct|enum|protocol|actor)\s+([A-Za-z_]\w*)', re.M)
 INDENT_ATTR = re.compile(r'^\s*@(?:MainActor|Observable|Sendable|available)\b[^\n]*\n((?:public|internal|final|actor|\s)*)\b(class|struct|enum|protocol|actor)\s+([A-Za-z_]\w*)', re.M)
 
 def decls_in(paths):
@@ -21,6 +21,25 @@ def decls_in(paths):
         out |= {m.group(3) for m in INDENT_ATTR.finditer(s)}
     return out
 
+def wired_files():
+    # Single source of truth = Package.swift sources whitelist (same ledger the
+    # pbxproj transform reads). Unwired frozen files are not compiled anywhere:
+    # their private/colliding names must not pollute the gate word list.
+    man = open(os.path.join(RKSRC, "..", "Package.swift")).read()
+    sm = re.search(r'sources:\s*\[(.*?)\]', man, re.S)
+    res = []
+    for e in re.findall(r'"([^"]+)"', sm.group(1)):
+        if e.endswith(".md"):
+            continue
+        path = os.path.join(RKSRC, e)
+        if os.path.isdir(path):
+            for root, _d, fs in os.walk(path):
+                res += [os.path.join(root, f) for f in sorted(fs) if f.endswith(".swift")]
+        elif path.endswith(".swift"):
+            res.append(path)
+    return res
+
+
 def swift_files(base, skip=None):
     res = []
     for root, dirs, fs in os.walk(base):
@@ -30,7 +49,7 @@ def swift_files(base, skip=None):
         res += [os.path.join(root, f) for f in fs if f.endswith(".swift")]
     return res
 
-rk = decls_in(swift_files(RKSRC))
+rk = decls_in(wired_files())
 # drop our own glue facade duplicates is NOT wanted: facades must stay in the list
 app = decls_in(swift_files(APPSRC, skip=["Views/ModeTabs", "Views/AuthAA"]))
 ambiguous = sorted(n for n in rk if n in app)
