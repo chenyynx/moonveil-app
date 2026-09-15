@@ -109,6 +109,9 @@ public struct RemotePairingPayload: Sendable, Hashable {
     public let userId: String
     public let loginToken: String
     public let webUrl: String
+    /// Official 6th field (APIModels.swift:72, non-optional). Dropped in B8-AUTH
+    /// by mistake = protocol-surface shrink; restored (B8-FIX3).
+    public let expiresAt: String
 
     public init?(qrJSON: Data) {
         guard let decoded = try? JSONDecoder().decode(MobileLoginPayload.self, from: qrJSON),
@@ -117,6 +120,7 @@ public struct RemotePairingPayload: Sendable, Hashable {
         userId = decoded.userId
         loginToken = decoded.loginToken
         webUrl = decoded.webUrl
+        expiresAt = decoded.expiresAt
     }
 }
 
@@ -441,6 +445,6 @@ private extension RemoteWireEvent {
 
 extension RemotePairingPayload {
     func toOfficial() -> MobileLoginPayload {
-        MobileLoginPayload(type: "mobile-login", version: 1, webUrl: webUrl, userId: userId, loginToken: loginToken)
+        MobileLoginPayload(type: "agents-anywhere.mobile-login", version: 1, webUrl: webUrl, userId: userId, loginToken: loginToken, expiresAt: expiresAt)
     }
 }

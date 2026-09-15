@@ -1,4 +1,7 @@
-// swift-tools-version:6.0
+// swift-tools-version:5.9
+// B8-FIX3: 5.9 banner = Swift-5 language mode default (Xcode derives pkg mode from
+// the tools banner; per-target/package pins were ignored there). Banner carries no
+// trailing text on purpose: SwiftPM parses everything on that line as the version.
 import PackageDescription
 
 // Moonveil RemoteKit — isolated SwiftPM package (D4 门1: App→RemoteKit one-way).
@@ -56,9 +59,8 @@ let package = Package(
                 "AAV2/Views/Components/StableViewModel.swift",
                 // batch5 (2026-09-15): the seam itself (first real Glue)
                 "Glue",
-            ],
-            swiftSettings: [.swiftLanguageMode(.v5)]
-        ),
+            ]
+        )
     ],
-    swiftLanguageModes: [.v5]  // B8-FIX2: package-level pin (Xcode ignored target-level)
+    swiftLanguageVersions: [.v5]  // 5.9-era spelling (last positional: no comma)
 )
