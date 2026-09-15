@@ -34,7 +34,6 @@ struct RemoteRootView: View {
                             selection: $tabRouter.mode,
                             localLabel: soulName
                         )
-                        .frame(maxWidth: 220)
                     }
                 }
         }

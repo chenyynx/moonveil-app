@@ -3318,7 +3318,6 @@ struct ContentView: View {
                     localLabel: soulName,
                     onLocalRetap: canOpenSync ? { activeToolSheet = .syncMigrationDetail } : nil
                 )
-                .frame(maxWidth: 220)
                 .overlay(alignment: .leading) {
                     if canOpenSync {
                         Button {

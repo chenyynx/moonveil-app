@@ -38,6 +38,12 @@ struct ModeTabPicker: View {
 
     private static let trackHeight: CGFloat = 36
     private static let innerPadding: CGFloat = 3
+    /// B9-LANDING: the capsule must own its width. It lives in
+    /// `ToolbarItem(placement: .principal)`, where the proposal is unspecified —
+    /// and a GeometryReader has NO intrinsic size, so it collapsed to ~10pt and
+    /// the whole control rendered as a sliver pill (device report 2026-09-16).
+    /// Fixing the track here makes every call site correct; segments split it.
+    private static let trackWidth: CGFloat = 200
 
     private var label: (AppSourceMode) -> String {
         { $0 == .local ? localLabel : remoteLabel }
@@ -72,7 +78,7 @@ struct ModeTabPicker: View {
             .contentShape(Capsule())
             .gesture(scrubGesture(slotWidth: slot, in: geo.size.width))
         }
-        .frame(height: Self.trackHeight)
+        .frame(width: Self.trackWidth, height: Self.trackHeight)
     }
 
     private func tap(_ mode: AppSourceMode) {
