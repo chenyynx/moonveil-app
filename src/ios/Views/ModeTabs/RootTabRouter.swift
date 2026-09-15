@@ -27,7 +27,12 @@ final class RootTabRouter: ObservableObject {
 
     private init() {
         let stored = UserDefaults.standard.string(forKey: Self.storageKey)
-        mode = AppSourceMode(rawValue: stored ?? "") ?? .local
+        // U1 §6 (pp 2026-09-15 拍板, 覆盖三页引导案): 首启入口 = AA 官方登录页。
+        // No stored value (fresh install) therefore lands on .remote, where
+        // RootModeTabsView's needsLoginGate raises the full-screen ServiceEntryView;
+        // its JO-6 grey button routes to .local. Once the user has chosen, lastTab
+        // memory wins — the local tab itself is upstream ContentView, untouched.
+        mode = AppSourceMode(rawValue: stored ?? "") ?? .remote
         seenRemote = (mode == .remote)
     }
 
