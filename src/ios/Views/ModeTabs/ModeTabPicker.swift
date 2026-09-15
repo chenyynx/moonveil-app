@@ -58,15 +58,18 @@ struct ModeTabPicker: View {
                     Text(label(mode))
                         .font(.system(size: 14, weight: .semibold))
                         .lineLimit(1)
-                        .foregroundStyle(selection == mode ? Color.black : Color.secondary)
+                        .foregroundStyle(selection == mode ? Color.primary : Color.secondary)
                         .frame(width: slot, height: Self.trackHeight - Self.innerPadding * 2)
                         .contentShape(Rectangle())
                         .onTapGesture { tap(mode) }
                         .background {
+                            // B11-TABSTYLE (pp 2026-09-16, Grok 实机图): the ONLY
+                            // surface is the selected segment itself — a system glass
+                            // capsule. The track behind it stays transparent. (The
+                            // previous shape — glass track + solid white pill — is the
+                            // 实色 look that was rejected.)
                             if selection == mode {
-                                Capsule()
-                                    .fill(Color.white)
-                                    .shadow(color: .black.opacity(0.12), radius: 1, y: 0.5)
+                                selectedGlassCapsule
                                     .matchedGeometryEffect(id: "modeTabSelected", in: pill)
                             }
                         }
@@ -74,7 +77,9 @@ struct ModeTabPicker: View {
             }
             .padding(Self.innerPadding)
             .frame(width: geo.size.width, height: Self.trackHeight, alignment: .leading)
-            .background(tabSurface)
+            // No track fill at all (Grok): the row is invisible until a segment is
+            // selected. contentShape keeps the whole capsule area live for taps and
+            // the scrub gesture, so removing the paint costs no hit target.
             .contentShape(Capsule())
             .gesture(scrubGesture(slotWidth: slot, in: geo.size.width))
         }
@@ -93,14 +98,17 @@ struct ModeTabPicker: View {
         }
     }
 
+    /// Selection surface: iOS 26+ = system glass, interactive variant (brightens and
+    /// follows the drag — the effect pp asked for). Below 26 = `.regularMaterial`,
+    /// a system material, NOT a hand-rolled blur (U1 禁自造 blur).
     @ViewBuilder
-    private var tabSurface: some View {
+    private var selectedGlassCapsule: some View {
         if #available(iOS 26.0, *) {
-            Capsule().fill(.clear).glassEffect(.regular.interactive(), in: .capsule)
+            Capsule().glassEffect(.regular.interactive(), in: .capsule)
         } else {
             Capsule()
-                .fill(Color(UIColor.secondarySystemBackground))
-                .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                .fill(.regularMaterial)
+                .overlay(Capsule().strokeBorder(Color.primary.opacity(0.06), lineWidth: 1))
         }
     }
 
