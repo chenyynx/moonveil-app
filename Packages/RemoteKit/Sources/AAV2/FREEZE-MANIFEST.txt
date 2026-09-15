@@ -1,6 +1,7 @@
 # AAV2 freeze manifest — sha256 of verbatim copies from AA v2.0.0
 # Upstream: ios/Agents Anywhere/Agents Anywhere/<path>  (mirror: chenyynx/moonveil-cloud tag v2.0.0)
 # Regenerate: cd this dir && find . -name '*.swift' -exec sha256sum {} \; | sed 's|\./||' | sort -k2 > FREEZE-MANIFEST.txt
+b1dfad8dcba7c03b95c3831364e0b570a2a0700b3eccf8141b63b6b04d173785  API/APIClient.swift
 1726f75350c4cbf832c9ce7c64a7db3c21a835479c142b70c05b57079cf39aee  API/V2/V2AccountAPI.swift
 91ba83737c83037836462be588a9cbe55be36227b1f8fef61f1bb5272856ca57  API/V2/V2APIClient.swift
 a22a979a18e87029e6baa375fd0cbd686c4c6530374ab2d8c412840bdc062e59  API/V2/V2AttachmentAPI.swift
@@ -11,6 +12,7 @@ a22a979a18e87029e6baa375fd0cbd686c4c6530374ab2d8c412840bdc062e59  API/V2/V2Attac
 ee13b618bccafb67c005dcfc8648427e6bb42574d5a9786ef9844f9f9943c1d9  API/V2/V2RuntimeAPI.swift
 191c791795d1d17124e7e1d8ac69879070e83d59646f1fe553a8ea6a80a5ee14  API/V2/V2SessionAPI.swift
 0f711300028835f55bb27734e6bf8dfcd6a15c04fb20b3b9e8160bf3b86d9608  Business/V2BusinessError.swift
+ae108886ea2916af6d71bf4b276ed51c2a7d807be8e8c39a61ed2173e4945e2a  Business/V2SessionCreationService.swift
 a9086fc702a239f0e251c1f8d31fc29c9c4bb00039f874ea24b888b0c2ecbaca  Domain/Account/V2AccountModels.swift
 22c385db4c54938eebf1a4e327ba379eeeffca2e883dc9e15be568249103560d  Domain/Attachment/V2AttachmentModels.swift
 45ec9453ce5a9a7b36df6d5201e8077ff826f49bbfdb340f7bee33144d183a9c  Domain/Common/JSONValue.swift
