@@ -123,3 +123,10 @@ BackupCrypto.swift/.kt: generic-api-key hit on the ENCRYPTION FORMAT MAGIC (sche
 constant, identical on both platforms, sha 5bd3a1b4138e) — protocol discriminator, not a
 key; both sites verified upstream-identical modulo our own brand rename. Rule-scoped
 (generic-api-key only), paths exact, sentinel tamper-test still fails CI.
+
+## FONTS-1 — factory default font scale → xSmall（2026-09-15，pp："先把字体改到默认最小"）
+
+- `src/ios/Shared/FontSettings.swift`：新增 `factoryDefault = .xSmall`（最小档，0.88×）。
+- init 改按 **键存在性**（`ud.object(forKey:)`）判"已配置"——`.default` rawValue=0 与"缺键"的 `integer(forKey:)` 返回值同形，纯值兜底永远救不到未配置安装。
+- `isModified` / `resetToDefaults` 同锚 factoryDefault：重设按钮现在回到最小档而非上游 "Default"。
+- 不动面：任何显式配置过的安装行为与上游逐字节一致；`applyAppScaleToAllWindows` 仍只在 `.default` 时跳过 trait 覆盖（xSmall 与用户手选时同样正常覆盖）。Android 侧未动（BR8-HELD），iOS only。

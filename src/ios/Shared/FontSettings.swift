@@ -111,11 +111,11 @@ final class FontSettings: ObservableObject {
         }
     }
 
-    /// `true` when any value differs from default.
+    /// `true` when any value differs from the Moonveil factory default.
     var isModified: Bool {
-        chatInputScale != .default
-            || messageBaseScale != .default
-            || appBaseScale != .default
+        chatInputScale != Self.factoryDefault
+            || messageBaseScale != Self.factoryDefault
+            || appBaseScale != Self.factoryDefault
     }
 
     // MARK: - Scaling helpers
@@ -137,11 +137,26 @@ final class FontSettings: ObservableObject {
 
     // MARK: - Init
 
+    /// Moonveil deviation (PATCHES.md FONTS-1): a never-configured install
+    /// starts at the smallest scale instead of upstream's `.default`.
+    /// Deliberately NOT persisted on first launch — if the factory default
+    /// changes later, unconfigured installs still follow it.
+    static let factoryDefault: FontScaleLevel = .xSmall
+
+    /// "Configured" is decided by key presence, not by value: `.default` has
+    /// rawValue 0, which is also what `integer(forKey:)` returns for a
+    /// missing key — a plain value fallback could never reach unconfigured
+    /// installs.
+    private static func storedScale(forKey key: String, in ud: UserDefaults) -> FontScaleLevel {
+        guard ud.object(forKey: key) != nil else { return factoryDefault }
+        return FontScaleLevel(rawValue: ud.integer(forKey: key)) ?? factoryDefault
+    }
+
     private init() {
         let ud = UserDefaults.standard
-        chatInputScale = FontScaleLevel(rawValue: ud.integer(forKey: Keys.chatInput)) ?? .default
-        messageBaseScale = FontScaleLevel(rawValue: ud.integer(forKey: Keys.messageBase)) ?? .default
-        appBaseScale = FontScaleLevel(rawValue: ud.integer(forKey: Keys.appBase)) ?? .default
+        chatInputScale = Self.storedScale(forKey: Keys.chatInput, in: ud)
+        messageBaseScale = Self.storedScale(forKey: Keys.messageBase, in: ud)
+        appBaseScale = Self.storedScale(forKey: Keys.appBase, in: ud)
         // Defer to after first window is available
         DispatchQueue.main.async { [weak self] in self?.applyAppScaleToAllWindows() }
     }
@@ -177,9 +192,9 @@ final class FontSettings: ObservableObject {
     // MARK: - Reset
 
     func resetToDefaults() {
-        chatInputScale = .default
-        messageBaseScale = .default
-        appBaseScale = .default
+        chatInputScale = Self.factoryDefault
+        messageBaseScale = Self.factoryDefault
+        appBaseScale = Self.factoryDefault
     }
 
     // MARK: - Notification
