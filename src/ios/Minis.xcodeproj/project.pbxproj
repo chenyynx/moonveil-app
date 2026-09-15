@@ -542,6 +542,59 @@
 		D05AF00E000000000000B10C /* ServiceEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A10C /* ServiceEntryView.swift */; };
 		D05AF00E000000000000B10D /* SheetCloseButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A10D /* SheetCloseButton.swift */; };
 		D05AF00E000000000000F002 /* caveat_wght.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000F001 /* caveat_wght.ttf */; };
+		RK060DD51A5455A70639CDD7 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKE1EEAC30A841AAEFAE91D0 /* KeychainStore.swift */; };
+		RK067472C684F598108F7790 /* HTTPReadRetryPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK495A106305A135EA169EDB /* HTTPReadRetryPolicy.swift */; };
+		RK07697BFC324EF338B91F5B /* V2ClientFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKA5D26506D4BAF7CA21B752 /* V2ClientFailure.swift */; };
+		RK0E64D9A3F363136CD27895 /* HTTPMethod.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKBD0B180215BA6C42406285 /* HTTPMethod.swift */; };
+		RK0EE3AC2D7A4F758F652E74 /* HTTPError.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKDC7418EE4FDD8FF21FDD5E /* HTTPError.swift */; };
+		RK15D69F5654E261C0C2624A /* V2AccountAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK45694310D24F2A38F7F1F9 /* V2AccountAPI.swift */; };
+		RK16B2922CBEEE3196084668 /* PublicRemoteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKC35EE3507A9669E86992AB /* PublicRemoteService.swift */; };
+		RK1F605DC0B6980372850052 /* V2Identifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK01D61AC4A4B2EE7E8CC3DA /* V2Identifiers.swift */; };
+		RK26B9870ECB7A52B65FDBA3 /* AsyncResultGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK4256A71BBC4E2A4E9365CA /* AsyncResultGate.swift */; };
+		RK26DAA38A29231D7ECC3F23 /* V2RuntimeCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK22657518C931B903CF4C82 /* V2RuntimeCapability.swift */; };
+		RK283F943A91E5BD98BBF1F9 /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK089DC91BA04ECE02D41ABF /* APIModels.swift */; };
+		RK2BF76918645C82E1488FA2 /* StableViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKE2944C0C69CD224338B87C /* StableViewModel.swift */; };
+		RK2DC1A4BED5DC0CBF114EAE /* WebSocketTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK506B3B7AD2080FAFC22C2D /* WebSocketTransport.swift */; };
+		RK2E3D9E03F9A5401927FD95 /* V2SessionAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK0119D6FFA49389FF76390F /* V2SessionAPI.swift */; };
+		RK30E248D71DC1E723A32BC9 /* V2RuntimeCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK050A422F90A278039C51D2 /* V2RuntimeCatalog.swift */; };
+		RK3ABEBA10EB582DB7A2466F /* V2SessionCreationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK2A0D84D995C1476CD63E64 /* V2SessionCreationService.swift */; };
+		RK3E123EAE3B6A194BEEB9DE /* V2Connector.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKC10E00CD4B4D5693FDF777 /* V2Connector.swift */; };
+		RK4586C3552A2D15DD0C25F9 /* V2WorkspaceFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK2ECDB143D1432442D1808C /* V2WorkspaceFiles.swift */; };
+		RK4E256035471AF2EEF870A3 /* RemoteSessionServing.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK94D4EAF6CF4C89609010C3 /* RemoteSessionServing.swift */; };
+		RK5BAAC7ECECF98F655A907D /* V2DevicePairing.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKB9EE2C1582D4CC31B57C8C /* V2DevicePairing.swift */; };
+		RK5C7E38A127CCA958F0DE38 /* V2RuntimeConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK8446528B37077C4CF8D729 /* V2RuntimeConfig.swift */; };
+		RK5DB6066D84EE918BF14E40 /* V2RealtimeAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKCA57952C64E3DF14C20456 /* V2RealtimeAPI.swift */; };
+		RK5E1ACCD7347A58E19995F9 /* V2SessionMeta.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK98C07A0911EE1CE0859A2E /* V2SessionMeta.swift */; };
+		RK63144060FB8FD4A859F506 /* V2RuntimeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKEB66E3211A689C00168FCA /* V2RuntimeState.swift */; };
+		RK705BFC0CB5059CC0370E6E /* V2RuntimeAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK7AD7254D93239C009EC648 /* V2RuntimeAPI.swift */; };
+		RK764E154552893ED54CFD43 /* V2Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK82874417DCFC6C95354D3F /* V2Project.swift */; };
+		RK7E6888898154D8EF4250F3 /* V2ProjectAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK1D2B7D3A6C5803FA203128 /* V2ProjectAPI.swift */; };
+		RK7E990EF032C5838ADD46E0 /* DownloadRedirectPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK0896E076D29E1524AAC112 /* DownloadRedirectPolicy.swift */; };
+		RK7FB002657F288B5459BD32 /* V2RuntimeInventory.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKD0DC0B92A5DF751DC1AFD2 /* V2RuntimeInventory.swift */; };
+		RK82A546E1C9FA79646D8F52 /* AuthTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKB870D1ED44FE2243A19E0C /* AuthTokenProvider.swift */; };
+		RK841E540C6428CA784680A3 /* V2APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKCB89C72F4534CDF47A62F2 /* V2APIClient.swift */; };
+		RK851F2860B21D59EF929367 /* V2RealtimeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK58E3F23A07274FAAA8A303 /* V2RealtimeModels.swift */; };
+		RK8625CCBB763BB03DD930D6 /* HTTPTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK78995D07BC6795AD242C64 /* HTTPTransport.swift */; };
+		RK86F2B9CC41AC95FDFC40F5 /* V2SessionTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK25D135219623EB2AA7CE6A /* V2SessionTimeline.swift */; };
+		RK8B9F885FFB0D22CB3DC34C /* LocalNetworkAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK0656B4F0B67860C7752FF6 /* LocalNetworkAccess.swift */; };
+		RK9228B72A7EAA6A9E56EA6D /* V2RuntimeNotice.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKED0B4B28B6EE9DE3F6F1BC /* V2RuntimeNotice.swift */; };
+		RK92EDB09FDA46665A7CF9F1 /* V2SessionData.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK2E1A4F0317161CE8AEA74E /* V2SessionData.swift */; };
+		RK9BF36B7435E35A6A198A71 /* WorkspaceDownloadedFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK7D837B12117150ED5E72DF /* WorkspaceDownloadedFile.swift */; };
+		RKA4CFDBEF763E72A84880D5 /* ServerNetworkPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK3F64C2DFF3744F87C6BE91 /* ServerNetworkPolicy.swift */; };
+		RKA5E30D09E037A68960C9D2 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKBBB2102086175F480C8A8C /* APIClient.swift */; };
+		RKA917BE9E53EAE776E6BD14 /* V2TimelineItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK01E4AF3E2F26914B53D1E6 /* V2TimelineItem.swift */; };
+		RKAA29C8115382CFC0F4881C /* RemoteSessionBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKF56CFD8F4EE56B21FE3CAB /* RemoteSessionBackend.swift */; };
+		RKADEA4BF291842ED0CD3B43 /* V2AccountModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKBF28378DC3802DB225B305 /* V2AccountModels.swift */; };
+		RKCBF31BE15F7E43A36BE7CA /* RuntimeLocalizedCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKC7DD572BCDBA2F04D523CD /* RuntimeLocalizedCopy.swift */; };
+		RKCCDA07C488129D74BCECC2 /* V2AttachmentAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK4AE266861A7C2F34A54894 /* V2AttachmentAPI.swift */; };
+		RKCFA4E834C10DA48B171E0D /* JSONValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK90546BA5DB3C4A97F82FC1 /* JSONValue.swift */; };
+		RKD06B12A781024DCDB1C15E /* HTTPRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK963035789D4C045D9730D7 /* HTTPRequest.swift */; };
+		RKD07C09338B9887FD2BE5A6 /* V2ConnectorAPI+Download.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKF7F69447FE82772862631F /* V2ConnectorAPI+Download.swift */; };
+		RKD33B2E987B21CF60A8F24D /* V2BusinessError.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKF693C48379EBEA047D26D8 /* V2BusinessError.swift */; };
+		RKDF11F6542C8616B33E415D /* V2RuntimeMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK65B8B97CCA72C7ECCCAA58 /* V2RuntimeMessage.swift */; };
+		RKE25F80EAA59E3319CA8BC6 /* RemoteKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK51378A9A3646786BF43394 /* RemoteKit.swift */; };
+		RKF73F37D7D31F51FBE85BDE /* V2AttachmentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK4F75C6B113E154F1DE28C0 /* V2AttachmentModels.swift */; };
+		RKF743345A48B769C6ED7C34 /* V2ConnectorAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK975D1D109E9280B7DB9295 /* V2ConnectorAPI.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1238,6 +1291,59 @@
 		D05AF00E000000000000A10C /* ServiceEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceEntryView.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A10D /* SheetCloseButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetCloseButton.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000F001 /* caveat_wght.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = caveat_wght.ttf; sourceTree = "<group>"; };
+		RK0119D6FFA49389FF76390F /* V2SessionAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionAPI.swift; sourceTree = "<group>"; };
+		RK01D61AC4A4B2EE7E8CC3DA /* V2Identifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2Identifiers.swift; sourceTree = "<group>"; };
+		RK01E4AF3E2F26914B53D1E6 /* V2TimelineItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2TimelineItem.swift; sourceTree = "<group>"; };
+		RK050A422F90A278039C51D2 /* V2RuntimeCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RuntimeCatalog.swift; sourceTree = "<group>"; };
+		RK0656B4F0B67860C7752FF6 /* LocalNetworkAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNetworkAccess.swift; sourceTree = "<group>"; };
+		RK0896E076D29E1524AAC112 /* DownloadRedirectPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadRedirectPolicy.swift; sourceTree = "<group>"; };
+		RK089DC91BA04ECE02D41ABF /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
+		RK1D2B7D3A6C5803FA203128 /* V2ProjectAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2ProjectAPI.swift; sourceTree = "<group>"; };
+		RK22657518C931B903CF4C82 /* V2RuntimeCapability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RuntimeCapability.swift; sourceTree = "<group>"; };
+		RK25D135219623EB2AA7CE6A /* V2SessionTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionTimeline.swift; sourceTree = "<group>"; };
+		RK2A0D84D995C1476CD63E64 /* V2SessionCreationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionCreationService.swift; sourceTree = "<group>"; };
+		RK2E1A4F0317161CE8AEA74E /* V2SessionData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionData.swift; sourceTree = "<group>"; };
+		RK2ECDB143D1432442D1808C /* V2WorkspaceFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2WorkspaceFiles.swift; sourceTree = "<group>"; };
+		RK3F64C2DFF3744F87C6BE91 /* ServerNetworkPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerNetworkPolicy.swift; sourceTree = "<group>"; };
+		RK4256A71BBC4E2A4E9365CA /* AsyncResultGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncResultGate.swift; sourceTree = "<group>"; };
+		RK45694310D24F2A38F7F1F9 /* V2AccountAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2AccountAPI.swift; sourceTree = "<group>"; };
+		RK495A106305A135EA169EDB /* HTTPReadRetryPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPReadRetryPolicy.swift; sourceTree = "<group>"; };
+		RK4AE266861A7C2F34A54894 /* V2AttachmentAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2AttachmentAPI.swift; sourceTree = "<group>"; };
+		RK4F75C6B113E154F1DE28C0 /* V2AttachmentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2AttachmentModels.swift; sourceTree = "<group>"; };
+		RK506B3B7AD2080FAFC22C2D /* WebSocketTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketTransport.swift; sourceTree = "<group>"; };
+		RK51378A9A3646786BF43394 /* RemoteKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteKit.swift; sourceTree = "<group>"; };
+		RK58E3F23A07274FAAA8A303 /* V2RealtimeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RealtimeModels.swift; sourceTree = "<group>"; };
+		RK65B8B97CCA72C7ECCCAA58 /* V2RuntimeMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RuntimeMessage.swift; sourceTree = "<group>"; };
+		RK78995D07BC6795AD242C64 /* HTTPTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPTransport.swift; sourceTree = "<group>"; };
+		RK7AD7254D93239C009EC648 /* V2RuntimeAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RuntimeAPI.swift; sourceTree = "<group>"; };
+		RK7D837B12117150ED5E72DF /* WorkspaceDownloadedFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDownloadedFile.swift; sourceTree = "<group>"; };
+		RK82874417DCFC6C95354D3F /* V2Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2Project.swift; sourceTree = "<group>"; };
+		RK8446528B37077C4CF8D729 /* V2RuntimeConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RuntimeConfig.swift; sourceTree = "<group>"; };
+		RK90546BA5DB3C4A97F82FC1 /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
+		RK94D4EAF6CF4C89609010C3 /* RemoteSessionServing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionServing.swift; sourceTree = "<group>"; };
+		RK963035789D4C045D9730D7 /* HTTPRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPRequest.swift; sourceTree = "<group>"; };
+		RK975D1D109E9280B7DB9295 /* V2ConnectorAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2ConnectorAPI.swift; sourceTree = "<group>"; };
+		RK98C07A0911EE1CE0859A2E /* V2SessionMeta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionMeta.swift; sourceTree = "<group>"; };
+		RKA5D26506D4BAF7CA21B752 /* V2ClientFailure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2ClientFailure.swift; sourceTree = "<group>"; };
+		RKB870D1ED44FE2243A19E0C /* AuthTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthTokenProvider.swift; sourceTree = "<group>"; };
+		RKB9EE2C1582D4CC31B57C8C /* V2DevicePairing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2DevicePairing.swift; sourceTree = "<group>"; };
+		RKBBB2102086175F480C8A8C /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		RKBD0B180215BA6C42406285 /* HTTPMethod.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPMethod.swift; sourceTree = "<group>"; };
+		RKBF28378DC3802DB225B305 /* V2AccountModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2AccountModels.swift; sourceTree = "<group>"; };
+		RKC10E00CD4B4D5693FDF777 /* V2Connector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2Connector.swift; sourceTree = "<group>"; };
+		RKC35EE3507A9669E86992AB /* PublicRemoteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicRemoteService.swift; sourceTree = "<group>"; };
+		RKC7DD572BCDBA2F04D523CD /* RuntimeLocalizedCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeLocalizedCopy.swift; sourceTree = "<group>"; };
+		RKCA57952C64E3DF14C20456 /* V2RealtimeAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RealtimeAPI.swift; sourceTree = "<group>"; };
+		RKCB89C72F4534CDF47A62F2 /* V2APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2APIClient.swift; sourceTree = "<group>"; };
+		RKD0DC0B92A5DF751DC1AFD2 /* V2RuntimeInventory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RuntimeInventory.swift; sourceTree = "<group>"; };
+		RKDC7418EE4FDD8FF21FDD5E /* HTTPError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPError.swift; sourceTree = "<group>"; };
+		RKE1EEAC30A841AAEFAE91D0 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		RKE2944C0C69CD224338B87C /* StableViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StableViewModel.swift; sourceTree = "<group>"; };
+		RKEB66E3211A689C00168FCA /* V2RuntimeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RuntimeState.swift; sourceTree = "<group>"; };
+		RKED0B4B28B6EE9DE3F6F1BC /* V2RuntimeNotice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RuntimeNotice.swift; sourceTree = "<group>"; };
+		RKF56CFD8F4EE56B21FE3CAB /* RemoteSessionBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionBackend.swift; sourceTree = "<group>"; };
+		RKF693C48379EBEA047D26D8 /* V2BusinessError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2BusinessError.swift; sourceTree = "<group>"; };
+		RKF7F69447FE82772862631F /* V2ConnectorAPI+Download.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2ConnectorAPI+Download.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -1473,6 +1579,7 @@
 				AA26BD0E2F2E5FA500AECF2D /* Frameworks */,
 				E51000032 /* Products */,
 				AACCC6B4300B9D590053F20D /* Recovered References */,
+				RKA7c08e2cffb2f8c2ee67ae /* RemoteKit */,
 			);
 			sourceTree = "<group>";
 		};
@@ -2393,6 +2500,226 @@
 			path = AuthAA;
 			sourceTree = "<group>";
 		};
+		RKAfa7a7b019eec5a955f9e3 /* V2 */ = {
+			isa = PBXGroup;
+			children = (
+				RKCB89C72F4534CDF47A62F2 /* V2APIClient.swift */,
+				RK45694310D24F2A38F7F1F9 /* V2AccountAPI.swift */,
+				RK4AE266861A7C2F34A54894 /* V2AttachmentAPI.swift */,
+				RKF7F69447FE82772862631F /* V2ConnectorAPI+Download.swift */,
+				RK975D1D109E9280B7DB9295 /* V2ConnectorAPI.swift */,
+				RK1D2B7D3A6C5803FA203128 /* V2ProjectAPI.swift */,
+				RKCA57952C64E3DF14C20456 /* V2RealtimeAPI.swift */,
+				RK7AD7254D93239C009EC648 /* V2RuntimeAPI.swift */,
+				RK0119D6FFA49389FF76390F /* V2SessionAPI.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/API/V2";
+			sourceTree = "<group>";
+		};
+		RKA5339c4d2dffa3e797f513 /* API */ = {
+			isa = PBXGroup;
+			children = (
+				RKAfa7a7b019eec5a955f9e3 /* V2 */,
+				RKBBB2102086175F480C8A8C /* APIClient.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/API";
+			sourceTree = "<group>";
+		};
+		RKAd974c10bb4b9a9f12eadc /* Business */ = {
+			isa = PBXGroup;
+			children = (
+				RKF693C48379EBEA047D26D8 /* V2BusinessError.swift */,
+				RK2A0D84D995C1476CD63E64 /* V2SessionCreationService.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Business";
+			sourceTree = "<group>";
+		};
+		RKA7ee22fda8f200f0006609 /* Account */ = {
+			isa = PBXGroup;
+			children = (
+				RKBF28378DC3802DB225B305 /* V2AccountModels.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Account";
+			sourceTree = "<group>";
+		};
+		RKAc74343993b8597216b84a /* Attachment */ = {
+			isa = PBXGroup;
+			children = (
+				RK4F75C6B113E154F1DE28C0 /* V2AttachmentModels.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Attachment";
+			sourceTree = "<group>";
+		};
+		RKA7da23bcbdb5e43d437e9c /* Common */ = {
+			isa = PBXGroup;
+			children = (
+				RK90546BA5DB3C4A97F82FC1 /* JSONValue.swift */,
+				RKC7DD572BCDBA2F04D523CD /* RuntimeLocalizedCopy.swift */,
+				RKA5D26506D4BAF7CA21B752 /* V2ClientFailure.swift */,
+				RK01D61AC4A4B2EE7E8CC3DA /* V2Identifiers.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Common";
+			sourceTree = "<group>";
+		};
+		RKAc2acc30b03baac12c774d /* Connector */ = {
+			isa = PBXGroup;
+			children = (
+				RKC10E00CD4B4D5693FDF777 /* V2Connector.swift */,
+				RKB9EE2C1582D4CC31B57C8C /* V2DevicePairing.swift */,
+				RKD0DC0B92A5DF751DC1AFD2 /* V2RuntimeInventory.swift */,
+				RK2ECDB143D1432442D1808C /* V2WorkspaceFiles.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Connector";
+			sourceTree = "<group>";
+		};
+		RKA1eefda01ec8fa4fdd4a7a /* Realtime */ = {
+			isa = PBXGroup;
+			children = (
+				RK58E3F23A07274FAAA8A303 /* V2RealtimeModels.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Realtime";
+			sourceTree = "<group>";
+		};
+		RKAda08c99142c8e91c590d4 /* Runtime */ = {
+			isa = PBXGroup;
+			children = (
+				RK22657518C931B903CF4C82 /* V2RuntimeCapability.swift */,
+				RK050A422F90A278039C51D2 /* V2RuntimeCatalog.swift */,
+				RK8446528B37077C4CF8D729 /* V2RuntimeConfig.swift */,
+				RK65B8B97CCA72C7ECCCAA58 /* V2RuntimeMessage.swift */,
+				RKED0B4B28B6EE9DE3F6F1BC /* V2RuntimeNotice.swift */,
+				RKEB66E3211A689C00168FCA /* V2RuntimeState.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Runtime";
+			sourceTree = "<group>";
+		};
+		RKA7a2f2513826fdc7cd801f /* Session */ = {
+			isa = PBXGroup;
+			children = (
+				RK82874417DCFC6C95354D3F /* V2Project.swift */,
+				RK2E1A4F0317161CE8AEA74E /* V2SessionData.swift */,
+				RK98C07A0911EE1CE0859A2E /* V2SessionMeta.swift */,
+				RK25D135219623EB2AA7CE6A /* V2SessionTimeline.swift */,
+				RK01E4AF3E2F26914B53D1E6 /* V2TimelineItem.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Session";
+			sourceTree = "<group>";
+		};
+		RKAfdde93fc34d6f5899e1a0 /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				RKA7ee22fda8f200f0006609 /* Account */,
+				RKAc74343993b8597216b84a /* Attachment */,
+				RKA7da23bcbdb5e43d437e9c /* Common */,
+				RKAc2acc30b03baac12c774d /* Connector */,
+				RKA1eefda01ec8fa4fdd4a7a /* Realtime */,
+				RKAda08c99142c8e91c590d4 /* Runtime */,
+				RKA7a2f2513826fdc7cd801f /* Session */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Domain";
+			sourceTree = "<group>";
+		};
+		RKA06544c1599cf5c9875ba5 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				RK3F64C2DFF3744F87C6BE91 /* ServerNetworkPolicy.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Models/Auth";
+			sourceTree = "<group>";
+		};
+		RKAb9f407dfd85906abf04ff /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				RKA06544c1599cf5c9875ba5 /* Auth */,
+				RK089DC91BA04ECE02D41ABF /* APIModels.swift */,
+				RK7D837B12117150ED5E72DF /* WorkspaceDownloadedFile.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Models";
+			sourceTree = "<group>";
+		};
+		RKA42218ab8647df3c99fc41 /* Network */ = {
+			isa = PBXGroup;
+			children = (
+				RK4256A71BBC4E2A4E9365CA /* AsyncResultGate.swift */,
+				RKB870D1ED44FE2243A19E0C /* AuthTokenProvider.swift */,
+				RK0896E076D29E1524AAC112 /* DownloadRedirectPolicy.swift */,
+				RKDC7418EE4FDD8FF21FDD5E /* HTTPError.swift */,
+				RKBD0B180215BA6C42406285 /* HTTPMethod.swift */,
+				RK495A106305A135EA169EDB /* HTTPReadRetryPolicy.swift */,
+				RK963035789D4C045D9730D7 /* HTTPRequest.swift */,
+				RK78995D07BC6795AD242C64 /* HTTPTransport.swift */,
+				RK506B3B7AD2080FAFC22C2D /* WebSocketTransport.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Network";
+			sourceTree = "<group>";
+		};
+		RKA4c85a76041c8d51ce3210 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				RK0656B4F0B67860C7752FF6 /* LocalNetworkAccess.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Services";
+			sourceTree = "<group>";
+		};
+		RKA01a9f68a948baccd0bf6c /* Stores */ = {
+			isa = PBXGroup;
+			children = (
+				RKE1EEAC30A841AAEFAE91D0 /* KeychainStore.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Stores";
+			sourceTree = "<group>";
+		};
+		RKA72691d40554ce538891bb /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				RKE2944C0C69CD224338B87C /* StableViewModel.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Views/Components";
+			sourceTree = "<group>";
+		};
+		RKA3ff7b72d90ee932157f14 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				RKA72691d40554ce538891bb /* Components */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2/Views";
+			sourceTree = "<group>";
+		};
+		RKA91915a42ec2c135989e14 /* AAV2 */ = {
+			isa = PBXGroup;
+			children = (
+				RKA5339c4d2dffa3e797f513 /* API */,
+				RKAd974c10bb4b9a9f12eadc /* Business */,
+				RKAfdde93fc34d6f5899e1a0 /* Domain */,
+				RKAb9f407dfd85906abf04ff /* Models */,
+				RKA42218ab8647df3c99fc41 /* Network */,
+				RKA4c85a76041c8d51ce3210 /* Services */,
+				RKA01a9f68a948baccd0bf6c /* Stores */,
+				RKA3ff7b72d90ee932157f14 /* Views */,
+			);
+			path = "../../Packages/RemoteKit/Sources/AAV2";
+			sourceTree = "<group>";
+		};
+		RKA58671a0d26086bb4ae613 /* Glue */ = {
+			isa = PBXGroup;
+			children = (
+				RKC35EE3507A9669E86992AB /* PublicRemoteService.swift */,
+				RK51378A9A3646786BF43394 /* RemoteKit.swift */,
+				RKF56CFD8F4EE56B21FE3CAB /* RemoteSessionBackend.swift */,
+				RK94D4EAF6CF4C89609010C3 /* RemoteSessionServing.swift */,
+			);
+			path = "../../Packages/RemoteKit/Sources/Glue";
+			sourceTree = "<group>";
+		};
+		RKA7c08e2cffb2f8c2ee67ae /* RemoteKit */ = {
+			isa = PBXGroup;
+			children = (
+				RKA91915a42ec2c135989e14 /* AAV2 */,
+				RKA58671a0d26086bb4ae613 /* Glue */,
+			);
+			path = "../../Packages/RemoteKit/Sources";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -2469,7 +2796,6 @@
 				E5M000022 /* cmark-gfm-extensions */,
 				E5X000021 /* SwiftMath */,
 				C42120806C66A2C804F89620 /* RealTimeCutVADLibrary */,
-				D05AE1B200000000000000E2 /* RemoteKit */,
 			);
 			productName = Minis;
 			productReference = E51000010 /* Minis.app */;
@@ -2573,7 +2899,6 @@
 				E5M000020 /* XCRemoteSwiftPackageReference "swift-cmark" */,
 				E5X000020 /* XCRemoteSwiftPackageReference "SwiftMath" */,
 				B318C2F47DB3F301A17E49BE /* XCRemoteSwiftPackageReference "RealTimeCutVADLibrary" */,
-				D05AE1B200000000000000E1 /* XCLocalSwiftPackageReference "RemoteKit" */,
 			);
 			productRefGroup = E51000032 /* Products */;
 			projectDirPath = "";
@@ -3198,6 +3523,59 @@
 				D05AF00E000000000000B10B /* QRCodeScannerView.swift in Sources */,
 				D05AF00E000000000000B10C /* ServiceEntryView.swift in Sources */,
 				D05AF00E000000000000B10D /* SheetCloseButton.swift in Sources */,
+				RKA5E30D09E037A68960C9D2 /* APIClient.swift in Sources */,
+				RK841E540C6428CA784680A3 /* V2APIClient.swift in Sources */,
+				RK15D69F5654E261C0C2624A /* V2AccountAPI.swift in Sources */,
+				RKCCDA07C488129D74BCECC2 /* V2AttachmentAPI.swift in Sources */,
+				RKD07C09338B9887FD2BE5A6 /* V2ConnectorAPI+Download.swift in Sources */,
+				RKF743345A48B769C6ED7C34 /* V2ConnectorAPI.swift in Sources */,
+				RK7E6888898154D8EF4250F3 /* V2ProjectAPI.swift in Sources */,
+				RK5DB6066D84EE918BF14E40 /* V2RealtimeAPI.swift in Sources */,
+				RK705BFC0CB5059CC0370E6E /* V2RuntimeAPI.swift in Sources */,
+				RK2E3D9E03F9A5401927FD95 /* V2SessionAPI.swift in Sources */,
+				RKD33B2E987B21CF60A8F24D /* V2BusinessError.swift in Sources */,
+				RK3ABEBA10EB582DB7A2466F /* V2SessionCreationService.swift in Sources */,
+				RKADEA4BF291842ED0CD3B43 /* V2AccountModels.swift in Sources */,
+				RKF73F37D7D31F51FBE85BDE /* V2AttachmentModels.swift in Sources */,
+				RKCFA4E834C10DA48B171E0D /* JSONValue.swift in Sources */,
+				RKCBF31BE15F7E43A36BE7CA /* RuntimeLocalizedCopy.swift in Sources */,
+				RK07697BFC324EF338B91F5B /* V2ClientFailure.swift in Sources */,
+				RK1F605DC0B6980372850052 /* V2Identifiers.swift in Sources */,
+				RK3E123EAE3B6A194BEEB9DE /* V2Connector.swift in Sources */,
+				RK5BAAC7ECECF98F655A907D /* V2DevicePairing.swift in Sources */,
+				RK7FB002657F288B5459BD32 /* V2RuntimeInventory.swift in Sources */,
+				RK4586C3552A2D15DD0C25F9 /* V2WorkspaceFiles.swift in Sources */,
+				RK851F2860B21D59EF929367 /* V2RealtimeModels.swift in Sources */,
+				RK26DAA38A29231D7ECC3F23 /* V2RuntimeCapability.swift in Sources */,
+				RK30E248D71DC1E723A32BC9 /* V2RuntimeCatalog.swift in Sources */,
+				RK5C7E38A127CCA958F0DE38 /* V2RuntimeConfig.swift in Sources */,
+				RKDF11F6542C8616B33E415D /* V2RuntimeMessage.swift in Sources */,
+				RK9228B72A7EAA6A9E56EA6D /* V2RuntimeNotice.swift in Sources */,
+				RK63144060FB8FD4A859F506 /* V2RuntimeState.swift in Sources */,
+				RK764E154552893ED54CFD43 /* V2Project.swift in Sources */,
+				RK92EDB09FDA46665A7CF9F1 /* V2SessionData.swift in Sources */,
+				RK5E1ACCD7347A58E19995F9 /* V2SessionMeta.swift in Sources */,
+				RK86F2B9CC41AC95FDFC40F5 /* V2SessionTimeline.swift in Sources */,
+				RKA917BE9E53EAE776E6BD14 /* V2TimelineItem.swift in Sources */,
+				RK283F943A91E5BD98BBF1F9 /* APIModels.swift in Sources */,
+				RKA4CFDBEF763E72A84880D5 /* ServerNetworkPolicy.swift in Sources */,
+				RK9BF36B7435E35A6A198A71 /* WorkspaceDownloadedFile.swift in Sources */,
+				RK26B9870ECB7A52B65FDBA3 /* AsyncResultGate.swift in Sources */,
+				RK82A546E1C9FA79646D8F52 /* AuthTokenProvider.swift in Sources */,
+				RK7E990EF032C5838ADD46E0 /* DownloadRedirectPolicy.swift in Sources */,
+				RK0EE3AC2D7A4F758F652E74 /* HTTPError.swift in Sources */,
+				RK0E64D9A3F363136CD27895 /* HTTPMethod.swift in Sources */,
+				RK067472C684F598108F7790 /* HTTPReadRetryPolicy.swift in Sources */,
+				RKD06B12A781024DCDB1C15E /* HTTPRequest.swift in Sources */,
+				RK8625CCBB763BB03DD930D6 /* HTTPTransport.swift in Sources */,
+				RK2DC1A4BED5DC0CBF114EAE /* WebSocketTransport.swift in Sources */,
+				RK8B9F885FFB0D22CB3DC34C /* LocalNetworkAccess.swift in Sources */,
+				RK060DD51A5455A70639CDD7 /* KeychainStore.swift in Sources */,
+				RK2BF76918645C82E1488FA2 /* StableViewModel.swift in Sources */,
+				RK16B2922CBEEE3196084668 /* PublicRemoteService.swift in Sources */,
+				RKE25F80EAA59E3319CA8BC6 /* RemoteKit.swift in Sources */,
+				RKAA29C8115382CFC0F4881C /* RemoteSessionBackend.swift in Sources */,
+				RK4E256035471AF2EEF870A3 /* RemoteSessionServing.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3930,18 +4308,7 @@
 			package = E5X000020 /* XCRemoteSwiftPackageReference "SwiftMath" */;
 			productName = SwiftMath;
 		};
-		D05AE1B200000000000000E2 /* RemoteKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = D05AE1B200000000000000E1 /* XCLocalSwiftPackageReference */;
-			productName = RemoteKit;
-		};
 /* End XCSwiftPackageProductDependency section */
-/* Begin XCLocalSwiftPackageReference section */
-		D05AE1B200000000000000E1 /* XCLocalSwiftPackageReference "RemoteKit" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../Packages/RemoteKit;
-		};
-/* End XCLocalSwiftPackageReference section */
 	};
 	rootObject = E51000060 /* Project object */;
 }

@@ -1,5 +1,4 @@
 import SwiftUI
-import RemoteKit
 
 struct ServiceEntryView: View {
     @ObservedObject private var service: RemoteService

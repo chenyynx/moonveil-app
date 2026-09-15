@@ -1,5 +1,4 @@
 import SwiftUI
-import RemoteKit
 import UIKit
 
 struct ManualLoginView: View {

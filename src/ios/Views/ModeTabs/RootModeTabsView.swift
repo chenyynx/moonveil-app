@@ -6,7 +6,6 @@
 // 首启默认 tab 仍是本机（lastTab 为空时），本机路径与上游逐字节同。
 
 import SwiftUI
-import RemoteKit
 
 @MainActor
 struct RootModeTabsView: View {

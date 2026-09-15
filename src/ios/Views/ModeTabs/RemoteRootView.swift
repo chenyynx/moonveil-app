@@ -9,7 +9,6 @@
 // 不装成功态：没连上就显示没连上。
 
 import SwiftUI
-import RemoteKit
 
 struct RemoteRootView: View {
     @ObservedObject var service: RemoteService

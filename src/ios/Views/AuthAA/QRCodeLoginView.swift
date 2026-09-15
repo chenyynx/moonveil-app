@@ -1,5 +1,4 @@
 import SwiftUI
-import RemoteKit
 
 struct QRCodeLoginView: View {
     @ObservedObject var service: RemoteService
