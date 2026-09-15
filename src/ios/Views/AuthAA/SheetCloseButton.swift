@@ -50,26 +50,26 @@ struct SheetEditorToolbar: ToolbarContent {
 
 /// Pushed editors keep the system Back button and interactive pop gesture.
 struct SheetSaveToolbar: ToolbarContent {
+    @ViewBuilder private var confirmLabel: some View {
+        Text(saveTitle).opacity(isWorking ? 0 : 1)
+            .overlay { if isWorking { ProgressView().controlSize(.small) } }
+    }
+
     var saveTitle = String(localized: "Save")
     var isWorking = false
     var saveDisabled = false
     let onSave: () -> Void
 
-    @ViewBuilder
     var body: some ToolbarContent {
         ToolbarItem(placement: .confirmationAction) {
+            // role-availability branch lives INSIDE the item's ViewBuilder
+            // closure — ToolbarContent itself has no buildBlock for if/else.
             if #available(iOS 26.0, *) {
-                Button(role: .confirm, action: onSave) {
-                    Text(saveTitle).opacity(isWorking ? 0 : 1)
-                        .overlay { if isWorking { ProgressView().controlSize(.small) } }
-                }
-                .disabled(isWorking || saveDisabled).keyboardShortcut("s", modifiers: .command)
+                Button(role: .confirm, action: onSave) { confirmLabel }
+                    .disabled(isWorking || saveDisabled).keyboardShortcut("s", modifiers: .command)
             } else {
-                Button(action: onSave) {
-                    Text(saveTitle).opacity(isWorking ? 0 : 1)
-                        .overlay { if isWorking { ProgressView().controlSize(.small) } }
-                }
-                .disabled(isWorking || saveDisabled).keyboardShortcut("s", modifiers: .command)
+                Button(action: onSave) { confirmLabel }
+                    .disabled(isWorking || saveDisabled).keyboardShortcut("s", modifiers: .command)
             }
         }
     }

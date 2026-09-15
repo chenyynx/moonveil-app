@@ -16,7 +16,7 @@ struct ServiceEntryView: View {
          onManualLogin: @escaping () -> Void = {},
          onQRCodeLogin: @escaping () -> Void = {},
          onLocalEntry: @escaping () -> Void = {}) {
-        self.service = ObservedObject(wrappedValue: service)
+        self.service = service
         self.onManualLogin = onManualLogin
         self.onQRCodeLogin = onQRCodeLogin
         self.onLocalEntry = onLocalEntry
