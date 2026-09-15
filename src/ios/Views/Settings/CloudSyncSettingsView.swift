@@ -28,6 +28,7 @@ struct CloudSyncSettingsView: View {
             dangerZoneSection
         }
         .navigationTitle("iCloud Sync")
+        .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { refresh() }
         .onReceive(NotificationCenter.default.publisher(for: .cloudSyncDidFetchChanges)) { _ in

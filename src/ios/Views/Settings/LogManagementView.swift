@@ -72,6 +72,7 @@ struct LogManagementView: View {
             }
         }
         .navigationTitle("Logs")
+        .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             // "crashes" is no longer a tab — crash reports now live in a

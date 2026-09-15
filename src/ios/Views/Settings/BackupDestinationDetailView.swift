@@ -648,6 +648,7 @@ struct RcloneFolderBrowser: View {
             }
             .backupHUD($errorText)
             .navigationTitle("Backup Folder")
+            .listStyle(.insetGrouped)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

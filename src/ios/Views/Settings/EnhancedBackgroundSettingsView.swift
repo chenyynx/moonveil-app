@@ -183,6 +183,7 @@ struct EnhancedBackgroundSettingsView: View {
             }
         }
         .navigationTitle("Background")
+        .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             // [T-settings-focus-highlight] One-shot consume of the parsed focus

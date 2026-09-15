@@ -73,6 +73,7 @@ struct OffloadPermissionSettingsView: View {
             }
         }
         .navigationTitle("Permissions")
+        .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

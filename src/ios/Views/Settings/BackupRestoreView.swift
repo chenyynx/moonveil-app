@@ -953,6 +953,7 @@ struct ServerRestorePickerSheet: View {
                 }
             }
             .navigationTitle("Restore from Server")
+            .listStyle(.insetGrouped)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

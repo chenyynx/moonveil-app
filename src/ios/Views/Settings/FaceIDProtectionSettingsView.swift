@@ -135,6 +135,7 @@ struct FaceIDProtectionSettingsView: View {
             }
         }
         .navigationTitle("\(BiometricAuth.biometryDisplayName) Protection")
+        .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
     }
 }

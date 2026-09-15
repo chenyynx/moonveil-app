@@ -148,6 +148,7 @@ struct StorageManagementView: View {
             }
         }
         .navigationTitle("Storage")
+        .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { vm.load() }
     }

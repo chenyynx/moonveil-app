@@ -7687,11 +7687,12 @@ private struct SettingsSheet: View {
                 }
 
             }
+            .listStyle(.insetGrouped)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    SheetCloseToolbar(action: { dismiss() })
                 }
             }
             .navigationDestination(for: SettingsDestination.self) { dest in

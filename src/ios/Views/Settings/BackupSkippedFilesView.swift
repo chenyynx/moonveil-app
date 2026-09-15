@@ -80,6 +80,7 @@ struct BackupSkippedFilesView: View {
             }
         }
         .navigationTitle("Excluded Files")
+        .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
     }
 }

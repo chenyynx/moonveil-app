@@ -58,6 +58,7 @@ struct MemoryManagementView: View {
             }
         }
         .navigationTitle("Memory")
+        .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if #available(iOS 17.0, *), iCloudSyncEnabled {

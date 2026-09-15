@@ -93,6 +93,7 @@ struct MountedFoldersSettingsView: View {
             }
         }
         .navigationTitle("Mount External Folders")
+        .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
