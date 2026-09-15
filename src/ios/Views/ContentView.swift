@@ -1255,32 +1255,13 @@ struct ContentView: View {
     /// override where the user just chose to be.
     private static let pendingBackgroundNavigationTTL: TimeInterval = 90
 
-    var body: some View {
-        GeometryReader { geo in
-            let wide = isIPad && geo.size.width >= compactThreshold
-            Group {
-                if wide {
-                    splitLayout
-                } else {
-                    stackLayout
-                }
-            }
-            .overlay(alignment: .top) {
-                if let toast = forceSyncToast {
-                    ForceSyncToastBanner(text: toast)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .padding(.top, 8)
-                }
-            }
-            .animation(.easeInOut(duration: 0.25), value: forceSyncToast)
-            .onChange(of: wide) { newWide in
-                isWideLayout = newWide
-            }
-            .onAppear {
-                isWideLayout = wide
-                wireMenuActions()
-            }
-        }
+    // [T-split-body] expression-score split (CI run 35002521211): once RemoteKit
+    // sources joined the module, name-candidate inflation pushed this 800-line
+    // chain over the type-checker budget. Split at opaque-type function boundaries
+    // ONLY — every modifier line relocated byte-identical; view tree and
+    // application order unchanged (proven by line-multiset check in the commit).
+    private func bodyEventStage<V: View>(_ base: V) -> some View {
+        base
         .onReceive(
             NotificationCenter.default.publisher(for: .sessionDidCreate),
             perform: handleSessionCreatedForPendingFolder
@@ -1436,6 +1417,10 @@ struct ContentView: View {
                 switchToSession(sessionId)
             }
         }
+    }
+
+    private func bodyPresentationStage<V: View>(_ base: V) -> some View {
+        base
         .fullScreenCover(isPresented: $showTerminal) {
             NavigationStack {
                 ISHTerminalView(showCloseButton: true)
@@ -1762,6 +1747,10 @@ struct ContentView: View {
         // in sync with `sessions`. Rebuilding here (on actual list mutation)
         // instead of per body-eval is what removes the per-frame Dictionary.==
         // / ChatSession.== diff from the scroll transaction.
+    }
+
+    private func bodyStateStage<V: View>(_ base: V) -> some View {
+        base
         .onChange(of: sessions) { _ in
             rebuildSessionsByIdCache()
         }
@@ -2056,6 +2045,36 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    var body: some View {
+        bodyStateStage(bodyPresentationStage(bodyEventStage(GeometryReader { geo in
+        GeometryReader { geo in
+            let wide = isIPad && geo.size.width >= compactThreshold
+            Group {
+                if wide {
+                    splitLayout
+                } else {
+                    stackLayout
+                }
+            }
+            .overlay(alignment: .top) {
+                if let toast = forceSyncToast {
+                    ForceSyncToastBanner(text: toast)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 8)
+                }
+            }
+            .animation(.easeInOut(duration: 0.25), value: forceSyncToast)
+            .onChange(of: wide) { newWide in
+                isWideLayout = newWide
+            }
+            .onAppear {
+                isWideLayout = wide
+                wireMenuActions()
+            }
+        }
+        })))
     }
 
     // MARK: - Split Layout (iPad / wide window)
@@ -7392,9 +7411,10 @@ private struct SettingsSheet: View {
     @State private var navPath = NavigationPath()
     @State private var showFeedbackDialog = false
 
-    var body: some View {
-        NavigationStack(path: $navPath) {
-            List {
+    // [T-split-body] SettingsSheet timeout twin: List's Section children moved
+    // byte-identical into three @ViewBuilder stages. List flattens nested
+    // ViewBuilder/TupleView children, so row order and identity are preserved.
+    @ViewBuilder private var settingsListStageA: some View {
                 Section {
                     NavigationLink {
                         ProviderInstancesView()
@@ -7422,7 +7442,6 @@ private struct SettingsSheet: View {
                 } footer: {
                     Text("Configure which models the agent uses, manage API keys & OAuth for each provider, and create model groups for fallback or load balancing.")
                 }
-
                 Section("Appearance") {
                     NavigationLink {
                         AppearanceSettingsView()
@@ -7438,7 +7457,9 @@ private struct SettingsSheet: View {
                         }
                     }
                 }
+    }
 
+    @ViewBuilder private var settingsListStageB: some View {
                 Section("Agent Runtime") {
                     NavigationLink {
                         SkillsManagementView()
@@ -7506,7 +7527,6 @@ private struct SettingsSheet: View {
                         }
                     }
                 }
-
                 Section("Storage") {
                     NavigationLink {
                         StorageManagementView()
@@ -7583,7 +7603,9 @@ private struct SettingsSheet: View {
                         }
                     }
                 }
+    }
 
+    @ViewBuilder private var settingsListStageC: some View {
                 Section("Permissions") {
                     NavigationLink {
                         OffloadPermissionSettingsView()
@@ -7616,7 +7638,6 @@ private struct SettingsSheet: View {
                         }
                     }
                 }
-
                 Section("Logs") {
                     NavigationLink {
                         LogManagementView()
@@ -7632,7 +7653,6 @@ private struct SettingsSheet: View {
                         }
                     }
                 }
-
                 Section("About") {
                     NavigationLink {
                         AboutView()
@@ -7685,6 +7705,14 @@ private struct SettingsSheet: View {
                         Button("Cancel", role: .cancel) {}
                     }
                 }
+    }
+
+    var body: some View {
+        NavigationStack(path: $navPath) {
+            List {
+                settingsListStageA
+                settingsListStageB
+                settingsListStageC
 
             }
             .listStyle(.insetGrouped)
