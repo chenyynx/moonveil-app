@@ -29,16 +29,23 @@ struct RootModeTabsView: View {
                 .allowsHitTesting(router.mode == .local)
 
             if router.seenRemote {
-                if showsLoginGate {
-                    // The cover owns the screen — render a plain surface underneath so
-                    // nothing can flash during the presentation animation (device report:
-                    // one frame of the guide card before the cover slid up).
-                    Color(UIColor.systemBackground)
-                } else {
-                    RemoteRootView(
-                        service: remoteService,
-                        onOpenLogin: { loginCoverDismissed = false }   // 卡片一键回跳登录
-                    )
+                // B12 CI repair: a bare `if/else` is a STATEMENT — trailing view
+                // modifiers after its closing brace are invalid Swift ("instance
+                // member 'opacity' cannot be used on type 'View'"; swiftc -parse
+                // passes it, only typecheck kills it). Group gives the branch a
+                // single expression to hang the modifiers on.
+                Group {
+                    if showsLoginGate {
+                        // The cover owns the screen — plain surface underneath, so
+                        // nothing can flash during presentation (device report: one
+                        // frame of the guide card before the cover slid up).
+                        Color(UIColor.systemBackground)
+                    } else {
+                        RemoteRootView(
+                            service: remoteService,
+                            onOpenLogin: { loginCoverDismissed = false }  // 卡片一键回跳登录
+                        )
+                    }
                 }
                 .opacity(router.mode == .remote ? 1 : 0)
                 .allowsHitTesting(router.mode == .remote)
