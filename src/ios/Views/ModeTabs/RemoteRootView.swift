@@ -21,10 +21,9 @@ struct RemoteRootView: View {
         return n.isEmpty ? "Moonveil" : n
     }()
 
-    @State private var serverURLText: String = UserDefaults.standard.string(forKey: "remote.serverURL") ?? ""
-    @State private var accessTokenText: String = ""
-    @State private var lastError: String?
     @State private var pendingNotices = 0
+
+    var onOpenLogin: () -> Void = {}
 
     var body: some View {
         NavigationStack {
@@ -55,7 +54,7 @@ struct RemoteRootView: View {
         }
     }
 
-    // MARK: State 1 — 未配置引导（服务器地址 + 访问令牌 → bootstrap）
+    // MARK: State 1 — 未登录空态卡（U1 终案：一键回全屏登录；表单本体=官方 ManualLoginView）
 
     private var guide: some View {
         VStack(spacing: 14) {
@@ -63,50 +62,21 @@ struct RemoteRootView: View {
                 Label(reason, systemImage: "wifi.exclamationmark")
                     .font(.callout).foregroundStyle(.orange)
             }
-            Text("连接远程服务器").font(.title3.bold())
-            Text("填入服务器地址与访问令牌。扫码配对将在下一批上线。")
-                .font(.footnote).foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-
-            VStack(spacing: 8) {
-                TextField("https://cloud.example.com", text: $serverURLText)
-                    .textFieldStyle(.roundedBorder)
-                    .textInputAutocapitalization(.never).keyboardType(.URL)
-                SecureField("访问令牌", text: $accessTokenText)
-                    .textFieldStyle(.roundedBorder)
-                    .textInputAutocapitalization(.never)
-            }
-            .frame(maxWidth: 320)
-
-            if let lastError {
-                Text(lastError).font(.caption).foregroundStyle(.red)
-            }
-
-            Button { connect() } label: {
-                Label("连接", systemImage: "bolt.horizontal")
-                    .frame(maxWidth: 200)
+            Image(systemName: "link.badge.plus")
+                .font(.system(size: 40)).foregroundStyle(.secondary)
+            Text("还没有连接远程工作空间")
+                .font(.title3.bold())
+            Button {
+                onOpenLogin()
+            } label: {
+                Text("去登录").fontWeight(.semibold).frame(maxWidth: 200)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(serverURLText.isEmpty || accessTokenText.isEmpty)
             .padding(.top, 4)
-
-            Spacer().frame(height: 40)
         }
         .padding(20)
     }
 
-    private func connect() {
-        guard let url = URL(string: serverURLText.trimmingCharacters(in: .whitespacesAndNewlines)),
-              url.scheme?.hasPrefix("http") == true else {
-            lastError = "服务器地址无效（需 http(s)://…）"
-            return
-        }
-        lastError = nil
-        UserDefaults.standard.set(url.absoluteString, forKey: "remote.serverURL")
-        let token = accessTokenText.trimmingCharacters(in: .whitespacesAndNewlines)
-        accessTokenText = ""   // 令牌不在视图状态里过夜
-        service.bootstrap(serverURL: url, accessToken: token)
-    }
 
     // MARK: State 2 — 已配置待配对
 

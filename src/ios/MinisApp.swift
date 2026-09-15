@@ -744,6 +744,7 @@ struct MinisApp: App {
         // was passed through as a subdirectory name.
         let staleDir = root.appendingPathComponent("shared/NSFileProviderWorkingSetContainerItemIdentifier")
         if fm.fileExists(atPath: staleDir.path) {
+        AppFontRegistry.registerBundledFonts()  // B8-AUTH (upstream: first thing, Caveat wordmark)
             try? fm.removeItem(at: staleDir)
             lifecycleLog.info("[FileProvider] cleaned up stale workingSet directory")
         }

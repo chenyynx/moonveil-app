@@ -5,7 +5,8 @@
 import SwiftUI
 import Combine
 
-@MainActor
+// NOTE B8-FIX: intentionally NOT @MainActor — ContentView (nonisolated struct)
+// initializes it as a stored property; all mutations originate from UI (main).
 final class RootTabRouter: ObservableObject {
     static let shared = RootTabRouter()
 
