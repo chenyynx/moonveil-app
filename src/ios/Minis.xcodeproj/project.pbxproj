@@ -1343,7 +1343,7 @@
 		RKED0B4B28B6EE9DE3F6F1BC /* V2RuntimeNotice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RuntimeNotice.swift; sourceTree = "<group>"; };
 		RKF56CFD8F4EE56B21FE3CAB /* RemoteSessionBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionBackend.swift; sourceTree = "<group>"; };
 		RKF693C48379EBEA047D26D8 /* V2BusinessError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2BusinessError.swift; sourceTree = "<group>"; };
-		RKF7F69447FE82772862631F /* V2ConnectorAPI+Download.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2ConnectorAPI+Download.swift; sourceTree = "<group>"; };
+		RKF7F69447FE82772862631F /* V2ConnectorAPI+Download.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "V2ConnectorAPI+Download.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
