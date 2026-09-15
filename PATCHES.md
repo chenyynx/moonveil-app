@@ -107,3 +107,19 @@ prompt "Minis settings" android twin) + applicationId com.openminis.app — FROZ
 pp go. iOS-side zero-tolerated stragglers (prompt 1937/1965 area) were fixed under BR4/BR7b
 scope (src/ios only), Android untouched by this whole BR series beyond scheme/protocol/MCP
 naming already mandated by BR5/BR6 toolchain closure.
+
+## MR-HELD — module name stays Minis (pp final call 2026-09-15: "算了 不改了 回退，只改用户可见的名字")
+- Scope decision recorded: BRAND = user-visible surface ONLY (display name/launch screen/
+  copy/notifications/UI strings — all Moonveil as of BR4-BR7). Build-system identity
+  (PRODUCT_NAME/module name = Minis, scheme, target names, test imports) stays upstream.
+- Reverted: 13 ObjC bridge-header imports `Moonveil-Swift.h` -> `Minis-Swift.h` (BR7b
+  quoted-string sweep over-matched: -Swift.h filename is module-name-derived, NOT a brand
+  string; this broke iOS Build at 491ce80 — caught by CI, reverted same day).
+- LESSON (ledgered): before any quoted-string sweep, exclude build-system generated
+  filenames ("<Module>-Swift.h", module maps, umbrella headers) — they LOOK like strings
+  but are compiler contracts with the target's PRODUCT_MODULE_NAME.
+## gitleaks allowlist extension (CI fix, same batch)
+BackupCrypto.swift/.kt: generic-api-key hit on the ENCRYPTION FORMAT MAGIC (scheme/id
+constant, identical on both platforms, sha 5bd3a1b4138e) — protocol discriminator, not a
+key; both sites verified upstream-identical modulo our own brand rename. Rule-scoped
+(generic-api-key only), paths exact, sentinel tamper-test still fails CI.

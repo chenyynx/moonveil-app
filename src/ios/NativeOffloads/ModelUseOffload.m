@@ -11,7 +11,7 @@
 #include "kernel/native_offload.h"
 #include <unistd.h>
 
-#import "Moonveil-Swift.h"
+#import "Minis-Swift.h"
 
 static NSString *const TOOL_NAME = @"moonveil-model-use";
 

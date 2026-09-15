@@ -15,8 +15,8 @@
 #include <unistd.h>
 
 // Swift bridge — generated header
-#if __has_include("Moonveil-Swift.h")
-#import "Moonveil-Swift.h"
+#if __has_include("Minis-Swift.h")
+#import "Minis-Swift.h"
 #else
 @interface SessionsOffloadBridge : NSObject
 + (NSDictionary * _Nonnull)querySessionsWithSessionIds:(NSArray<NSString *> * _Nullable)sessionIds
