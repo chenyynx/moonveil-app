@@ -2381,6 +2381,7 @@
 				E5M000022 /* cmark-gfm-extensions */,
 				E5X000021 /* SwiftMath */,
 				C42120806C66A2C804F89620 /* RealTimeCutVADLibrary */,
+				D05AE1B200000000000000E2 /* RemoteKit */,
 			);
 			productName = Minis;
 			productReference = E51000010 /* Minis.app */;
@@ -2484,6 +2485,7 @@
 				E5M000020 /* XCRemoteSwiftPackageReference "swift-cmark" */,
 				E5X000020 /* XCRemoteSwiftPackageReference "SwiftMath" */,
 				B318C2F47DB3F301A17E49BE /* XCRemoteSwiftPackageReference "RealTimeCutVADLibrary" */,
+				D05AE1B200000000000000E1 /* XCLocalSwiftPackageReference "RemoteKit" */,
 			);
 			productRefGroup = E51000032 /* Products */;
 			projectDirPath = "";
@@ -3819,7 +3821,18 @@
 			package = E5X000020 /* XCRemoteSwiftPackageReference "SwiftMath" */;
 			productName = SwiftMath;
 		};
+		D05AE1B200000000000000E2 /* RemoteKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D05AE1B200000000000000E1 /* XCLocalSwiftPackageReference */;
+			productName = RemoteKit;
+		};
 /* End XCSwiftPackageProductDependency section */
+/* Begin XCLocalSwiftPackageReference section */
+		D05AE1B200000000000000E1 /* XCLocalSwiftPackageReference "RemoteKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../Packages/RemoteKit;
+		};
+/* End XCLocalSwiftPackageReference section */
 	};
 	rootObject = E51000060 /* Project object */;
 }
