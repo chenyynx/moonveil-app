@@ -15,7 +15,7 @@ import PackageDescription
 // it walks Sources/AAV2/** on disk, which this restructure does not touch.
 let package = Package(
     name: "RemoteKit",
-    platforms: [.iOS(.v18), .macOS(.v14)],
+    platforms: [.iOS(.v17), .macOS(.v14)], // v17 = Observation floor of frozen AAV2 (iOS Build exit-65 forensics 2026-09-15; pp compat call pending)
     products: [.library(name: "RemoteKit", targets: ["RemoteKit"])],
     // Language mode pinned to Swift 5 = upstream's SWIFT_VERSION (5.0 in the
     // v2.0.0 Xcode project, verified 2026-09-15). The frozen AAV2 code leans on

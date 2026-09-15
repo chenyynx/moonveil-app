@@ -72,6 +72,7 @@ jobs:
           # first Moonveil builds must surface real compile errors, not die
           # silently in WMO batch mode. Revisit for speed once green streak holds.
           # SWIFT_NUM_THREADS=2: OOM guard on macos-26 runners (claudio, Aug 2026).
+          set +o pipefail   # PIPESTATUS capture stays reachable under bash -e
           xcodebuild build \
             -project Minis.xcodeproj \
             -scheme Minis \
@@ -82,7 +83,15 @@ jobs:
             SWIFT_NUM_THREADS=2 \
             SWIFT_COMPILATION_MODE=incremental \
             'OTHER_SWIFT_FLAGS=-Xfrontend -disable-batch-mode' \
-            -derivedDataPath build/DerivedData
+            -derivedDataPath build/DerivedData 2>&1 | tee /tmp/ios-build.log | tail -150
+          XB=${PIPESTATUS[0]}
+          if [ "$XB" -ne 0 ]; then
+            # Log-bucket EOF hit twice (2026-09-15): mirror the error surface into
+            # the job summary so gh api check-runs/<id> always yields it.
+            { echo '### xcodebuild error surface'; echo '```'; \
+              grep -E 'error:' /tmp/ios-build.log | grep -v ' *|' | sort -u | head -60; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
           mkdir -p build/Payload
           cp -r build/DerivedData/Build/Products/Release-iphoneos/Minis.app build/Payload/
           # CFBundleVersion = run number (monotonic, clone-depth independent — claudio 2026-09-09).
