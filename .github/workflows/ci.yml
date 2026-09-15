@@ -16,6 +16,10 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
       - name: import-direction
         run: bash scripts/import-scan.sh
+      - name: pbxproj-input-audit
+        run: |
+          python3 -m pip install --quiet openstep-parser
+          python3 scripts/audit-project-inputs.py
       - name: fork-point
         run: bash scripts/fork-point-audit.sh
       - name: aav2-freeze
