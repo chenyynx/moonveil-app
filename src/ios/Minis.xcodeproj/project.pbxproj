@@ -1579,7 +1579,7 @@
 				AA26BD0E2F2E5FA500AECF2D /* Frameworks */,
 				E51000032 /* Products */,
 				AACCC6B4300B9D590053F20D /* Recovered References */,
-				RKA7c08e2cffb2f8c2ee67ae /* RemoteKit */,
+				RKAfbbab3915d12541287e4d /* RemoteKit */,
 			);
 			sourceTree = "<group>";
 		};
@@ -2475,7 +2475,7 @@
 				D05AF00F0000000000000001 /* SettingsKit.swift */,
 			);
 			name = SettingsSkin;
-			path = Views/SettingsSkin;
+			path = SettingsSkin;
 			sourceTree = "<group>";
 		};
 		D05AF00E000000000000F100 /* AuthAA */ = {
@@ -2500,7 +2500,7 @@
 			path = AuthAA;
 			sourceTree = "<group>";
 		};
-		RKAfa7a7b019eec5a955f9e3 /* V2 */ = {
+		RKAb0ab9b061acd3ce2fba96 /* V2 */ = {
 			isa = PBXGroup;
 			children = (
 				RKCB89C72F4534CDF47A62F2 /* V2APIClient.swift */,
@@ -2513,44 +2513,44 @@
 				RK7AD7254D93239C009EC648 /* V2RuntimeAPI.swift */,
 				RK0119D6FFA49389FF76390F /* V2SessionAPI.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/API/V2";
+			path = "V2";
 			sourceTree = "<group>";
 		};
-		RKA5339c4d2dffa3e797f513 /* API */ = {
+		RKA6a32a79a94e0056fc282b /* API */ = {
 			isa = PBXGroup;
 			children = (
-				RKAfa7a7b019eec5a955f9e3 /* V2 */,
+				RKAb0ab9b061acd3ce2fba96 /* V2 */,
 				RKBBB2102086175F480C8A8C /* APIClient.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/API";
+			path = "API";
 			sourceTree = "<group>";
 		};
-		RKAd974c10bb4b9a9f12eadc /* Business */ = {
+		RKAbea37c948dc49c414460a /* Business */ = {
 			isa = PBXGroup;
 			children = (
 				RKF693C48379EBEA047D26D8 /* V2BusinessError.swift */,
 				RK2A0D84D995C1476CD63E64 /* V2SessionCreationService.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Business";
+			path = "Business";
 			sourceTree = "<group>";
 		};
-		RKA7ee22fda8f200f0006609 /* Account */ = {
+		RKA9c85848336e23363f8b16 /* Account */ = {
 			isa = PBXGroup;
 			children = (
 				RKBF28378DC3802DB225B305 /* V2AccountModels.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Account";
+			path = "Account";
 			sourceTree = "<group>";
 		};
-		RKAc74343993b8597216b84a /* Attachment */ = {
+		RKAde437a01d20a401da5c94 /* Attachment */ = {
 			isa = PBXGroup;
 			children = (
 				RK4F75C6B113E154F1DE28C0 /* V2AttachmentModels.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Attachment";
+			path = "Attachment";
 			sourceTree = "<group>";
 		};
-		RKA7da23bcbdb5e43d437e9c /* Common */ = {
+		RKAe88cae054f20f711659c6 /* Common */ = {
 			isa = PBXGroup;
 			children = (
 				RK90546BA5DB3C4A97F82FC1 /* JSONValue.swift */,
@@ -2558,10 +2558,10 @@
 				RKA5D26506D4BAF7CA21B752 /* V2ClientFailure.swift */,
 				RK01D61AC4A4B2EE7E8CC3DA /* V2Identifiers.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Common";
+			path = "Common";
 			sourceTree = "<group>";
 		};
-		RKAc2acc30b03baac12c774d /* Connector */ = {
+		RKAba32cf9d509b25d535317 /* Connector */ = {
 			isa = PBXGroup;
 			children = (
 				RKC10E00CD4B4D5693FDF777 /* V2Connector.swift */,
@@ -2569,18 +2569,18 @@
 				RKD0DC0B92A5DF751DC1AFD2 /* V2RuntimeInventory.swift */,
 				RK2ECDB143D1432442D1808C /* V2WorkspaceFiles.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Connector";
+			path = "Connector";
 			sourceTree = "<group>";
 		};
-		RKA1eefda01ec8fa4fdd4a7a /* Realtime */ = {
+		RKA63739e3cc8d9d6db00530 /* Realtime */ = {
 			isa = PBXGroup;
 			children = (
 				RK58E3F23A07274FAAA8A303 /* V2RealtimeModels.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Realtime";
+			path = "Realtime";
 			sourceTree = "<group>";
 		};
-		RKAda08c99142c8e91c590d4 /* Runtime */ = {
+		RKAc88d5df0764b572ebff4e /* Runtime */ = {
 			isa = PBXGroup;
 			children = (
 				RK22657518C931B903CF4C82 /* V2RuntimeCapability.swift */,
@@ -2590,10 +2590,10 @@
 				RKED0B4B28B6EE9DE3F6F1BC /* V2RuntimeNotice.swift */,
 				RKEB66E3211A689C00168FCA /* V2RuntimeState.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Runtime";
+			path = "Runtime";
 			sourceTree = "<group>";
 		};
-		RKA7a2f2513826fdc7cd801f /* Session */ = {
+		RKA09b91f91cace294975726 /* Session */ = {
 			isa = PBXGroup;
 			children = (
 				RK82874417DCFC6C95354D3F /* V2Project.swift */,
@@ -2602,42 +2602,42 @@
 				RK25D135219623EB2AA7CE6A /* V2SessionTimeline.swift */,
 				RK01E4AF3E2F26914B53D1E6 /* V2TimelineItem.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Domain/Session";
+			path = "Session";
 			sourceTree = "<group>";
 		};
-		RKAfdde93fc34d6f5899e1a0 /* Domain */ = {
+		RKAbaa150760584216f3837e /* Domain */ = {
 			isa = PBXGroup;
 			children = (
-				RKA7ee22fda8f200f0006609 /* Account */,
-				RKAc74343993b8597216b84a /* Attachment */,
-				RKA7da23bcbdb5e43d437e9c /* Common */,
-				RKAc2acc30b03baac12c774d /* Connector */,
-				RKA1eefda01ec8fa4fdd4a7a /* Realtime */,
-				RKAda08c99142c8e91c590d4 /* Runtime */,
-				RKA7a2f2513826fdc7cd801f /* Session */,
+				RKA9c85848336e23363f8b16 /* Account */,
+				RKAde437a01d20a401da5c94 /* Attachment */,
+				RKAe88cae054f20f711659c6 /* Common */,
+				RKAba32cf9d509b25d535317 /* Connector */,
+				RKA63739e3cc8d9d6db00530 /* Realtime */,
+				RKAc88d5df0764b572ebff4e /* Runtime */,
+				RKA09b91f91cace294975726 /* Session */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Domain";
+			path = "Domain";
 			sourceTree = "<group>";
 		};
-		RKA06544c1599cf5c9875ba5 /* Auth */ = {
+		RKAfe59e93955aca3c934afb /* Auth */ = {
 			isa = PBXGroup;
 			children = (
 				RK3F64C2DFF3744F87C6BE91 /* ServerNetworkPolicy.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Models/Auth";
+			path = "Auth";
 			sourceTree = "<group>";
 		};
-		RKAb9f407dfd85906abf04ff /* Models */ = {
+		RKA3ed161d143721424caf13 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				RKA06544c1599cf5c9875ba5 /* Auth */,
+				RKAfe59e93955aca3c934afb /* Auth */,
 				RK089DC91BA04ECE02D41ABF /* APIModels.swift */,
 				RK7D837B12117150ED5E72DF /* WorkspaceDownloadedFile.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Models";
+			path = "Models";
 			sourceTree = "<group>";
 		};
-		RKA42218ab8647df3c99fc41 /* Network */ = {
+		RKAb1e129a7518c09312e669 /* Network */ = {
 			isa = PBXGroup;
 			children = (
 				RK4256A71BBC4E2A4E9365CA /* AsyncResultGate.swift */,
@@ -2650,57 +2650,57 @@
 				RK78995D07BC6795AD242C64 /* HTTPTransport.swift */,
 				RK506B3B7AD2080FAFC22C2D /* WebSocketTransport.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Network";
+			path = "Network";
 			sourceTree = "<group>";
 		};
-		RKA4c85a76041c8d51ce3210 /* Services */ = {
+		RKAf14426b294158d02cc38d /* Services */ = {
 			isa = PBXGroup;
 			children = (
 				RK0656B4F0B67860C7752FF6 /* LocalNetworkAccess.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Services";
+			path = "Services";
 			sourceTree = "<group>";
 		};
-		RKA01a9f68a948baccd0bf6c /* Stores */ = {
+		RKA5d42ed3097b4222882350 /* Stores */ = {
 			isa = PBXGroup;
 			children = (
 				RKE1EEAC30A841AAEFAE91D0 /* KeychainStore.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Stores";
+			path = "Stores";
 			sourceTree = "<group>";
 		};
-		RKA72691d40554ce538891bb /* Components */ = {
+		RKA16781870bcd84d469ef54 /* Components */ = {
 			isa = PBXGroup;
 			children = (
 				RKE2944C0C69CD224338B87C /* StableViewModel.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Views/Components";
+			path = "Components";
 			sourceTree = "<group>";
 		};
-		RKA3ff7b72d90ee932157f14 /* Views */ = {
+		RKA177a7c0783715bd70e150 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				RKA72691d40554ce538891bb /* Components */,
+				RKA16781870bcd84d469ef54 /* Components */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2/Views";
+			path = "Views";
 			sourceTree = "<group>";
 		};
-		RKA91915a42ec2c135989e14 /* AAV2 */ = {
+		RKAa21014d6e8f301fd782f4 /* AAV2 */ = {
 			isa = PBXGroup;
 			children = (
-				RKA5339c4d2dffa3e797f513 /* API */,
-				RKAd974c10bb4b9a9f12eadc /* Business */,
-				RKAfdde93fc34d6f5899e1a0 /* Domain */,
-				RKAb9f407dfd85906abf04ff /* Models */,
-				RKA42218ab8647df3c99fc41 /* Network */,
-				RKA4c85a76041c8d51ce3210 /* Services */,
-				RKA01a9f68a948baccd0bf6c /* Stores */,
-				RKA3ff7b72d90ee932157f14 /* Views */,
+				RKA6a32a79a94e0056fc282b /* API */,
+				RKAbea37c948dc49c414460a /* Business */,
+				RKAbaa150760584216f3837e /* Domain */,
+				RKA3ed161d143721424caf13 /* Models */,
+				RKAb1e129a7518c09312e669 /* Network */,
+				RKAf14426b294158d02cc38d /* Services */,
+				RKA5d42ed3097b4222882350 /* Stores */,
+				RKA177a7c0783715bd70e150 /* Views */,
 			);
-			path = "../../Packages/RemoteKit/Sources/AAV2";
+			path = "AAV2";
 			sourceTree = "<group>";
 		};
-		RKA58671a0d26086bb4ae613 /* Glue */ = {
+		RKAdf1fa846ef12960b0b173 /* Glue */ = {
 			isa = PBXGroup;
 			children = (
 				RKC35EE3507A9669E86992AB /* PublicRemoteService.swift */,
@@ -2708,14 +2708,14 @@
 				RKF56CFD8F4EE56B21FE3CAB /* RemoteSessionBackend.swift */,
 				RK94D4EAF6CF4C89609010C3 /* RemoteSessionServing.swift */,
 			);
-			path = "../../Packages/RemoteKit/Sources/Glue";
+			path = "Glue";
 			sourceTree = "<group>";
 		};
-		RKA7c08e2cffb2f8c2ee67ae /* RemoteKit */ = {
+		RKAfbbab3915d12541287e4d /* RemoteKit */ = {
 			isa = PBXGroup;
 			children = (
-				RKA91915a42ec2c135989e14 /* AAV2 */,
-				RKA58671a0d26086bb4ae613 /* Glue */,
+				RKAa21014d6e8f301fd782f4 /* AAV2 */,
+				RKAdf1fa846ef12960b0b173 /* Glue */,
 			);
 			path = "../../Packages/RemoteKit/Sources";
 			sourceTree = "<group>";
