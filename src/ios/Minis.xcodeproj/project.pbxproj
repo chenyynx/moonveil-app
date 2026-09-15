@@ -596,6 +596,7 @@
 		RKE25F80EAA59E3319CA8BC6 /* RemoteKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK51378A9A3646786BF43394 /* RemoteKit.swift */; };
 		RKF73F37D7D31F51FBE85BDE /* V2AttachmentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK4F75C6B113E154F1DE28C0 /* V2AttachmentModels.swift */; };
 		RKF743345A48B769C6ED7C34 /* V2ConnectorAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK975D1D109E9280B7DB9295 /* V2ConnectorAPI.swift */; };
+		RK7838A371121004E9034001 /* AppSymbolAssets.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK0AE8920F88C2842E13A6A7 /* AppSymbolAssets.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1346,6 +1347,7 @@
 		RKF56CFD8F4EE56B21FE3CAB /* RemoteSessionBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionBackend.swift; sourceTree = "<group>"; };
 		RKF693C48379EBEA047D26D8 /* V2BusinessError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2BusinessError.swift; sourceTree = "<group>"; };
 		RKF7F69447FE82772862631F /* V2ConnectorAPI+Download.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "V2ConnectorAPI+Download.swift"; sourceTree = "<group>"; };
+		RK0AE8920F88C2842E13A6A7 /* AppSymbolAssets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSymbolAssets.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -2475,6 +2477,7 @@
 			children = (
 				D05AF00F0000000000000000 /* AppSymbol.swift */,
 				D05AF00F0000000000000001 /* SettingsKit.swift */,
+				RK0AE8920F88C2842E13A6A7 /* AppSymbolAssets.swift */,
 			);
 			name = SettingsSkin;
 			path = SettingsSkin;
@@ -3580,6 +3583,7 @@
 				RKE25F80EAA59E3319CA8BC6 /* RemoteKit.swift in Sources */,
 				RKAA29C8115382CFC0F4881C /* RemoteSessionBackend.swift in Sources */,
 				RK4E256035471AF2EEF870A3 /* RemoteSessionServing.swift in Sources */,
+				RK7838A371121004E9034001 /* AppSymbolAssets.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -20,6 +20,8 @@ jobs:
         run: |
           python3 -m pip install --quiet openstep-parser
           python3 scripts/audit-project-inputs.py
+      - name: aa-assets-completeness
+        run: python3 scripts/audit-aa-assets.py
       - name: fork-point
         run: bash scripts/fork-point-audit.sh
       - name: aav2-freeze
