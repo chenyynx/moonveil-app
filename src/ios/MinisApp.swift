@@ -128,6 +128,14 @@ struct MinisApp: App {
         //
         // `install` is idempotent, so the later onAppLaunch() call is a no-op.
         CrashSignalHandler.install()
+        // B8-AUTH / B9-LANDING: register the Caveat brand font before any view
+        // asks for .font(.custom("Caveat", ...)) — upstream AA does this as the
+        // very first line of its App.init() (AgentsAnywhereApp.swift:10). We keep
+        // upstream's own hard invariant (CrashSignalHandler.install() first) and
+        // land directly after it. The call previously sat inside the stale-file
+        // provider cleanup `if` below, so on a fresh install it never ran and the
+        // wordmark silently fell back to the system font.
+        AppFontRegistry.registerBundledFonts()
         // [T-auto-grouping-default-on] Auto-grouping ships ON. `bool(forKey:)`
         // returns false for an unregistered key, so the default has to be
         // registered here rather than expressed at the (multiple) read sites —
@@ -744,7 +752,6 @@ struct MinisApp: App {
         // was passed through as a subdirectory name.
         let staleDir = root.appendingPathComponent("shared/NSFileProviderWorkingSetContainerItemIdentifier")
         if fm.fileExists(atPath: staleDir.path) {
-        AppFontRegistry.registerBundledFonts()  // B8-AUTH (upstream: first thing, Caveat wordmark)
             try? fm.removeItem(at: staleDir)
             lifecycleLog.info("[FileProvider] cleaned up stale workingSet directory")
         }
