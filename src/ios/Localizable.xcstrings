@@ -5108,6 +5108,40 @@
         }
       }
     },
+    "A secure sign-in request could not be created. Please try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A secure sign-in request could not be created. Please try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法创建安全登录请求，请重试。"
+          }
+        }
+      }
+    },
+    "A sign-in attempt is already in progress.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A sign-in attempt is already in progress."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已有登录请求正在进行中。"
+          }
+        }
+      }
+    },
     "A switch nested under extra_body, as some gateways require.": {
       "extractionState": "manual",
       "localizations": {
@@ -5996,6 +6030,24 @@
           "stringUnit": {
             "state": "translated",
             "value": "高於服務商上報的 %lld 上限 — API 可能會拒絕請求。"
+          }
+        }
+      }
+    },
+    "Account": {
+      "comment": "Shared with Web: pages.settings.account. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账号"
           }
         }
       }
@@ -10617,6 +10669,35 @@
         }
       }
     },
+    "Attach no more than %lld files.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Attach no more than %lld file."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Attach no more than %lld files."
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最多添加 %lld 个附件。"
+          }
+        }
+      }
+    },
     "Attachments": {
       "localizations": {
         "de": {
@@ -13043,6 +13124,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "生物识别"
+          }
+        }
+      }
+    },
+    "Blocked": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blocked"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "阻塞"
           }
         }
       }
@@ -16502,6 +16600,23 @@
         }
       }
     },
+    "Choose an avatar image before uploading.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an avatar image before uploading."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先选择头像图片再上传。"
+          }
+        }
+      }
+    },
     "Choose another model": {
       "localizations": {
         "de": {
@@ -16556,6 +16671,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "選擇其他模型"
+          }
+        }
+      }
+    },
+    "Choose at least one file to upload.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose at least one file to upload."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请至少选择一个文件上传。"
           }
         }
       }
@@ -22561,6 +22693,40 @@
         }
       }
     },
+    "Could not access sign-in credentials in the Keychain (error %@).": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not access sign-in credentials in the Keychain (error %@)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法访问钥匙串中的登录凭据（错误 %@）。"
+          }
+        }
+      }
+    },
+    "Could not access sign-in credentials in the Keychain (error %@): %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not access sign-in credentials in the Keychain (error %@): %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法访问钥匙串中的登录凭据（错误 %@）：%@"
+          }
+        }
+      }
+    },
     "Could not access the selected folder.": {
       "localizations": {
         "de": {
@@ -27809,6 +27975,24 @@
         }
       }
     },
+    "Disconnected": {
+      "comment": "Shared with Web: common.disconnected. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已断开"
+          }
+        }
+      }
+    },
     "Dismiss error": {
       "extractionState": "manual",
       "localizations": {
@@ -31369,6 +31553,40 @@
         }
       }
     },
+    "Enter a device name before continuing.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a device name before continuing."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先输入设备名称再继续。"
+          }
+        }
+      }
+    },
+    "Enter a message before sending.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a message before sending."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先输入消息再发送。"
+          }
+        }
+      }
+    },
     "Enter a name for the new model group.": {
       "localizations": {
         "de": {
@@ -31427,6 +31645,23 @@
         }
       }
     },
+    "Enter a session title.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a session title."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入会话标题。"
+          }
+        }
+      }
+    },
     "Enter a single emoji to use as the icon.": {
       "extractionState": "manual",
       "localizations": {
@@ -31446,6 +31681,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "輸入一個 Emoji 作為圖示。"
+          }
+        }
+      }
+    },
+    "Enter a valid server URL.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a valid server URL."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入有效的服务器地址。"
+          }
+        }
+      }
+    },
+    "Enter a valid value for %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a valid value for %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请为 %@ 输入有效值。"
           }
         }
       }
@@ -31504,6 +31773,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "輸入自定義 User Agent…"
+          }
+        }
+      }
+    },
+    "Enter the 6-digit pairing code shown on the device.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the 6-digit pairing code shown on the device."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入设备上显示的六位配对码。"
           }
         }
       }
@@ -45139,6 +45425,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "局域网访问"
+          }
+        }
+      }
+    },
+    "Local Network access is disabled. Enable it for Agents Anywhere in Settings, then try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local Network access is disabled. Enable it for Agents Anywhere in Settings, then try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "局域网访问权限已关闭。请在系统设置中为 Agents Anywhere 开启权限后重试。"
           }
         }
       }
@@ -60672,6 +60975,24 @@
         }
       }
     },
+    "Password must be at least 8 characters.": {
+      "comment": "Shared with Web: pages.settings.passwordTooShort. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Password must be at least 8 characters."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密码至少需要 8 个字符。"
+          }
+        }
+      }
+    },
     "Passwords are stored in the iOS Keychain on this device only — never in the backup file.": {
       "extractionState": "manual",
       "localizations": {
@@ -60691,6 +61012,24 @@
           "stringUnit": {
             "state": "translated",
             "value": "密码仅存储在本机的 iOS 钥匙串中——绝不会写入备份文件。"
+          }
+        }
+      }
+    },
+    "Passwords do not match.": {
+      "comment": "Shared with Web: pages.settings.passwordMismatch. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passwords do not match."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "两次输入的密码不一致。"
           }
         }
       }
@@ -61307,6 +61646,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "峰值："
+          }
+        }
+      }
+    },
+    "Pending": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pending"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等待中"
           }
         }
       }
@@ -68540,6 +68896,23 @@
         }
       }
     },
+    "Request failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Request failed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请求失败"
+          }
+        }
+      }
+    },
     "Request failed (HTTP %lld)": {
       "comment": "Voice provider HTTP error",
       "localizations": {
@@ -71435,6 +71808,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "回車鍵"
+          }
+        }
+      }
+    },
+    "Return to the app and try signing in again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to the app and try signing in again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请返回应用后重新登录。"
           }
         }
       }
@@ -74515,6 +74905,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "請先選擇技能資料夾"
+          }
+        }
+      }
+    },
+    "Select at least one session.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select at least one session."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请至少选择一个会话。"
+          }
+        }
+      }
+    },
+    "Select no more than 200 sessions at once.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select no more than 200 sessions at once."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一次最多选择 200 个会话。"
           }
         }
       }
@@ -78107,6 +78531,40 @@
         }
       }
     },
+    "Sign in was cancelled. You can try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in was cancelled. You can try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录已取消，可以重试。"
+          }
+        }
+      }
+    },
+    "Sign in was not completed: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in was not completed: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录未完成：%@"
+          }
+        }
+      }
+    },
     "Sign in with Claude": {
       "localizations": {
         "de": {
@@ -81257,6 +81715,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "停止会保留已备份的部分，之后可以继续这次任务。删除该记录则会丢弃这些内容。"
+          }
+        }
+      }
+    },
+    "Stopping…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopping…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在停止…"
           }
         }
       }
@@ -85289,6 +85764,57 @@
         }
       }
     },
+    "The app's signing configuration does not allow access to sign-in credentials in the Keychain (error %@).": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app's signing configuration does not allow access to sign-in credentials in the Keychain (error %@)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用签名缺少钥匙串访问权限，无法访问登录凭据（错误 %@）。"
+          }
+        }
+      }
+    },
+    "The attachment '%@' exceeds the 25 MiB file limit.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The attachment '%@' exceeds the 25 MiB file limit."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "附件“%@”超过了 25 MiB 的大小限制。"
+          }
+        }
+      }
+    },
+    "The attachment '%@' is empty.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The attachment '%@' is empty."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "附件“%@”为空。"
+          }
+        }
+      }
+    },
     "The connection dropped — this reply may be incomplete. Tap Resume to continue.": {
       "localizations": {
         "de": {
@@ -85451,6 +85977,23 @@
         }
       }
     },
+    "The file preview URL is invalid.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file preview URL is invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件预览地址无效。"
+          }
+        }
+      }
+    },
     "The full WebDAV address, including https:// and any path.": {
       "extractionState": "manual",
       "localizations": {
@@ -85470,6 +86013,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "完整的 WebDAV 地址，包含 https:// 及路径。"
+          }
+        }
+      }
+    },
+    "The live update buffer is full. Reconnect and recover session events.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The live update buffer is full. Reconnect and recover session events."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时更新缓冲区已满，请重新连接并恢复会话记录。"
           }
         }
       }
@@ -85821,6 +86381,40 @@
         }
       }
     },
+    "The request URL is invalid: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The request URL is invalid: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请求地址无效：%@"
+          }
+        }
+      }
+    },
+    "The requested page size is outside the supported range.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The requested page size is outside the supported range."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请求的分页大小超出了支持范围。"
+          }
+        }
+      }
+    },
     "The rootfs contains the Alpine Linux filesystem. Resetting will delete all data and restore to factory state.": {
       "localizations": {
         "de": {
@@ -85879,6 +86473,57 @@
         }
       }
     },
+    "The runtime configuration schema is unavailable or invalid.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The runtime configuration schema is unavailable or invalid."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行时配置结构不可用或格式无效。"
+          }
+        }
+      }
+    },
+    "The runtime did not accept this operation.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The runtime did not accept this operation."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent 未接受此操作。"
+          }
+        }
+      }
+    },
+    "The secure sign-in browser could not open. Please try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The secure sign-in browser could not open. Please try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法打开安全登录浏览器，请重试。"
+          }
+        }
+      }
+    },
     "The server could not be reached.": {
       "extractionState": "manual",
       "localizations": {
@@ -85892,6 +86537,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "无法连接到服务器。"
+          }
+        }
+      }
+    },
+    "The server did not accept this pairing request.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server did not accept this pairing request."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器未接受此配对请求。"
+          }
+        }
+      }
+    },
+    "The server did not return a valid sign-in token. Please try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server did not return a valid sign-in token. Please try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器未返回有效的登录令牌，请重试。"
           }
         }
       }
@@ -85967,6 +86646,108 @@
           "stringUnit": {
             "state": "translated",
             "value": "伺服器未回報任何工具。"
+          }
+        }
+      }
+    },
+    "The server response could not be decoded at '%@'.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server response could not be decoded at '%@'."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法解析服务器响应中的“%@”。"
+          }
+        }
+      }
+    },
+    "The server response could not be decoded.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server response could not be decoded."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法解析服务器响应。"
+          }
+        }
+      }
+    },
+    "The server response has an invalid type at '%@' for %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server response has an invalid type at '%@' for %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器响应中“%@”的类型不符合 %@ 的要求。"
+          }
+        }
+      }
+    },
+    "The server response is missing '%@'.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server response is missing '%@'."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器响应缺少“%@”。"
+          }
+        }
+      }
+    },
+    "The server response is missing a value at '%@' for %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server response is missing a value at '%@' for %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器响应中“%@”缺少 %@ 类型的值。"
+          }
+        }
+      }
+    },
+    "The server returned an invalid response.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server returned an invalid response."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器返回了无效响应。"
           }
         }
       }
@@ -86110,6 +86891,40 @@
         }
       }
     },
+    "The session connection closed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The session connection closed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话连接已关闭。"
+          }
+        }
+      }
+    },
+    "The session request no longer belongs to the active cache.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The session request no longer belongs to the active cache."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此会话请求已不属于当前缓存。"
+          }
+        }
+      }
+    },
     "The shared folder's name, as it appears when connecting from a computer.": {
       "extractionState": "manual",
       "localizations": {
@@ -86129,6 +86944,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "共享文件夹的名称，即从电脑连接时看到的那个名字。"
+          }
+        }
+      }
+    },
+    "The sign-in URL is invalid. Check the server address.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The sign-in URL is invalid. Check the server address."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录地址无效，请检查服务器地址。"
+          }
+        }
+      }
+    },
+    "The sign-in callback is missing, expired or does not match this attempt. Please sign in again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The sign-in callback is missing, expired or does not match this attempt. Please sign in again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录回调缺失、过期或与本次请求不匹配，请重新登录。"
+          }
+        }
+      }
+    },
+    "The signed-in server is unavailable.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The signed-in server is unavailable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前登录的服务器不可用。"
           }
         }
       }
@@ -89333,6 +90199,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "這將用 %2$@ 的備份取代目前的 %1$@ 資料。此操作無法復原。"
+          }
+        }
+      }
+    },
+    "This workspace item cannot be previewed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This workspace item cannot be previewed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此文件无法预览。"
           }
         }
       }
@@ -95915,6 +96798,23 @@
         }
       }
     },
+    "Wait for the session to reconnect before sending.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wait for the session to reconnect before sending."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请等待会话重新连接后再发送。"
+          }
+        }
+      }
+    },
     "Waiting": {
       "localizations": {
         "en": {
@@ -95933,6 +96833,24 @@
           "stringUnit": {
             "state": "translated",
             "value": "等待中"
+          }
+        }
+      }
+    },
+    "Waiting for approval": {
+      "comment": "Shared with Web: dashboard.sessionStatus.waitingApproval. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting approval"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等待批准"
           }
         }
       }
@@ -98071,6 +98989,40 @@
         }
       }
     },
+    "You are not signed in.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You are not signed in."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你尚未登录。"
+          }
+        }
+      }
+    },
+    "You are offline. Cached content is still available.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You are offline. Cached content is still available."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "网络已断开，仍可查看缓存内容。"
+          }
+        }
+      }
+    },
     "You can add multiple instances of the same provider (e.g. work and personal accounts).": {
       "localizations": {
         "de": {
@@ -99049,6 +100001,186 @@
           "stringUnit": {
             "state": "translated",
             "value": "自定义路径 · %@"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeStatus.available": {
+      "comment": "Shared with Web: dashboard.device.runtimeStatus.available. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可用"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeStatus.discovering": {
+      "comment": "Shared with Web: dashboard.device.runtimeStatus.discovering. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discovering"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在发现"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeStatus.error": {
+      "comment": "Shared with Web: dashboard.device.runtimeStatus.error. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "错误"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeStatus.running": {
+      "comment": "Shared with Web: dashboard.device.runtimeStatus.running. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行中"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeStatus.starting": {
+      "comment": "Shared with Web: dashboard.device.runtimeStatus.starting. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starting"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启动中"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeStatus.stopped": {
+      "comment": "Shared with Web: dashboard.device.runtimeStatus.stopped. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopped"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已停止"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeStatus.stopping": {
+      "comment": "Shared with Web: dashboard.device.runtimeStatus.stopping. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopping"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止中"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeStatus.unavailable": {
+      "comment": "Shared with Web: dashboard.device.runtimeStatus.unavailable. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不可用"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeStatus.unknown": {
+      "comment": "Shared with Web: dashboard.device.runtimeStatus.unknown. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未知"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeStatus.validating": {
+      "comment": "Shared with Web: dashboard.device.runtimeStatus.validating. Sync with ios/scripts/web_copy.py.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Validating"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在验证"
           }
         }
       }
@@ -102237,6 +103369,23 @@
         }
       }
     },
+    "上次发送的结果尚未确认，正在同步记录。请确认后再重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The previous send is not confirmed. Syncing messages; check the result before retrying."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次发送的结果尚未确认，正在同步记录。请确认后再重试。"
+          }
+        }
+      }
+    },
     "中文语音": {
       "extractionState": "stale",
       "localizations": {
@@ -102519,6 +103668,23 @@
         }
       }
     },
+    "实时更新：%@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live updates: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时更新：%@"
+          }
+        }
+      }
+    },
     "已连接": {
       "localizations": {
         "en": {
@@ -102589,6 +103755,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "拍照"
+          }
+        }
+      }
+    },
+    "文件下载不完整，请重新下载。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file download is incomplete. Download it again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件下载不完整，请重新下载。"
           }
         }
       }
@@ -102931,18 +104114,18 @@
         }
       }
     },
-    "需要你处理 ×%@": {
+    "需要你处理 ×%lld": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Needs your attention ×%@"
+            "value": "Needs your attention ×%lld"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "需要你处理 ×%@"
+            "value": "需要你处理 ×%lld"
           }
         }
       }
