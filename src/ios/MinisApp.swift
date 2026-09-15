@@ -1045,7 +1045,12 @@ struct MinisApp: App {
     private static func migrateSharedDirToAppGroup() {
         let fm = FileManager.default
         let library = fm.urls(for: .libraryDirectory, in: .userDomainMask).first!
-        let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.com.moonveil.app")!
+        guard let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.com.moonveil.app") else {
+            // Sideload (KSign / enterprise re-sign) has no App Group container —
+            // nothing to migrate, data lives in the local fallback dirs.
+            lifecycleLog.info("[FileProvider] App Group unavailable (sideload) — skipping migration")
+            return
+        }
 
         let migrations: [(source: URL, dest: URL, label: String)] = [
             // Legacy Library/MinisChat/shared → new shared

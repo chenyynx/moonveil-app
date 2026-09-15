@@ -258,19 +258,35 @@ extension AIChatViewModel {
     /// FileProvider extension. Keep ONLY user-facing subdirs (shared, skills,
     /// memory) here — anything else leaks into "On My iPhone → Minis".
     nonisolated static var minisAppGroupRoot: URL {
-        FileManager.default.containerURL(
+        let fm = FileManager.default
+        if let container = fm.containerURL(
             forSecurityApplicationGroupIdentifier: SharedContainerStore.appGroupID
-        )!.appendingPathComponent("MinisFileProvider", isDirectory: true)
+        ) {
+            return container.appendingPathComponent("MinisFileProvider", isDirectory: true)
+        }
+        // Sideload (KSign / enterprise re-sign) has no App Group container:
+        // fall back to local Application Support so the app still boots.
+        // FileProvider extension replication is skipped in that case.
+        return fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("MinisFileProvider", isDirectory: true)
     }
 
     /// App Group subdirectory for private metadata that must NOT be exposed
     /// to iOS Files (mounted-folders.json, FileProvider extension logs, etc).
     /// Sibling of `minisAppGroupRoot` inside the same App Group container.
     nonisolated static var minisConfigRoot: URL {
-        let url = FileManager.default.containerURL(
+        let url: URL
+        let fm = FileManager.default
+        if let container = fm.containerURL(
             forSecurityApplicationGroupIdentifier: SharedContainerStore.appGroupID
-        )!.appendingPathComponent("MinisConfig", isDirectory: true)
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        ) {
+            url = container.appendingPathComponent("MinisConfig", isDirectory: true)
+        } else {
+            // Sideload fallback — same rationale as minisAppGroupRoot.
+            url = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+                .appendingPathComponent("MinisConfig", isDirectory: true)
+        }
+        try? fm.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
 
