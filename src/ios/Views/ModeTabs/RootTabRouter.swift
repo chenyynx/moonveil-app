@@ -40,4 +40,19 @@ final class RootTabRouter: ObservableObject {
     func route(to target: AppSourceMode) {
         mode = target
     }
+
+    /// B16: the Settings sheet is presented by RootModeTabsView, not by ContentView.
+    /// On the Remote tab ContentView is alive but `opacity 0`, and "can an invisible
+    /// host present a sheet" is exactly the kind of thing that should not be load-bearing.
+    /// One flag, one visible presenter, both tabs use it.
+    @Published var showSettings: Bool = false
+
+    /// B16 mirrors, one-way, presentation-only, written by ContentView from its own
+    /// existing sources of truth (never the reverse):
+    /// `localAtRoot` — the fixed gear must step aside when the local line pushes a chat
+    /// (that chat owns its own navigation bar). Same root test as `goHome()`.
+    @Published var localAtRoot: Bool = true
+    /// `localSelecting` — while rows are checked the page's own toolbar shows Cancel at
+    /// this edge, so the fixed gear stands down instead of doubling it.
+    @Published var localSelecting: Bool = false
 }

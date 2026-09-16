@@ -1314,7 +1314,7 @@ struct ContentView: View {
             // own onAppear pushes the saved destination onto its navPath.
             if UserDefaults.standard.string(forKey: "pendingSettingsReopen") != nil {
                 DispatchQueue.main.async {
-                    activeToolSheet = .settings
+                    tabRouter.showSettings = true   // B16: shell presents it now
                 }
             }
             // [T-ios-bg-nav-push-watchdog] Backstop for the scenePhase flush.
@@ -1419,6 +1419,17 @@ struct ContentView: View {
         }
     }
 
+    /// See the B16 mirrors in `bodyPresentationStage`: same root test as `goHome()`
+    /// (path on iPhone, selection on the iPad split layout), one-way into the router.
+    private func syncFixedBarFlags() {
+        let atRoot: Bool = isWideLayout ? (selectedSessionId == nil) : navigationPath.isEmpty
+        let selecting = isSelecting
+        DispatchQueue.main.async {
+            tabRouter.localAtRoot = atRoot
+            tabRouter.localSelecting = selecting
+        }
+    }
+
     private func bodyPresentationStage<V: View>(_ base: V) -> some View {
         base
         .fullScreenCover(isPresented: $showTerminal) {
@@ -1468,6 +1479,17 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .dismissAllImmersivePresentations)) { _ in
             if activeToolSheet != nil { activeToolSheet = nil }
         }
+        // B16: the fixed bar is drawn by the shell, so it needs to know two things it
+        // used to get for free from living in this toolbar — whether a chat has been
+        // pushed, and whether rows are checked. One-way, low-frequency, and written a
+        // runloop later (publishing from inside a view update is the "Publishing changes
+        // from within view updates" case).
+        .onAppear { syncFixedBarFlags() }
+        .onChange(of: isSelecting) { on in
+            DispatchQueue.main.async { tabRouter.localSelecting = on }
+        }
+        .onChange(of: navigationPath) { _ in syncFixedBarFlags() }
+        .onChange(of: selectedSessionId) { _ in syncFixedBarFlags() }
         .sheet(item: $sessionToDelete) { session in
             DeleteConfirmSheet(info: $singleDeleteInfo, isLoading: false) {
                 print("[DELETE] onDelete called for session: \(session.id)")
@@ -1961,12 +1983,12 @@ struct ContentView: View {
         }
         .onChange(of: deepLink.showEnvironmentVariables) { show in
             if show {
-                activeToolSheet = .settings
+                tabRouter.showSettings = true      // B16: shell presents it now
             }
         }
         .onChange(of: deepLink.showPermissions) { show in
             if show {
-                activeToolSheet = .settings
+                tabRouter.showSettings = true      // B16: shell presents it now
             }
         }
         .onChange(of: deepLink.showAlarmList) { show in
@@ -1980,8 +2002,8 @@ struct ContentView: View {
         // in onAppear/onChange to push the right destination, then clears it.
         .onChange(of: deepLink.pendingSettingsTarget) { target in
             guard target != nil else { return }
-            if activeToolSheet != .settings {
-                activeToolSheet = .settings
+            if !tabRouter.showSettings {
+                tabRouter.showSettings = true      // B16: shell presents it now
             }
         }
         .onChange(of: deepLink.pendingRootfsManagement) { pending in
@@ -3339,13 +3361,11 @@ struct ContentView: View {
                     isSelecting = false
                     selectedIds.removeAll()
                 }
-            } else {
-                Button {
-                    activeToolSheet = .settings
-                } label: {
-                    Image(systemName: "gear")
-                }
             }
+            // B16: the gear moved to RootModeTabsView's fixed bar so it can show on
+            // BOTH tabs and never slide. Its action is unchanged — `showSettings`, now
+            // owned by the router because the sheet is presented by the shell.
+            // Selection mode still draws Cancel HERE (upstream, system-drawn).
         }
         ToolbarItem(placement: .topBarTrailing) {
             if isSelecting {
@@ -7402,7 +7422,9 @@ private enum SettingsDestination: Hashable {
     case mcpServerDetail(serverId: String)
 }
 
-private struct SettingsSheet: View {
+/// B16: was `private`. The Settings sheet is now presented by RootModeTabsView so both
+/// tabs share one visible presenter; nothing inside it changed.
+struct SettingsSheet: View {
     @Binding var showTerminal: Bool
     @AppStorage("appearanceMode") private var appearanceMode: Int = 0
     @Environment(\.dismiss) private var dismiss

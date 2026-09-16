@@ -220,3 +220,17 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - 为什么不是 `b5323bb`（真正的第一个 commit）：那版用 GeometryReader 供宽，在 `ToolbarItem(.principal)` 里没有固有尺寸 → 塌成 ~10pt 细条（当时真机实报）。`131c261` 与它只差 `trackWidth = 200` 一行，是第一版里**唯一能正常显示**的那版。
 - 其余四件（ContentView / RootModeTabsView / RootTabRouter / RemoteRootView）保持 `cf9e35f` 原样：列表横滑切档、淡入换页、齿轮在页内顶栏。接缝与固定栏仍未启用。
 - 能力面：点已选本机段开 sync 迁移详情（`onLocalRetap`）在该版本已存在，签名一致，调用点零改动。
+
+### B16-GEAR — 设置入口搬到固定栏，设置页改由外壳呈现（2026-09-16, pp「我就是希望 remote 也能开设置」→「行吧」→「现在就做齿轮」）
+- Files: `Views/ContentView.swift`、`Views/ModeTabs/RootTabRouter.swift`、`Views/ModeTabs/RootModeTabsView.swift`
+- Deviations（逐处）：
+  1. `sidebarToolbarContent` 的 topBarLeading **齿轮分支摘除**（`isSelecting` 的 Cancel 原样留在页内，由系统画）。齿轮现在由 `RootModeTabsView` 画 —— 它必须两档都在、且切档时不随页滑走，住在任何一页的 toolbar 里都做不到。
+  2. 材质 = **`Circle().fill(.clear).glassEffect(.regular.interactive(), in: Circle())`**，与胶囊同一份玻璃；iOS<26 降级 `secondarySystemBackground` + 1pt 描边。**明确不用 `.buttonStyle(.glass)`** —— 那个按钮样式在浅色态自带灰底和自己的内边距，B14e 就是拿它冒充 toolbar 按钮才被 pp 判为"形状不对"。
+  3. `SettingsSheet` 的呈现从 `ContentView` 挪到外壳：`RootTabRouter.showSettings` 一个 Bool，两档共用同一个可见宿主。**动机不是省事**：Remote 档时 `ContentView` 活着但 `opacity 0`，"不可见宿主能否稳定呈现 sheet" 不该成为承重假设。`ContentView` 里 `.settings` 那个 case 保留（无写入点，纯兜底）。
+  4. `SettingsSheet` 由 `private struct` 改 `struct`（跨文件构造所需）；内部实现零改动。它签名里的 `showTerminal` 全程未被读取（vestigial），外壳传 `.constant(false)`，不改签名不改行为。
+  5. `.settings` 的四个写入点（齿轮、语言切换重开 `pendingSettingsReopen`、深链 `showEnvironmentVariables` / `showPermissions` / `pendingSettingsTarget`）全部改指 `tabRouter.showSettings`，**入口一个没减**。
+  6. 两个单向低频镜像：`localAtRoot`（push 进聊天页时固定齿轮让位）、`localSelecting`（勾选态时让位给页内 Cancel，不重复）。写在一轮之后（`DispatchQueue.main.async`），避免 "Publishing changes from within view updates"。
+- 自查抓回一处我自己带进去的回归：我在 `pendingSettingsReopen` 读取点顺手加了 `removeObject`，而**真正的消费者是 `SettingsSheet.onAppear`（7818 行，读值后 push 到 Appearance 页再清）** —— 早清一步就会把"语言切换后回到原页"吃掉。已撤。判例：搬动代码时"顺手补的清理"也是行为改动，必须查这个 key 还有谁在读。
+- Semantics: 能力面持平或变大 —— 齿轮动作不变；**Remote 档新增设置入口（加法）**；深链/语言切换/权限/环境变量四条入口全部保留；勾选态 Cancel/Select All 未动。
+- 已知观感风险（真机看）：齿轮位置按 leading 16pt、band 44pt 居中算，与系统 toolbar 的内缩可能差 1-3pt；形状是玻璃自绘，不再声称与系统逐像素同。
+- EXIT: 若下一批（两页平移 + 胶囊上提）落地，齿轮并入同一条固定栏，本节结构不变；若 pp 判齿轮形状不可接受，回退方向是"齿轮留在页内 + 接受它随页滑走"，不是回去冒充系统按钮。

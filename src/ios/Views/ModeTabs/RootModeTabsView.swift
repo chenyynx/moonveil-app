@@ -51,6 +51,17 @@ struct RootModeTabsView: View {
                 .allowsHitTesting(router.mode == .remote)
             }
         }
+        .overlay(alignment: .topLeading) {
+            if gearVisible { gearButton }
+        }
+        // B16: ONE settings presentation for both tabs, hosted by the always-visible
+        // shell. On the Remote tab ContentView is alive but `opacity 0`, and "can an
+        // invisible host present a sheet" is not something this should have to prove.
+        // `showTerminal` is vestigial inside SettingsSheet (never read), so a constant
+        // binding keeps the upstream signature and behaviour intact.
+        .sheet(isPresented: $router.showSettings) {
+            SettingsSheet(showTerminal: .constant(false))
+        }
         .gesture(pageSwipe)   // B12: swipe the page to switch 本机 ⟷ Remote
         .task {
             guard !didRestore else { return }
@@ -132,6 +143,60 @@ struct RootModeTabsView: View {
 
     /// One switch per gesture: armed on the crossing, reset when the finger lifts.
     @State private var swipeArmed = false
+
+    // MARK: - Fixed gear (B16)
+
+    // Calibrated off pp's own device screenshot (1179px @3x — the build where the gear
+    // still lived in the system toolbar): a radial scan of the glass disc gives diameter
+    // 44.0pt and leading edge 15.7pt; the terminal button on the right measures 43.3pt /
+    // 17.0pt inset, so those are the system metrics, not my guess. Vertical centre sits
+    // at 80.7pt = safe-area top (59) + 21.7 → dead centre of the 44pt bar band.
+    // My first pass here used a 30pt circle — 14pt too small, which is precisely the
+    // 「形状不对」 complaint.
+    private static let gearLeadingInset: CGFloat = 16
+    private static let gearBandHeight: CGFloat = 44
+    private static let gearDiameter: CGFloat = 44
+    /// Gear ink box measured 23.3×23.0pt on that screenshot; SF Symbol `gear` runs at
+    /// roughly 1.05× its point size, so 22pt reproduces it.
+    private static let gearSymbolSize: CGFloat = 22
+
+    /// Hidden when the local line is not at its list root (a pushed chat owns that bar)
+    /// or when rows are checked (the page draws Cancel at this edge). The remote line has
+    /// no pushes yet, so it is always at root.
+    private var gearVisible: Bool {
+        guard router.mode == .local else { return true }
+        return router.localAtRoot && !router.localSelecting
+    }
+
+    /// Same glass as the capsule — one material language for the fixed bar, so gear and
+    /// pill cannot look like two different systems. Deliberately NOT
+    /// `.buttonStyle(.glass)`: that style carries its own light-mode grey fill and
+    /// padding, and imitating the system toolbar with it is what made B14e's bar read as
+    /// 改坏了 (pp 2026-09-16).
+    private var gearButton: some View {
+        Button {
+            router.showSettings = true
+        } label: {
+            Image(systemName: "gear")
+                .font(.system(size: Self.gearSymbolSize))
+                .foregroundStyle(Color.primary)
+                .frame(width: Self.gearDiameter, height: Self.gearDiameter)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .background {
+            if #available(iOS 26.0, *) {
+                Circle().fill(.clear).glassEffect(.regular.interactive(), in: Circle())
+            } else {
+                Circle()
+                    .fill(Color(UIColor.secondarySystemBackground))
+                    .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+            }
+        }
+        .padding(.leading, Self.gearLeadingInset)
+        // 44pt disc inside a 44pt band: centring is exact, nothing to fudge.
+        .padding(.top, (Self.gearBandHeight - Self.gearDiameter) / 2)
+    }
 
     /// 远程 tab 且未登录且本次启动还没离开过登录盖 → 盖登录页；登录成功(ready)自动收起。
     private var showsLoginGate: Bool {
