@@ -66,7 +66,7 @@ final class RootTabRouter: ObservableObject {
 
 /// One control on the fixed top bar, as requested by the shell. `.toolSheet` reuses
 /// the upstream enum so no second source of truth for sheets is born.
-enum LocalBarAction {
+enum LocalBarAction: Equatable {
     case toolSheet(ToolSheet)
     case terminal
     case alarmList

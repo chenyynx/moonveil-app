@@ -862,7 +862,7 @@ private func probeRowHeight(_ h: CGFloat, _ tag: String) {
 #endif
 
 /// Sheets triggered from the toolbar menu, consolidated into a single `.sheet(item:)`.
-enum ToolSheet: String, Identifiable {
+enum ToolSheet: String, Identifiable, Equatable {
     case settings
     case rootfsManagement
     case browser
@@ -1425,6 +1425,7 @@ struct ContentView: View {
     /// function (ContentView:1423 "unable to type-check this expression in reasonable
     /// time"). Splitting the chain is the fix; the behaviour is identical.
     private func bodyBarSeamStage<V: View>(_ base: V) -> some View {
+        base
         // B14e seam: the fixed top bar is drawn by RootModeTabsView (so it can stay put
         // while both pages slide), but every control there acts on state that still
         // lives HERE. Taps arrive as one-shot requests and are cleared a runloop later
@@ -2853,7 +2854,7 @@ struct ContentView: View {
         .task { await migrationSubtitleLoop() }
         // [T-ios-soul-name-sidebar-stale] Refresh the sidebar title from SOUL.md.
         // Moved here off the churny toolbar principal item (B7-UI capsule; rebuilds on
-        // every canOpenSync/soulName/migrationSubtitle/isSelecting change) for the
+        // every soulName/migrationSubtitle/isSelecting change) for the
         // same reason as the migration timer above: this Group's identity is stable
         // across the sidebar's life, so the sink is never torn down mid-transaction
         // and can't drop a .soulMdChanged notification arriving during reconstruction.
