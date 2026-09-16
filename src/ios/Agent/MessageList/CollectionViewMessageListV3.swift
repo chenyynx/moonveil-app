@@ -1804,7 +1804,14 @@ extension CollectionViewMessageListV3 {
                     self.scrollMode = .autoScrolling
                     // Jumping to the bottom resets the up-button's turn-walk.
                     self.lastJumpedUserId = nil
-                    self.scrollToBottomNow(animated: true)
+                    // [T-ios-send-zero-scroll] (pp 2026-09-17, ChatGPT 式发送丝滑)
+                    // 贴底时零滚动: 发送的插入已经在 applySnapshot 尾部**同一帧**钉到新底部
+                    // (autoScrolling 分支 `cv.contentOffset.y = maxOff`)。这里再补一发
+                    // animated:true 的 setContentOffset 会与键盘收起的 0.25s 动画 + 同帧 pin
+                    // 三方竞争,观感是「插入 → 追着滚」而不是「内容从底部顶入」。
+                    // 只有真正离开过底部(读完历史后点重试/恢复/回底)才值得一段动画。
+                    let nearBottom = self.isNearBottom()
+                    self.scrollToBottomNow(animated: !nearBottom)
                 }
                 .store(in: &subscriptions)
 
