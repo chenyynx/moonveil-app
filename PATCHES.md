@@ -214,3 +214,9 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - Why: Grok 规格表 `Code | SF Mono | 13.5pt | 400`，浅色无底、深色有底；字号比例本来就已对齐（Grok 13.5/16 = 0.844，我们 0.845），所以只换字形不换缩放 —— 聊天字号滑块继续有效。
 - Semantics: 零删减。深色态故意保留 `systemOrange` + 抬亮的 `#3A3A3C` pill：`#EA6F30` 在该底上只有约 4.4:1，而 `[T-inline-code-dark-bg-ios]` 那条案底说明深色为什么不能没有底。点击复制、hair-space 内边距、圆角绘制路径（浅色画透明，仍一条代码路径）全部不变。
 - EXIT: pp 若要连 Grok 深色那套（白字 `#E7E9EA` + `#16181C` 底 + `#2F3336` 0.5pt 描边）一起照抄，改的是同两个属性，届时本条改写不留双份。
+
+### B14-F — 顶部 tab 回到历史第一版（2026-09-16, pp「改回历史第一版切换tab那版」）
+- File: `src/ios/Views/ModeTabs/ModeTabPicker.swift` 逐字节回到 **`131c261`**（B7 实色轨道 + 白药丸那版：36pt 轨道 / 3pt 内衬 / 14pt semibold / 选中白胶囊 / matchedGeometry / spring(0.28,0.82) / iOS26 轨道走 AA 的 `.glassEffect(.regular.interactive())`、<26 降级 secondarySystemBackground）。
+- 为什么不是 `b5323bb`（真正的第一个 commit）：那版用 GeometryReader 供宽，在 `ToolbarItem(.principal)` 里没有固有尺寸 → 塌成 ~10pt 细条（当时真机实报）。`131c261` 与它只差 `trackWidth = 200` 一行，是第一版里**唯一能正常显示**的那版。
+- 其余四件（ContentView / RootModeTabsView / RootTabRouter / RemoteRootView）保持 `cf9e35f` 原样：列表横滑切档、淡入换页、齿轮在页内顶栏。接缝与固定栏仍未启用。
+- 能力面：点已选本机段开 sync 迁移详情（`onLocalRetap`）在该版本已存在，签名一致，调用点零改动。
