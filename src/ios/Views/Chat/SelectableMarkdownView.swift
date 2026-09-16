@@ -1495,6 +1495,19 @@ private extension UIFont {
 
 // MARK: - Code Block Attachment
 
+/// [B16-CODE-FULLSCREEN-FIX] Per-code-block forwarding box for the fullscreen
+/// action. Associated to the wrapper view (the long-lived object across
+/// streaming renders) and refreshed by `updateExistingView` with the latest
+/// attachment callback — the button's action closure reads the box at tap time
+/// and reads the code text from the live text view, so nothing captures the
+/// per-render attachment objects (which die as soon as the next render lands).
+private final class CodeExpandForwarder {
+    /// Latest callback: forwards into the host text view's onExpandCode.
+    var fire: ((String, String?) -> Void)?
+    /// Fence language — immutable for the lifetime of one fence.
+    var language: String?
+}
+
 final class CodeBlockAttachment: NSTextAttachment {
     var code: String
     let language: String?
@@ -1548,10 +1561,12 @@ final class CodeBlockAttachment: NSTextAttachment {
     /// handler — same double-bind survival pattern as the copy button.
     static var expandTapHandlerKey: UInt8 = 0
     /// [B16-CODE-FULLSCREEN-FIX] Fence language for the expand action, stored
-    /// per button (associated) so the action closure doesn't capture the
-    /// attachment — streaming swaps the attachment on every render pass while
-    /// the view is reused, which made a captured self go nil (dead button).
-    static var expandLanguageKey: UInt8 = 0
+    /// in the forwarder box associated to the WRAPPER (the long-lived view):
+    /// the button's action closure reads the box at tap time and must never
+    /// capture the attachment — streaming recreates attachments on every
+    /// render pass while the view is reused, which made a captured self go
+    /// nil (dead button, pp: "点击全屏没反应").
+    static var expandForwarderKey: UInt8 = 0
 
     /// [B16-CODE-CARD] Rasterizes a vector asset-catalog icon (lucide aa-*) to a
     /// fixed point size. `UIImage(named:)` returns the SVG's intrinsic 24pt and
@@ -1803,14 +1818,16 @@ final class CodeBlockAttachment: NSTextAttachment {
         // attachment: streaming replaces the attachment object on every render
         // pass while the view is reused via updateExistingView — a captured
         // `self` goes nil the moment the old attachment is released and the
-        // button dies silently ("点击全屏没反应"). Read the LIVE code from the
-        // text view instead (same pattern as performCopy) and keep only the
-        // fence language (immutable per fence) on an associated object.
-        objc_setAssociatedObject(expandButton, &Self.expandLanguageKey, language, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        let performExpand: () -> Void = { [weak codeTextView, weak expandButton] in
-            guard let tv = codeTextView, let btn = expandButton else { return }
-            let lang = objc_getAssociatedObject(btn, &Self.expandLanguageKey) as? String
-            tv.onExpandCode?(tv.text, lang)
+        // button dies silently ("点击全屏没反应"). The forwarder box lives on
+        // the WRAPPER (long-lived) and is refreshed with the latest callback
+        // by updateExistingView; code text is read from the live text view at
+        // tap time (performCopy pattern); the fence language is immutable.
+        let forwarder = CodeExpandForwarder()
+        forwarder.language = language
+        objc_setAssociatedObject(wrapper, &Self.expandForwarderKey, forwarder, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        let performExpand: () -> Void = { [weak codeTextView, weak forwarder] in
+            guard let tv = codeTextView, let fw = forwarder else { return }
+            fw.fire?(tv.text ?? "", fw.language)
         }
         expandButton.addAction(UIAction { _ in performExpand() }, for: .touchUpInside)
         let expandTapHandler = CodeCopyTapHandler(perform: performExpand)
@@ -1818,7 +1835,9 @@ final class CodeBlockAttachment: NSTextAttachment {
         expandTap.cancelsTouchesInView = false
         expandButton.addGestureRecognizer(expandTap)
         objc_setAssociatedObject(expandButton, &Self.expandTapHandlerKey, expandTapHandler, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        if onExpand == nil {
+        if onExpand != nil {
+            forwarder.fire = onExpand
+        } else {
             expandButton.isHidden = true
         }
         headerView.addSubview(expandButton)
@@ -1832,6 +1851,12 @@ final class CodeBlockAttachment: NSTextAttachment {
 
     /// Update the code text in an existing view created by `makeView(width:)` without recreating.
     func updateExistingView(_ wrapper: UIView) {
+        // [B16-CODE-FULLSCREEN-FIX] Refresh the forwarder with the latest
+        // attachment callback — attachments are recreated per render pass while
+        // this view is reused; the button's closure must never hold one.
+        if let forwarder = objc_getAssociatedObject(wrapper, &Self.expandForwarderKey) as? CodeExpandForwarder {
+            forwarder.fire = onExpand
+        }
         guard let container = wrapper.subviews.first else { return }
         guard let scrollView = container.subviews.first(where: { $0 is UIScrollView }) as? UIScrollView else { return }
         guard let codeTextView = scrollView.subviews.first(where: { $0 is UITextView }) as? UITextView else { return }
