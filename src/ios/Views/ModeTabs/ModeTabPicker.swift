@@ -218,9 +218,15 @@ struct ModeTabPicker: View {
     @ViewBuilder
     private var pillLayer: some View {
         let r = interpolatedRect()
-        Capsule()
+        // [B16-PILL-WHITE] pp 2026-09-17「顶部胶囊还是灰色啊」的双重修复:
+        // ① content 从裸 `Capsule()` 换成 `Color.clear` —— 裸 Shape 作为视图会吃默认
+        //    前景填充,半透明玻璃下面垫一层默认色 = 玻璃被压暗成「实色灰」;
+        //    显式透明后玻璃材质才是原本的亮度。
+        // ② 浅色加 `.tint(.white)` 把玻璃推向白(仓内先例:ContentView:4321
+        //    `fabCircleSurface` 的 `Glass.regular.tint($0)`);深色不 tint,防止泛白刺眼。
+        Color.clear
             .frame(width: r.width, height: Self.pillHeight)
-            .glassEffect(.regular, in: .capsule)
+            .glassEffect(colorScheme == .light ? .regular.tint(.white) : .regular, in: .capsule)
             .overlay(dragSheen)
             .scaleEffect(isDragging ? Self.dragScale : 1)
             .offset(x: r.minX, y: (Self.rowHeight - Self.pillHeight) / 2)
