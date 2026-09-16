@@ -333,3 +333,10 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - 规则升级：外部 token 表只用来读"意图"（有没有阴影、大概多轻），任何要落到 iOS 的数值必须在 iOS 截图上量出来才算；量不出来就默认不加、以系统材质为准。
 - 现在两颗都只剩：玻璃本身（容器 + `glassEffectID`，形变与按压发亮由系统画）+ 胶囊按下时的 `scaleEffect` 与白色高光。删掉的 `restShadow` 常数是本轮我自己造的，非功能。
 - 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0。
+
+### B16-FIX-CLOSURE — run 35067152326 红一条：`instance member 'padding' cannot be used on type 'View'`（2026-09-16）
+- 真因不在报错那一行：辅助函数写成 `glassRow<Content: View>(@ViewBuilder _ content: Content)`（**值参**），调用处传的是闭包 `glassRow { rowContent }` ⇒ 编译器把 `Content` 推成 `View` 存在类型，于是挂在调用**之后**的 `.frame / .contentShape / .highPriorityGesture` 全成"在协议类型上调实例方法"，第一个（padding/frame）先炸。正解 = 参数改 `() -> Content`、体内 `content()`。
+- 🔴 **编译门盲区第五类**（前四类见 B16-FIX-VIS / B15-PILL / B16-SNAP-CLAUDIO 各条）：`@ViewBuilder` 泛型包装函数必须收闭包。**定位口诀**：看到"某修饰符 cannot be used on type 'View'"，往上找上一个自定义 View 函数的签名，别在报错行改。
+- 新增全域自查：`grep -rn "@ViewBuilder _ [a-z]*: Content)" src/ios/` —— 本轮扫出 0 处同类遗漏。
+- 铁律执行：只改签名，`GlassEffectContainer` / `glassEffectID` 一个没删、没降级、没换实现。
+- 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0；tip be9fca6。
