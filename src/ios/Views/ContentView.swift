@@ -862,7 +862,7 @@ private func probeRowHeight(_ h: CGFloat, _ tag: String) {
 #endif
 
 /// Sheets triggered from the toolbar menu, consolidated into a single `.sheet(item:)`.
-enum ToolSheet: String, Identifiable, Equatable {
+enum ToolSheet: String, Identifiable {
     case settings
     case rootfsManagement
     case browser
@@ -1419,67 +1419,6 @@ struct ContentView: View {
         }
     }
 
-    /// B14e: the fixed top bar's seam and its display mirrors, in their OWN stage.
-    /// [T-split-body] applied, not rediscovered: this block first went onto
-    /// `bodyPresentationStage`, and CI then blew the type-check budget for the whole
-    /// function (ContentView:1423 "unable to type-check this expression in reasonable
-    /// time"). Splitting the chain is the fix; the behaviour is identical.
-    private func bodyBarSeamStage<V: View>(_ base: V) -> some View {
-        base
-        // B14e seam: the fixed top bar is drawn by RootModeTabsView (so it can stay put
-        // while both pages slide), but every control there acts on state that still
-        // lives HERE. Taps arrive as one-shot requests and are cleared a runloop later
-        // — writing an ObservableObject's @Published from inside a view update is the
-        // "Publishing changes from within view updates" case, and this file already
-        // defers the same way for pendingSettingsReopen in onAppear above.
-        .onChange(of: tabRouter.requestedBarAction) { request in
-            guard let request else { return }
-            switch request {
-            case .toolSheet(let sheet):
-                activeToolSheet = sheet
-            case .terminal:
-                showTerminal = true
-            case .alarmList:
-                showAlarmList = true
-            #if DEBUG
-            case .toggleKeepAwake:
-                keepScreenAwake.toggle()
-                UIApplication.shared.isIdleTimerDisabled = keepScreenAwake
-            #endif
-            }
-            DispatchQueue.main.async { tabRouter.requestedBarAction = nil }
-        }
-        // …and the bar's display flags mirror this line's existing sources of truth,
-        // one-way and low-frequency (a tap or a timer tick, never a per-frame write).
-        .onChange(of: isSelecting) { on in
-            DispatchQueue.main.async { tabRouter.localSelecting = on }
-        }
-        .onChange(of: hasAlarms) { on in
-            DispatchQueue.main.async { tabRouter.barHasAlarms = on }
-        }
-        .onChange(of: migrationSubtitle) { next in
-            DispatchQueue.main.async { tabRouter.barSyncSubtitle = next }
-        }
-        .onChange(of: keepAwakeFlag) { on in
-            DispatchQueue.main.async { tabRouter.barKeepScreenAwake = on }
-        }
-        // B14d: the fixed bar steps aside when this line pushes a chat. Same root test
-        // as goHome() above (path on iPhone, selection on the iPad split layout).
-        .onAppear { syncFixedBarAtRoot(); syncFixedBarFlags() }
-        .onChange(of: navigationPath) { _ in syncFixedBarAtRoot() }
-        .onChange(of: selectedSessionId) { _ in syncFixedBarAtRoot() }
-    }
-
-    /// Exists in BOTH build configurations so the modifier chain above stays a single
-    /// expression (`#if` cannot appear inside one). Release: a constant, so the mirror
-    /// can never fire and the bar's DEBUG checkmark stays off — which is exactly the
-    /// upstream behaviour, since the menu item that sets it is DEBUG-only.
-    #if DEBUG
-    private var keepAwakeFlag: Bool { keepScreenAwake }
-    #else
-    private var keepAwakeFlag: Bool { false }
-    #endif
-
     private func bodyPresentationStage<V: View>(_ base: V) -> some View {
         base
         .fullScreenCover(isPresented: $showTerminal) {
@@ -1810,29 +1749,6 @@ struct ContentView: View {
         // / ChatSession.== diff from the scroll transaction.
     }
 
-    /// See the B14d/e seam in `bodyPresentationStage`: one-way, presentation-only, and
-    /// written one runloop later because publishing from inside a view update is the
-    /// "Publishing changes from within view updates" case.
-    private func syncFixedBarAtRoot() {
-        let atRoot: Bool = isWideLayout ? (selectedSessionId == nil) : navigationPath.isEmpty
-        DispatchQueue.main.async { tabRouter.localAtRoot = atRoot }
-    }
-
-    /// First paint: the fixed bar is built before any of these values CHANGE, so it has
-    /// to be seeded once or it would show a stale (all-off) bar until the first tap.
-    private func syncFixedBarFlags() {
-        let selecting = isSelecting
-        let alarms = hasAlarms
-        let subtitle = migrationSubtitle
-        let awake = keepAwakeFlag
-        DispatchQueue.main.async {
-            tabRouter.localSelecting = selecting
-            tabRouter.barHasAlarms = alarms
-            tabRouter.barSyncSubtitle = subtitle
-            tabRouter.barKeepScreenAwake = awake
-        }
-    }
-
     private func bodyStateStage<V: View>(_ base: V) -> some View {
         base
         .onChange(of: sessions) { _ in
@@ -2132,7 +2048,7 @@ struct ContentView: View {
     }
 
     var body: some View {
-        bodyStateStage(bodyBarSeamStage(bodyPresentationStage(bodyEventStage(GeometryReader { geo in
+        bodyStateStage(bodyPresentationStage(bodyEventStage(GeometryReader { geo in
         GeometryReader { geo in
             let wide = isIPad && geo.size.width >= compactThreshold
             Group {
@@ -2158,7 +2074,7 @@ struct ContentView: View {
                 wireMenuActions()
             }
         }
-        }))))
+        })))
     }
 
     // MARK: - Split Layout (iPad / wide window)
@@ -2854,7 +2770,7 @@ struct ContentView: View {
         .task { await migrationSubtitleLoop() }
         // [T-ios-soul-name-sidebar-stale] Refresh the sidebar title from SOUL.md.
         // Moved here off the churny toolbar principal item (B7-UI capsule; rebuilds on
-        // every soulName/migrationSubtitle/isSelecting change) for the
+        // every canOpenSync/soulName/migrationSubtitle/isSelecting change) for the
         // same reason as the migration timer above: this Group's identity is stable
         // across the sidebar's life, so the sink is never torn down mid-transaction
         // and can't drop a .soulMdChanged notification arriving during reconstruction.
@@ -3284,10 +3200,26 @@ struct ContentView: View {
             .map { (label: $0.0, count: $0.1) }
     }
 
-    // B14e: `titleSyncIndicator` moved to RootModeTabsView.syncIndicator verbatim —
-    // the capsule it hugged is fixed chrome now, so the indicator rides with it.
-    // Same four states, same sizes, same tap target (offset -27 from the row's leading
-    // edge), same action (sync migration detail). One copy, not two.
+    /// Tiny indicator next to the "Moonveil" title showing the sync state.
+    @ViewBuilder
+    private func titleSyncIndicator(for state: SyncSubtitleState?) -> some View {
+        switch state {
+        case .none, .upToDate:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.green)
+        case .paused:
+            Image(systemName: "pause.circle.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.orange)
+        case .migrating, .syncing:
+            PulseRotateIcon()
+        case .waiting:
+            Image(systemName: "clock")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+        }
+    }
 
     @ViewBuilder
     private func syncSubtitleView(_ state: SyncSubtitleState) -> some View {
@@ -3368,34 +3300,50 @@ struct ContentView: View {
                 Text(selectedIds.isEmpty ? "Select Sessions" : "\(selectedIds.count) Selected")
                     .font(.headline)
             } else {
-                // B7-UI (pp 2026-09-15) put the Grok-style source-mode capsule here;
-                // B14e moved it (and the sync indicator that hugged its leading edge)
-                // up into RootModeTabsView's fixed bar. Nothing was deleted: tapping
-                // the selected local segment still opens sync-migration detail, the
-                // isSelecting branch above is untouched, and the
-                // [T-ios-soul-name-sidebar-stale] / [T-ios-migration-timer-toolbar-
-                // uaf-crash] invariants still hold — this item only READS soulName,
-                // and the migrationSubtitle sink stays right here on the stable
-                // sessionList body; the shell only receives a mirrored copy.
-                // B14e: the capsule AND the sync indicator that hugged its leading edge
-                // are drawn by RootModeTabsView's fixed bar now. This spacer keeps the
-                // principal slot the width they had, so the bar band never changes
-                // height or inset when this page slides under that fixed bar.
-                Color.clear
-                    .frame(width: ModeTabPicker.rowWidth(localLabel: soulName, remoteLabel: "Remote"),
-                           height: ModeTabPicker.rowHeight)
+                let canOpenSync: Bool = {
+                    if #available(iOS 17.0, *) { return SyncV2Bootstrap.isEnabled }
+                    return false
+                }()
+                // B7-UI (pp 2026-09-15): the sidebar title position now hosts the
+                // Grok-style source-mode capsule (Moonveil / Remote). Upstream
+                // title behaviours PRESERVED, not deleted: tapping the selected
+                // local segment still opens sync-migration detail (onLocalRetap),
+                // the sync indicator still floats at the leading edge, and the
+                // isSelecting branch above is untouched. The [T-ios-soul-name-
+                // sidebar-stale] / [T-ios-migration-timer-toolbar-uaf-crash]
+                // invariants hold unchanged: this item only READS soulName /
+                // migrationSubtitle — their sinks live on the stable sessionList body.
+                ModeTabPicker(
+                    selection: $tabRouter.mode,
+                    localLabel: soulName,
+                    onLocalRetap: canOpenSync ? { activeToolSheet = .syncMigrationDetail } : nil
+                )
+                .overlay(alignment: .leading) {
+                    if canOpenSync {
+                        Button {
+                            activeToolSheet = .syncMigrationDetail
+                        } label: {
+                            titleSyncIndicator(for: migrationSubtitle)
+                                .contentShape(Rectangle())
+                                .padding(4)
+                        }
+                        .buttonStyle(.plain)
+                        .offset(x: -27)
+                    }
+                }
             }
         }
-        // B14e: the gear moved to the fixed bar (RootModeTabsView). Selection mode keeps
-        // its chrome HERE on purpose: Cancel/Select All only exist while rows are
-        // checked — a state nobody swipes out of — and their labels read selectedIds /
-        // sessions, which would mean mirroring two more collections into the shell.
-        // The fixed bar stands down while `isSelecting` is on (tabRouter.localSelecting).
         ToolbarItem(placement: .topBarLeading) {
             if isSelecting {
                 Button("Cancel") {
                     isSelecting = false
                     selectedIds.removeAll()
+                }
+            } else {
+                Button {
+                    activeToolSheet = .settings
+                } label: {
+                    Image(systemName: "gear")
                 }
             }
         }
@@ -3407,6 +3355,57 @@ struct ContentView: View {
                     } else {
                         selectedIds = Set(sessions.map(\.id))
                     }
+                }
+            } else if hasAlarms {
+                Button {
+                    showAlarmList = true
+                } label: {
+                    Image(systemName: "alarm")
+                        .font(.system(size: 15, weight: .medium))
+                }
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            if !isSelecting {
+                Menu {
+                    Button {
+                        showTerminal = true
+                    } label: {
+                        Label("Shell Terminal", systemImage: "terminal")
+                    }
+                    Button {
+                        activeToolSheet = .rootfsManagement
+                    } label: {
+                        Label("Rootfs Management", systemImage: "externaldrive")
+                    }
+                    Divider()
+                    Button {
+                        activeToolSheet = .browser
+                    } label: {
+                        Label("Open Browser", systemImage: "globe")
+                    }
+                    Button {
+                        activeToolSheet = .browserManagement
+                    } label: {
+                        Label("Browser Settings", systemImage: "globe.badge.chevron.backward")
+                    }
+                    #if DEBUG
+                    Divider()
+                    // [debug] Keep Screen Awake — disables auto-lock while the app
+                    // is foregrounded. Tap toggles; a checkmark shows the current
+                    // state. Memory-only (not persisted). DEBUG builds only.
+                    Button {
+                        keepScreenAwake.toggle()
+                        UIApplication.shared.isIdleTimerDisabled = keepScreenAwake
+                    } label: {
+                        Label("Keep Screen Awake", systemImage: keepScreenAwake ? "checkmark.circle.fill" : "sun.max")
+                    }
+                    #endif
+                } label: {
+                    Image("TerminalCircle")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
                 }
             }
         }
@@ -7989,7 +7988,7 @@ private struct SettingsSheet: View {
 /// stopped the old chain — so each tab-switch back to home spawned a new
 /// chain on top of the previous one, doubling/quadrupling perceived
 /// rotation speed until the view tree rebuilt.
-struct PulseRotateIcon: View {
+private struct PulseRotateIcon: View {
     @State private var rotation: Double = 0
     var body: some View {
         Image(systemName: "arrow.triangle.2.circlepath")

@@ -297,14 +297,18 @@ func displayTargetPixels(for data: Data, screenScale: CGFloat) -> CGFloat {
 
 /// [T-inline-code-dark-bg-ios] Inline-code span background, shared by the
 /// theme and the layout manager's fillBackgroundRectArray (the actual paint
-/// site) so the two can never drift. Light stays EXACTLY .systemGray6
-/// (#F2F2F7); dark lifts to #3A3A3C (systemGray4's dark value) — systemGray6
-/// resolves to #1C1C1E in dark, indistinguishable from the near-black chat
-/// background, which made inline code read as bare orange text.
+/// site) so the two can never drift.
+///
+/// Grok alignment (pp 2026-09-16): light mode drops the pill entirely — Grok's light
+/// theme marks inline code by colour alone, no background. Dark keeps the lifted
+/// #3A3A3C (systemGray4), which is there for a logged reason: systemGray6 resolves to
+/// #1C1C1E in dark, indistinguishable from the near-black chat background, and the code
+/// would read as bare text. Clear in light is invisible, not removed: the painter still
+/// owns one code path for both appearances and `.inlineCodeText` keeps driving tap-copy.
 private let minisInlineCodeBackgroundColor = UIColor { traits in
     traits.userInterfaceStyle == .dark
         ? UIColor(red: 0x3A / 255.0, green: 0x3A / 255.0, blue: 0x3C / 255.0, alpha: 1)
-        : .systemGray6
+        : .clear
 }
 
 /// Mirrors the `.minisChat` MarkdownUI theme using UIKit types.
@@ -329,7 +333,16 @@ struct SelectableMarkdownTheme {
         UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.55, green: 0.95, blue: 0.55, alpha: 1) : .systemGreen }
     }
     var inlineCodeBackground: UIColor { minisInlineCodeBackgroundColor }
-    var inlineCodeColor: UIColor { .systemOrange }
+    /// Grok's inline-code orange, sampled from pp's screenshot core ink = #EA6F30.
+    /// Dark mode deliberately keeps the brighter systemOrange: on our #3A3A3C pill the
+    /// sampled orange only reaches ~4.4:1, and readability there outranks pixel parity.
+    var inlineCodeColor: UIColor {
+        UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? .systemOrange
+                : UIColor(red: 0xEA / 255.0, green: 0x6F / 255.0, blue: 0x30 / 255.0, alpha: 1)
+        }
+    }
     var blockquoteBarColor: UIColor { UIColor.systemOrange.withAlphaComponent(0.5) }
     var tableBorderColor: UIColor { UIColor.label.withAlphaComponent(0.25) }
 
@@ -347,15 +360,18 @@ struct SelectableMarkdownTheme {
         return .systemFont(ofSize: size, weight: weight)
     }
 
+    /// Grok's spec: SF Mono 13.5 / weight 400. Its size RELATIVE to body is what we
+    /// match (13.5/16 = 0.844 ≈ our 0.845), not the absolute point size — the chat
+    /// font-size slider drives `baseFontSize`, and inline code must keep scaling with it.
+    /// Face = `.monospacedSystemFont` (SF Mono), with the same PingFang SC cascade
+    /// Menlo had, so CJK inside `code` still renders rather than switching family.
     var inlineCodeFont: UIFont {
         let size = baseFontSize * 0.845
-        if let menlo = UIFont(name: "Menlo", size: size) {
-            let descriptor = menlo.fontDescriptor.addingAttributes([
-                .cascadeList: [UIFontDescriptor(fontAttributes: [.name: "PingFang SC"])]
-            ])
-            return UIFont(descriptor: descriptor, size: size)
-        }
-        return .monospacedSystemFont(ofSize: size, weight: .regular)
+        let mono = UIFont.monospacedSystemFont(ofSize: size, weight: .regular)
+        let descriptor = mono.fontDescriptor.addingAttributes([
+            .cascadeList: [UIFontDescriptor(fontAttributes: [.name: "PingFang SC"])]
+        ])
+        return UIFont(descriptor: descriptor, size: size)
     }
 
     var codeBlockFont: UIFont {

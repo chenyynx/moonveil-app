@@ -40,40 +40,4 @@ final class RootTabRouter: ObservableObject {
     func route(to target: AppSourceMode) {
         mode = target
     }
-
-    /// B14e seam. The whole resting-state top bar (capsule + gear + alarm + terminal
-    /// menu) is drawn by RootModeTabsView so it stays FIXED while both pages slide —
-    /// a control that lived in one page's toolbar can no longer write that page's
-    /// @State directly, so every tap comes back here as a one-shot request, consumed
-    /// and cleared by ContentView. Actions only: no data, no session state.
-    @Published var requestedBarAction: LocalBarAction?
-
-    /// B14d/e flags, all presentation-only and written one-way BY ContentView from its
-    /// own existing sources of truth (see the mirrors in bodyPresentationStage).
-    /// `localAtRoot`: the fixed bar must step aside when the local line pushes a chat
-    /// (the in-toolbar version used to disappear with the push for free).
-    @Published var localAtRoot: Bool = true
-    /// `localSelecting`: while rows are checked the local page's own toolbar draws
-    /// Cancel / Select All, so the fixed bar's copies stand down and nothing doubles.
-    @Published var localSelecting: Bool = false
-    /// Whether an alarm exists → whether the fixed bar draws the alarm button.
-    @Published var barHasAlarms: Bool = false
-    /// The sync pill next to the capsule (upstream's title indicator, same states).
-    @Published var barSyncSubtitle: ContentView.SyncSubtitleState?
-    /// DEBUG-only menu checkmark, mirrored from ContentView's idle-timer flag.
-    @Published var barKeepScreenAwake: Bool = false
-}
-
-/// One control on the fixed top bar, as requested by the shell. `.toolSheet` reuses
-/// the upstream enum so no second source of truth for sheets is born.
-enum LocalBarAction: Equatable {
-    case toolSheet(ToolSheet)
-    case terminal
-    case alarmList
-    #if DEBUG
-    /// Drives ContentView's `keepScreenAwake`, which is itself declared inside
-    /// `#if DEBUG` — so the case has to be DEBUG-only too, otherwise Release builds
-    /// reference a symbol that does not exist (CI 426e2a2).
-    case toggleKeepAwake
-    #endif
 }

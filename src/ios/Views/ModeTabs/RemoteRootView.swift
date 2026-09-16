@@ -29,14 +29,11 @@ struct RemoteRootView: View {
             content
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    // B14c: the capsule is drawn once by RootModeTabsView so it stays
-                    // fixed while the pages slide. This keeps the principal slot the
-                    // same width as the local page's, so the 44pt bar band never jumps
-                    // when the two pages swap places.
                     ToolbarItem(placement: .principal) {
-                        Color.clear
-                            .frame(width: ModeTabPicker.rowWidth(localLabel: soulName, remoteLabel: "Remote"),
-                                   height: ModeTabPicker.rowHeight)
+                        ModeTabPicker(
+                            selection: $tabRouter.mode,
+                            localLabel: soulName
+                        )
                     }
                 }
         }

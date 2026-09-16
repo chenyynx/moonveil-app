@@ -194,3 +194,23 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
   restore the byte, re-baseline FREEZE-MANIFEST (strong gate fails any other shape).
 - Gate: aav2-freeze-check strong mode reverse-verifies "ours == upstream+sed exactly";
   counter-probes done: revoke-await rc=1, second-deviation rc=1, correct state rc=0.
+
+### B14-E — ⛔ REVERTED（2026-09-16 装机即坏，pp 令「还原」）
+- **回退**：`ContentView.swift` + `Views/ModeTabs/` 四件逐字节回到 **cf9e35f**（那一版 ci + iOS Build 双绿），本节以下全部记录为过程账，不再是现状态。
+- **压垮它的缺陷**：`ModeTabPicker` 的 `ZStack` 我写成 `HStack(文字) → capsule`，胶囊成了最后一个子视图 = **画在选中段文字之上** → 真机顶栏是一颗空的灰药丸，"Moonveil" 被盖掉。pp 参考件里顺序是反的（胶囊在前、文字在后）。判例：**照抄参考件时子视图顺序也是规格的一部分，不是排版细节**；这一条在 CI 里永远抓不到（类型全对），只有真机看得见。
+- 下面保留原申报，是为了下次真要做固定栏时不必重新踩：接缝形状、Equatable、DEBUG 垫片、stage 拆分、60fps 闸门那些结论仍然成立。
+
+### B14-E — 固定顶栏搬出 ContentView（2026-09-16, pp「我要的就是平移」+「齿轮不要划走」；已回退）
+- Files: `src/ios/Views/ContentView.swift`（`sidebarToolbarContent` + 新增 `bodyBarSeamStage`）、`Views/ModeTabs/{RootModeTabsView,ModeTabPicker,RemoteRootView,RootTabRouter}.swift`
+- Deviation: resting-state 的齿轮（topBarLeading）、闹钟（topBarTrailing）、五项终端 Menu（topBarTrailing）从 ContentView 的 ToolbarItem 组里摘除；principal 换成等宽 `Color.clear` 占位（顶栏带宽/内缩不变）；`titleSyncIndicator` 逐字搬进外壳（单份，`PulseRotateIcon` 去 private）；新增 `LocalBarAction` 一次性动作接缝 + 五个单向呈现镜像（`localAtRoot / localSelecting / barHasAlarms / barSyncSubtitle / barKeepScreenAwake`）。
+- Why: 两页现在在同一根固定栏下面横向平移（Grok 的结构：栏不属于任何一页）。住在某页 toolbar 里的按钮不可能在页滑动时保持不动。
+- Semantics: 能力面零删减 —— 四颗按钮、菜单五项、指示器四态、点已选段开 sync 迁移详情全部仍在，动作落回 ContentView 自己的 `activeToolSheet / showTerminal / showAlarmList / keepScreenAwake`。勾选态 chrome（Cancel / Select All / "N Selected"）有意不搬：只在勾选时存在、文案要读 `selectedIds`/`sessions`，外壳靠 `localSelecting` 让位不重复。
+- CI: 连红两轮后绿（① modifier 链加长撞 type-check 预算 → 拆独立 stage；② 搬链丢了接收者 `base` + `onChange` 要求 `LocalBarAction: Equatable`；③ DEBUG-only 的 `keepScreenAwake` 被无条件引用 ×4 → `keepAwakeFlag` 垫片）。tip `bdfe1af`：ci + iOS Build 双绿。
+- Gate note: 本地 `swiftc -parse` 对含裸斜杠正则的文件必须加 `-enable-bare-slash-regex`（swiftc 6.0.3 默认关，Xcode 26.2 默认开），否则假红。
+
+### B15-CODE — 行内代码对齐 Grok（2026-09-16, pp「把橙色部分的字体和颜色也对齐 grok」）
+- File: `src/ios/Views/Chat/SelectableMarkdownView.swift`（`SelectableMarkdownTheme` + `minisInlineCodeBackgroundColor`）
+- Deviation: ① 字体 Menlo → **SF Mono**（`.monospacedSystemFont(ofSize: baseFontSize*0.845, weight: .regular)`，PingFang SC cascade 原样保留）；② 浅色行内代码字色 `.systemOrange` → **#EA6F30**（pp 的 Grok 截图取核心墨色中值 234,112,49）；③ 浅色行内代码底色 `.systemGray6` → `.clear`（Grok 浅色只靠颜色标记，无 pill）。
+- Why: Grok 规格表 `Code | SF Mono | 13.5pt | 400`，浅色无底、深色有底；字号比例本来就已对齐（Grok 13.5/16 = 0.844，我们 0.845），所以只换字形不换缩放 —— 聊天字号滑块继续有效。
+- Semantics: 零删减。深色态故意保留 `systemOrange` + 抬亮的 `#3A3A3C` pill：`#EA6F30` 在该底上只有约 4.4:1，而 `[T-inline-code-dark-bg-ios]` 那条案底说明深色为什么不能没有底。点击复制、hair-space 内边距、圆角绘制路径（浅色画透明，仍一条代码路径）全部不变。
+- EXIT: pp 若要连 Grok 深色那套（白字 `#E7E9EA` + `#16181C` 底 + `#2F3336` 0.5pt 描边）一起照抄，改的是同两个属性，届时本条改写不留双份。
