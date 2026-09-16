@@ -84,20 +84,54 @@ struct RootModeTabsView: View {
     /// straight onto reading order: 左滑 → Remote，右滑 → 本机.
     /// Plain `.gesture` on the container: children keep priority, so upstream row
     /// swipe actions, text selection and the capsule's own scrub are unaffected.
+    /// Swipe the page to switch 本机 ⟷ Remote.
+    ///
+    /// B13-SWIPEFIX-2 — the decision moved from onEnded to onChanged. The content here
+    /// is a List/ScrollView: an ancestor DragGesture can be CANCELLED mid-pan once the
+    /// scroll machinery claims the gesture, so an onEnded-only rule often never fires
+    /// at all (that is the 失灵 pp hit). Deciding while the finger is still down makes
+    /// the switch land, and makes the page feel like it follows the swipe.
+    ///
+    /// Fences (kept from the previous pass) so this control does not swallow input that
+    /// already belongs elsewhere: the top bar band (tab control + toolbar slider), the
+    /// bottom-right chat bubble (draggable — ContentView:6002), and any drag that is
+    /// not clearly horizontal.
     private var pageSwipe: some Gesture {
-        DragGesture(minimumDistance: 24)
-            .onEnded { value in
+        // 10pt = SwiftUI's own default drag threshold (there is no system default for
+        // the two numbers below — SwiftUI ships no swipe-to-switch-page control).
+        DragGesture(minimumDistance: 10)
+            .onChanged { value in
                 let dx = value.translation.width
                 let dy = value.translation.height
-                guard abs(dx) > 64, abs(dx) > abs(dy) * 1.6 else { return }
-                let target: AppSourceMode = dx < 0 ? .remote : .local
-                guard target != router.mode else { return }
-                Self.softTick()
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                    router.route(to: target)
+                let start = value.startLocation
+
+                if !swipeArmed {
+                    // B13-SWIPEFIX-5 (pp 终案): 列表横滑 = 切本机/Remote。上一版把范围
+                    // 收窄到顶栏带，等于把他要的功能关了 —— 撤回。现在接受 tab 行以下
+                    // 的所有起点（= 列表区），并且判定在 onChanged，手指还在动就切，
+                    // 因此在时机上先于任何"松手才打开"的行内逻辑。
+                    guard start.y > Self.listAreaTop else { return }
+                    let inBubbleZone = start.y > Self.screenHeight - Self.bubbleZoneHeight
+                        && start.x > Self.screenWidth - Self.bubbleZoneWidth
+                    guard !inBubbleZone else { return }
+                    // Far enough AND clearly (not merely barely) horizontal: 1.0×
+                    // misfires on diagonal list scrolls, 2.2× demanded a textbook-perfect
+                    // swipe and felt dead. 1.2× is the floor where both complaints stop.
+                    guard abs(dx) >= Self.swipeTrigger, abs(dx) > abs(dy) * 1.2 else { return }
+                    swipeArmed = true
+                    let target: AppSourceMode = dx < 0 ? .remote : .local
+                    guard target != router.mode else { return }
+                    Self.softTick()
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                        router.route(to: target)
+                    }
                 }
             }
+            .onEnded { _ in swipeArmed = false }
     }
+
+    /// One switch per gesture: armed on the crossing, reset when the finger lifts.
+    @State private var swipeArmed = false
 
     /// 远程 tab 且未登录且本次启动还没离开过登录盖 → 盖登录页；登录成功(ready)自动收起。
     private var showsLoginGate: Bool {
@@ -109,6 +143,22 @@ struct RootModeTabsView: View {
         let g = UIImpactFeedbackGenerator(style: .soft)
         g.prepare(); g.impactOccurred()
     }
+
+    /// Fences for the page swipe. The shell is the root view, so these are the window
+    /// metrics; no UIKit state is mutated.
+    private static let screenWidth: CGFloat = UIScreen.main.bounds.width
+    private static let screenHeight: CGFloat = UIScreen.main.bounds.height
+    /// Horizontal travel (pt) before a page swipe is claimed. Looser than before
+    /// (44 → 36) because pp kept hitting the "I have to swipe really flat for it to
+    /// register" case. Android's pager uses an 8dp slop + half-page/velocity rule;
+    /// there is no system default for this number on iOS.
+    private static let swipeTrigger: CGFloat = 36
+    /// Swipes starting BELOW this y (window coords) are in the list area — exactly
+    /// where pp wants the mode switch to live. (Tab row itself stays with the capsule.)
+    private static let listAreaTop: CGFloat = 210
+    private static let topBarBottom: CGFloat = 170
+    private static let bubbleZoneWidth: CGFloat = 120
+    private static let bubbleZoneHeight: CGFloat = 160
 
     private var needsLoginGate: Binding<Bool> {
         Binding(
