@@ -70,12 +70,22 @@ private final class CachedViewModel: ObservableObject {
 enum ChatColors {
     static let background = Color(UIColor.systemBackground)
     static let secondaryBg = Color(UIColor.secondarySystemBackground)
-    static let inputIconBg = Color(UIColor.secondarySystemBackground)
+    /// Icon tile background (pp 2026-09-17: 图标的背景底色 #F1F1F1). Light mode is
+    /// the exact value he picked; dark keeps secondarySystemBackground — a pale
+    /// #F1F1F1 tile on a dark bar would glare like a sticker. Unify later if asked.
+    static let inputIconBg = Color(UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor.secondarySystemBackground
+        : UIColor(red: 0xF1 / 255, green: 0xF1 / 255, blue: 0xF1 / 255, alpha: 1) })
     static let inputIconBorder = Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.35, alpha: 1) : UIColor(white: 0, alpha: 0) })
     static let inputBg = Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.12, alpha: 1) : .white })
     static let inputBorder = Color(UIColor.separator)
     static let primaryText = Color(UIColor.label)
     static let secondaryText = Color(UIColor.secondaryLabel)
+    /// Input-bar icon glyph colour (pp 2026-09-17: ➕/、/语音图标改成黑色). Light =
+    /// black; dark keeps secondaryLabel (black on a dark tile would vanish).
+    static let inputIconFg = Color(UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor.secondaryLabel
+        : .black })
     static let tertiaryText = Color(UIColor.tertiaryLabel)
     static let userBubble = Color(UIColor.tertiarySystemFill)
     static let toolBg = Color(UIColor.tertiarySystemGroupedBackground)
@@ -2886,7 +2896,8 @@ struct AIChatView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(.ultraThinMaterial)
+            // Round the fork status strip (pp 2026-09-17: 输入框上面的状态条也圆一点).
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
         }
     }
     #endif
@@ -3177,9 +3188,9 @@ struct AIChatView: View {
         // [T-ios-voiceover-labels] Labelled on the shared `icon` so both the
         // iOS 17 Menu branch and the iOS 16 confirmationDialog branch below
         // announce the same thing; otherwise VoiceOver reads "plus".
-        let icon = Image(systemName: "plus")
-            .font(.system(size: 18, weight: .medium))
-            .foregroundStyle(ChatColors.secondaryText)
+        // Lucide plus (aa-Plus template) — same family as the slash puzzle (pp 2026-09-17).
+        let icon = AppSymbol("plus", size: 22)
+            .foregroundStyle(ChatColors.inputIconFg)
             .frame(width: 34, height: 34)
             .accessibilityLabel(Text("Add attachment", comment: "VoiceOver label for the attachment button"))
             .background(ChatColors.inputIconBg)
@@ -3303,15 +3314,18 @@ struct AIChatView: View {
                 inputFocused = true
             }
         } label: {
-            Text("/")
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .italic()
-                .foregroundStyle(ChatColors.secondaryText)
+            // pp 2026-09-17: 字符 "/" → Lucide puzzle = 仓内 `aa-Puzzle` 资源
+            // （B8 批已搬入,映射 `puzzlepiece.extension` 现成;path 与 pp 发的
+            // SVG 逐字节同,stroke 风格 template 渲染随 inputIconFg）。
+            // AppSymbol 自带 accessibilityHidden,按钮必须自带 label（B16-BAR-ICON 判例）。
+            AppSymbol("puzzlepiece.extension", size: 17)
+                .foregroundStyle(ChatColors.inputIconFg)
                 .frame(width: 34, height: 34)
                 .background(ChatColors.inputIconBg)
                 .clipShape(Circle())
                 .overlay(Circle().stroke(ChatColors.inputIconBorder, lineWidth: 0.5))
         }
+        .accessibilityLabel(Text("Command", comment: "VoiceOver label for the slash-command button"))
     }
 
     /// "Exit Edit Mode" capsule shown while editing a past message.
@@ -3634,8 +3648,10 @@ struct AIChatView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 8)
+                .padding(.horizontal, 12)
                 .frame(maxWidth: .infinity)
-                .background(Color.yellow.opacity(0.08))
+                // Round the status strip (pp 2026-09-17: 输入框上面的状态条也圆一点).
+                .background(Color.yellow.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
             }
 
             VStack(spacing: 5) {
@@ -3658,7 +3674,7 @@ struct AIChatView: View {
                     .padding(.horizontal, 12)
                     .padding(.bottom, 10)
             }
-            .contentShape(RoundedRectangle(cornerRadius: 20))
+            .contentShape(RoundedRectangle(cornerRadius: 26))
             .onTapGesture { inputFocused = true }
             .onReceive(speechManager.$recognizedText) { text in
                 guard speechManager.state == .recording || !text.isEmpty else { return }
@@ -4636,13 +4652,15 @@ struct AIChatView: View {
 /// that lifts the bar off the message list.
 private struct ComposerSurface: ViewModifier {
     private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: 20, style: .continuous)
+        // 20 -> 26 (pp 2026-09-17: 输入框的圆角再圆一点). Still short of a full
+        // capsule; 26 reads rounder with the bubble family without going pill.
+        RoundedRectangle(cornerRadius: 26, style: .continuous)
     }
 
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content
-                .glassEffect(.regular, in: shape)
+                .glassEffect(.regular.interactive(), in: shape)   // AA ChatComposer recipe (B16-INPUTBAR, pp「改成 claudio 那样放大和发亮」)
                 .clipShape(shape)
         } else {
             content
@@ -5823,9 +5841,13 @@ private struct MicButton: View {
         // BOTH the press and release land inside the circle AND movement is tiny.
         // In voice mode: a keyboard glyph = switch back to text input. The keyboard
         // glyph is wider than the mic, so render it ~4pt smaller for parity.
-        Image(systemName: isVoiceActive ? "keyboard" : "mic")
-            .font(.system(size: isVoiceActive ? 15 : 18, weight: .medium))
-            .foregroundStyle(ChatColors.secondaryText)
+        // Lucide mic / keyboard (aa-Mic / aa-Keyboard) — input-bar icons unified on the
+        // Lucide family (pp 2026-09-17). Sizes keep the old optical weight.
+        Group {
+            if isVoiceActive { AppSymbol("keyboard", size: 16) }
+            else { AppSymbol("mic", size: 19) }
+        }
+        .foregroundStyle(ChatColors.inputIconFg)
             .frame(width: Self.diameter, height: Self.diameter)
             .background(ChatColors.inputIconBg)
             .clipShape(Circle())
