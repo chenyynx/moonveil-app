@@ -212,17 +212,24 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - File: `src/ios/Views/Chat/SelectableMarkdownView.swift`（`SelectableMarkdownTheme` + `minisInlineCodeBackgroundColor`）
 - Deviation: ① 字体 Menlo → **SF Mono**（`.monospacedSystemFont(ofSize: baseFontSize*0.845, weight: .regular)`，PingFang SC cascade 原样保留）；② 浅色行内代码字色 `.systemOrange` → **#EA6F30**（pp 的 Grok 截图取核心墨色中值 234,112,49）；③ 浅色行内代码底色 `.systemGray6` → `.clear`（Grok 浅色只靠颜色标记，无 pill）。
 - Why: Grok 规格表 `Code | SF Mono | 13.5pt | 400`，浅色无底、深色有底；字号比例本来就已对齐（Grok 13.5/16 = 0.844，我们 0.845），所以只换字形不换缩放 —— 聊天字号滑块继续有效。
-- Semantics: 零删减。深色态故意保留 `systemOrange` + 抬亮的 `#3A3A3C` pill：`#EA6F30` 在该底上只有约 4.4:1，而 `[T-inline-code-dark-bg-ios]` 那条案底说明深色为什么不能没有底。点击复制、hair-space 内边距、圆角绘制路径（浅色画透明，仍一条代码路径）全部不变。
+- Semantics: 零删减。浅色无底照 pp 令；深色 `#3A3A3C` pill 曾保留（可读性案底见 `[T-inline-code-dark-bg-ios]`），**2026-09-17 已被 B15-CODE3 移除**。点击复制、hair-space 内边距、圆角绘制路径（画透明，仍一条代码路径）全部不变。
 - EXIT: pp 若要连 Grok 深色那套（白字 `#E7E9EA` + `#16181C` 底 + `#2F3336` 0.5pt 描边）一起照抄，改的是同两个属性，届时本条改写不留双份。
 
 ### B15-CODE2 — 行内代码第二次改判：细的根因是字族与字号，不是颜色（2026-09-16, pp「现在这效果字体也细」→「f最像」→「走f」）
 - File: `src/ios/Views/Chat/SelectableMarkdownView.swift`（`SelectableMarkdownTheme.inlineCodeFont` / `inlineCodeColor`）
-- Deviation: ① 字号比例 `0.845` → **`0.95`**；② 字重 `.regular` → **`.medium`**（字族仍是 `.monospacedSystemFont` = SF Mono，PingFang SC cascade 不动）；③ 浅色芯色 `#EA6F30` → `#F5691F` → **`#ED6D2E`**（二次校正：#F5691F 来自 Grok 的重新编码 JPEG，偏红过头；干净 PNG 实测 Grok 实心墨 = `#ED6D2E`）。
+- Deviation: ① 字号比例 `0.845` → **`0.95`**；② 字重 `.regular` → **`.medium`**（字族仍是 `.monospacedSystemFont` = SF Mono，PingFang SC cascade 不动）；③ 浅色芯色 `#EA6F30` → `#F5691F` → `#ED6D2E` → **`#FF6A00`**（2026-09-17 pp 终选「极艳纯橘」：预览阶梯对比后放弃 Grok 对齐路线——他给的 (227,122,69)/(204,113,66) 饱和度 74%/58% 反而低于现役 84%，要「更鲜艳」就直达 100% 饱和的纯橘）。
 - Why（全部逐像素实测，不是眼力活）: 先立对照组——两 App 的**正文**笔画/em = 月纱 0.0926 / Grok 0.0909，基本相同 ⇒ 量法公平。行内代码：月纱 **0.079** vs Grok **0.096**（粗 22%，绝对值 3px vs 4px）；拉伸方向：代码 Latin 步进 22.8px vs 26.1px，而正文 CJK 步进 43.2 vs 44（几乎一致）⇒ **我的代码比 Grok 小一圈**。用 iOS WebKit 渲同尺度探针逐候选量 stroke/em：SF Mono reg ×0.845 = 0.0896（现状，与真机实测 0.0877 互证）、SF Mono **Medium** ×0.95 = 0.1116、Menlo reg ×0.95 = 0.1037、Grok 真机 = 0.0996。
 - 改判关系（本条覆盖 B15-CODE 的字体判决，不留双份）: B15-CODE 把 Menlo 换成 SF Mono、并按 `13.5/16 = 0.844` 定了 0.845，依据是 Grok 的**网页 CSS token 表**。本条实测推翻它：**网页 token 不能当 iOS 规格**，跨端对齐必须量同一平台的截图。字族在 SF Mono Medium（F）与 Menlo Regular（G）之间由 pp 拍板 → **F**（我的票投 G，因为它离 0.0996 更近；F 比目标粗约 12%，可 pp 眼准优先）。
-- Semantics: 零删减。点击复制（`.inlineCodeText`）、hair-space 内边距、圆角绘制路径、浅色无底/深色有底的双态判断全部不动；深色字色仍是 `systemOrange`（可读性理由见上一条，本条只改浅色分支）。字号变大会改变气泡内的换行位置与行高，这是预期效果，不涉及布局算法。
+- Semantics: 零删减。点击复制（`.inlineCodeText`）、hair-space 内边距、圆角绘制路径全部不动；双态底色已统一为无底、双态字色已统一为 #FF6A00（见 B15-CODE3）。字号变大会改变气泡内的换行位置与行高，这是预期效果，不涉及布局算法。
 - ⚠️ 唯一未自证项（真机必须看）: 权重是否真的吃到。`monospacedSystemFont(weight:.medium)` 先取 `fontDescriptor` 再 `UIFont(descriptor:size:)` 回来，这一趟往是为了挂 PingFang cascade；若装机后行内代码**变大了但仍细**，就是 descriptor 往返丢了权重，改法 = 改用 `UIFontDescriptor` 直接带 `.weight` 属性构造，不再从 font 取 descriptor。
 - EXIT: 装机复拍一张同机同字号截图，重测 stroke/em；若超 Grok 太多，只需把 `.medium` 退回 `.regular` 并把比例守在 0.95（即 G 方案的变体），本条改写不留双份。
+
+### B15-CODE3 — 深色模式行内代码底块移除（2026-09-17, pp「把深色模式的那个底块 不要」）
+- File: `src/ios/Views/Chat/SelectableMarkdownView.swift`（`minisInlineCodeBackgroundColor`）
+- Deviation: 深色分支 `#3A3A3C`（systemGray4）pill → **`.clear`**，常量收成单一 `.clear`；与浅色统一为「纯字色无底」。
+- Why: pp 明示，覆盖原 `[T-inline-code-dark-bg-ios]` 案底（systemGray6 在深色解析成 #1C1C1E 会读作裸文本）。视觉决定优先于可读性推导。
+- Semantics: 零删减。painter 仍一条代码路径（画透明）、`.inlineCodeText` 点击复制不变、圆角绘制逻辑与 `.inlineCodeBackground` 标记保留。
+- Dev 增补: 深色字色同时 `.systemOrange` → **#FF6A00**(pp「深色也改」)。底块已无,颜色自己扛对比度(深色背景 ~6:1,过 WCAG AA)。至此双态统一为同一颗纯橘。
 
 ### B14-F — 顶部 tab 回到历史第一版（2026-09-16, pp「改回历史第一版切换tab那版」）
 - File: `src/ios/Views/ModeTabs/ModeTabPicker.swift` 逐字节回到 **`131c261`**（B7 实色轨道 + 白药丸那版：36pt 轨道 / 3pt 内衬 / 14pt semibold / 选中白胶囊 / matchedGeometry / spring(0.28,0.82) / iOS26 轨道走 AA 的 `.glassEffect(.regular.interactive())`、<26 降级 secondarySystemBackground）。
@@ -368,6 +375,59 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - 修法：`RootTabRouter.pageSwipeArmed`（published）—— 外壳在 swipe 确认那一刻置位、抬手复位；`ContentView.sessionList` 的 Group 挂 `.scrollDisabled(pageSwipeArmed)`（纯环境门：只有横向滑动提交期间生效，复位即失效；纯纵向滚动永远不会 armed，普通滚动手感不变）。
 - 死隔离申报：ContentView 是我们已接管的分叉点文件，改动 = 列表上一个环境修饰符，无状态无生命周期无会话逻辑。回归项：非横滑时纵向滚动、行点选/选择、iPad splitList、横滑切页不再带列表位移。
 - 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0；tip c95772a。
+
+### B16-LUCIDE-ICONS — ➕ / 🎤 图标 → Lucide 系（2026-09-17, pp「把➕号和语音那个图标替换成 lucide.dev 里面的图标」）
+- Files: `AIChatView.swift`(两按钮)、`AppSymbolAssets.swift`(+2 映射)、新增 `Assets.xcassets/aa-Mic.imageset` + `aa-Keyboard.imageset`
+- 落地:
+  1. ➕ `Image(systemName: "plus")` → `AppSymbol("plus", size: 22)` —— `aa-Plus` 资源与映射**仓内现成**（B8 批），零新增。
+  2. 🎤 `Image(systemName: isVoiceActive ? "keyboard" : "mic")` → `AppSymbol("mic", 19)` / `AppSymbol("keyboard", 16)` —— 两资源**新增**: 从 jsdelivr `lucide-static v1.46.0` 取官方 SVG（与 pp 给的 lucide.dev 同源），压成 aa- 格式（stroke #000000 + template-rendering-intent），imageset×2; 映射按字符序插入（keyboard/KeyRound 后、mic/Search 后）。
+- 尺寸: 按各自图形在 24 viewBox 的占比反推（plus 14/24→22pt 净≈12.8; mic 20/24→19pt 净≈15.8; keyboard 16/24→16pt 净≈10.7），对齐原 SF 尺寸的光学重量; 真机可微调。
+- a11y: ➕ 的 label 原样保留（挂 icon、两分支共用）; 🎤 原 a11y（.isButton + 两态 label）未动。
+- Semantics: 两按钮行为面零变化（attach Menu/confirmationDialog 两分支、MicButton 自定义手势与阈值全不动）。
+- 死隔离四问: ① 纯图标渲染、无状态分流; ② 无共享路径; ③ 资源走仓内 aa- 管线（官方 SVG 来源）、无新机制; ④ 回归项 = attach 菜单两分支、语音开合、激活态 keyboard 图标、aa-assets 门（91 refs 全命中）绿。
+- 备注: keyboard 是同一按钮的激活态图标（「语音那个图标」的两态一致性），一并换成 Lucide; 不想要可单撤。
+
+### B16-SLASH-ICON — "/" 字符按钮 → Lucide puzzle 图标(2026-09-17, pp「把/这个改成我给你的」+ SVG)
+- File: `src/ios/Views/Chat/AIChatView.swift`(`slashMenuButton`)
+- 落地: `Text("/")` → `AppSymbol("puzzlepiece.extension", size: 17)`(保留 34pt 圆底 / inputIconFg / inputIconBg / 描边结构,零其它改动)。
+- 零新增资源: 仓内 `aa-Puzzle.imageset`(B8 批已搬)+ `AppSymbolAssets` 映射 `puzzlepiece.extension` **全部现成**;比对 pp 发的 SVG path 与 aa-Puzzle.svg 的 path **逐字节相同**(同一颗 Lucide puzzle)。
+- a11y: AppSymbol 自带 `.accessibilityHidden(true)`,补 `.accessibilityLabel(Text("Command"))` —— 用 xcstrings 现成 9 语词条('Command' 已译 de/es/fr/ja/ko/zh),不新增键(B9 判例)。
+- Semantics: 按钮 tap 行为(slash 菜单开合 + 聚焦)一字未动;纯图形替换。
+- 死隔离四问: ① AIChatView 本机+远端共用,纯图标渲染、无状态分流;② 无共享路径;③ 资源与映射都是仓内现成件(B16-BAR-ICON 判据:换图标先查仓内同名件),零新机制;④ 回归项 = slash 菜单开合、点按热区 34pt、深浅色(模板渲染跟随 inputIconFg)。
+
+### B16-INPUTBAR — 输入栏:interactive 玻璃放大发亮 + 三图标黑字/#F1F1F1 底 + 圆角(2026-09-17, pp「把输入框改成 claudio 那样放大和发亮…➕号、/号、语音图标改成黑色,背景底色 #F1F1F1…输入框的圆角再圆一点,输入框上面的状态条也圆一点」）
+- File: `src/ios/Views/Chat/AIChatView.swift`（单文件）
+- 四处:
+  1. `ComposerSurface` 输入框玻璃 `.regular` → `.regular.interactive()`（AA ChatComposer 同款配方;按压/聚焦时系统放大 + 提亮）。
+  2. `ChatColors.inputIconBg` 浅色 → `#F1F1F1`（深色保持 secondarySystemBackground，避免深色条上泛白贴纸感）;新增 `ChatColors.inputIconFg`（浅色纯黑 / 深色 secondaryLabel）;三颗图标（➕ attachment / ⌗ slash / 🎤 MicButton）foregroundStyle 从 secondaryText → inputIconFg。
+  3. 输入框圆角 `20 → 26`（ComposerSurface shape 与 inputBar contentShape 同步）。
+  4. Fork 状态条（"Fork to Continue"，浮在输入框上方的毛玻璃条）`.background(.ultraThinMaterial)` 直角 → `in: RoundedRectangle(cornerRadius: 14)`;顺手把 isSuspended 挂起黄条也圆了 12（pp 未点名，留档可撤）。
+- Why: pp 与 claudio（AA）输入框对齐——interactive 玻璃是 AA ChatComposer 官方配方;图标黑 / #F1F1F1 是 pp 指定值;圆角是他目测「再圆一点」。
+- Semantics: 纯视觉，零删减。三图标 tap 动作、Menu 分支、MicButton 自定义手势、Fork/挂起条出现条件、玻璃绘制路径全不动。
+- 死隔离四问: ① AIChatView 本机+远端共用，但只动视觉常数与形状，两端同渲染、无状态分流;② 无共享文件路径;③ interactive 玻璃 = AA 官方配方，图标色/圆角 = 普通 SwiftUI 形状，无新机制;④ 回归项 = 深色模式图标底/glyph 未动（保持原样）、语音波形面板（InlineVoiceInputView）未动、Fork 条文字与动作未动。
+- 遗留（pp 已默许）: 深色模式图标底/glyph 保持原样未统一;黄条圆角 12 为顺手改、非点名。
+
+### B16-SWIPE-DIR — 横滑切页的方向分辨改判:速度裁决 + 一次锁存/拒绝 + simultaneous(2026-09-17, pp「左右滑动还是容易滑成上下」→「看业界 chatgpt、claude 怎么精准分辨滑动」→「动手」）
+- File: `src/ios/Views/ModeTabs/RootModeTabsView.swift`（pageSwipe 单处）
+- 业界调研（2026-09-17）: ChatGPT/Claude iOS 的侧栏 = 左缘 ~20pt 起手 + 跟手 + flick 裁决——**边缘起手带（edge gate）是他们"精准"的第一层**；同一触摸区域内的精准分辨 = UIKit 三件套：`gestureRecognizerShouldBegin`（begin 前用 velocity 裁决）+ `isDirectionalLockEnabled`（锁轴）+ 一次判定不回头。pp 明确不做侧栏，只取"精准分辨"机制。
+- 三处改判:
+  1. `.gesture` → **`.simultaneousGesture`**: plain gesture 会被 List 的滚动机制 claim 后 CANCEL（B13-SWIPEFIX-2 已记录），判定再准也半路死；simultaneous 全程并行跟踪。
+  2. 判定依据 translation → **velocity**: SwiftUI 无裸 velocity，`predictedEndTranslation - translation` 即速度向量（缩放）。累积 translation 被拇指弧线污染（B16-SNAP-ARC 同根），这是"看起来很平的横滑被判成纵滚"的直接原因。1.2× 比率保留（pp 09-16 给的数），语义从位移比变速度比。
+  3. **一次裁决 + 双锁存态**: 横向胜 → armed（切页 + pageSwipeArmed 冻列表）；纵向胜 → `swipeRejected`（本手势内彻底退出，列表自然滚）；含糊对角拖到 24pt 按速度主轴强制裁决。旧 36pt translation 闸门（swipeTrigger）删除——速度判定不需要长跑道，12pt 起判。
+- 防锁死: `@GestureState swipeInFlight` + onChange 复位（end 与 cancel 都落点，ModeTabPicker B16-GLASS-HOST 判例）；onEnded-only 复位漏 cancel 路径。
+- Semantics: 切页能力面零变化（列表区横滑 = 切页，左 Remote 右本机，soft 触感，spring 0.28/0.82）；栅栏零变化（顶栏带/气泡区/listAreaTop）；scrollDisabled 冻结门不变。判得准了，不是判得少了。
+- 死隔离四问: ① RootModeTabsView 是我们接管的分叉件，远端不经它；② 无共享路径；③ 无新机制发明（velocity 裁决/方向锁是 UIKit 公认机制的 SwiftUI 等价实现）；④ 回归项 = 纵滚不受影响（rejected 路径）、横滑切页成功率高且不再边滚、tap/行点选不受影响（simultaneous 只在 ≥12pt 拖动激活）、齿轮/胶囊不受影响、已在本页方向滑动（target==mode）仍 armed 冻列表到抬手。
+- 真机风险: ① 极慢拖动时 predictedEnd 噪声大（慢速预测量小）——含糊则 24pt 强制裁决兜底；② 极端弧线误判纵为横——velocityRatio 1.2 可收紧。EXIT: 装机若仍偏"易纵"，先调 velocityRatio（1.2 → 1.1）再查。
+
+### B16-DRAG-GLASS — 拖动的胶囊 = 真玻璃本体跟手 + 自绘发光放大（2026-09-17, pp 截图「拖动的那个是灰块…我要的是拖动的那个做玻璃效果发光放大」）
+- File: `src/ios/Views/ModeTabs/ModeTabPicker.swift`（单文件）
+- 结构改判: 玻璃从「挂在选中段文字上、拖动中静止 + 灰块 ghost 跟手」改为**独立胶囊层** —— `ZStack { GlassEffectContainer { pillLayer }; labelRow }`，文字层是容器**外**的兄弟视图，永远画在玻璃之上（容器只把玻璃合成在**内部**兄弟之上——114541b 盖字事故的机制边界，够不着容器外的视图）。灰块 ghost（`Color.primary.opacity(0.07)`）整个删除。
+- 拖动语义: pillLayer 位置由 `interpolatedRect()`（selection.slot + progress，越界阻尼 0.32）自驱，拖动中 1:1 跟手；松手 `withAnimation(settle)` spring 吸附。发光+放大自绘（`dragScale 1.06` + 白高光 sheen 0.22/0.14，colorScheme 分档）——`.interactive()` 在装饰层上不生效（B16-PILL-FEEL 判例），发光放大从来只能自己画。
+- 有意放弃: 系统的 glassEffectID 形变（@Namespace/glassEffectID 随单颗玻璃结构移除）。morph 无对象后，点按/松手的切换动画 = settle spring 滑动（Grok 网页 matchedGeometry 同款视觉，B7 时代原效果）。pp 2026-09-17 指令的直接结果。
+- 弃用令翻案（留字据）: 2026-09-16「拖动吸附不用触感」只覆盖**触觉**；本次 pp 亲口要回视觉发光放大——不冲突，触觉仍静默。
+- 🔴 编译门新判例: availability 检查是**词法**的 —— 调用点的 `if #available` 保护不了 callee 体内的 iOS26 API；`pillLayer` 必须自己标 `@available(iOS 26.0, *)`。旧 TabGlass 靠体内自带分支才过；本批写完自查抓回，CI 前拦截。
+- Semantics: 手势面零改动（3pt slop / 方向一次判定+锁存+拒绝 / @GestureState 复位 / didScrub 0.15s / 就近吸附 / 越界阻尼 / onLocalRetap / soft 点按触感全保留）；`<26` 降级 = legacyPillLayer（secondarySystemBackground+描边，SearchBarSurface 家规），能力面持平。真机风险: 玻璃逐帧 offset 的帧率——若掉帧，回退路径 = 拖动中玻璃静止+ghost（B16-SEGMENT-GLASS 形态），台账在此留档。
+- 死隔离四问: ① ModeTabPicker 是我们接管的分叉件，远端渲染不经它，零影响；② 无共享文件路径；③ 玻璃配方沿用官方 glassEffect/GlassEffectContainer（仅交互驱动方式改为自驱位置，无新机制发明）；④ 回归项 = 点按切换 spring 滑动、onLocalRetap、纵向让列表、齿轮玻璃不受影响、<26 降级、深浅色两态、盖字不复发。
 
 ### B16-GLASS-HOST — 玻璃挂错宿主（40pt 整段 vs 30pt 标签带）+ 拖动永久卡死（2026-09-16, pp「顶部tab又变这样了」「拖都拖不了了」「是那个玻璃没有附在那个上面」）
 - **玻璃没附在字上**：`TabGlass` 挂在"整行 40pt 的段"上 ⇒ 胶囊高 40pt（不是量出来的 30pt），看着就是浮在字周围的一块大白片。修 = 修饰符移进 Button 的 label 里、包住 **30pt 标签带**（胶囊贴字，点按热区仍整行，glassEffectID 各段共享 ⇒ 系统形变不变）。
