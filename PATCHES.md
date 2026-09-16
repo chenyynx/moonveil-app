@@ -215,6 +215,15 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - Semantics: 零删减。深色态故意保留 `systemOrange` + 抬亮的 `#3A3A3C` pill：`#EA6F30` 在该底上只有约 4.4:1，而 `[T-inline-code-dark-bg-ios]` 那条案底说明深色为什么不能没有底。点击复制、hair-space 内边距、圆角绘制路径（浅色画透明，仍一条代码路径）全部不变。
 - EXIT: pp 若要连 Grok 深色那套（白字 `#E7E9EA` + `#16181C` 底 + `#2F3336` 0.5pt 描边）一起照抄，改的是同两个属性，届时本条改写不留双份。
 
+### B15-CODE2 — 行内代码第二次改判：细的根因是字族与字号，不是颜色（2026-09-16, pp「现在这效果字体也细」→「f最像」→「走f」）
+- File: `src/ios/Views/Chat/SelectableMarkdownView.swift`（`SelectableMarkdownTheme.inlineCodeFont` / `inlineCodeColor`）
+- Deviation: ① 字号比例 `0.845` → **`0.95`**；② 字重 `.regular` → **`.medium`**（字族仍是 `.monospacedSystemFont` = SF Mono，PingFang SC cascade 不动）；③ 浅色芯色 `#EA6F30` → **`#F5691F`**。
+- Why（全部逐像素实测，不是眼力活）: 先立对照组——两 App 的**正文**笔画/em = 月纱 0.0926 / Grok 0.0909，基本相同 ⇒ 量法公平。行内代码：月纱 **0.079** vs Grok **0.096**（粗 22%，绝对值 3px vs 4px）；拉伸方向：代码 Latin 步进 22.8px vs 26.1px，而正文 CJK 步进 43.2 vs 44（几乎一致）⇒ **我的代码比 Grok 小一圈**。用 iOS WebKit 渲同尺度探针逐候选量 stroke/em：SF Mono reg ×0.845 = 0.0896（现状，与真机实测 0.0877 互证）、SF Mono **Medium** ×0.95 = 0.1116、Menlo reg ×0.95 = 0.1037、Grok 真机 = 0.0996。
+- 改判关系（本条覆盖 B15-CODE 的字体判决，不留双份）: B15-CODE 把 Menlo 换成 SF Mono、并按 `13.5/16 = 0.844` 定了 0.845，依据是 Grok 的**网页 CSS token 表**。本条实测推翻它：**网页 token 不能当 iOS 规格**，跨端对齐必须量同一平台的截图。字族在 SF Mono Medium（F）与 Menlo Regular（G）之间由 pp 拍板 → **F**（我的票投 G，因为它离 0.0996 更近；F 比目标粗约 12%，可 pp 眼准优先）。
+- Semantics: 零删减。点击复制（`.inlineCodeText`）、hair-space 内边距、圆角绘制路径、浅色无底/深色有底的双态判断全部不动；深色字色仍是 `systemOrange`（可读性理由见上一条，本条只改浅色分支）。字号变大会改变气泡内的换行位置与行高，这是预期效果，不涉及布局算法。
+- ⚠️ 唯一未自证项（真机必须看）: 权重是否真的吃到。`monospacedSystemFont(weight:.medium)` 先取 `fontDescriptor` 再 `UIFont(descriptor:size:)` 回来，这一趟往是为了挂 PingFang cascade；若装机后行内代码**变大了但仍细**，就是 descriptor 往返丢了权重，改法 = 改用 `UIFontDescriptor` 直接带 `.weight` 属性构造，不再从 font 取 descriptor。
+- EXIT: 装机复拍一张同机同字号截图，重测 stroke/em；若超 Grok 太多，只需把 `.medium` 退回 `.regular` 并把比例守在 0.95（即 G 方案的变体），本条改写不留双份。
+
 ### B14-F — 顶部 tab 回到历史第一版（2026-09-16, pp「改回历史第一版切换tab那版」）
 - File: `src/ios/Views/ModeTabs/ModeTabPicker.swift` 逐字节回到 **`131c261`**（B7 实色轨道 + 白药丸那版：36pt 轨道 / 3pt 内衬 / 14pt semibold / 选中白胶囊 / matchedGeometry / spring(0.28,0.82) / iOS26 轨道走 AA 的 `.glassEffect(.regular.interactive())`、<26 降级 secondarySystemBackground）。
 - 为什么不是 `b5323bb`（真正的第一个 commit）：那版用 GeometryReader 供宽，在 `ToolbarItem(.principal)` 里没有固有尺寸 → 塌成 ~10pt 细条（当时真机实报）。`131c261` 与它只差 `trackWidth = 200` 一行，是第一版里**唯一能正常显示**的那版。

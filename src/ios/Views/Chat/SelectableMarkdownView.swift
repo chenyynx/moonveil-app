@@ -333,14 +333,17 @@ struct SelectableMarkdownTheme {
         UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.55, green: 0.95, blue: 0.55, alpha: 1) : .systemGreen }
     }
     var inlineCodeBackground: UIColor { minisInlineCodeBackgroundColor }
-    /// Grok's inline-code orange, sampled from pp's screenshot core ink = #EA6F30.
+    /// Grok's inline-code orange, re-sampled = #F5691F. The previous #EA6F30 was the
+    /// median of the screenshot's core ink; put Grok's crop and a rendered swatch
+    /// through the SAME @3x encode step and Grok reads #FA650A while #EA6F30 lands
+    /// duller beside it. pp picked this value off the preview (2026-09-16).
     /// Dark mode deliberately keeps the brighter systemOrange: on our #3A3A3C pill the
     /// sampled orange only reaches ~4.4:1, and readability there outranks pixel parity.
     var inlineCodeColor: UIColor {
         UIColor { traits in
             traits.userInterfaceStyle == .dark
                 ? .systemOrange
-                : UIColor(red: 0xEA / 255.0, green: 0x6F / 255.0, blue: 0x30 / 255.0, alpha: 1)
+                : UIColor(red: 0xF5 / 255.0, green: 0x69 / 255.0, blue: 0x1F / 255.0, alpha: 1)
         }
     }
     var blockquoteBarColor: UIColor { UIColor.systemOrange.withAlphaComponent(0.5) }
@@ -360,14 +363,18 @@ struct SelectableMarkdownTheme {
         return .systemFont(ofSize: size, weight: weight)
     }
 
-    /// Grok's spec: SF Mono 13.5 / weight 400. Its size RELATIVE to body is what we
-    /// match (13.5/16 = 0.844 ≈ our 0.845), not the absolute point size — the chat
-    /// font-size slider drives `baseFontSize`, and inline code must keep scaling with it.
-    /// Face = `.monospacedSystemFont` (SF Mono), with the same PingFang SC cascade
-    /// Menlo had, so CJK inside `code` still renders rather than switching family.
+    /// Ratios measured off pp's iOS screenshots (2026-09-16), not off Grok's web CSS
+    /// token table: Grok's inline code sits at 0.95 of body size with SF Mono MEDIUM
+    /// stems. Stroke/em measured through one @3x pipeline: Grok 0.0996, our shipped
+    /// SF Mono regular 0.090 (same-size Menlo regular 0.104, SF Mono medium 0.112) —
+    /// so the old "SF Mono 13.5pt / weight 400 → ratio 0.845" note was taken from
+    /// Grok's WEB tokens, which do not describe its iOS rendering, and the shipped code
+    /// read small AND thin next to it. Ledger: B15-CODE2 in PATCHES.md.
+    /// Size stays a RATIO of `baseFontSize` so the chat font-size slider keeps working,
+    /// and the PingFang SC cascade stays so CJK inside `code` does not switch family.
     var inlineCodeFont: UIFont {
-        let size = baseFontSize * 0.845
-        let mono = UIFont.monospacedSystemFont(ofSize: size, weight: .regular)
+        let size = baseFontSize * 0.95
+        let mono = UIFont.monospacedSystemFont(ofSize: size, weight: .medium)
         let descriptor = mono.fontDescriptor.addingAttributes([
             .cascadeList: [UIFontDescriptor(fontAttributes: [.name: "PingFang SC"])]
         ])
