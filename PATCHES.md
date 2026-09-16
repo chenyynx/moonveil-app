@@ -395,6 +395,31 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - Semantics: 按钮 tap 行为(slash 菜单开合 + 聚焦)一字未动;纯图形替换。
 - 死隔离四问: ① AIChatView 本机+远端共用,纯图标渲染、无状态分流;② 无共享路径;③ 资源与映射都是仓内现成件(B16-BAR-ICON 判据:换图标先查仓内同名件),零新机制;④ 回归项 = slash 菜单开合、点按热区 34pt、深浅色(模板渲染跟随 inputIconFg)。
 
+### B16-USERBUBBLE — 用户气泡改 AA-式实色 + 暖调(2026-09-17, pp「把用户发的气泡改为 aa 那种实色，然后颜色调一下 比 aa 暖调一点」)
+- Files: `Chat/AIChatView.swift`(`ChatColors.userBubble`)、`Chat/ChatMessageViews.swift`(`UserBubbleSurface` + `ContextMenuPreviewSurface`)
+- 改动:
+  1. `userBubble`: `UIColor.tertiarySystemFill`(半透明) → **实色微暖**(定稿:浅 `#F0F0EE` R-B=2 / 深 `#22211F` R-B=3)。调温链:初版 `#F6F0E7`(R-B=15,太暖)→ `#F1EFEA`(R-B=6,砍半)→ 按 pp 参照截图实测 `#EFEFED`(R=G、B-2)收短为定稿。AA 原值 = light `Color(white:0.94)` / dark `Color(white:0.13)`(源码实证:`aa-ios` 的 `SessionTimelineRow.UserMessageBubble`);暖调 = R 上抬、B 下压、亮度持平。
+  2. `UserBubbleSurface`: 删 iOS 26 的 `.glassEffect(.regular, in: shape)` 分支 → 全 OS 统一实色填充(pp 要实色的确定感,不再采样身后内容)。
+  3. `ContextMenuPreviewSurface`: 同步改实色——本文件注释的既有约束「浮板必须与气泡一致,长按抬起不能跳变」;实色自带不透明底,[T-ios-longpress-menu-preview-background] 透明快照 bug 不会复发。
+- 未动: queued 态(空填充+虚线)不变;usage 小徽章(`userBubble.opacity(0.6)`)沿用同一常量、会随之略微变暖(同色系,未单独改);气泡形状 `RoundedRectangle(cornerRadius: 18)` 不动(与 contextMenuPreview 的 contentShape 对齐,注释有约束);AA 远端线原装实色不受影响。
+- 死隔离四问: ① **已验证** RemoteKit/AuthAA/ModeTabs 不引用 `UserBubbleSurface`/`ChatColors`——本改动只影响本机线;远端 AA 线原装(本就实色),零接触;② 无共享路径;③ 无新机制(普通 Color 常量 + fill);④ 回归项 = 本机:发送/已发送气泡(浅深两态)、长按预览、queued 虚线、滚动流畅度(实色无材质合成更省)。
+
+### B16-SCROLLBTN-GLASS — 浮动滚动按钮(上/下)改液态玻璃(2026-09-17, pp 截图「把这个按钮改为液态玻璃」)
+- File: `src/ios/Views/Chat/AIChatView.swift`(`scrollFloatingButtonLabel` + 新增 `ScrollFloatingGlass` ViewModifier)
+- 落地: 36pt 圆钮背景 systemBackground 近不透明盘 + 灰描边 + 手搓阴影 → **iOS 26 走 `.glassEffect(.regular.tint(.white).interactive(), in: .circle)`**(浅色白玻璃,与顶部胶囊同一材质语言;深色原色玻璃不 tint);**<26 降级保留原圆盘全套**(描边/阴影,[T-ios-scrollbtn-invisible-lightmode] 可读性修复件不能丢)。手搓描边/阴影只在 <26 保留——iOS 26 玻璃自带边缘光,叠加即贴纸感(B16-NO-SHADOW 判例)。
+- interactive: 两颗是真 Button(齿轮 B16-GEAR 先例)——按压发亮由系统给。
+- 图标色: `.secondary` → `ChatColors.inputIconFg`(pp 2026-09-17 追加「图标颜色改黑色」;与输入栏三图标同一「图标黑」常数,浅色纯黑/深色 secondaryLabel)。
+- 历史教训对齐: 当年「半透明白 0.5 在白底不可读」用加深圆盘修;玻璃是 blur+折射材质,可读性机制不同,且白 tint 对齐胶囊(装机已验证的观感)。EXIT: 若真机浅色可读性差,回退该钮为降级圆盘(单处撤)。
+- Semantics: 显隐条件(isNearBottom/isAtFirstTurn)、tap 动作(forceScrollToTop/Bottom)、transition、capsuleProtectedFrame 全不动;纯材质。BrowserDownloadFloatingButton 未点名不动。
+- 死隔离四问: ① AIChatView 本机+远端共用,纯视觉、tap 行为不变;② 无共享路径;③ 配方全部仓内既有先例(齿轮 interactive/FAB tint/胶囊白);④ 回归项 = 两端:按钮显隐、上下翻页动作、<26 外观、深浅色、按压反馈。
+
+### B16-SWIPE-SCOPE — 横滑切页收窄到根列表页,聊天页禁用(2026-09-17, pp「为什么聊天页滑动也能滑到remote页?」)
+- File: `src/ios/Views/ModeTabs/RootModeTabsView.swift`(pageSwipe onChanged 栅栏区,单处)
+- 改动: 起点栅栏最前面加 `guard router.localAtRoot else { return }` —— 本机已 push 进聊天页时整个横滑手势直接退出;只有根列表页(会话列表)才切页。
+- 语义对齐: B13-SWIPEFIX-5 的「列表区横滑=切页」本意就是**会话列表**;聊天页(会话内)横滑无消费场景,误触反而打断阅读/滚动。Remote 侧当前无聊天页(connected 态仅状态卡),不受影响;将来 Remote 会话页上线时同规则适用(仍走这一个栅栏位)。
+- Semantics: 手势其余部分零变化(速度裁决/锁存/拒绝态/scrollDisabled 门);只加作用域栅栏,localAtRoot 为 B16-GEAR 建的现成镜像状态(只读)。
+- 死隔离四问: ① RootModeTabsView 为我们接管文件;② localAtRoot 只读、原消费者(齿轮让位)不受影响;③ 无新机制;④ 回归项 = 根列表页横滑切页如常、聊天页横滑不再切页、齿轮让位逻辑不受影响。
+
 ### B16-PILL-WHITE — 静息胶囊发灰的修复:content 显式透明 + 浅色 white tint(2026-09-17, pp 装机 5e1ad0c「顶部胶囊还是灰色啊」)
 - File: `src/ios/Views/ModeTabs/ModeTabPicker.swift`(`pillLayer`)
 - 双重根因:
