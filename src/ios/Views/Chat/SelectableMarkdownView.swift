@@ -1785,10 +1785,11 @@ final class CodeBlockAttachment: NSTextAttachment {
         expandButton.frame = CGRect(x: max(0, contentWidth - 44), y: (headerHeight - 44) / 2, width: 44, height: 44)
         if let onExpand {
             let expandDebounce = CopyDebounce()
-            let performExpand: () -> Void = {
+            let performExpand: () -> Void = { [weak self] in
+                guard let self else { return }
                 guard Date().timeIntervalSince(expandDebounce.last) > 0.3 else { return }
                 expandDebounce.last = Date()
-                onExpand(code, language)
+                onExpand(self.code, self.language)
             }
             expandButton.addAction(UIAction { _ in performExpand() }, for: .touchUpInside)
             let expandTapHandler = CodeCopyTapHandler(perform: performExpand)
@@ -9541,15 +9542,14 @@ enum CodeSyntaxHighlighter {
     private static func paint(
         _ out: NSMutableAttributedString, _ range: Range<String.Index>, _ color: UIColor, in code: String
     ) {
-        guard let r = Range(range, in: code) else { return }
-        out.addAttribute(.foregroundColor, color, range: NSRange(r, in: code))
+        out.addAttribute(.foregroundColor, value: color, range: NSRange(range, in: code))
     }
 
     private static func paintUTF16(
         _ out: NSMutableAttributedString, _ nsRange: NSRange, _ color: UIColor
     ) {
         guard nsRange.location != NSNotFound, NSMaxRange(nsRange) <= out.length else { return }
-        out.addAttribute(.foregroundColor, color, range: nsRange)
+        out.addAttribute(.foregroundColor, value: color, range: nsRange)
     }
 
     /// True when ch can appear in an identifier/keyword word.
@@ -9664,7 +9664,8 @@ enum CodeSyntaxHighlighter {
                     }
                     i = code.index(after: i)
                 }
-                ranges.append((tagStart..<code.index(tagStart, offsetBy: 1, limitedBy: code.endIndex) ?? code.endIndex, theme.hlTag))
+                let ltEnd = code.index(tagStart, offsetBy: 1, limitedBy: code.endIndex) ?? code.endIndex
+                ranges.append((tagStart..<ltEnd, theme.hlTag))
                 continue
             }
             i = code.index(after: i)
@@ -9689,7 +9690,7 @@ enum CodeSyntaxHighlighter {
     /// body range, offsetting painted ranges back into the host string.
     private static func rehighlightEmbedded(
         _ code: String, out: NSMutableAttributedString, openTag: String, closeTag: String,
-        theme: SelectableMarkdownTheme, apply: (Substring, NSMutableAttributedString, SelectableMarkdownTheme) -> Void
+        theme: SelectableMarkdownTheme, apply: (String, NSMutableAttributedString, SelectableMarkdownTheme) -> Void
     ) {
         var searchStart = code.startIndex
         while let openRange = code.range(of: openTag, range: searchStart..<code.endIndex) {
@@ -9697,7 +9698,7 @@ enum CodeSyntaxHighlighter {
             guard let closeRange = code.range(of: closeTag, range: bodyOpen..<code.endIndex) else { break }
             let body = code[bodyOpen..<closeRange.lowerBound]
             let inner = NSMutableAttributedString(attributedString: out.attributedSubstring(from: NSRange(bodyOpen..<closeRange.lowerBound, in: code)))
-            apply(body, inner, theme)
+            apply(String(body), inner, theme)
             out.replaceCharacters(in: NSRange(bodyOpen..<closeRange.lowerBound, in: code), with: inner)
             searchStart = closeRange.upperBound
         }
@@ -9794,11 +9795,9 @@ enum CodeSyntaxHighlighter {
                 s = prev
             }
             let span = s..<brace.lowerBound
-            if let r = Range(span, in: code) {
-                let text = code[r]
-                if !text.contains("@") {
-                    paint(out, span, theme.hlTag, in: code)
-                }
+            let text = code[span]
+            if !text.contains("@") {
+                paint(out, span, theme.hlTag, in: code)
             }
             i = brace.upperBound
         }
