@@ -403,6 +403,15 @@ struct SelectableMarkdownTheme {
                 : UIColor(red: 0x8A / 255.0, green: 0x8A / 255.0, blue: 0x86 / 255.0, alpha: 1)
         }
     }
+    /// [B16-CODE-CARD-FIX] Card outline ring — the preview's 1px border was
+    /// never ported to the UIKit card ("周围的线呢"): light #E3E3E0 / dark #2A2A29.
+    var codeBlockCardBorderColor: UIColor {
+        UIColor {
+            $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0x2A / 255.0, green: 0x2A / 255.0, blue: 0x29 / 255.0, alpha: 1)
+                : UIColor(red: 0xE3 / 255.0, green: 0xE3 / 255.0, blue: 0xE0 / 255.0, alpha: 1)
+        }
+    }
     var inlineCodeBackground: UIColor { minisInlineCodeBackgroundColor }
     /// Inline-code orange, final: saturated pure orange #FF6A00 (255,106,0) in BOTH
     /// appearances (pp 2026-09-17: 深色也改 — the dark pill is gone, so the colour
@@ -1538,6 +1547,11 @@ final class CodeBlockAttachment: NSTextAttachment {
     /// [B16-CODE-CARD] Associated-object key for the fullscreen button's tap
     /// handler — same double-bind survival pattern as the copy button.
     static var expandTapHandlerKey: UInt8 = 0
+    /// [B16-CODE-FULLSCREEN-FIX] Fence language for the expand action, stored
+    /// per button (associated) so the action closure doesn't capture the
+    /// attachment — streaming swaps the attachment on every render pass while
+    /// the view is reused, which made a captured self go nil (dead button).
+    static var expandLanguageKey: UInt8 = 0
 
     /// [B16-CODE-CARD] Rasterizes a vector asset-catalog icon (lucide aa-*) to a
     /// fixed point size. `UIImage(named:)` returns the SVG's intrinsic 24pt and
@@ -1617,6 +1631,8 @@ final class CodeBlockAttachment: NSTextAttachment {
         let container = UIView()
         container.backgroundColor = theme.codeBlockBackground
         container.layer.cornerRadius = theme.codeBlockCornerRadius
+        container.layer.borderWidth = 1.0 / UIScreen.main.scale   // [B16-CODE-CARD-FIX] card outline (was missing on device)
+        container.layer.borderColor = theme.codeBlockCardBorderColor.cgColor
         container.clipsToBounds = true
 
         let headerHeight: CGFloat = 36   // [B16-CODE-CARD] fixed header strip (label + divider)
@@ -1783,21 +1799,26 @@ final class CodeBlockAttachment: NSTextAttachment {
         expandButton.setImage(Self.headerIcon(named: "aa-Maximize2", size: 18), for: .normal)
         expandButton.tintColor = headerTint
         expandButton.frame = CGRect(x: max(0, contentWidth - 44), y: (headerHeight - 44) / 2, width: 44, height: 44)
-        if let onExpand {
-            let expandDebounce = CopyDebounce()
-            let performExpand: () -> Void = { [weak self] in
-                guard let self else { return }
-                guard Date().timeIntervalSince(expandDebounce.last) > 0.3 else { return }
-                expandDebounce.last = Date()
-                onExpand(self.code, self.language)
-            }
-            expandButton.addAction(UIAction { _ in performExpand() }, for: .touchUpInside)
-            let expandTapHandler = CodeCopyTapHandler(perform: performExpand)
-            let expandTap = UITapGestureRecognizer(target: expandTapHandler, action: #selector(CodeCopyTapHandler.handleTap))
-            expandTap.cancelsTouchesInView = false
-            expandButton.addGestureRecognizer(expandTap)
-            objc_setAssociatedObject(expandButton, &Self.expandTapHandlerKey, expandTapHandler, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        } else {
+        // [B16-CODE-FULLSCREEN-FIX] The expand action must NOT capture the
+        // attachment: streaming replaces the attachment object on every render
+        // pass while the view is reused via updateExistingView — a captured
+        // `self` goes nil the moment the old attachment is released and the
+        // button dies silently ("点击全屏没反应"). Read the LIVE code from the
+        // text view instead (same pattern as performCopy) and keep only the
+        // fence language (immutable per fence) on an associated object.
+        objc_setAssociatedObject(expandButton, &Self.expandLanguageKey, language, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        let performExpand: () -> Void = { [weak codeTextView, weak expandButton] in
+            guard let tv = codeTextView, let btn = expandButton else { return }
+            let lang = objc_getAssociatedObject(btn, &Self.expandLanguageKey) as? String
+            tv.onExpandCode?(tv.text, lang)
+        }
+        expandButton.addAction(UIAction { _ in performExpand() }, for: .touchUpInside)
+        let expandTapHandler = CodeCopyTapHandler(perform: performExpand)
+        let expandTap = UITapGestureRecognizer(target: expandTapHandler, action: #selector(CodeCopyTapHandler.handleTap))
+        expandTap.cancelsTouchesInView = false
+        expandButton.addGestureRecognizer(expandTap)
+        objc_setAssociatedObject(expandButton, &Self.expandTapHandlerKey, expandTapHandler, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        if onExpand == nil {
             expandButton.isHidden = true
         }
         headerView.addSubview(expandButton)
