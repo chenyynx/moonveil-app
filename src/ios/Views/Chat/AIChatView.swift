@@ -87,7 +87,15 @@ enum ChatColors {
         ? UIColor.secondaryLabel
         : .black })
     static let tertiaryText = Color(UIColor.tertiaryLabel)
-    static let userBubble = Color(UIColor.tertiarySystemFill)
+    /// AA-式实色用户气泡（pp 2026-09-17:「改为 aa 那种实色，比 aa 暖调一点」）。
+    /// 定稿过程: AA 原值 = light `Color(white: 0.94)` / dark `Color(white: 0.13)`;
+    /// 初版暖调 R-B=15 被 pp「不要这么暖」砍半，再按 pp 参照截图实测
+    /// `#EFEFED`(239,239,237;R=G、B-2 的极轻暖)收短 → 最终浅 #F0F0EE R-B=2 /
+    /// 深 #22211F R-B=3(与参照图几乎一致)。
+    /// 实底让正文与行内代码的对比度比半透明填充更稳（滚动按钮的可读性判例同源）。
+    static let userBubble = Color(UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0x22 / 255, green: 0x21 / 255, blue: 0x1F / 255, alpha: 1)
+        : UIColor(red: 0xF0 / 255, green: 0xF0 / 255, blue: 0xEE / 255, alpha: 1) })
     static let toolBg = Color(UIColor.tertiarySystemGroupedBackground)
     static let toolBorder = Color(UIColor.separator).opacity(0.5)
     static let accent = Color(UIColor.label)
@@ -2766,19 +2774,18 @@ struct AIChatView: View {
         }
     }
 
-    /// Shared label style for the floating scroll buttons (up / down), matching
-    /// the original scroll-to-bottom button look.
+    /// Shared label style for the floating scroll buttons (up / down).
+    /// [B16-SCROLLBTN-GLASS] pp 2026-09-17: 改液态玻璃 —— 与顶部胶囊同一份「白玻璃」
+    /// 语言(浅色 tint(.white),深色原色);真控件走 .interactive()(齿轮先例,按压发亮)。
+    /// <26 降级保留原 ScrollToBottomBackground 近不透明圆盘(可读性修复件不能丢)。
     private func scrollFloatingButtonLabel(_ systemName: String) -> some View {
         Image(systemName: systemName)
             .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(.secondary)
+            // pp 2026-09-17: 图标改黑 —— 与输入栏三图标同一「图标黑」常数
+            // (浅色纯黑 / 深色 secondaryLabel)。
+            .foregroundStyle(ChatColors.inputIconFg)
             .frame(width: 36, height: 36)
-            .background { ScrollToBottomBackground().clipShape(Circle()) }
-            // Border + shadow give the near-opaque disc its edge on a white
-            // page — at 0.25/0.12 the button had no readable outline over
-            // plain reply text. [T-ios-scrollbtn-invisible-lightmode]
-            .overlay(Circle().stroke(Color.gray.opacity(0.35), lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.18), radius: 5, y: 2)
+            .modifier(ScrollFloatingGlass())
     }
 
     /// Background color for the scroll-to-bottom button.
@@ -2793,6 +2800,28 @@ struct AIChatView: View {
         @Environment(\.colorScheme) private var colorScheme
         var body: some View {
             Color(.systemBackground).opacity(colorScheme == .dark ? 0.8 : 0.92)
+        }
+    }
+
+    /// [B16-SCROLLBTN-GLASS] Liquid glass for the floating scroll buttons (iOS 26+);
+    /// <26 keeps the near-opaque disc (readability fix, do not drop). Light mode
+    /// pushes the glass white to match the mode pill (tint 先例: ContentView:4321
+    /// fabCircleSurface / ModeTabPicker pillLayer); interactive() because these
+    /// are real controls (gear precedent B16-GEAR).
+    private struct ScrollFloatingGlass: ViewModifier {
+        @Environment(\.colorScheme) private var colorScheme
+        func body(content: Content) -> some View {
+            if #available(iOS 26.0, *) {
+                content
+                    .glassEffect(colorScheme == .light
+                        ? Glass.regular.tint(.white).interactive()
+                        : Glass.regular.interactive(), in: .circle)
+            } else {
+                content
+                    .background { ScrollToBottomBackground().clipShape(Circle()) }
+                    .overlay(Circle().stroke(Color.gray.opacity(0.35), lineWidth: 0.5))
+                    .shadow(color: .black.opacity(0.18), radius: 5, y: 2)
+            }
         }
     }
 

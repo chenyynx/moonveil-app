@@ -95,14 +95,10 @@ private struct ContextMenuPreviewSurface: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content
-                // Opaque floor first — see the note above.
-                .background(shape.fill(ChatColors.background))
-                .glassEffect(.regular, in: shape)
-        } else {
-            content.background(ChatColors.background)
-        }
+        // [B16-USERBUBBLE] 跟着气泡改实色（pp 2026-09-17）：长按抬起时不能从实色
+        // 跳成玻璃/白卡（本文件顶部的匹配约束）。实色自带不透明底，
+        // [T-ios-longpress-menu-preview-background] 的透明快照 bug 不会复发。
+        content.background(shape.fill(ChatColors.userBubble))
     }
 }
 
@@ -111,11 +107,9 @@ private struct ContextMenuPreviewSurface: ViewModifier {
 ///
 /// Two states that must stay tellable apart at a glance:
 ///
-///  - **Sent** (`isQueued == false`) — Liquid Glass on iOS 26+. These bubbles
-///    scroll over other messages, images and code blocks, so the material has
-///    genuinely varied content to sample; this is the case glass is for, the
-///    same as the tool-status bar and unlike `FolderSurface`, which had to fall
-///    back to a sampled constant for want of anything behind it.
+///  - **Sent** (`isQueued == false`) — AA-式实色平涂（pp 2026-09-17 改判；原为
+///    iOS 26 Liquid Glass）。实色给「已落定的消息」以平涂确定感，并与远端 AA 线
+///    的用户气泡观感统一（AA = `Color(white: 0.94/0.13)`，我们是它的暖调版）。
 ///  - **Queued** (`isQueued == true`) — deliberately NOT glass, on either OS.
 ///    Glass reads as a settled, physical surface, which is the opposite of what
 ///    a not-yet-sent message means. It keeps the existing empty fill + dashed
@@ -147,9 +141,9 @@ private struct UserBubbleSurface: ViewModifier {
                         .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
                         .foregroundStyle(ChatColors.secondaryText.opacity(0.5))
                 )
-        } else if #available(iOS 26.0, *) {
-            content.glassEffect(.regular, in: shape)
         } else {
+            // [B16-USERBUBBLE] AA-式实色平涂（pp 2026-09-17）。原 iOS 26 Liquid Glass
+            // 分支按指令删除：用户气泡要实色的确定感（AA 同款），不再采样身后的内容。
             content.background(shape.fill(ChatColors.userBubble))
         }
     }
