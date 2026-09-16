@@ -340,3 +340,10 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - 新增全域自查：`grep -rn "@ViewBuilder _ [a-z]*: Content)" src/ios/` —— 本轮扫出 0 处同类遗漏。
 - 铁律执行：只改签名，`GlassEffectContainer` / `glassEffectID` 一个没删、没降级、没换实现。
 - 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0；tip be9fca6。
+
+### B16-FIX-GROUP — 同一个措辞第二次红：裸 `if #available` 后接链式 modifier（2026-09-16, run 35068323175）
+- 报错带位置才看清：`RootModeTabsView.swift:200:10: error: instance member 'padding' cannot be used on type 'View'` —— 上一笔我只修了 picker 的 `glassRow`（值参→闭包），**齿轮这里是同一类的另一种形状**：`@ViewBuilder var gearButton` 里裸写 `if #available { A } else { B }` 然后在 if/else 之后接 `.padding`。编译器把该条件式解析成 `View` 存在类型 ⇒ 下一个 modifier 就是"在协议类型上调实例方法"。
+- 修法：条件式包进 `Group { … }`，分支就有了具体合并类型。**这不是我发明的写法** —— 本 target 里早就编译通过的两种姿势：`ModeTabPicker.pill` 用 Group；`ContentView` 的 `SearchBarSurface` / `FABGlassMorphID` 用 `ViewModifier`（后者还证明了 `glassEffectID(_:in:)` 收 `Namespace.ID` 是对的签名）。
+- 铁律执行：只加一层 Group，容器、`glassEffectID`、控件身上的 interactive 玻璃、iOS<26 降级分支**一个没删、没降级**。
+- 全域自查（新增）：扫 `if #available` 分支结束后第一行以 `.` 开头的写法 —— 本轮两个 ModeTabs 文件已无残留。
+- 🔴 **编译门第五类的完整表述**（合并 B16-FIX-CLOSURE）：`@ViewBuilder` 上下文里，**任何"链式 modifier 接在一个无法确定具体类型的表达式上"**都会报 `instance member 'X' cannot be used on type 'View'`，两种触发形状：① 泛型包装函数把 ViewBuilder 参数写成值参（`_ content: Content`）；② 裸 `if #available`/`if-else` 条件式后直接接 modifier。**定位口诀不变**：报错行的 modifier 不是凶手，往上找它挂在那个表达式上，那个表达式就是凶手。
