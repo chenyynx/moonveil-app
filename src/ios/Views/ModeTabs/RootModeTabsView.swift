@@ -130,6 +130,7 @@ struct RootModeTabsView: View {
                     // swipe and felt dead. 1.2× is the floor where both complaints stop.
                     guard abs(dx) >= Self.swipeTrigger, abs(dx) > abs(dy) * 1.2 else { return }
                     swipeArmed = true
+                    router.pageSwipeArmed = true
                     let target: AppSourceMode = dx < 0 ? .remote : .local
                     guard target != router.mode else { return }
                     Self.softTick()
@@ -138,7 +139,10 @@ struct RootModeTabsView: View {
                     }
                 }
             }
-            .onEnded { _ in swipeArmed = false }
+            .onEnded { _ in
+                swipeArmed = false
+                router.pageSwipeArmed = false
+            }
     }
 
     /// One switch per gesture: armed on the crossing, reset when the finger lifts.

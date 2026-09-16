@@ -2760,6 +2760,11 @@ struct ContentView: View {
                 splitList
             }
         }
+        // B16: a committed horizontal page swipe (shell's pageSwipe, armed state on the
+        // router) must not ALSO scroll the list vertically — pp 2026-09-16
+        // 「左右滑动页面的时候容易滑到上下」. scrollDisabled is a pure environment gate:
+        // it only matters while armed, and the armed state resets on finger lift.
+        .scrollDisabled(tabRouter.pageSwipeArmed)
         // Hardware ⌘F → focus search, available while the session list is on
         // screen (iPad/Mac keyboards). A zero-opacity button carries the
         // shortcut without affecting layout; it lives in the list's view tree so

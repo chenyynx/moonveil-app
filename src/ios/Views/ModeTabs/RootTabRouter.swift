@@ -55,4 +55,11 @@ final class RootTabRouter: ObservableObject {
     /// `localSelecting` — while rows are checked the page's own toolbar shows Cancel at
     /// this edge, so the fixed gear stands down instead of doubling it.
     @Published var localSelecting: Bool = false
+
+    /// True while a horizontal page swipe is ARMED (the shell has committed to switching
+    /// tabs for this gesture). The session lists read this and freeze their scroll, so a
+    /// horizontal swipe can no longer also scroll the list vertically
+    /// (pp 2026-09-16「左右滑动页面的时候容易滑到上下」). Reset when the finger lifts or
+    /// the mode settles.
+    @Published var pageSwipeArmed: Bool = false
 }
