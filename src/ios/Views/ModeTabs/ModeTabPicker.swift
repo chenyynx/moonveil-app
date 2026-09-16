@@ -66,6 +66,11 @@ struct ModeTabPicker: View {
     /// Set when the first real travel was clearly vertical: the list owns this gesture,
     /// and we stay out of it until the finger lifts.
     @State private var directionRejected = false
+    /// True while a scrub gesture is actually in flight. @GestureState auto-resets when
+    /// the gesture ends OR IS CANCELLED — the @State latches above do not, which is
+    /// exactly how one cancelled drag could leave `directionRejected` stuck on and make
+    /// the pill undraggable until the next selection change (pp:「拖都拖不了了大哥」).
+    @GestureState private var gestureInFlight = false
     /// Namespace for the selected segment's morphing glass (AA: `@Namespace private var glass`).
     @Namespace private var glassNS
 
@@ -109,6 +114,12 @@ struct ModeTabPicker: View {
     /// that the verdict happens almost immediately, so an arcing drag still reads as
     /// horizontal — the ratio only has to hold for these first few points.
     private static let directionDecideDistance: CGFloat = 6
+    /// Clearly-vertical threshold: |dy| this many times bigger than |dx| hands the
+    /// gesture to the list.
+    private static let verticalRatio: CGFloat = 1.5
+    /// Ambiguous diagonal is allowed to stay undecided this far; past it we simply take
+    /// the dominant axis instead of refusing (that refusal was 「拖都拖不了」).
+    private static let directionForceDistance: CGFloat = 20
 
     private var label: (AppSourceMode) -> String {
         { $0 == .local ? localLabel : remoteLabel }
@@ -152,6 +163,16 @@ struct ModeTabPicker: View {
             directionLocked = false
             directionRejected = false
         }
+        .onChange(of: gestureInFlight) { inFlight in
+            // Fires on end AND on cancellation. Without this a single cancelled drag
+            // leaves the latches stuck and the pill refuses every later drag.
+            if !inFlight {
+                directionLocked = false
+                directionRejected = false
+                isDragging = false
+                progress = 0
+            }
+        }
     }
 
     @ViewBuilder
@@ -184,8 +205,6 @@ struct ModeTabPicker: View {
             HStack(spacing: Self.segmentSpacing) {
                 ForEach(AppSourceMode.allCases) { mode in
                     segment(mode)
-                        .frame(width: slotWidth(mode), height: Self.rowHeight)
-                        .modifier(TabGlass(isSelected: mode == selection, namespace: glassNS))
                 }
             }
         }
@@ -193,17 +212,27 @@ struct ModeTabPicker: View {
     }
 
     private func segment(_ mode: AppSourceMode) -> some View {
-        Button {
+        let selected = mode == selection
+        return Button {
             tap(mode)
         } label: {
             Text(label(mode))
                 .font(.system(size: Self.labelSize, weight: Self.labelWeight))
                 .foregroundStyle(Color.primary)     // 两段都黑字（pp 09-16）
                 .lineLimit(1)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
+                // glass wraps THIS 30pt band, not the whole 40pt row: applying it to the
+                // row-sized segment made the capsule 10pt too tall and it read as a fat
+                // white sticker (pp: 「顶部tab又变这样了」). Same 30pt the calibration
+                // measured off Grok — the pill's height must not grow just because the
+                // system draws it now.
+                .frame(height: Self.pillHeight)
                 .contentShape(Rectangle())
+                .modifier(TabGlass(isSelected: selected, namespace: glassNS))
         }
         .buttonStyle(SegmentButtonStyle())
+        // Tap area stays the full row height; only the material hugs the label.
+        .frame(width: slotWidth(mode), height: Self.rowHeight)
     }
 
     /// Ghost rect while scrubbing: `selection.slot + progress`, with the overhang past
@@ -268,6 +297,7 @@ struct ModeTabPicker: View {
     /// Scrub: follow the finger, then SNAP TO NEAREST on release (pp ④) — no 28% gate.
     private func scrubGesture() -> some Gesture {
         DragGesture(minimumDistance: Self.dragSlop, coordinateSpace: .local)
+            .updating($gestureInFlight) { _, state, _ in state = true }
             .onChanged { value in
                 if !directionLocked {
                     // A rejected gesture stays rejected — otherwise a thumb that arcs
@@ -275,18 +305,23 @@ struct ModeTabPicker: View {
                     // lurch after the list already started scrolling.
                     if directionRejected { return }
                     let dx = abs(value.translation.width), dy = abs(value.translation.height)
-                    // 🔴 Judge the direction ONCE, at the first meaningful travel, then
-                    // stick with it. The old code re-tested the ratio on EVERY event, so
-                    // a thumb dragging in a natural arc (dx 60 / dy 50 by the end) never
-                    // passed 1.35 → no follow AND no emphasis. That is the
-                    // 「时而能发光放大时而不能」 pp saw: it depended on the arc of the
-                    // finger, not on the control.
                     guard max(dx, dy) > Self.directionDecideDistance else { return }
-                    guard dx > dy * Self.horizontalRatio else {
+                    if dx > dy * Self.horizontalRatio {
+                        // Clearly sideways → ours.
+                        directionLocked = true
+                    } else if dy > dx * Self.verticalRatio {
+                        // Clearly vertical → the list owns it, for good.
                         directionRejected = true
                         return
+                    } else if max(dx, dy) > Self.directionForceDistance {
+                        // Diagonal and past the point of no return: take the dominant
+                        // axis. Rejecting on the FIRST ambiguous sample is what made the
+                        // pill feel undraggable — real thumbs almost never start at a
+                        // perfect angle.
+                        if dx >= dy { directionLocked = true } else { directionRejected = true; return }
+                    } else {
+                        return
                     }
-                    directionLocked = true
                 }
                 // Emphasis starts the instant we claim the gesture — not after the
                 // finger has travelled further.
