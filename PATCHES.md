@@ -355,3 +355,10 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - 代价说明：胶囊的系统形变（同 ID 拉伸）随之放弃 —— 那需要玻璃长在"含文字的那个视图"上（选中段自带玻璃 + 共享 ID 形变），是下一轮可选方向，pp 要再上。
 - 齿轮保留容器 + glassEffectID（同包实测图标正常）。
 - 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0；tip 4bbe0b0。
+
+### B16-SEGMENT-GLASS — 玻璃长在选中段身上 + 拖动变便宜影子（2026-09-16, pp「看不到字了」+「拖着还是卡 应该是随意拖拽很顺滑啊」）
+- 结构终案：**玻璃 = 选中段自己的背景**（`TabGlass` modifier：`.glassEffect(.regular.interactive(), in: .capsule)` + 两段共享一个 `glassEffectID("modePill")`），装进 `GlassEffectContainer(spacing:12)`。字是玻璃自己的内容 ⇒ 永不被盖（上轮兄弟胶囊盖字的病根断根）；`.interactive()` 因长在真控件上而生效；切换时系统把玻璃从旧段形变到新段 = "拉长延伸"，不用我画。
+- 拖动 = **便宜影子**：`isDragging` 时一颗 `Color.primary.opacity(0.07)` 的纯色胶囊垫在标签下跟手（非玻璃 ⇒ 不会被容器拎到字上；纯色 ⇒ 每帧重绘很便宜），松手淡出，真玻璃由系统形变过去。
+- 🔴 "还是卡"的真根因（两个）：① 旧代码 `interpolatedRect` 把 index **钳死在 0...1** ⇒ 手指拖过一档后胶囊停死，往回拖还有死区才动 ⇒ 修成**越界只阻尼不钳死**（edgeResistance 0.32，继续动）；② 容器玻璃逐帧跟手指重渲染 = 真机上很贵 ⇒ 玻璃拖动中静止、形变只发生在松手。
+- 删（全是我自己上批造的、被系统行为替代的过渡件）：胶囊自绘 scale/高光 emphasised、pressedMode 回传、旧独立 pill 视图。保留交互面：跟手、方向早判锁存拒绝态、静默就近吸附、点按 soft、onLocalRetap、整行热区、iOS<26 实色降级。
+- 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0；tip a7fa896。
