@@ -347,3 +347,11 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - 铁律执行：只加一层 Group，容器、`glassEffectID`、控件身上的 interactive 玻璃、iOS<26 降级分支**一个没删、没降级**。
 - 全域自查（新增）：扫 `if #available` 分支结束后第一行以 `.` 开头的写法 —— 本轮两个 ModeTabs 文件已无残留。
 - 🔴 **编译门第五类的完整表述**（合并 B16-FIX-CLOSURE）：`@ViewBuilder` 上下文里，**任何"链式 modifier 接在一个无法确定具体类型的表达式上"**都会报 `instance member 'X' cannot be used on type 'View'`，两种触发形状：① 泛型包装函数把 ViewBuilder 参数写成值参（`_ content: Content`）；② 裸 `if #available`/`if-else` 条件式后直接接 modifier。**定位口诀不变**：报错行的 modifier 不是凶手，往上找它挂在那个表达式上，那个表达式就是凶手。
+
+### B16-GLASS-REVERT — 胶囊的容器玻璃盖住了选中文字，回退为普通背景玻璃（2026-09-16, pp 装机 114541b「现在成这样了 看不到字了」）
+- 🔴 **机制（判例，可泛化）**：`GlassEffectContainer` 会把它里面的玻璃**合成在兄弟视图之上**。我们的胶囊是 ZStack 里**垫在标签后面的独立视图**，进容器后它的玻璃被系统拎到文字上面 ⇒ 选中标签整颗被白色玻璃盖住 = "空胶囊看不到字"。（齿轮没事：它的玻璃是控件自己的背景，图标住在玻璃里，和 AA composer 的文字一样。）
+- 修法：picker 摘掉 `GlassEffectContainer` / `glassEffectID("modePill")` / `@Namespace` / `glassSpacing`（净 −30 行），胶囊回到"普通背景玻璃 + 标签在上"（本仓 B14e 就立过"ORDER IS A SPEC"的家规，我违背了它才出事）。按压缩放与白高光是自绘的（这套在 34e1a32 上 pp 已确认"发光放大有了"），所以观感不变。
+- 铁律申报：交互面一字未减 —— 跟手、方向早判+锁存+拒绝态、就近吸附、拖动静默、点按 soft、onLocalRetap、整条热区全保留；iOS<26 降级未动。只换了胶囊材质的渲染路径。
+- 代价说明：胶囊的系统形变（同 ID 拉伸）随之放弃 —— 那需要玻璃长在"含文字的那个视图"上（选中段自带玻璃 + 共享 ID 形变），是下一轮可选方向，pp 要再上。
+- 齿轮保留容器 + glassEffectID（同包实测图标正常）。
+- 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0；tip 4bbe0b0。
