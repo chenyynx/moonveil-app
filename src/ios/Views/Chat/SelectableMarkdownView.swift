@@ -333,17 +333,18 @@ struct SelectableMarkdownTheme {
         UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.55, green: 0.95, blue: 0.55, alpha: 1) : .systemGreen }
     }
     var inlineCodeBackground: UIColor { minisInlineCodeBackgroundColor }
-    /// Grok's inline-code orange, re-sampled = #F5691F. The previous #EA6F30 was the
-    /// median of the screenshot's core ink; put Grok's crop and a rendered swatch
-    /// through the SAME @3x encode step and Grok reads #FA650A while #EA6F30 lands
-    /// duller beside it. pp picked this value off the preview (2026-09-16).
+    /// Grok's inline-code orange, re-sampled from a CLEAN lossless PNG of the iOS app
+    /// (not the re-encoded JPEG the #F5691F guess came from) = #ED6D2E. The #F5691F
+    /// value over-corrected: the app reads Grok's own #EA6F30 as ~#E47137, so the only
+    /// trustworthy target is Grok's actual solid ink. pp asked to re-match after the
+    /// shipped build looked duller/browner than Grok (2026-09-16).
     /// Dark mode deliberately keeps the brighter systemOrange: on our #3A3A3C pill the
     /// sampled orange only reaches ~4.4:1, and readability there outranks pixel parity.
     var inlineCodeColor: UIColor {
         UIColor { traits in
             traits.userInterfaceStyle == .dark
                 ? .systemOrange
-                : UIColor(red: 0xF5 / 255.0, green: 0x69 / 255.0, blue: 0x1F / 255.0, alpha: 1)
+                : UIColor(red: 0xED / 255.0, green: 0x6D / 255.0, blue: 0x2E / 255.0, alpha: 1)
         }
     }
     var blockquoteBarColor: UIColor { UIColor.systemOrange.withAlphaComponent(0.5) }
