@@ -62,7 +62,10 @@ struct RootModeTabsView: View {
         .sheet(isPresented: $router.showSettings) {
             SettingsSheet(showTerminal: .constant(false))
         }
-        .gesture(pageSwipe)   // B12: swipe the page to switch 本机 ⟷ Remote
+        .simultaneousGesture(pageSwipe)   // B12: swipe the page to switch 本机 ⟷ Remote
+        .onChange(of: swipeInFlight) { inFlight in
+            if !inFlight { resetSwipeState() }   // end AND cancellation both land here
+        }
         .task {
             guard !didRestore else { return }
             didRestore = true
@@ -90,45 +93,56 @@ struct RootModeTabsView: View {
     }
 
     /// Page-level horizontal swipe = the same mode switch as the capsule.
-    /// Mostly-horizontal (|dx| > 1.6·|dy|) and past 64pt, evaluated on END so a
-    /// vertical scroll never gets hijacked mid-drag. Two tabs, so the direction maps
-    /// straight onto reading order: 左滑 → Remote，右滑 → 本机.
-    /// Plain `.gesture` on the container: children keep priority, so upstream row
-    /// swipe actions, text selection and the capsule's own scrub are unaffected.
-    /// Swipe the page to switch 本机 ⟷ Remote.
+    /// 左滑 → Remote，右滑 → 本机. Two tabs, so the direction maps straight onto
+    /// reading order.
     ///
-    /// B13-SWIPEFIX-2 — the decision moved from onEnded to onChanged. The content here
-    /// is a List/ScrollView: an ancestor DragGesture can be CANCELLED mid-pan once the
-    /// scroll machinery claims the gesture, so an onEnded-only rule often never fires
-    /// at all (that is the 失灵 pp hit). Deciding while the finger is still down makes
-    /// the switch land, and makes the page feel like it follows the swipe.
+    /// B16-SWIPE-DIR (2026-09-17, pp「左右滑动还是容易滑成上下」→ 业界调研后拍板动手):
+    /// the verdict now follows the UIKit playbook that keeps row-swipe actions and
+    /// vertical scrolling coexisting in every list app:
+    ///   1. SIMULTANEOUS gesture — a plain `.gesture` gets CANCELLED mid-pan once the
+    ///      List's scroll machinery claims the touch (B13-SWIPEFIX-2 already noted
+    ///      this); no verdict survives that. `.simultaneousGesture` tracks in parallel
+    ///      to the very last event.
+    ///   2. VELOCITY, not accumulated translation — translation is polluted by the
+    ///      thumb's natural arc (横滑时 dy 也在涨), which is exactly why flat-looking
+    ///      swipes kept reading as vertical. SwiftUI has no bare velocity;
+    ///      `predictedEndTranslation - translation` IS the velocity vector (scaled).
+    ///   3. ONE verdict per gesture + latched/rejected states — horizontal wins →
+    ///      armed (page switches, list frozen via scrollDisabled); vertical wins →
+    ///      rejected, this gesture never touches the page again and the list scrolls
+    ///      untouched. Ambiguous diagonals are forced at 24pt onto the dominant axis.
+    ///      This is `gestureRecognizerShouldBegin` + `isDirectionalLockEnabled`, the
+    ///      only way SwiftUI lets us have them.
     ///
-    /// Fences (kept from the previous pass) so this control does not swallow input that
-    /// already belongs elsewhere: the top bar band (tab control + toolbar slider), the
-    /// bottom-right chat bubble (draggable — ContentView:6002), and any drag that is
-    /// not clearly horizontal.
+    /// Fences unchanged: the top bar band (tab control + toolbar slider), the
+    /// bottom-right chat bubble (draggable — ContentView:6002), anything above the
+    /// list area. B13-SWIPEFIX-5 scope stays: every start point BELOW the tab row is
+    /// ours to judge (判定在 onChanged，先于任何"松手才打开"的行内逻辑).
     private var pageSwipe: some Gesture {
-        // 10pt = SwiftUI's own default drag threshold (there is no system default for
-        // the two numbers below — SwiftUI ships no swipe-to-switch-page control).
         DragGesture(minimumDistance: 12)   // pp 2026-09-16: directionLockDistance = 12pt
+            .updating($swipeInFlight) { _, state, _ in state = true }
             .onChanged { value in
+                if swipeRejected || swipeArmed { return }   // verdict is final per gesture
+
                 let dx = value.translation.width
                 let dy = value.translation.height
                 let start = value.startLocation
 
-                if !swipeArmed {
-                    // B13-SWIPEFIX-5 (pp 终案): 列表横滑 = 切本机/Remote。上一版把范围
-                    // 收窄到顶栏带，等于把他要的功能关了 —— 撤回。现在接受 tab 行以下
-                    // 的所有起点（= 列表区），并且判定在 onChanged，手指还在动就切，
-                    // 因此在时机上先于任何"松手才打开"的行内逻辑。
-                    guard start.y > Self.listAreaTop else { return }
-                    let inBubbleZone = start.y > Self.screenHeight - Self.bubbleZoneHeight
-                        && start.x > Self.screenWidth - Self.bubbleZoneWidth
-                    guard !inBubbleZone else { return }
-                    // Far enough AND clearly (not merely barely) horizontal: 1.0×
-                    // misfires on diagonal list scrolls, 2.2× demanded a textbook-perfect
-                    // swipe and felt dead. 1.2× is the floor where both complaints stop.
-                    guard abs(dx) >= Self.swipeTrigger, abs(dx) > abs(dy) * 1.2 else { return }
+                guard start.y > Self.listAreaTop else { return }
+                let inBubbleZone = start.y > Self.screenHeight - Self.bubbleZoneHeight
+                    && start.x > Self.screenWidth - Self.bubbleZoneWidth
+                guard !inBubbleZone else { return }
+
+                let travel = max(abs(dx), abs(dy))
+                guard travel >= Self.directionDecideDistance else { return }
+
+                // Velocity vector = predicted remaining travel: intent, not arc history.
+                let vx = abs(value.predictedEndTranslation.width - dx)
+                let vy = abs(value.predictedEndTranslation.height - dy)
+
+                if abs(vx) > abs(vy) * Self.velocityRatio
+                    || (travel >= Self.directionForceDistance && vx >= vy) {
+                    // Horizontal wins → switch once, freeze the list, latch until lift.
                     swipeArmed = true
                     router.pageSwipeArmed = true
                     let target: AppSourceMode = dx < 0 ? .remote : .local
@@ -137,16 +151,30 @@ struct RootModeTabsView: View {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
                         router.route(to: target)
                     }
+                } else if abs(vy) > abs(vx) * Self.velocityRatio
+                    || travel >= Self.directionForceDistance {
+                    // Vertical wins → leave this gesture alone for good.
+                    swipeRejected = true
                 }
-            }
-            .onEnded { _ in
-                swipeArmed = false
-                router.pageSwipeArmed = false
             }
     }
 
-    /// One switch per gesture: armed on the crossing, reset when the finger lifts.
+    /// One verdict per gesture; cleared on lift AND on cancellation (a cancelled pan
+    /// never delivers onEnded — ModeTabPicker's gestureInFlight lesson, B16).
+    private func resetSwipeState() {
+        swipeArmed = false
+        swipeRejected = false
+        router.pageSwipeArmed = false
+    }
+
+    /// One verdict per gesture: armed/rejected at the crossing, cleared on lift or
+    /// cancellation via the @GestureState watch in body (an onEnded-only reset misses
+    /// cancelled pans — one stuck latch made the swipe dead until the next page change).
     @State private var swipeArmed = false
+    /// Vertical verdict for the CURRENT gesture: the list owns it, we stay out until lift.
+    @State private var swipeRejected = false
+    /// True while the pan is in flight; its auto-reset fires on end AND cancellation.
+    @GestureState private var swipeInFlight = false
 
     // MARK: - Fixed gear (B16)
 
@@ -247,11 +275,15 @@ struct RootModeTabsView: View {
     /// metrics; no UIKit state is mutated.
     private static let screenWidth: CGFloat = UIScreen.main.bounds.width
     private static let screenHeight: CGFloat = UIScreen.main.bounds.height
-    /// Horizontal travel (pt) before a page swipe is claimed. Looser than before
-    /// (44 → 36) because pp kept hitting the "I have to swipe really flat for it to
-    /// register" case. Android's pager uses an 8dp slop + half-page/velocity rule;
-    /// there is no system default for this number on iOS.
-    private static let swipeTrigger: CGFloat = 36
+    /// B16-SWIPE-DIR: verdict/force distances + velocity ratio. The old 36pt
+    /// translation gate is gone — velocity needs no long runway; judged as soon as
+    /// the pan has 12pt of travel (its own minimumDistance), forced by 24pt.
+    /// Android's pager uses an 8dp slop + half-page/velocity rule; no iOS default.
+    private static let directionDecideDistance: CGFloat = 12
+    private static let directionForceDistance: CGFloat = 24
+    /// pp 2026-09-16 gave 1.2 for the translation test; velocity is a cleaner signal,
+    /// so the same 1.2 carries over as the dominance ratio.
+    private static let velocityRatio: CGFloat = 1.2
     /// Swipes starting BELOW this y (window coords) are in the list area — exactly
     /// where pp wants the mode switch to live. (Tab row itself stays with the capsule.)
     private static let listAreaTop: CGFloat = 210
