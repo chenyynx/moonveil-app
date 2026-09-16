@@ -310,7 +310,7 @@ private let minisInlineCodeBackgroundColor: UIColor = .clear
 /// Mirrors the `.minisChat` MarkdownUI theme using UIKit types.
 struct SelectableMarkdownTheme {
     let baseFontSize: CGFloat
-    let codeBlockCornerRadius: CGFloat = 8
+    let codeBlockCornerRadius: CGFloat = 23   // [B16-CODE-CARD] Claude light-card corner — R≈69px@3x = 23pt, measured off pp's screenshot arc fit
     let inlineCodeCornerRadius: CGFloat = 5
 
     init(baseFontSize: CGFloat? = nil) {
@@ -323,10 +323,85 @@ struct SelectableMarkdownTheme {
     var accentColor: UIColor { .systemOrange }
     var linkColor: UIColor { .systemBlue }
     var codeBlockBackground: UIColor {
-        UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.15, alpha: 1) : .black }
+        // [B16-CODE-CARD] Claude-style card (pp 2026-09-17 screenshots): light =
+        // white card, dark = #20201F warm dark gray. The old light .black +
+        // systemGreen "terminal" look is retired. Header strip colors below.
+        UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0x20 / 255.0, green: 0x20 / 255.0, blue: 0x1F / 255.0, alpha: 1) : .white }
     }
     var codeBlockTextColor: UIColor {
-        UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.55, green: 0.95, blue: 0.55, alpha: 1) : .systemGreen }
+        UIColor {
+            $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0xF0 / 255.0, green: 0xEF / 255.0, blue: 0xEC / 255.0, alpha: 1)   // #F0EFEC warm white (measured)
+                : UIColor(red: 0x0B / 255.0, green: 0x0B / 255.0, blue: 0x0B / 255.0, alpha: 1)   // #0B0B0B near-black (measured)
+        }
+    }
+    /// [B16-CODE-CARD] Header strip 1px divider: #C9C9C6 light / #5A5957 dark (measured).
+    var codeBlockHeaderDividerColor: UIColor {
+        UIColor {
+            $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0x5A / 255.0, green: 0x59 / 255.0, blue: 0x57 / 255.0, alpha: 1)
+                : UIColor(red: 0xC9 / 255.0, green: 0xC9 / 255.0, blue: 0xC6 / 255.0, alpha: 1)
+        }
+    }
+    /// [B16-CODE-CARD] Header "code"/language label ink: #85857F light / #98989D dark.
+    var codeBlockHeaderLabelColor: UIColor {
+        UIColor {
+            $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0x98 / 255.0, green: 0x98 / 255.0, blue: 0x9D / 255.0, alpha: 1)
+                : UIColor(red: 0x85 / 255.0, green: 0x85 / 255.0, blue: 0x7F / 255.0, alpha: 1)
+        }
+    }
+
+    // MARK: [B16-CODE-HL] Syntax palette — Grok-measured (pp screenshots 2026-09-17,
+    // pixel-core sampling per token class; see ledger B16-CODE-HL).
+
+    /// Tag names / selectors (`<html`, `body`, `.cls`): #4880B8 / #A0C8F8.
+    var hlTag: UIColor {
+        UIColor {
+            $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0xA0 / 255.0, green: 0xC8 / 255.0, blue: 0xF8 / 255.0, alpha: 1)
+                : UIColor(red: 0x48 / 255.0, green: 0x80 / 255.0, blue: 0xB8 / 255.0, alpha: 1)
+        }
+    }
+    /// Attribute names / at-rule keywords (`lang=`, `@import`): #7068A8 / #A0C8F8.
+    var hlKeyword: UIColor {
+        UIColor {
+            $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0xA0 / 255.0, green: 0xC8 / 255.0, blue: 0xF8 / 255.0, alpha: 1)
+                : UIColor(red: 0x70 / 255.0, green: 0x68 / 255.0, blue: 0xA8 / 255.0, alpha: 1)
+        }
+    }
+    /// Property names / JSON keys (`margin`, `"env"`): #D05828 / #F8F8B8.
+    var hlProperty: UIColor {
+        UIColor {
+            $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0xF8 / 255.0, green: 0xF8 / 255.0, blue: 0xB8 / 255.0, alpha: 1)
+                : UIColor(red: 0xD0 / 255.0, green: 0x58 / 255.0, blue: 0x28 / 255.0, alpha: 1)
+        }
+    }
+    /// String literals: #50A058 / #B8F870.
+    var hlString: UIColor {
+        UIColor {
+            $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0xB8 / 255.0, green: 0xF8 / 255.0, blue: 0x70 / 255.0, alpha: 1)
+                : UIColor(red: 0x50 / 255.0, green: 0xA0 / 255.0, blue: 0x58 / 255.0, alpha: 1)
+        }
+    }
+    /// Numeric literals / hex colors / values with units: #50A058 / #E878F0.
+    var hlNumber: UIColor {
+        UIColor {
+            $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0xE8 / 255.0, green: 0x78 / 255.0, blue: 0xF0 / 255.0, alpha: 1)
+                : UIColor(red: 0x50 / 255.0, green: 0xA0 / 255.0, blue: 0x58 / 255.0, alpha: 1)
+        }
+    }
+    /// Comments: gray both appearances (sampled unsaturated in Grok).
+    var hlComment: UIColor {
+        UIColor {
+            $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0x80 / 255.0, green: 0x80 / 255.0, blue: 0x60 / 255.0, alpha: 1)
+                : UIColor(red: 0x8A / 255.0, green: 0x8A / 255.0, blue: 0x86 / 255.0, alpha: 1)
+        }
     }
     var inlineCodeBackground: UIColor { minisInlineCodeBackgroundColor }
     /// Inline-code orange, final: saturated pure orange #FF6A00 (255,106,0) in BOTH
@@ -376,9 +451,19 @@ struct SelectableMarkdownTheme {
 
     var codeBlockFont: UIFont {
         let size = baseFontSize * 0.85
+        // [B16-CODE-FONT] pp 2026-09-17: Claude-style face = Geist Mono Medium
+        // (picked over SF Mono in the A/B font preview). PingFang SC cascade
+        // stays — its CJK glyphs are exactly 2x the width of the mono ASCII
+        // glyphs at the same point size, enabling proper table alignment in
+        // code blocks. Menlo remains the fallback when the bundled Geist failed
+        // to register (soft-fail, see AppFontRegistry).
+        if let geist = AppFontRegistry.geistMonoMedium(size) {
+            let descriptor = geist.fontDescriptor.addingAttributes([
+                .cascadeList: [UIFontDescriptor(fontAttributes: [.name: "PingFang SC"])]
+            ])
+            return UIFont(descriptor: descriptor, size: size)
+        }
         // Use Menlo as the base monospaced font, with PingFang SC as CJK fallback.
-        // PingFang SC's CJK glyphs are exactly 2x the width of Menlo's ASCII glyphs
-        // at the same point size, enabling proper table alignment in code blocks.
         if let menlo = UIFont(name: "Menlo", size: size) {
             let descriptor = menlo.fontDescriptor.addingAttributes([
                 .cascadeList: [UIFontDescriptor(fontAttributes: [.name: "PingFang SC"])]
@@ -1416,6 +1501,13 @@ final class CodeBlockAttachment: NSTextAttachment {
     /// counterpart for code blocks).
     let contentFingerprint: Int
 
+    /// [B16-CODE-CARD] Fired when the fullscreen (maximize) button is tapped,
+    /// carrying the complete code text + fence language (used as the fullscreen
+    /// viewer title). Wired by the host text view's updateAttachmentViews to
+    /// `SelectableMarkdownView.onExpandCode`; nil in standalone contexts
+    /// (plain markdown previews without a handler) — the button stays hidden.
+    var onExpand: ((String, String?) -> Void)?
+
     /// Left inset for blockquote nesting (matches text indent).
     var leftInset: CGFloat { CGFloat(quoteDepth) * 13 }
 
@@ -1443,6 +1535,24 @@ final class CodeBlockAttachment: NSTextAttachment {
     /// Associated-object key retaining the copy-tap gesture target
     /// for the button's lifetime (see makeView).
     static var copyTapHandlerKey: UInt8 = 0
+    /// [B16-CODE-CARD] Associated-object key for the fullscreen button's tap
+    /// handler — same double-bind survival pattern as the copy button.
+    static var expandTapHandlerKey: UInt8 = 0
+
+    /// [B16-CODE-CARD] Rasterizes a vector asset-catalog icon (lucide aa-*) to a
+    /// fixed point size. `UIImage(named:)` returns the SVG's intrinsic 24pt and
+    /// `UIButton.setImage` renders it at that size (no symbol configuration to
+    /// shrink it) — so header icons MUST be scaled explicitly or they blow up.
+    static func headerIcon(named name: String, size: CGFloat) -> UIImage? {
+        guard let img = UIImage(named: name) else { return nil }
+        let format = UIGraphicsImageRendererFormat.default()
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size), format: format)
+        let scaled = renderer.image { _ in
+            img.draw(in: CGRect(x: 0, y: 0, width: size, height: size))
+        }
+        return scaled.withRenderingMode(.alwaysTemplate)
+    }
 
     /// Target object for the fallback tap gesture on the copy button —
     /// UITapGestureRecognizer needs an @objc target/action pair.
@@ -1487,7 +1597,7 @@ final class CodeBlockAttachment: NSTextAttachment {
 
     override func attachmentBounds(for textContainer: NSTextContainer?, proposedLineFragment lineFrag: CGRect, glyphPosition position: CGPoint, characterIndex charIndex: Int) -> CGRect {
         let width = lineFrag.width
-        let topOffset: CGFloat = (language != nil && !language!.isEmpty) ? 28 : 12
+        let topOffset: CGFloat = 36   // [B16-CODE-CARD] fixed header (Code label + 1px divider); language no longer changes it
         let contentHeight = measureCodeHeight()
         let bottomPadding: CGFloat = 12
         let maxCodeHeight: CGFloat = 400 - topOffset - bottomPadding
@@ -1509,18 +1619,32 @@ final class CodeBlockAttachment: NSTextAttachment {
         container.layer.cornerRadius = theme.codeBlockCornerRadius
         container.clipsToBounds = true
 
-        var topOffset: CGFloat = 12
+        let headerHeight: CGFloat = 36   // [B16-CODE-CARD] fixed header strip (label + divider)
+        let headerView = UIView()
+        headerView.frame = CGRect(x: 0, y: 0, width: contentWidth, height: headerHeight)
 
-        // Language label
-        if let language, !language.isEmpty {
-            let langLabel = UILabel()
-            langLabel.text = language.lowercased()
-            langLabel.font = .systemFont(ofSize: 11, weight: .medium)
-            langLabel.textColor = .white.withAlphaComponent(0.4)
-            langLabel.frame = CGRect(x: 12, y: 8, width: contentWidth - 60, height: 16)
-            container.addSubview(langLabel)
-            topOffset = 28
-        }
+        // [B16-CODE-CARD] Claude-style header: monospace "code"/language label.
+        // Measured off pp's screenshot: the label is a MONOSPACE face at ~12pt
+        // (character advance stepped evenly 19/20/20px), mid-gray ink. The old
+        // language-only 11pt system label is folded in — "code" when un-fenced.
+        let headerLabel = UILabel()
+        headerLabel.text = (language != nil && !language!.isEmpty) ? language!.lowercased() : "code"
+        headerLabel.font = .monospacedSystemFont(ofSize: 12, weight: .medium)
+        headerLabel.textColor = theme.codeBlockHeaderLabelColor
+        headerLabel.frame = CGRect(x: 14, y: 0, width: max(0, contentWidth - 132), height: headerHeight)
+        headerView.addSubview(headerLabel)
+
+        // [B16-CODE-CARD] 1px full-width divider under the header strip
+        // (#C9C9C6 light / #5A5957 dark, both measured off pp's screenshots).
+        let divider = UIView()
+        divider.backgroundColor = theme.codeBlockHeaderDividerColor
+        let hairline: CGFloat = 1.0 / UIScreen.main.scale
+        divider.frame = CGRect(x: 0, y: headerHeight - hairline, width: contentWidth, height: hairline)
+        headerView.addSubview(divider)
+
+        container.addSubview(headerView)
+
+        let topOffset: CGFloat = headerHeight
 
         // Scrollable code area (own the pan gesture here for reliable horizontal scroll)
         let scrollView = UIScrollView()
@@ -1542,11 +1666,24 @@ final class CodeBlockAttachment: NSTextAttachment {
         let codeStyle = NSMutableParagraphStyle()
         codeStyle.lineSpacing = 4
         codeStyle.lineBreakMode = .byClipping
-        let codeAttr = NSAttributedString(string: code, attributes: [
-            .font: theme.codeBlockFont,
-            .foregroundColor: theme.codeBlockTextColor,
-            .paragraphStyle: codeStyle,
-        ])
+        // [B16-CODE-HL] Language-aware coloring when the fence names a supported
+        // language; bare fences (no language) stay single-ink — Claude/Grok
+        // behavior on mixed chats (tree dumps plain, real code tinted).
+        let codeAttr: NSAttributedString
+        if let highlighted = CodeSyntaxHighlighter.attributed(code: code, language: language, theme: theme) {
+            let mutable = NSMutableAttributedString(attributedString: highlighted)
+            mutable.addAttributes(
+                [.paragraphStyle: codeStyle],
+                range: NSRange(location: 0, length: mutable.length)
+            )
+            codeAttr = mutable
+        } else {
+            codeAttr = NSAttributedString(string: code, attributes: [
+                .font: theme.codeBlockFont,
+                .foregroundColor: theme.codeBlockTextColor,
+                .paragraphStyle: codeStyle,
+            ])
+        }
         codeTextView.attributedText = codeAttr
 
         // Measure content size (unconstrained width)
@@ -1575,12 +1712,21 @@ final class CodeBlockAttachment: NSTextAttachment {
         let totalHeight = topOffset + scrollHeight + bottomPadding
         container.frame = CGRect(x: inset, y: 0, width: contentWidth, height: totalHeight)
 
-        // Copy button — 44x44 hit area per Apple HIG, icon stays small visually
+        // [B16-CODE-CARD] Header action buttons — 44x44 hit areas per Apple
+        // HIG. Copy = lucide `copy` (aa-Copy, template image); fullscreen =
+        // lucide `maximize-2` (aa-Maximize2). Ink is theme-aware — the old
+        // white-on-black tint would vanish on the new light card. Both buttons
+        // share the copy button's double-bind survival pattern (below).
+        let headerTint: UIColor = UIColor {
+            $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0x5A / 255.0, green: 0x59 / 255.0, blue: 0x57 / 255.0, alpha: 1)   // measured #5A5957
+                : UIColor(red: 0x72 / 255.0, green: 0x72 / 255.0, blue: 0x6C / 255.0, alpha: 1)
+        }
         let iconConfig = UIImage.SymbolConfiguration(pointSize: 9, weight: .medium)
         let copyButton = UIButton(type: .system)
-        copyButton.setImage(UIImage(systemName: "doc.on.doc", withConfiguration: iconConfig), for: .normal)
-        copyButton.tintColor = .white.withAlphaComponent(0.5)
-        copyButton.frame = CGRect(x: contentWidth - 44, y: 0, width: 44, height: 44)
+        copyButton.setImage(Self.headerIcon(named: "aa-Copy", size: 18), for: .normal)
+        copyButton.tintColor = headerTint
+        copyButton.frame = CGRect(x: max(0, contentWidth - 88), y: (headerHeight - 44) / 2, width: 44, height: 44)
         let debounce = CopyDebounce()
         let performCopy: () -> Void = { [weak codeTextView, weak copyButton] in
             // [T-ios17-codeblock-copy-dead] Double-fire guard: on versions
@@ -1596,8 +1742,8 @@ final class CodeBlockAttachment: NSTextAttachment {
             copyButton?.setImage(UIImage(systemName: "checkmark", withConfiguration: iconConfig), for: .normal)
             copyButton?.tintColor = .systemGreen
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                copyButton?.setImage(UIImage(systemName: "doc.on.doc", withConfiguration: iconConfig), for: .normal)
-                copyButton?.tintColor = .white.withAlphaComponent(0.5)
+                copyButton?.setImage(Self.headerIcon(named: "aa-Copy", size: 18), for: .normal)
+                copyButton?.tintColor = headerTint
             }
         }
         copyButton.addAction(UIAction { _ in performCopy() }, for: .touchUpInside)
@@ -1625,7 +1771,35 @@ final class CodeBlockAttachment: NSTextAttachment {
         tap.cancelsTouchesInView = false
         copyButton.addGestureRecognizer(tap)
         objc_setAssociatedObject(copyButton, &Self.copyTapHandlerKey, tapHandler, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        container.addSubview(copyButton)
+        headerView.addSubview(copyButton)
+
+        // [B16-CODE-CARD] Fullscreen button — built with the SAME double-bind
+        // + debounce pattern, because it lives in the same UITextView gesture
+        // graph that killed the copy button's control events twice. Fires
+        // `onExpand` (complete code + language) → routed by the host text view
+        // to SelectableMarkdownView.onExpandCode → the message's fullscreen
+        // viewer. Hidden when no handler is wired (standalone previews).
+        let expandButton = UIButton(type: .system)
+        expandButton.setImage(Self.headerIcon(named: "aa-Maximize2", size: 18), for: .normal)
+        expandButton.tintColor = headerTint
+        expandButton.frame = CGRect(x: max(0, contentWidth - 44), y: (headerHeight - 44) / 2, width: 44, height: 44)
+        if let onExpand {
+            let expandDebounce = CopyDebounce()
+            let performExpand: () -> Void = {
+                guard Date().timeIntervalSince(expandDebounce.last) > 0.3 else { return }
+                expandDebounce.last = Date()
+                onExpand(code, language)
+            }
+            expandButton.addAction(UIAction { _ in performExpand() }, for: .touchUpInside)
+            let expandTapHandler = CodeCopyTapHandler(perform: performExpand)
+            let expandTap = UITapGestureRecognizer(target: expandTapHandler, action: #selector(CodeCopyTapHandler.handleTap))
+            expandTap.cancelsTouchesInView = false
+            expandButton.addGestureRecognizer(expandTap)
+            objc_setAssociatedObject(expandButton, &Self.expandTapHandlerKey, expandTapHandler, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        } else {
+            expandButton.isHidden = true
+        }
+        headerView.addSubview(expandButton)
 
         container.frame.origin.y = Self.topMargin
         wrapper.addSubview(container)
@@ -1643,11 +1817,24 @@ final class CodeBlockAttachment: NSTextAttachment {
         let codeStyle = NSMutableParagraphStyle()
         codeStyle.lineSpacing = 4
         codeStyle.lineBreakMode = .byClipping
-        let codeAttr = NSAttributedString(string: code, attributes: [
-            .font: theme.codeBlockFont,
-            .foregroundColor: theme.codeBlockTextColor,
-            .paragraphStyle: codeStyle,
-        ])
+        // [B16-CODE-HL] Language-aware coloring when the fence names a supported
+        // language; bare fences (no language) stay single-ink — Claude/Grok
+        // behavior on mixed chats (tree dumps plain, real code tinted).
+        let codeAttr: NSAttributedString
+        if let highlighted = CodeSyntaxHighlighter.attributed(code: code, language: language, theme: theme) {
+            let mutable = NSMutableAttributedString(attributedString: highlighted)
+            mutable.addAttributes(
+                [.paragraphStyle: codeStyle],
+                range: NSRange(location: 0, length: mutable.length)
+            )
+            codeAttr = mutable
+        } else {
+            codeAttr = NSAttributedString(string: code, attributes: [
+                .font: theme.codeBlockFont,
+                .foregroundColor: theme.codeBlockTextColor,
+                .paragraphStyle: codeStyle,
+            ])
+        }
         codeTextView.attributedText = codeAttr
 
         let fitting = codeTextView.sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
@@ -1655,7 +1842,7 @@ final class CodeBlockAttachment: NSTextAttachment {
         scrollView.contentSize = fitting
 
         // Recalculate heights to match attachmentBounds logic
-        let topOffset: CGFloat = (language != nil && !language!.isEmpty) ? 28 : 12
+        let topOffset: CGFloat = 36   // [B16-CODE-CARD] fixed header (Code label + 1px divider); language no longer changes it
         let maxCodeHeight: CGFloat = 400 - topOffset - 12
         let scrollHeight = min(fitting.height, maxCodeHeight)
         let bottomPadding: CGFloat = 12
@@ -4938,6 +5125,11 @@ final class MinisLayoutManager: NSLayoutManager {
 
 /// Non-editable, selectable UITextView subclass for rendering Markdown as NSAttributedString.
 final class SelectableMarkdownTextView: UITextView, UIGestureRecognizerDelegate {
+    /// [B16-CODE-CARD] Routes a code block's fullscreen-button tap to the
+    /// SwiftUI layer (`SelectableMarkdownView.onExpandCode`) with the complete
+    /// code text + fence language. nil in standalone markdown contexts — their
+    /// code blocks then hide the fullscreen button (see makeView).
+    var onExpandCode: ((String, String?) -> Void)?
     private var attachmentViews: [UIView] = []
     /// Returns true if the text storage contains NSTextAttachment objects but no attachment views
     /// have been created yet. Used by updateUIView to detect the LazyVStack reappear case where
@@ -6310,6 +6502,13 @@ final class SelectableMarkdownTextView: UITextView, UIGestureRecognizerDelegate 
                 view.frame = CGRect(origin: inlineOrigin ?? boundingRect.origin, size: view.frame.size)
             } else if let codeBlock = attachment as? CodeBlockAttachment {
                 // New attachment object (content changed or first time).
+                // [B16-CODE-CARD] Re-wire the fullscreen callback to the
+                // latest SwiftUI closure (cheap, mirrors the table.onOpenURL
+                // re-wire): makeView consults it to show/hide the expand
+                // button, and both reuse + make paths below keep it current.
+                codeBlock.onExpand = { [weak self] code, language in
+                    self?.onExpandCode?(code, language)
+                }
                 // Try to reuse the previous view at the same index via updateExistingView.
                 if let previousView = codeBlockViewCache[codeBlock.blockIndex] {
                     codeBlock.updateExistingView(previousView)
@@ -7481,6 +7680,11 @@ struct SelectableMarkdownView: UIViewRepresentable {
     var onReadAloud: (() -> Void)?
     /// [T-selection-menu-minis-tts] "Read Selection" (selected text) via Minis TTS.
     var onSpeakText: ((String) -> Void)?
+    /// [B16-CODE-CARD] Fired when a code block's fullscreen button is tapped:
+    /// (complete code text, fence language). Presented by the owning message as
+    /// a full-screen code viewer. nil in standalone contexts — the code block
+    /// then hides its expand button.
+    var onExpandCode: ((String, String?) -> Void)?
     @Environment(\.openURL) private var openURL
 
     func makeCoordinator() -> Coordinator {
@@ -7524,6 +7728,7 @@ struct SelectableMarkdownView: UIViewRepresentable {
         textView.onCopyScreenshot = onCopyScreenshot
         textView.onReadAloud = onReadAloud
         textView.onSpeakText = onSpeakText
+        textView.onExpandCode = onExpandCode
         #if DEBUG
         // [T-ios-markdown-rerender-burst] makeUIView creates a FRESH textView +
         // resets lastMarkdown="", forcing the next updateUIView through a full
@@ -7544,6 +7749,7 @@ struct SelectableMarkdownView: UIViewRepresentable {
         textView.onCopyScreenshot = onCopyScreenshot
         textView.onReadAloud = onReadAloud
         textView.onSpeakText = onSpeakText
+        textView.onExpandCode = onExpandCode
 
         let currentFontSize = FontSettings.shared.scaledMessage(16.5)
         let fontChanged = context.coordinator.lastFontSize != currentFontSize
@@ -9180,4 +9386,627 @@ private func resolveMinisFileURLForNativeText(url: URL) -> URL? {
 
     imgLogger.warning("[MoonveilImage][Resolve] NOT FOUND in active session / global dirs url=\(url.absoluteString) host=\(host) subPaths=\(subPaths) (cross-session scan disabled for isolation)")
     return nil
+}
+
+// MARK: - [B16-CODE-HL] Syntax highlighting (Grok palette, self-contained)
+
+/// Lightweight per-language tokenizer that paints NSAttributedString ranges with
+/// the Grok-measured palette (`SelectableMarkdownTheme.hl*`). Pure Foundation —
+/// no third-party highlighter dependency (repo rule: Apple-native only).
+/// Unknown / nil languages return nil and the code block falls back to the
+/// single-ink path (Claude behavior: bare fences stay monochrome).
+enum CodeSyntaxHighlighter {
+
+    fileprivate enum Lang {
+        case json
+        case html
+        case css
+        /// Generic c-like/python-like/shell-like rules + keyword set.
+        case generic(keywords: Set<String>, lineComment: String?, blockComment: Bool, hashComment: Bool, tripleQuoted: Bool)
+    }
+
+    /// Returns a fully-attributed copy of `code`, or nil when the language has
+    /// no highlighting rules.
+    static func attributed(
+        code: String, language: String?, theme: SelectableMarkdownTheme
+    ) -> NSAttributedString? {
+        guard let lang = normalize(language) else { return nil }
+        let base: [NSAttributedString.Key: Any] = [
+            .font: theme.codeBlockFont,
+            .foregroundColor: theme.codeBlockTextColor,
+        ]
+        let out = NSMutableAttributedString(string: code, attributes: base)
+        switch lang {
+        case .json:
+            highlightJSON(code, out: out, theme: theme)
+        case .html:
+            highlightHTML(code, out: out, theme: theme)
+        case .css:
+            highlightCSS(code, out: out, theme: theme)
+        case .generic(let keywords, let lineComment, let blockComment, let hashComment, let tripleQuoted):
+            highlightGeneric(
+                code, out: out, theme: theme, keywords: keywords,
+                lineComment: lineComment, blockComment: blockComment,
+                hashComment: hashComment, tripleQuoted: tripleQuoted
+            )
+        }
+        return out
+    }
+
+    private static func normalize(_ language: String?) -> Lang? {
+        guard let language, !language.isEmpty else { return nil }
+        switch language.lowercased() {
+        case "json", "jsonc", "json5":
+            return .json
+        case "html", "htm", "xml", "svg", "vue":
+            return .html
+        case "css", "scss", "less", "postcss":
+            return .css
+        case "swift":
+            return .generic(
+                keywords: [
+                    "func", "let", "var", "if", "else", "for", "while", "switch", "case", "default",
+                    "break", "continue", "return", "struct", "class", "enum", "protocol", "extension",
+                    "import", "public", "private", "internal", "fileprivate", "static", "final",
+                    "override", "init", "deinit", "self", "super", "nil", "true", "false", "guard",
+                    "defer", "do", "try", "catch", "throw", "throws", "async", "await", "actor",
+                    "where", "in", "is", "as", "some", "any", "typealias", "associatedtype",
+                    "operator", "mutating", "nonmutating", "lazy", "weak", "unowned", "inout",
+                    "willSet", "didSet", "get", "set", "subscript", "indirect", "rethrows", "Self",
+                ],
+                lineComment: "//", blockComment: true, hashComment: false, tripleQuoted: true
+            )
+        case "python", "py", "py3":
+            return .generic(
+                keywords: [
+                    "def", "class", "if", "elif", "else", "for", "while", "break", "continue",
+                    "return", "import", "from", "as", "pass", "raise", "try", "except", "finally",
+                    "with", "lambda", "global", "nonlocal", "assert", "yield", "del", "in", "is",
+                    "not", "and", "or", "None", "True", "False", "async", "await", "match", "case",
+                    "self", "print",
+                ],
+                lineComment: nil, blockComment: false, hashComment: true, tripleQuoted: true
+            )
+        case "javascript", "js", "typescript", "ts", "jsx", "tsx", "mjs", "cjs":
+            return .generic(
+                keywords: [
+                    "function", "const", "let", "var", "if", "else", "for", "while", "switch",
+                    "case", "default", "break", "continue", "return", "class", "extends", "super",
+                    "new", "this", "typeof", "instanceof", "in", "of", "null", "undefined", "true",
+                    "false", "async", "await", "try", "catch", "finally", "throw", "import",
+                    "export", "from", "as", "interface", "type", "enum", "implements", "private",
+                    "public", "protected", "static", "readonly", "void", "any", "unknown", "never",
+                ],
+                lineComment: "//", blockComment: true, hashComment: false, tripleQuoted: false
+            )
+        case "go", "golang":
+            return .generic(
+                keywords: [
+                    "func", "package", "import", "var", "const", "type", "struct", "interface",
+                    "map", "chan", "go", "defer", "if", "else", "for", "range", "switch", "case",
+                    "default", "break", "continue", "return", "nil", "true", "false", "select",
+                    "fallthrough", "goto",
+                ],
+                lineComment: "//", blockComment: true, hashComment: false, tripleQuoted: false
+            )
+        case "sh", "bash", "shell", "zsh", "shell-session", "console":
+            return .generic(
+                keywords: [
+                    "if", "then", "else", "elif", "fi", "for", "while", "do", "done", "case",
+                    "esac", "function", "return", "export", "local", "echo", "cd", "exit", "set",
+                    "unset", "readonly", "shift", "trap", "source", "in",
+                ],
+                lineComment: nil, blockComment: false, hashComment: true, tripleQuoted: false
+            )
+        case "yaml", "yml":
+            return .generic(
+                keywords: ["true", "false", "null", "yes", "no", "on", "off"],
+                lineComment: nil, blockComment: false, hashComment: true, tripleQuoted: false
+            )
+        case "java", "kotlin", "kt", "c", "cpp", "c++", "h", "hpp", "objc", "rust", "rs", "php", "cs", "csharp", "dart":
+            return .generic(
+                keywords: [
+                    "public", "private", "protected", "static", "final", "class", "struct",
+                    "interface", "enum", "void", "int", "long", "float", "double", "bool",
+                    "boolean", "char", "byte", "short", "var", "val", "fun", "let", "mut", "fn",
+                    "pub", "impl", "trait", "use", "mod", "match", "if", "else", "for", "while",
+                    "loop", "switch", "case", "default", "break", "continue", "return", "new",
+                    "delete", "this", "self", "super", "null", "nullptr", "nil", "true", "false",
+                    "import", "package", "namespace", "using", "extends", "implements", "override",
+                    "virtual", "abstract", "const", "readonly", "async", "await", "throw", "throws",
+                    "try", "catch", "finally", "synchronized", "unsafe", "extern", "template",
+                    "typename", "operator",
+                ],
+                lineComment: "//", blockComment: true, hashComment: false, tripleQuoted: false
+            )
+        case "sql":
+            return .generic(
+                keywords: [
+                    "select", "from", "where", "insert", "into", "values", "update", "set", "delete",
+                    "create", "table", "drop", "alter", "add", "column", "index", "view", "join",
+                    "left", "right", "inner", "outer", "on", "group", "by", "order", "having",
+                    "limit", "offset", "and", "or", "not", "null", "is", "in", "as", "distinct",
+                    "primary", "key", "foreign", "references", "default", "unique", "begin",
+                    "commit", "rollback", "transaction",
+                ],
+                lineComment: nil, blockComment: true, hashComment: true, tripleQuoted: false
+            )
+        default:
+            return nil
+        }
+    }
+
+    // MARK: Paint helpers
+
+    private static func paint(
+        _ out: NSMutableAttributedString, _ range: Range<String.Index>, _ color: UIColor, in code: String
+    ) {
+        guard let r = Range(range, in: code) else { return }
+        out.addAttribute(.foregroundColor, color, range: NSRange(r, in: code))
+    }
+
+    private static func paintUTF16(
+        _ out: NSMutableAttributedString, _ nsRange: NSRange, _ color: UIColor
+    ) {
+        guard nsRange.location != NSNotFound, NSMaxRange(nsRange) <= out.length else { return }
+        out.addAttribute(.foregroundColor, color, range: nsRange)
+    }
+
+    /// True when ch can appear in an identifier/keyword word.
+    private static func isWord(_ ch: Character) -> Bool {
+        ch.isLetter || ch.isNumber || ch == "_"
+    }
+
+    // MARK: JSON
+
+    private static func highlightJSON(_ code: String, out: NSMutableAttributedString, theme: SelectableMarkdownTheme) {
+        var i = code.startIndex
+        while i < code.endIndex {
+            let ch = code[i]
+            if ch == "\"" {
+                let strStart = i
+                i = code.index(after: i)
+                var escaped = false
+                while i < code.endIndex {
+                    let c = code[i]
+                    if escaped { escaped = false }
+                    else if c == "\\" { escaped = true }
+                    else if c == "\"" { break }
+                    i = code.index(after: i)
+                }
+                if i < code.endIndex { i = code.index(after: i) }
+                // Key if the next non-whitespace char is ':'
+                var look = i
+                while look < code.endIndex, code[look] == " " || code[look] == "\t" || code[look] == "\n" || code[look] == "\r" {
+                    look = code.index(after: look)
+                }
+                let isKey = look < code.endIndex && code[look] == ":"
+                paint(out, strStart..<i, isKey ? theme.hlProperty : theme.hlString, in: code)
+            } else if ch.isNumber || (ch == "-" && i < code.endIndex) {
+                let numStart = i
+                while i < code.endIndex, (code[i].isNumber || "+-.eE".contains(code[i])) {
+                    i = code.index(after: i)
+                }
+                paint(out, numStart..<i, theme.hlNumber, in: code)
+            } else if ch == "t" || ch == "f" || ch == "n" {
+                // true / false / null literals
+                let wordStart = i
+                while i < code.endIndex, isWord(code[i]) { i = code.index(after: i) }
+                let word = String(code[wordStart..<i])
+                if word == "true" || word == "false" || word == "null" {
+                    paint(out, wordStart..<i, theme.hlKeyword, in: code)
+                }
+            } else {
+                i = code.index(after: i)
+            }
+        }
+    }
+
+    // MARK: HTML
+
+    private static func highlightHTML(_ code: String, out: NSMutableAttributedString, theme: SelectableMarkdownTheme) {
+        // Pass 1: comments (<!-- -->) — plain scan, then tags, then nested
+        // <style>/<script> bodies re-highlighted with their own rules.
+        var ranges: [(Range<String.Index>, UIColor)] = []
+        var i = code.startIndex
+        while i < code.endIndex {
+            if code[i] == "<" {
+                let rest = code[i...]
+                if rest.hasPrefix("<!--") {
+                    let cStart = i
+                    i = code.index(i, offsetBy: 4, limitedBy: code.endIndex) ?? code.endIndex
+                    while i < code.endIndex, !code[i...].hasPrefix("-->") {
+                        i = code.index(after: i)
+                    }
+                    i = code.index(i, offsetBy: 3, limitedBy: code.endIndex) ?? code.endIndex
+                    ranges.append((cStart..<i, theme.hlComment))
+                    continue
+                }
+                // A tag: <name ...attrs...> or </name>
+                let tagStart = i
+                i = code.index(after: i)
+                var sawName = false
+                while i < code.endIndex {
+                    let c = code[i]
+                    if c == ">" {
+                        i = code.index(after: i)
+                        break
+                    }
+                    if c == "\"" || c == "'" {
+                        let q = c
+                        let sStart = i
+                        i = code.index(after: i)
+                        while i < code.endIndex, code[i] != q { i = code.index(after: i) }
+                        if i < code.endIndex { i = code.index(after: i) }
+                        if sawName { ranges.append((sStart..<i, theme.hlString)) }
+                        continue
+                    }
+                    if isWord(c), !sawName {
+                        let nStart = i
+                        while i < code.endIndex, isWord(code[i]) || code[i] == "-" || code[i] == "!" || code[i] == "?" {
+                            i = code.index(after: i)
+                        }
+                        sawName = true
+                        // [B16-CODE-HL] <!DOCTYPE …> / <?xml …> declaration names
+                        // read as keywords (Grok light measures #7068A8; dark
+                        // collapses to the same blue as tags).
+                        let prev = nStart > code.startIndex ? code[code.index(before: nStart)] : " "
+                        let isDeclaration = prev == "!" || prev == "?"
+                        ranges.append((nStart..<i, isDeclaration ? theme.hlKeyword : theme.hlTag))
+                        continue
+                    }
+                    if isWord(c), sawName {
+                        let aStart = i
+                        while i < code.endIndex, isWord(code[i]) || code[i] == "-" { i = code.index(after: i) }
+                        // attr name (followed by optional =)
+                        ranges.append((aStart..<i, theme.hlKeyword))
+                        continue
+                    }
+                    i = code.index(after: i)
+                }
+                ranges.append((tagStart..<code.index(tagStart, offsetBy: 1, limitedBy: code.endIndex) ?? code.endIndex, theme.hlTag))
+                continue
+            }
+            i = code.index(after: i)
+        }
+        for (r, c) in ranges { paint(out, r, c, in: code) }
+
+        // Pass 2: re-highlight <style>…</style> with CSS rules and
+        // <script>…</script> with JS rules.
+        rehighlightEmbedded(code, out: out, openTag: "<style", closeTag: "</style", theme: theme) { inner, out2, theme2 in
+            highlightCSS(inner, out: out2, theme: theme2)
+        }
+        rehighlightEmbedded(
+            code, out: out, openTag: "<script", closeTag: "</script", theme: theme
+        ) { inner, out2, theme2 in
+            if let js = normalize("javascript"), case .generic(let kw, let lc, let bc, let hc, let tq) = js {
+                highlightGeneric(inner, out: out2, theme: theme2, keywords: kw, lineComment: lc, blockComment: bc, hashComment: hc, tripleQuoted: tq)
+            }
+        }
+    }
+
+    /// Finds `<openTag ...>` … `</closeTag>` bodies and re-runs `apply` on the
+    /// body range, offsetting painted ranges back into the host string.
+    private static func rehighlightEmbedded(
+        _ code: String, out: NSMutableAttributedString, openTag: String, closeTag: String,
+        theme: SelectableMarkdownTheme, apply: (Substring, NSMutableAttributedString, SelectableMarkdownTheme) -> Void
+    ) {
+        var searchStart = code.startIndex
+        while let openRange = code.range(of: openTag, range: searchStart..<code.endIndex) {
+            guard let bodyOpen = code.range(of: ">", range: openRange.upperBound..<code.endIndex)?.upperBound else { break }
+            guard let closeRange = code.range(of: closeTag, range: bodyOpen..<code.endIndex) else { break }
+            let body = code[bodyOpen..<closeRange.lowerBound]
+            let inner = NSMutableAttributedString(attributedString: out.attributedSubstring(from: NSRange(bodyOpen..<closeRange.lowerBound, in: code)))
+            apply(body, inner, theme)
+            out.replaceCharacters(in: NSRange(bodyOpen..<closeRange.lowerBound, in: code), with: inner)
+            searchStart = closeRange.upperBound
+        }
+    }
+
+    // MARK: CSS
+
+    private static func highlightCSS(_ code: String, out: NSMutableAttributedString, theme: SelectableMarkdownTheme) {
+        var i = code.startIndex
+        var inBlock = false   // inside { … } declaration block
+        while i < code.endIndex {
+            let c = code[i]
+            if c == "/", i < code.endIndex, code.index(after: i) < code.endIndex, code[code.index(after: i)] == "*" {
+                let cStart = i
+                i = code.index(i, offsetBy: 2, limitedBy: code.endIndex) ?? code.endIndex
+                while i < code.endIndex, !code[i...].hasPrefix("*/") { i = code.index(after: i) }
+                i = code.index(i, offsetBy: 2, limitedBy: code.endIndex) ?? code.endIndex
+                paint(out, cStart..<i, theme.hlComment, in: code)
+                continue
+            }
+            if !inBlock {
+                if c == "{" {
+                    inBlock = true
+                    i = code.index(after: i)
+                    continue
+                }
+                // at-rule keywords: @import, @media …
+                if c == "@" {
+                    let kStart = i
+                    while i < code.endIndex, isWord(code[i]) || code[i] == "-" { i = code.index(after: i) }
+                    paint(out, kStart..<i, theme.hlKeyword, in: code)
+                    continue
+                }
+                i = code.index(after: i) // selector text stays plain→tag? selectors painted below
+                continue
+            } else {
+                if c == "}" {
+                    inBlock = false
+                    i = code.index(after: i)
+                    continue
+                }
+                if c == ":" {
+                    // property name = backtrack from ':' to line start
+                    let colon = i
+                    var pStart = colon
+                    while pStart > code.startIndex {
+                        let prev = code.index(before: pStart)
+                        if code[prev] == "\n" || code[prev] == ";" || code[prev] == "{" || code[prev] == "}" { break }
+                        pStart = prev
+                    }
+                    paint(out, pStart..<colon, theme.hlProperty, in: code)
+                    // scan the value to ; or } painting strings/numbers
+                    var v = code.index(after: i)
+                    while v < code.endIndex, code[v] != ";" && code[v] != "}" {
+                        if code[v] == "\"" || code[v] == "'" {
+                            let q = code[v]
+                            let sStart = v
+                            v = code.index(after: v)
+                            while v < code.endIndex, code[v] != q { v = code.index(after: v) }
+                            if v < code.endIndex { v = code.index(after: v) }
+                            paint(out, sStart..<v, theme.hlString, in: code)
+                            continue
+                        }
+                        if code[v].isNumber {
+                            let nStart = v
+                            while v < code.endIndex, code[v] != ";" && code[v] != "}" && code[v] != " " && code[v] != "\n" {
+                                v = code.index(after: v)
+                            }
+                            paint(out, nStart..<v, theme.hlNumber, in: code)
+                            continue
+                        }
+                        v = code.index(after: v)
+                    }
+                    i = v
+                    continue
+                }
+                i = code.index(after: i)
+            }
+        }
+        // Selectors: paint every line that ends with '{' (the part before it)
+        paintSelectors(code, out: out, theme: theme)
+    }
+
+    private static func paintSelectors(_ code: String, out: NSMutableAttributedString, theme: SelectableMarkdownTheme) {
+        // For each '{', walk back to the start of line and paint that span
+        // (selector lists like `body, .cls {`) in the tag color — but skip
+        // at-rule headers which already carry keyword paint.
+        var i = code.startIndex
+        while let brace = code.range(of: "{", range: i..<code.endIndex) {
+            var s = brace.lowerBound
+            while s > code.startIndex {
+                let prev = code.index(before: s)
+                if code[prev] == "\n" || code[prev] == ";" || code[prev] == "}" { break }
+                s = prev
+            }
+            let span = s..<brace.lowerBound
+            if let r = Range(span, in: code) {
+                let text = code[r]
+                if !text.contains("@") {
+                    paint(out, span, theme.hlTag, in: code)
+                }
+            }
+            i = brace.upperBound
+        }
+    }
+
+    // MARK: Generic (keyword/string/comment/number)
+
+    private static func highlightGeneric(
+        _ code: String, out: NSMutableAttributedString, theme: SelectableMarkdownTheme,
+        keywords: Set<String>, lineComment: String?, blockComment: Bool, hashComment: Bool, tripleQuoted: Bool
+    ) {
+        var i = code.startIndex
+        while i < code.endIndex {
+            let c = code[i]
+
+            // Line comment
+            if let lc = lineComment, code[i...].hasPrefix(lc) {
+                let cStart = i
+                while i < code.endIndex, code[i] != "\n" { i = code.index(after: i) }
+                paint(out, cStart..<i, theme.hlComment, in: code)
+                continue
+            }
+            // Hash comment
+            if hashComment, c == "#" {
+                let cStart = i
+                while i < code.endIndex, code[i] != "\n" { i = code.index(after: i) }
+                paint(out, cStart..<i, theme.hlComment, in: code)
+                continue
+            }
+            // Block comment
+            if blockComment, c == "/", code.index(after: i) < code.endIndex, code[code.index(after: i)] == "*" {
+                let cStart = i
+                i = code.index(i, offsetBy: 2, limitedBy: code.endIndex) ?? code.endIndex
+                while i < code.endIndex, !code[i...].hasPrefix("*/") { i = code.index(after: i) }
+                i = code.index(i, offsetBy: 2, limitedBy: code.endIndex) ?? code.endIndex
+                paint(out, cStart..<i, theme.hlComment, in: code)
+                continue
+            }
+            // Triple-quoted strings (python docstrings)
+            if tripleQuoted, code[i...].hasPrefix("\"\"\"") {
+                let sStart = i
+                i = code.index(i, offsetBy: 3, limitedBy: code.endIndex) ?? code.endIndex
+                while i < code.endIndex, !code[i...].hasPrefix("\"\"\"") { i = code.index(after: i) }
+                i = code.index(i, offsetBy: 3, limitedBy: code.endIndex) ?? code.endIndex
+                paint(out, sStart..<i, theme.hlString, in: code)
+                continue
+            }
+            // Strings
+            if c == "\"" || c == "'" || c == "`" {
+                let sStart = i
+                let q = c
+                i = code.index(after: i)
+                var escaped = false
+                while i < code.endIndex {
+                    let cc = code[i]
+                    if escaped { escaped = false }
+                    else if cc == "\\" { escaped = true }
+                    else if cc == q { break }
+                    else if cc == "\n", q != "`" { break } // unterminated line string
+                    i = code.index(after: i)
+                }
+                if i < code.endIndex { i = code.index(after: i) }
+                paint(out, sStart..<i, theme.hlString, in: code)
+                continue
+            }
+            // Numbers
+            if c.isNumber {
+                let nStart = i
+                while i < code.endIndex, isWord(code[i]) || code[i] == "." { i = code.index(after: i) }
+                paint(out, nStart..<i, theme.hlNumber, in: code)
+                continue
+            }
+            // Words → keywords; @attributes in swift → keyword too
+            if isWord(c) || c == "@" {
+                let wStart = i
+                if c == "@" { i = code.index(after: i) }
+                while i < code.endIndex, isWord(code[i]) { i = code.index(after: i) }
+                let word = String(code[wStart..<i])
+                if keywords.contains(word) || (c == "@" && word.count > 1) {
+                    paint(out, wStart..<i, theme.hlKeyword, in: code)
+                }
+                continue
+            }
+            i = code.index(after: i)
+        }
+    }
+}
+
+// MARK: - [B16-CODE-CARD] Fullscreen code viewer
+
+/// Full-screen code viewer presented (via fullScreenCover) when the code
+/// block's maximize button is tapped. Mirrors the inline card exactly:
+/// light = white card + near-black ink, dark = #20201F + #F0EFEC (measured
+/// off pp's screenshots 2026-09-17). Reuses the copy-button's debounced
+/// feedback. Text is selectable so users can copy arbitrary spans.
+struct CodeBlockFullScreenView: View {
+    let code: String
+    var language: String?
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var copied = false
+
+    private var cardBackground: Color {
+        colorScheme == .dark
+            ? Color(red: 0x20 / 255.0, green: 0x20 / 255.0, blue: 0x1F / 255.0)
+            : .white
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                CodeFullScreenText(code: code, language: language)
+                    .padding(16)
+            }
+            .background(cardBackground)
+            .toolbarBackground(cardBackground, for: .navigationBar)
+            .navigationTitle(language?.lowercased() ?? "代码")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        copied = true
+                        UIPasteboard.general.string = code
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            copied = false
+                        }
+                    } label: {
+                        if copied {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .semibold))
+                        } else {
+                            Image("aa-Copy")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 19, height: 19)
+                        }
+                    }
+                }
+            }
+        }
+        .presentationBackground(cardBackground)
+    }
+}
+
+/// [B16-CODE-HL] UITextView wrapper so the fullscreen viewer shares the exact
+/// same token coloring as the inline card (SwiftUI `Text` can't take a
+/// pre-built NSAttributedString; `CodeSyntaxHighlighter` is UIKit-native).
+private struct CodeFullScreenText: UIViewRepresentable {
+    let code: String
+    let language: String?
+    @Environment(\.colorScheme) private var colorScheme
+
+    static let monoUIFont: UIFont = {
+        let size: CGFloat = 14
+        // [B16-CODE-FONT] Same face as the inline card (Geist Mono Medium,
+        // Menlo fallback) + PingFang SC cascade so full-screen matches.
+        if let geist = AppFontRegistry.geistMonoMedium(size) {
+            let descriptor = geist.fontDescriptor.addingAttributes([
+                .cascadeList: [UIFontDescriptor(fontAttributes: [.name: "PingFang SC"])]
+            ])
+            return UIFont(descriptor: descriptor, size: size)
+        }
+        if let menlo = UIFont(name: "Menlo", size: size) {
+            let descriptor = menlo.fontDescriptor.addingAttributes([
+                .cascadeList: [UIFontDescriptor(fontAttributes: [.name: "PingFang SC"])]
+            ])
+            return UIFont(descriptor: descriptor, size: size)
+        }
+        return .monospacedSystemFont(ofSize: size, weight: .regular)
+    }()
+
+    func makeUIView(context: Context) -> UITextView {
+        let tv = UITextView()
+        tv.isEditable = false
+        tv.isSelectable = true
+        tv.isScrollEnabled = false   // SwiftUI ScrollView owns scrolling
+        tv.backgroundColor = .clear
+        tv.textContainerInset = .zero
+        tv.textContainer.lineFragmentPadding = 0
+        tv.font = Self.monoUIFont
+        return tv
+    }
+
+    func updateUIView(_ uiView: UITextView, context: Context) {
+        let ink = UIColor {
+            $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0xF0 / 255.0, green: 0xEF / 255.0, blue: 0xEC / 255.0, alpha: 1)
+                : UIColor(red: 0x0B / 255.0, green: 0x0B / 255.0, blue: 0x0B / 255.0, alpha: 1)
+        }
+        let attr = CodeSyntaxHighlighter.attributed(
+            code: code,
+            language: language,
+            theme: SelectableMarkdownTheme(baseFontSize: FontSettings.shared.scaledMessage(16.5))
+        ) ?? NSAttributedString(string: code, attributes: [
+            .font: Self.monoUIFont,
+            .foregroundColor: ink,
+        ])
+        if uiView.attributedText != attr {
+            uiView.attributedText = attr
+        }
+    }
 }

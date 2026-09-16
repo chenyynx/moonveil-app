@@ -68,6 +68,7 @@ enum AppSymbolAssets {
         "line.3.horizontal.decrease": "aa-ListFilter",
         "link": "aa-Link",
         "magnifyingglass": "aa-Search",
+        "maximize.2": "aa-Maximize2",
         "mic": "aa-Mic",
         "minus.circle": "aa-CircleMinus",
         "moon": "aa-Moon",

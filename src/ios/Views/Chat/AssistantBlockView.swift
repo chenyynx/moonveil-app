@@ -15,6 +15,14 @@ struct AssistantBlockView: View {
     /// down to SelectableMarkdownView (nil for non-text or streaming contexts).
     var onReadAloud: (() -> Void)?
     var onSpeakText: ((String) -> Void)?
+    /// [B16-CODE-CARD] Fullscreen code viewer payload — presented when the
+    /// code block's maximize button fires (Identifiable for .fullScreenCover).
+    struct ExpandedCodePayload: Identifiable {
+        let id = UUID()
+        let code: String
+        let language: String?
+    }
+    @State private var expandedCode: ExpandedCodePayload?
     var browserPool: BrowserTabPool?
     var toolSnapshots: [ToolSnapshotItem] = []
     @Binding var highlightedBlockId: UUID?
@@ -122,10 +130,16 @@ struct AssistantBlockView: View {
             onTapBlank: onTapBlank,
             onCopyScreenshot: onCopyScreenshot,
             onReadAloud: onReadAloud,
-            onSpeakText: onSpeakText
+            onSpeakText: onSpeakText,
+            onExpandCode: { code, language in
+                expandedCode = ExpandedCodePayload(code: code, language: language)
+            }
         )
         .fixedSize(horizontal: false, vertical: true)
         .modifier(MinisOpenURLHandler())
+        .fullScreenCover(item: $expandedCode) { payload in
+            CodeBlockFullScreenView(code: payload.code, language: payload.language)
+        }
     }
 }
 
