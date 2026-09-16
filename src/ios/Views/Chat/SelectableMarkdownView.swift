@@ -1681,8 +1681,13 @@ final class CodeBlockAttachment: NSTextAttachment {
         let scrollView = UIScrollView()
         scrollView.showsHorizontalScrollIndicator = true
         scrollView.showsVerticalScrollIndicator = true
-        scrollView.alwaysBounceHorizontal = true
-        scrollView.alwaysBounceVertical = true
+        // [B16-CODE-TRACK] Fixed rails (pp: "卡片内部是四周都随便拖动 没有个固定轨道"):
+        // isDirectionalLockEnabled pins each pan to ONE axis (horizontal drag rides
+        // only left/right, vertical only up/down), and the forced bounces are off —
+        // a card whose content fits must not wiggle at all.
+        scrollView.isDirectionalLockEnabled = true
+        scrollView.alwaysBounceHorizontal = false
+        scrollView.alwaysBounceVertical = false
         scrollView.clipsToBounds = true
 
         let codeTextView = UITextView()
