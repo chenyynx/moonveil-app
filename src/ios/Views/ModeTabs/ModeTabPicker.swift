@@ -66,10 +66,8 @@ struct ModeTabPicker: View {
     /// Set when the first real travel was clearly vertical: the list owns this gesture,
     /// and we stay out of it until the finger lifts.
     @State private var directionRejected = false
-    /// True while a segment is held down — the pill lights up for a tap too, not only a
-    /// scrub (otherwise a tap reads as dead until the switch lands).
-    @State private var pressedMode: AppSourceMode?
-    @Environment(\.colorScheme) private var colorScheme
+    /// Namespace for the selected segment's morphing glass (AA: `@Namespace private var glass`).
+    @Namespace private var glassNS
 
     // ── Geometry — calibrated off pp's Grok screenshot (photo_33EAEE5C, 1179px@3x) ──
     // Vertical scan through the pill's centre column: white disc runs 67.7pt → 99.0pt,
@@ -93,6 +91,9 @@ struct ModeTabPicker: View {
     /// internal on purpose: the fixed bar's gear wears the SAME emphasis and the SAME
     /// spring, so the numbers live in one place (B16).
     static let settle = Animation.spring(response: 0.36, dampingFraction: 0.78)
+    /// 12pt = AA's container spacing (ChatComposer.swift:21): glasses closer than this
+    /// merge like liquid.
+    private static let glassSpacing: CGFloat = 12
     /// Travel (pt) before a scrub counts as a drag at all. Was 10 (SwiftUI's default),
     /// and that dead zone is half of 「不跟手」: the finger moves, nothing moves, then it
     /// jumps in. 3pt is enough to distinguish a scrub from a tap.
@@ -155,16 +156,36 @@ struct ModeTabPicker: View {
 
     @ViewBuilder
     private var rowContent: some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: Self.glassSpacing) { bar }
+        } else {
+            bar
+        }
+    }
+
+    private var bar: some View {
         ZStack(alignment: .topLeading) {
-            // ORDER IS A SPEC: the glass goes in FIRST (behind), the labels on top.
-            // B14e had this inverted and the pill painted over the selected label —
-            // on device that read as an empty grey capsule (CI was green; only eyes
-            // catch it).
-            pill
+            // Ghost while scrubbing: a plain translucent tint, deliberately NOT glass.
+            // A glass piece inside GlassEffectContainer composites ABOVE sibling views —
+            // a glass pill behind the labels hid the selected label's text on device
+            // (「看不到字了」, build 114541b). A plain tint renders under the labels and
+            // is cheap enough to track every finger event 1:1, which is the whole point:
+            // the real glass lives on the selected segment, stays static during a drag,
+            // and only the SYSTEM morphs it to the next segment on release.
+            if isDragging {
+                let r = interpolatedRect()
+                Capsule()
+                    .fill(Color.primary.opacity(0.07))
+                    .frame(width: r.width, height: Self.pillHeight)
+                    .offset(x: r.minX, y: (Self.rowHeight - Self.pillHeight) / 2)
+                    .allowsHitTesting(false)
+                    .animation(Self.settle, value: isDragging)
+            }
             HStack(spacing: Self.segmentSpacing) {
                 ForEach(AppSourceMode.allCases) { mode in
                     segment(mode)
                         .frame(width: slotWidth(mode), height: Self.rowHeight)
+                        .modifier(TabGlass(isSelected: mode == selection, namespace: glassNS))
                 }
             }
         }
@@ -182,77 +203,31 @@ struct ModeTabPicker: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(SegmentButtonStyle { down in
-            // The pill lights up for a held-down segment too, not only for a scrub —
-            // otherwise a tap looks dead until the switch lands. The style reports its
-            // own `isPressed` back here because ButtonStyle cannot otherwise talk to us.
-            // Async write: `isPressed` can flip inside a SwiftUI transaction, and
-            // mutating state there is the "Publishing changes from within view updates"
-            // warning we already hit twice in this module.
-            DispatchQueue.main.async {
-                pressedMode = down ? mode : (pressedMode == mode ? nil : pressedMode)
-            }
-        })
+        .buttonStyle(SegmentButtonStyle())
     }
 
-    /// The single glass layer: position AND width interpolate with the finger, so a
-    /// wider label stretches it on the way over — that is the 形变 pp confirmed.
-    @ViewBuilder
-    private var pill: some View {
-        // No GeometryReader: every number here is computed from the labels, so the
-        // glass cannot be laid out greedily and cannot flash on the first frame.
-        let f = interpolatedRect()
-        Group {
-            if #available(iOS 26.0, *) {
-                Capsule()
-                    .fill(.clear)
-                    .glassEffect(.regular.interactive(), in: .capsule)
-
-            } else {
-                Capsule()
-                    .fill(Color(UIColor.secondarySystemBackground))
-                    .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
-            }
-        }
-        .frame(width: f.width, height: Self.pillHeight)
-        .offset(x: f.minX, y: (Self.rowHeight - Self.pillHeight) / 2)
-        // 提亮和放大是**画出来的**，不是 `.interactive()` 给的：那个变体只在"真控件"的
-        // 按压态上生效，而这一层是装饰层、还 `allowsHitTesting(false)`，所以它永远不亮
-        // （上游 AA 的同类装饰层用的就是不带 interactive 的 `.regular`，同一个道理）。
-        // 手指按住/拖动 → 轻微长大 + 一层白色高光淡入，走同一条 spring。
-        // 不加投影：iOS 26 的玻璃自己带边缘与折射，再套一层 drop shadow 就变成贴在
-        // 白底上的实心贴纸，不是玻璃了（pp 2026-09-16「系统原生的没有阴影」）。
-        // 我原来那 0.06/r3/y1 是照 Grok 的**网页** CSS token（box-shadow: 0 1px 3px
-        // rgba(0,0,0,.06)）搬的 —— 网页 token 不是 iOS 材质规格，同族第三次踩（前两次：
-        // B15-CODE 字体、B16-PILL-SIZE 盘高）。
-        .scaleEffect(emphasised ? Self.dragScale : 1)
-        .overlay {
-            Capsule()
-                .fill(Color.white.opacity(emphasised ? (colorScheme == .dark ? Self.sheenDark : Self.sheenLight) : 0))
-        }
-        // The snap spring is bound to `selection.slot` EXPLICITLY. Relying on the
-        // `withAnimation` around the assignment was not enough once the emphasis
-        // modifiers went on — the pill teleported instead of settling (pp 2026-09-16
-        // 「弹簧效果也没了」). During a scrub `slot` does not change, so the pill still
-        // tracks the finger 1:1 with no animation lag.
-        .animation(Self.settle, value: selection.slot)
-        .animation(Self.settle, value: emphasised)
-        .allowsHitTesting(false)
-    }
-
-    /// Either input lights the pill up: the finger scrubbing it, or a held-down segment.
-    private var emphasised: Bool { isDragging || pressedMode != nil }
-
-    /// Pill rect at `selection.slot + progress`, clamped to the row and eased by the
-    /// edge resistance so an over-drag resists instead of flying away.
+    /// Ghost rect while scrubbing: `selection.slot + progress`, with the overhang past
+    /// the two slots RESISTED by edgeResistance but never frozen. The old version
+    /// clamped the whole index to 0...1, so once the finger passed one slot the pill
+    /// stopped dead, and on the way back there was a dead zone before it moved again —
+    /// that is the remaining 「还是卡」 pp felt. Resist, don't freeze.
     private func interpolatedRect() -> CGRect {
-        let index = min(max(selection.slot + dampedProgress, 0),
-                        CGFloat(AppSourceMode.allCases.count - 1))
-        let lower = Int(index.rounded(.down))
+        let last = CGFloat(AppSourceMode.allCases.count - 1)
+        let raw = selection.slot + progress
+        let index: CGFloat
+        if raw < 0 {
+            index = -(-raw * Self.edgeResistance)
+        } else if raw > last {
+            index = last + (raw - last) * Self.edgeResistance
+        } else {
+            index = raw
+        }
+        let clamped = min(max(index, 0), last)
+        let lower = Int(clamped.rounded(.down))
         let upper = min(lower + 1, AppSourceMode.allCases.count - 1)
         let a = rect(of: AppSourceMode.allCases[lower])
         let b = rect(of: AppSourceMode.allCases[upper])
-        let t = index - CGFloat(lower)
+        let t = clamped - CGFloat(lower)
         return CGRect(x: a.minX + (b.minX - a.minX) * t,
                       y: 0,
                       width: a.width + (b.width - a.width) * t,
@@ -263,15 +238,6 @@ struct ModeTabPicker: View {
         CGRect(x: edge(mode), y: 0, width: slotWidth(mode), height: Self.pillHeight)
     }
 
-    private var dampedProgress: CGFloat {
-        guard isDragging else { return 0 }
-        let index = selection.slot + progress
-        if index < 0 || index > CGFloat(AppSourceMode.allCases.count - 1) {
-            return progress * Self.edgeResistance
-        }
-        return progress
-    }
-
     /// Distance the finger covers to move one segment (centre to centre).
     private var slotStride: CGFloat {
         let a = edge(.local) + slotWidth(.local) / 2
@@ -280,10 +246,6 @@ struct ModeTabPicker: View {
     }
 
     private static let edgeResistance: CGFloat = 0.32
-    /// Emphasis while the finger owns the pill (dragging) or is down on a segment.
-    static let dragScale: CGFloat = 1.06
-    static let sheenLight: Double = 0.26
-    static let sheenDark: Double = 0.16
 
     private func tap(_ mode: AppSourceMode) {
         // claudio's DraggableFAB pattern (ContentView.swift:6743-6793): a tap that lands
@@ -349,11 +311,13 @@ struct ModeTabPicker: View {
             }
     }
 
-    /// 就近吸附：把当前（含拖动）位置四舍五入到最近的一档。
+    /// 就近吸附：把当前（含拖动）位置四舍五入到最近的一档。取 raw 位置再钳制，
+    /// 而不是钳制后再取整 —— 越界阻尼不影响吸附判定。
     private var nearestMode: AppSourceMode {
-        let index = min(max(selection.slot + dampedProgress, 0),
-                        CGFloat(AppSourceMode.allCases.count - 1))
-        return AppSourceMode.allCases[Int(index.rounded())]
+        let last = CGFloat(AppSourceMode.allCases.count - 1)
+        let raw = selection.slot + progress
+        let clamped = min(max(raw, 0), last)
+        return AppSourceMode.allCases[Int(clamped.rounded())]
     }
 
     static func softTick() {
@@ -370,13 +334,41 @@ struct ModeTabPicker: View {
 /// its own scale+dim; we draw the pill, so we bring the feedback). Also reports
 /// `isPressed` outward so the pill can light up while a segment is held.
 private struct SegmentButtonStyle: ButtonStyle {
-    let onPressChange: (Bool) -> Void
-
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? ModeTabPicker.pressScale : 1)
             .opacity(configuration.isPressed ? 0.72 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { down in onPressChange(down) }
+    }
+}
+
+/// The SELECTED segment wears the system glass on ITSELF — the text is the glass's own
+/// content, so it always shows through (the sibling-pill design covered it). Both
+/// segments share ONE `glassEffectID`, so when the selection changes the system morphs
+/// the glass from the old segment to the new one: the 拉长延伸, drawn by the system
+/// instead of faked. `.interactive()` works here because the glass is on a real control.
+private struct TabGlass: ViewModifier {
+    let isSelected: Bool
+    let namespace: Namespace.ID
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            if isSelected {
+                content
+                    .glassEffect(.regular.interactive(), in: .capsule)
+                    .glassEffectID("modePill", in: namespace)
+            } else {
+                content
+            }
+        } else {
+            if isSelected {
+                content
+                    .background(Capsule().fill(Color(UIColor.secondarySystemBackground)))
+                    .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+            } else {
+                content
+            }
+        }
     }
 }
