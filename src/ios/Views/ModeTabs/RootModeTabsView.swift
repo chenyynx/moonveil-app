@@ -128,6 +128,12 @@ struct RootModeTabsView: View {
                 let dy = value.translation.height
                 let start = value.startLocation
 
+                // [B16-SWIPE-SCOPE] (pp 2026-09-17「聊天页滑动也能滑到remote页?」)
+                // 横滑切页只属于根列表页 —— 本机已 push 进聊天页(localAtRoot == false)
+                // 时整个手势直接退出;会话内的横滑无消费场景,误触反而打断阅读。
+                // B13-SWIPEFIX-5 的「列表区」本意就是会话列表。Remote 将来上会话页时
+                // 同规则适用(仍走这一个栅栏位)。
+                guard router.localAtRoot else { return }
                 guard start.y > Self.listAreaTop else { return }
                 let inBubbleZone = start.y > Self.screenHeight - Self.bubbleZoneHeight
                     && start.x > Self.screenWidth - Self.bubbleZoneWidth
