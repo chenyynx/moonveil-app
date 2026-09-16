@@ -542,6 +542,7 @@
 		D05AF00E000000000000B10C /* ServiceEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A10C /* ServiceEntryView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B10D /* SheetCloseButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A10D /* SheetCloseButton.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000F002 /* caveat_wght.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000F001 /* caveat_wght.ttf */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000F004 /* geistmono_medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000F003 /* geistmono_medium.ttf */; };
 		RK060DD51A5455A70639CDD7 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKE1EEAC30A841AAEFAE91D0 /* KeychainStore.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RK067472C684F598108F7790 /* HTTPReadRetryPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK495A106305A135EA169EDB /* HTTPReadRetryPolicy.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RK07697BFC324EF338B91F5B /* V2ClientFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKA5D26506D4BAF7CA21B752 /* V2ClientFailure.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
@@ -1293,6 +1294,7 @@
 		D05AF00E000000000000A10C /* ServiceEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceEntryView.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A10D /* SheetCloseButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetCloseButton.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000F001 /* caveat_wght.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = caveat_wght.ttf; sourceTree = "<group>"; };
+		D05AF00E000000000000F003 /* geistmono_medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = geistmono_medium.ttf; sourceTree = "<group>"; };
 		RK0119D6FFA49389FF76390F /* V2SessionAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionAPI.swift; sourceTree = "<group>"; };
 		RK01D61AC4A4B2EE7E8CC3DA /* V2Identifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2Identifiers.swift; sourceTree = "<group>"; };
 		RK01E4AF3E2F26914B53D1E6 /* V2TimelineItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2TimelineItem.swift; sourceTree = "<group>"; };
@@ -2351,6 +2353,7 @@
 				A11Y0002 /* ChatAccessibilityAnnouncer.swift */,
 				F1W0E100 /* WebLoadError.swift */,
 				A44D403A6D05BD06BBADC1CF /* Voice */,
+				D05AF00E000000000000F003 /* geistmono_medium.ttf */,
 			);
 			path = Chat;
 			sourceTree = "<group>";
@@ -2964,6 +2967,7 @@
 				E5VC0000C /* zh_background_wordfreq.txt in Resources */,
 				E5JB00004 /* hmm_model.utf8 in Resources */,
 				D05AF00E000000000000F002 /* caveat_wght.ttf in Resources */,
+				D05AF00E000000000000F004 /* geistmono_medium.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
