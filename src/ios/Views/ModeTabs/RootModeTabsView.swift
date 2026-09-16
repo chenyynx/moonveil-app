@@ -160,8 +160,10 @@ struct RootModeTabsView: View {
     /// gear's ink box any more). `AppSymbol` wraps the size in @ScaledMetric, so it also
     /// grows with Dynamic Type the way upstream's does.
     private static let gearSymbolSize: CGFloat = 22
-    @State private var gearPressed = false
-    @Environment(\.colorScheme) private var colorScheme
+    /// Namespace for the gear's morphing glass (AA's `@Namespace private var glass`).
+    @Namespace private var gearGlassNS
+    /// 12pt = AA's container spacing; glasses closer than this merge like liquid.
+    private static let glassSpacing: CGFloat = 12
 
     /// Hidden when the local line is not at its list root (a pushed chat owns that bar)
     /// or when rows are checked (the page draws Cancel at this edge). The remote line has
@@ -176,55 +178,47 @@ struct RootModeTabsView: View {
     /// `.buttonStyle(.glass)`: that style carries its own light-mode grey fill and
     /// padding, and imitating the system toolbar with it is what made B14e's bar read as
     /// 改坏了 (pp 2026-09-16).
+    /// The glass now sits ON the control, inside a `GlassEffectContainer`, and carries a
+    /// `glassEffectID` — that is AA's composer recipe verbatim (ChatComposer.swift:21
+    /// container / :61 `.regular.interactive()` / :62 `glassEffectID`, plus
+    /// `@Namespace private var glass`). It is the CONTAINER that makes `.interactive()`
+    /// respond; a glass parked in a `.background` layer never gets a press, which is why
+    /// my earlier "draw the emphasis" version looked dead next to the system's.
+    @ViewBuilder
     private var gearButton: some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: Self.glassSpacing) {
+                gearControl
+                    .glassEffect(.regular.interactive(), in: Circle())
+                    .glassEffectID("settingsGear", in: gearGlassNS)
+            }
+        } else {
+            gearControl
+                .background(Circle().fill(Color(UIColor.secondarySystemBackground)))
+                .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+        }
+        .padding(.leading, Self.gearLeadingInset)
+        // 44pt disc inside a 44pt band: centring is exact, nothing to fudge.
+        .padding(.top, (Self.gearBandHeight - Self.gearDiameter) / 2)
+    }
+
+    private var gearControl: some View {
         Button {
             router.showSettings = true
         } label: {
-            // AA's own drawer glyph, verbatim: `AppSymbol("sidebar.left", size: 22)`
-            // (upstream ChatPageToolbar.swift:99-101 → asset aa-TextAlignStart, a Web
-            // Lucide path shipped as a native template vector). The asset and the
-            // mapping were already in this repo from batch 8b, so nothing is invented
-            // and nothing new needs to ship.
+            // AA's own drawer glyph, verbatim: AppSymbol("sidebar.left", size: 22)
+            // → asset aa-TextAlignStart (upstream ChatPageToolbar.swift:99-101).
             AppSymbol("sidebar.left", size: Self.gearSymbolSize)
                 .foregroundStyle(Color.primary)
                 .frame(width: Self.gearDiameter, height: Self.gearDiameter)
                 .contentShape(Circle())
         }
-        // AppSymbol hides itself from a11y (upstream does too), so the button must
-        // carry the label — otherwise VoiceOver silently loses the entry point.
+        .buttonStyle(.plain)
+        // AppSymbol hides itself from a11y (upstream does too), so the button carries
+        // the label — the entry point must not go silent under VoiceOver.
         .accessibilityLabel(Text(String(localized: "Settings")))
-        .buttonStyle(BarPressStyle(pressed: $gearPressed))
-        .background {
-            ZStack {
-                if #available(iOS 26.0, *) {
-                    Circle().fill(.clear).glassEffect(.regular.interactive(), in: Circle())
-                } else {
-                    Circle()
-                        .fill(Color(UIColor.secondarySystemBackground))
-                        .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 1))
-                }
-                // Grow + sheen + deeper shadow are DRAWN from `gearPressed`, because
-                // `.interactive()` only fires for a glass that sits on the control
-                // itself — ours lives in a background layer, so it would never light up
-                // (same lesson as the pill, B16-PILL-FEEL). Numbers shared with the pill
-                // so the fixed bar speaks one material language.
-                Circle()
-                    .fill(Color.white.opacity(gearPressed
-                                              ? (colorScheme == .dark ? ModeTabPicker.sheenDark : ModeTabPicker.sheenLight)
-                                              : 0))
-            }
-        }
-        // Resting shadow reads from the pill's constants — one material language for the
-        // fixed bar, one place to tune both.
-        .shadow(color: .black.opacity(gearPressed ? 0.14 : ModeTabPicker.restShadow.opacity),
-                radius: gearPressed ? 7 : ModeTabPicker.restShadow.radius,
-                y: ModeTabPicker.restShadow.y)
-        .scaleEffect(gearPressed ? ModeTabPicker.dragScale : 1)
-        .animation(ModeTabPicker.settle, value: gearPressed)
-        .padding(.leading, Self.gearLeadingInset)
-        // 44pt disc inside a 44pt band: centring is exact, nothing to fudge.
-        .padding(.top, (Self.gearBandHeight - Self.gearDiameter) / 2)
     }
+
 
     /// 远程 tab 且未登录且本次启动还没离开过登录盖 → 盖登录页；登录成功(ready)自动收起。
     private var showsLoginGate: Bool {
@@ -264,22 +258,5 @@ struct RootModeTabsView: View {
                 router.route(to: .local)
             }
         )
-    }
-}
-
-/// Reports a button's own press state outward. SwiftUI's glass `interactive()` variant
-/// cannot reach a glass that lives in a `.background` layer, so the fixed bar draws its
-/// own press emphasis and needs the flag back at the view level.
-private struct BarPressStyle: ButtonStyle {
-    let pressed: Binding<Bool>
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .onChange(of: configuration.isPressed) { down in
-                // Async: `isPressed` can flip inside a view-update transaction, and
-                // writing state there is the "Publishing changes from within view
-                // updates" warning this module already hit twice.
-                DispatchQueue.main.async { pressed.wrappedValue = down }
-            }
     }
 }

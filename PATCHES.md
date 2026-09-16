@@ -217,7 +217,7 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 
 ### B15-CODE2 — 行内代码第二次改判：细的根因是字族与字号，不是颜色（2026-09-16, pp「现在这效果字体也细」→「f最像」→「走f」）
 - File: `src/ios/Views/Chat/SelectableMarkdownView.swift`（`SelectableMarkdownTheme.inlineCodeFont` / `inlineCodeColor`）
-- Deviation: ① 字号比例 `0.845` → **`0.95`**；② 字重 `.regular` → **`.medium`**（字族仍是 `.monospacedSystemFont` = SF Mono，PingFang SC cascade 不动）；③ 浅色芯色 `#EA6F30` → **`#F5691F`**。
+- Deviation: ① 字号比例 `0.845` → **`0.95`**；② 字重 `.regular` → **`.medium`**（字族仍是 `.monospacedSystemFont` = SF Mono，PingFang SC cascade 不动）；③ 浅色芯色 `#EA6F30` → `#F5691F` → **`#ED6D2E`**（二次校正：#F5691F 来自 Grok 的重新编码 JPEG，偏红过头；干净 PNG 实测 Grok 实心墨 = `#ED6D2E`）。
 - Why（全部逐像素实测，不是眼力活）: 先立对照组——两 App 的**正文**笔画/em = 月纱 0.0926 / Grok 0.0909，基本相同 ⇒ 量法公平。行内代码：月纱 **0.079** vs Grok **0.096**（粗 22%，绝对值 3px vs 4px）；拉伸方向：代码 Latin 步进 22.8px vs 26.1px，而正文 CJK 步进 43.2 vs 44（几乎一致）⇒ **我的代码比 Grok 小一圈**。用 iOS WebKit 渲同尺度探针逐候选量 stroke/em：SF Mono reg ×0.845 = 0.0896（现状，与真机实测 0.0877 互证）、SF Mono **Medium** ×0.95 = 0.1116、Menlo reg ×0.95 = 0.1037、Grok 真机 = 0.0996。
 - 改判关系（本条覆盖 B15-CODE 的字体判决，不留双份）: B15-CODE 把 Menlo 换成 SF Mono、并按 `13.5/16 = 0.844` 定了 0.845，依据是 Grok 的**网页 CSS token 表**。本条实测推翻它：**网页 token 不能当 iOS 规格**，跨端对齐必须量同一平台的截图。字族在 SF Mono Medium（F）与 Menlo Regular（G）之间由 pp 拍板 → **F**（我的票投 G，因为它离 0.0996 更近；F 比目标粗约 12%，可 pp 眼准优先）。
 - Semantics: 零删减。点击复制（`.inlineCodeText`）、hair-space 内边距、圆角绘制路径、浅色无底/深色有底的双态判断全部不动；深色字色仍是 `systemOrange`（可读性理由见上一条，本条只改浅色分支）。字号变大会改变气泡内的换行位置与行高，这是预期效果，不涉及布局算法。
@@ -299,4 +299,37 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - 🔴 **判例（编译门第四类，parse 抓不到）**：Swift 的 `private` 只在**声明它的类型内部**（含同文件的该类型扩展）可见；**同文件的另一个类型读不到，那要 `fileprivate`**。我在台账里写的"同文件 private 可见"是错的，已按 CI 原文纠正。规则：跨类型引用的常数一律显式提 `internal`（或 `fileprivate`），别赌同文件。
 - 修法（只修不删）：`pressScale`、`restShadow` 提为 `static`（internal）；顺带把外壳自己复制的那份 `restShadowOpacity = 0.06` 删掉，齿轮改读 `ModeTabPicker.restShadow.{opacity,radius,y}` —— 固定栏一份材质语言，一处调参两处同效。
 - 自查升级为脚本：正则列出 picker 的 `private static` 成员 ∩ 外壳里 `ModeTabPicker.*` 引用 = 空集才算过（本轮输出"无 ✓"）。
+- 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0。
+
+### B16-GLASS-CONTAINER — 向 AA 输入框学真配方：GlassEffectContainer + glassEffectID（2026-09-16, pp「跟系统的那个做出来一样的效果…aa输入框就是这样的，相当于把aa输入框的那个效果做成了tab」）
+- 上游取证（逐行读 `ChatComposer.swift`，不信转述）：`@Namespace private var glass`（:18）→ `GlassEffectContainer(spacing: 12) { … }`（:21）→ 内容整体 `.glassEffect(.regular.interactive(), in: .rect(cornerRadius: 形变态))`（:61）→ `.glassEffectID("composer", in: glass)`（:62）→ `.animation(reduceMotion ? nil : .smooth(duration: 0.24), value: 形变态)`（:68）。
+- 🔴 **判例（推翻我上一笔的自绘方案）**：让玻璃"活起来"的是**容器 + 玻璃 ID**，不是 `.interactive()` 单独一个修饰符。玻璃脱离 `GlassEffectContainer` 就是死的（不响应按压、不形变）；容器还负责**间距内粘连**（spacing 12）与**同 ID 形状插值**（= pp 说的"拖着拉长延伸"）。我之前用 scaleEffect + 白高光 overlay 手搓，是在给一个本该由系统画的材质打补丁。
+- 落地：① 胶囊整行包进 `GlassEffectContainer(spacing: 12)`，玻璃挂 `.glassEffectID("modePill", in: glassNS)`；② 齿轮的玻璃从 `.background` 里**搬到控件身上**（`gearControl.glassEffect(.regular.interactive(), in: Circle())`）并同样装容器 + `glassEffectID("settingsGear", …)`，于是删掉我自己的 `BarPressStyle` / `gearPressed` / 自绘高光与阴影（净 -57 行）；③ iOS<26 无 glass：容器分支不建，齿轮走系统实色 + 1pt 描边，胶囊走实色降级 —— 降级路径只用系统材质，不自造模糊（家规）。
+- 能力面申报（铁律）：删的三样全是我自己上一批造的过渡件（按压回传 style、@State 按压态、手搓高光），**用户可见能力持平**：按下发亮放大改由系统给（更强）、a11y 标签 `Settings` 保留、点档/深链/勾选让位等逻辑一字未动。
+### B16-SNAP-QUIET — 拖动吸附去掉触觉，逻辑回到历史第一版（2026-09-16, pp「这个拖动tab吸附不用做触屏反馈，其实逻辑跟历史第一版那个吸附一样的」）
+- 删：中途越档的 `UISelectionFeedbackGenerator` detent 触感（含 `detent()` 整个函数与 `@State detented` 记账）、松手吸附成功时的 `softTick()`。→ 现在拖动 = 纯跟手 + 松手就近吸附（静默），越界仍是 0.32 阻尼（视觉，非触感）。
+- 保留：**点按**切档的 soft 触感（Grok DESIGN.md「soft haptic on switch」，pp 早前确认）；外壳整页滑动的 `softTick()` 也保留 —— 它标的是"真的换了档"，不是拖动途中的吸附；若 pp 要一并静默，一句话删。
+- 这是铁律里的合法出口：**pp 明示弃用 + 留字据**（本条即字据），不是我自行阉割。
+- 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0。⚠️ `GlassEffectContainer`/`glassEffectID` 是 iOS 26 API 且我们仓内**首次使用**（上游 AA 有用，但我们没编译过）→ 必须 CI 终审。
+
+### B16-SNAP-CLAUDIO — 与 claudio 的吸附逐条对表 + 补上尾随点击抑制（2026-09-16, pp「吸附逻辑应该是claudio会话开始选择agent的那个吸附 一样的道理」「你看看是不是一样的效果」）
+- 参照件（只读，未改 claudio）：`~/claudio/src/ios/Views/ContentView.swift:6743-6793` `DraggableFAB`。
+- 对表结论：**跟手映射、松手判定、回位弹簧三条本来就等价** —— claudio `dragOffset = translation.width`（1:1 pt）↔ 我 `progress = dx/slotStride` 后 `slot+progress` 插值；claudio 用"落点中心 vs 屏宽中线"↔ 我用 `round(slot+progress)`（两档居中时中心线≈中线）；`spring(0.35,0.75)` ↔ `spring(0.36,0.78)`。
+- 三处不同：① 起手阈值 claudio 10pt（= pp 上午骂的"不跟手"死区），我保留 3pt；② 触感 claudio 只在真换边时 tick 一次（medium），我按 pp 令把拖动路径整体静默（点按 soft 保留）——**有意不同，留字据**；③ 🔴 真差异 = claudio 用 `.simultaneousGesture` + `didDrag`（抬手 0.15s 内吞掉 tap），我用 `highPriorityGesture` 且**没有这个抑制** → 拖完抬手会顺带触发落点那一段的 Button，表现为"多吸一格/回弹后再跳一次"。
+- 落地：`@State didScrub` + `tap()` 首行 `if didScrub { return }` + onEnded 后 0.15s 复位（claudio 原窗口值）。
+- 🔴 判例：claudio 那段文档注释自称"Uses UIKit's UIPanGestureRecognizer via UIViewRepresentable"，**代码里没有这件事**（就是 SwiftUI DragGesture + simultaneousGesture）。引用别人的实现前先读代码，别拿注释当证据 —— 我差点据此下沉到 UIKit 重写。
+- 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0。⚠️ 本轮含**仓内首次使用 `GlassEffectContainer` / `glassEffectID`（iOS 26 API）**，parse 不代表编译通过，CI 终审。
+
+### B16-SNAP-ARC — 「时而能发光放大时而不能」= 方向判定每帧重做 + 拇指弧线（2026-09-16, pp「胶囊时而拖动发光放大时而不能 我也不知道」）
+- 机制：旧代码在每个 onChanged 上重测 `|dx| > |dy|×1.35` 才允许锁存。拇指在宽条上横拖天然带弧（例：末态 dx 60 / dy 50 → 60 > 67.5 不成立），于是**整次手势都不成立** ⇒ 既不跟手也不发亮放大。所以"时好时坏"取决于**手指的弧线**，不取决于控件 —— 这就是他说不清原因的原因。
+- 修法：**一次判定、两个锁存态**。① 走到 `directionDecideDistance = 6pt` 才判（判得早，前 6pt 基本还是横向，1.35 这个 pp 给的数就够用）；② 判为横向 → `directionLocked = true`，此后不再重测；③ 判为纵向 → `directionRejected = true`，**本次手势彻底退出**（不再中途反悔重Claim，否则列表已开始滚、胶囊又突然抢手势会猛跳）。抬手与换档两条路都复位两个标志。
+- 强调时机也改了：`isDragging = true` 紧跟"抢到"的那一刻，不等手指再走一段 ⇒ 发光放大从手势第一帧就在。
+- 判据（可泛化）：**任何"每帧重估"的方向/意图判定，都要改成"早判一次 + 锁存 + 拒绝态"**；否则用户的手势轨迹会随机决定功能是否生效，症状表现为"时好时坏"，而且没人能复述触发条件。
+- 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0。
+
+### B16-NO-SHADOW — 摘掉胶囊与齿轮周围的投影（2026-09-16, pp「现在这个胶囊和设置按钮周围你是不是加了阴影 系统原生的没有阴影」）
+- 是我加的。胶囊：静息 `0.06 / r3 / y1`、按下 `0.14 / r7`；齿轮那颗的阴影在上一批（玻璃从 `.background` 搬到控件身上、删掉我所有手搓件）时已经跟着没了 —— 所以**他手上那个包（34e1a32）里齿轮仍有阴影，新包里两处都干净**。
+- 🔴 来源交代：那组数照搬了他贴的 Grok **网页** CSS token `box-shadow: 0 1px 3px rgba(0,0,0,.06)`。同族第三次踩（B15-CODE 字体族、B16-PILL-SIZE 盘高比例、这次阴影）⇒ **网页 token 不能当 iOS 材质规格**：iOS 26 的玻璃自带边缘与折射，再套 drop shadow 就成贴在白底上的实心贴纸。
+- 规则升级：外部 token 表只用来读"意图"（有没有阴影、大概多轻），任何要落到 iOS 的数值必须在 iOS 截图上量出来才算；量不出来就默认不加、以系统材质为准。
+- 现在两颗都只剩：玻璃本身（容器 + `glassEffectID`，形变与按压发亮由系统画）+ 胶囊按下时的 `scaleEffect` 与白色高光。删掉的 `restShadow` 常数是本轮我自己造的，非功能。
 - 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0。

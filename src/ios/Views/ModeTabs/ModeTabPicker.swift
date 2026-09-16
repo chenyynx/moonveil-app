@@ -16,9 +16,12 @@
 // iOS < 26 没有 glassEffect：降级 secondarySystemBackground 实色胶囊 + 1pt 细描边
 // （upstream SearchBarSurface 家规：不自造模糊效果，降级只用系统实色材质）。
 //
-// 行为面零删减（完整性铁律）：点档切换 + soft 触感、越界 detent 触感、点已选本机段仍开
-// sync 迁移详情 (onLocalRetap)、整条顶栏宽热区 + highPriorityGesture（B13 判例：普通
-// .gesture 会被按钮吞掉 = 真机失灵）。
+// 行为面（完整性铁律）：点档切换 + soft 触感、点已选本机段仍开 sync 迁移详情
+// (onLocalRetap)、整条顶栏宽热区 + highPriorityGesture（B13 判例：普通 .gesture 会被
+// 按钮吞掉 = 真机失灵）、越界阻尼（视觉，非触感）。
+// pp 明示弃用（2026-09-16，铁律的唯一出口，留字据）：**拖动吸附路径的触觉反馈**全部去掉
+// —— 中途越档的 selection detent 触感与松手的 tick 都不要了，吸附逻辑回到历史第一版
+// （跟手 + 松手就近吸附，静默）。点按路径的 soft 触感不在其列，保留。
 //
 // 本文件仍是"住在页面自己的顶栏里"。固定栏上提（齿轮 + 胶囊进外壳）与两页平移是下一批，
 // 分开走：一次只动一层，坏了能立刻知道是哪一层。
@@ -51,12 +54,20 @@ struct ModeTabPicker: View {
     /// below is the safety net if a pan is stolen and onEnded never arrives.
     @State private var progress: CGFloat = 0
     @State private var isDragging = false
+    /// True from the moment a scrub starts until 0.15s after the finger lifts (claudio's
+    /// exact window) so the trailing tap of a drag cannot switch a second time.
+    @State private var didScrub = false
     /// B16: direction is decided ONCE per gesture and then latched. The old code
     /// re-tested "more horizontal than vertical" on every event, so any mid-drag
     /// vertical drift made the guard bail out, `progress` stopped updating and the pill
     /// froze under the finger and then lurched — that is 「卡卡的」. Once claimed, the
     /// gesture is ours until the finger lifts.
     @State private var directionLocked = false
+    /// Set when the first real travel was clearly vertical: the list owns this gesture,
+    /// and we stay out of it until the finger lifts.
+    @State private var directionRejected = false
+    /// Namespace for the pill's morphing glass (AA: `@Namespace private var glass`).
+    @Namespace private var glassNS
     /// True while a segment is held down — the pill lights up for a tap too, not only a
     /// scrub (otherwise a tap reads as dead until the switch lands).
     @State private var pressedMode: AppSourceMode?
@@ -84,13 +95,12 @@ struct ModeTabPicker: View {
     /// internal on purpose: the fixed bar's gear wears the SAME emphasis and the SAME
     /// spring, so the numbers live in one place (B16).
     static let settle = Animation.spring(response: 0.36, dampingFraction: 0.78)
+    /// 12pt = AA's container spacing: glasses closer than this merge like liquid.
+    private static let glassSpacing: CGFloat = 12
     /// Travel (pt) before a scrub counts as a drag at all. Was 10 (SwiftUI's default),
     /// and that dead zone is half of 「不跟手」: the finger moves, nothing moves, then it
     /// jumps in. 3pt is enough to distinguish a scrub from a tap.
     private static let dragSlop: CGFloat = 3
-    /// Grok's own web token for this pill is `box-shadow: 0 1px 3px rgba(0,0,0,.06)`
-    /// (pp pasted it, 2026-09-16) — lighter than what I had, so the resting shadow follows it.
-    static let restShadow = (opacity: 0.06, radius: CGFloat(3), y: CGFloat(1))
     /// Same source: active state is `scale(0.97)`, not the 0.92 I invented.
     /// internal, not private: `private` would only be visible inside THIS type, and
     /// SegmentButtonStyle / the fixed bar's gear are separate types in this file — CI
@@ -98,6 +108,10 @@ struct ModeTabPicker: View {
     static let pressScale: CGFloat = 0.97
     /// pp's own tuning (2026-09-16, verbatim): horizontal beats vertical by 1.35×.
     private static let horizontalRatio: CGFloat = 1.35
+    /// Travel needed before we are allowed to judge direction at all (pt). Small enough
+    /// that the verdict happens almost immediately, so an arcing drag still reads as
+    /// horizontal — the ratio only has to hold for these first few points.
+    private static let directionDecideDistance: CGFloat = 6
 
     private var label: (AppSourceMode) -> String {
         { $0 == .local ? localLabel : remoteLabel }
@@ -128,6 +142,39 @@ struct ModeTabPicker: View {
     }
 
     var body: some View {
+        glassRow { rowContent }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        // highPriorityGesture: a plain `.gesture` here was eaten by the segment buttons
+        // and read as 失灵 on device (B13).
+        .highPriorityGesture(scrubGesture())
+        .onChange(of: selection) { _ in
+            // Safety net for a stolen pan that never delivered onEnded.
+            progress = 0
+            isDragging = false
+            directionLocked = false
+            directionRejected = false
+        }
+    }
+
+    /// THE container is the part that matters. `GlassEffectContainer` + a `glassEffectID`
+    /// namespace is what makes iOS 26 glass respond to interaction AND morph between
+    /// shapes — AA's composer does exactly this (ChatComposer.swift:21 container /
+    /// :61 `.regular.interactive()` / :62 `.glassEffectID("composer", in: glass)`, with
+    /// `@Namespace private var glass`). A glass outside a container is inert, which is
+    /// why my hand-drawn emphasis was the wrong tool for this job. iOS < 26 has no glass
+    /// at all, so the row renders bare and the pill's solid fallback carries it.
+    @ViewBuilder
+    private func glassRow<Content: View>(@ViewBuilder _ content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: Self.glassSpacing) { content }
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder
+    private var rowContent: some View {
         ZStack(alignment: .topLeading) {
             // ORDER IS A SPEC: the glass goes in FIRST (behind), the labels on top.
             // B14e had this inverted and the pill painted over the selected label —
@@ -142,18 +189,6 @@ struct ModeTabPicker: View {
             }
         }
         .frame(width: rowWidth, height: Self.rowHeight)
-        // Hit band stays WIDER than the visual row (fills the top bar) and stays a
-        // highPriorityGesture: a plain `.gesture` here was eaten by the segment buttons
-        // and read as 失灵 on device (B13).
-        .frame(maxWidth: .infinity)
-        .contentShape(Rectangle())
-        .highPriorityGesture(scrubGesture())
-        .onChange(of: selection) { _ in
-            // Safety net for a stolen pan that never delivered onEnded.
-            progress = 0
-            isDragging = false
-            directionLocked = false
-        }
     }
 
     private func segment(_ mode: AppSourceMode) -> some View {
@@ -192,6 +227,10 @@ struct ModeTabPicker: View {
                 Capsule()
                     .fill(.clear)
                     .glassEffect(.regular.interactive(), in: .capsule)
+                    // One identity for the moving glass: as its frame animates between
+                    // slots the SYSTEM stretches it (the 拉长延伸 pp asked for) rather
+                    // than me faking a scale.
+                    .glassEffectID("modePill", in: glassNS)
             } else {
                 Capsule()
                     .fill(Color(UIColor.secondarySystemBackground))
@@ -203,14 +242,17 @@ struct ModeTabPicker: View {
         // 提亮和放大是**画出来的**，不是 `.interactive()` 给的：那个变体只在"真控件"的
         // 按压态上生效，而这一层是装饰层、还 `allowsHitTesting(false)`，所以它永远不亮
         // （上游 AA 的同类装饰层用的就是不带 interactive 的 `.regular`，同一个道理）。
-        // 手指按住/拖动 → 轻微长大 + 一层白色高光淡入 + 阴影加深，全部走同一条 spring。
+        // 手指按住/拖动 → 轻微长大 + 一层白色高光淡入，走同一条 spring。
+        // 不加投影：iOS 26 的玻璃自己带边缘与折射，再套一层 drop shadow 就变成贴在
+        // 白底上的实心贴纸，不是玻璃了（pp 2026-09-16「系统原生的没有阴影」）。
+        // 我原来那 0.06/r3/y1 是照 Grok 的**网页** CSS token（box-shadow: 0 1px 3px
+        // rgba(0,0,0,.06)）搬的 —— 网页 token 不是 iOS 材质规格，同族第三次踩（前两次：
+        // B15-CODE 字体、B16-PILL-SIZE 盘高）。
         .scaleEffect(emphasised ? Self.dragScale : 1)
         .overlay {
             Capsule()
                 .fill(Color.white.opacity(emphasised ? (colorScheme == .dark ? Self.sheenDark : Self.sheenLight) : 0))
         }
-        .shadow(color: .black.opacity(emphasised ? 0.14 : Self.restShadow.opacity),
-                radius: emphasised ? 7 : Self.restShadow.radius, y: Self.restShadow.y)
         // The snap spring is bound to `selection.slot` EXPLICITLY. Relying on the
         // `withAnimation` around the assignment was not enough once the emphasis
         // modifiers went on — the pill teleported instead of settling (pp 2026-09-16
@@ -267,6 +309,11 @@ struct ModeTabPicker: View {
     static let sheenDark: Double = 0.16
 
     private func tap(_ mode: AppSourceMode) {
+        // claudio's DraggableFAB pattern (ContentView.swift:6743-6793): a tap that lands
+        // right after a scrub is the tail of that drag, not an intent to switch again.
+        // Without this guard a drag that ends over a segment can also fire that segment's
+        // Button — the double-step pp described as 吸附做的有问题.
+        if didScrub { return }
         if mode == selection {
             if mode == .local { onLocalRetap?() }
             return
@@ -284,32 +331,43 @@ struct ModeTabPicker: View {
         DragGesture(minimumDistance: Self.dragSlop, coordinateSpace: .local)
             .onChanged { value in
                 if !directionLocked {
-                    // Claim the gesture only when the travel is clearly sideways; before
-                    // that, a vertical drag belongs to the list and we stay out of it.
-                    guard abs(value.translation.width) > Self.dragSlop,
-                          abs(value.translation.width) > abs(value.translation.height) * Self.horizontalRatio
-                    else { return }
+                    // A rejected gesture stays rejected — otherwise a thumb that arcs
+                    // back sideways mid-drag would suddenly re-claim and the pill would
+                    // lurch after the list already started scrolling.
+                    if directionRejected { return }
+                    let dx = abs(value.translation.width), dy = abs(value.translation.height)
+                    // 🔴 Judge the direction ONCE, at the first meaningful travel, then
+                    // stick with it. The old code re-tested the ratio on EVERY event, so
+                    // a thumb dragging in a natural arc (dx 60 / dy 50 by the end) never
+                    // passed 1.35 → no follow AND no emphasis. That is the
+                    // 「时而能发光放大时而不能」 pp saw: it depended on the arc of the
+                    // finger, not on the control.
+                    guard max(dx, dy) > Self.directionDecideDistance else { return }
+                    guard dx > dy * Self.horizontalRatio else {
+                        directionRejected = true
+                        return
+                    }
                     directionLocked = true
                 }
+                // Emphasis starts the instant we claim the gesture — not after the
+                // finger has travelled further.
                 isDragging = true
+                didScrub = true
                 progress = value.translation.width / slotStride
-                let target = nearestMode
-                if target != detented {
-                    detented = target
-                    if target != selection { Self.detent() }
-                }
             }
             .onEnded { _ in
+                // Snap logic back to the first version: follow the finger, and on release
+                // settle onto whichever segment is nearest. NO haptics on this path —
+                // pp 2026-09-16「这个拖动tab吸附不用做触屏反馈」. A TAP still ticks
+                // (Grok DESIGN.md: soft haptic on switch); the scrub stays silent.
                 let target = nearestMode
                 directionLocked = false
-                detented = nil
+                directionRejected = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { didScrub = false }
                 withAnimation(Self.settle) {
                     isDragging = false
                     progress = 0
-                    if target != selection {
-                        selection = target
-                        Self.softTick()
-                    }
+                    if target != selection { selection = target }
                 }
             }
     }
@@ -321,18 +379,11 @@ struct ModeTabPicker: View {
         return AppSourceMode.allCases[Int(index.rounded())]
     }
 
-    /// Which segment already got its detent during THIS drag (fires once per crossing).
-    @State private var detented: AppSourceMode?
-
     static func softTick() {
         let g = UIImpactFeedbackGenerator(style: .soft)
         g.prepare(); g.impactOccurred()
     }
 
-    static func detent() {
-        let g = UISelectionFeedbackGenerator()
-        g.prepare(); g.selectionChanged()
-    }
 }
 
 /// Press feedback for the labels. The glass pill itself brightens and scales through
