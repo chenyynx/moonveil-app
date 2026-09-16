@@ -1419,6 +1419,66 @@ struct ContentView: View {
         }
     }
 
+    /// B14e: the fixed top bar's seam and its display mirrors, in their OWN stage.
+    /// [T-split-body] applied, not rediscovered: this block first went onto
+    /// `bodyPresentationStage`, and CI then blew the type-check budget for the whole
+    /// function (ContentView:1423 "unable to type-check this expression in reasonable
+    /// time"). Splitting the chain is the fix; the behaviour is identical.
+    private func bodyBarSeamStage<V: View>(_ base: V) -> some View {
+        // B14e seam: the fixed top bar is drawn by RootModeTabsView (so it can stay put
+        // while both pages slide), but every control there acts on state that still
+        // lives HERE. Taps arrive as one-shot requests and are cleared a runloop later
+        // — writing an ObservableObject's @Published from inside a view update is the
+        // "Publishing changes from within view updates" case, and this file already
+        // defers the same way for pendingSettingsReopen in onAppear above.
+        .onChange(of: tabRouter.requestedBarAction) { request in
+            guard let request else { return }
+            switch request {
+            case .toolSheet(let sheet):
+                activeToolSheet = sheet
+            case .terminal:
+                showTerminal = true
+            case .alarmList:
+                showAlarmList = true
+            #if DEBUG
+            case .toggleKeepAwake:
+                keepScreenAwake.toggle()
+                UIApplication.shared.isIdleTimerDisabled = keepScreenAwake
+            #endif
+            }
+            DispatchQueue.main.async { tabRouter.requestedBarAction = nil }
+        }
+        // …and the bar's display flags mirror this line's existing sources of truth,
+        // one-way and low-frequency (a tap or a timer tick, never a per-frame write).
+        .onChange(of: isSelecting) { on in
+            DispatchQueue.main.async { tabRouter.localSelecting = on }
+        }
+        .onChange(of: hasAlarms) { on in
+            DispatchQueue.main.async { tabRouter.barHasAlarms = on }
+        }
+        .onChange(of: migrationSubtitle) { next in
+            DispatchQueue.main.async { tabRouter.barSyncSubtitle = next }
+        }
+        .onChange(of: keepAwakeFlag) { on in
+            DispatchQueue.main.async { tabRouter.barKeepScreenAwake = on }
+        }
+        // B14d: the fixed bar steps aside when this line pushes a chat. Same root test
+        // as goHome() above (path on iPhone, selection on the iPad split layout).
+        .onAppear { syncFixedBarAtRoot(); syncFixedBarFlags() }
+        .onChange(of: navigationPath) { _ in syncFixedBarAtRoot() }
+        .onChange(of: selectedSessionId) { _ in syncFixedBarAtRoot() }
+    }
+
+    /// Exists in BOTH build configurations so the modifier chain above stays a single
+    /// expression (`#if` cannot appear inside one). Release: a constant, so the mirror
+    /// can never fire and the bar's DEBUG checkmark stays off — which is exactly the
+    /// upstream behaviour, since the menu item that sets it is DEBUG-only.
+    #if DEBUG
+    private var keepAwakeFlag: Bool { keepScreenAwake }
+    #else
+    private var keepAwakeFlag: Bool { false }
+    #endif
+
     private func bodyPresentationStage<V: View>(_ base: V) -> some View {
         base
         .fullScreenCover(isPresented: $showTerminal) {
@@ -1468,46 +1528,6 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .dismissAllImmersivePresentations)) { _ in
             if activeToolSheet != nil { activeToolSheet = nil }
         }
-        // B14e seam: the fixed top bar is drawn by RootModeTabsView (so it can stay put
-        // while both pages slide), but every control there acts on state that still
-        // lives HERE. Taps arrive as one-shot requests and are cleared a runloop later
-        // — writing an ObservableObject's @Published from inside a view update is the
-        // "Publishing changes from within view updates" case, and this file already
-        // defers the same way for pendingSettingsReopen in onAppear above.
-        .onChange(of: tabRouter.requestedBarAction) { request in
-            guard let request else { return }
-            switch request {
-            case .toolSheet(let sheet):
-                activeToolSheet = sheet
-            case .terminal:
-                showTerminal = true
-            case .alarmList:
-                showAlarmList = true
-            case .toggleKeepAwake:
-                keepScreenAwake.toggle()
-                UIApplication.shared.isIdleTimerDisabled = keepScreenAwake
-            }
-            DispatchQueue.main.async { tabRouter.requestedBarAction = nil }
-        }
-        // …and the bar's display flags mirror this line's existing sources of truth,
-        // one-way and low-frequency (a tap or a timer tick, never a per-frame write).
-        .onChange(of: isSelecting) { on in
-            DispatchQueue.main.async { tabRouter.localSelecting = on }
-        }
-        .onChange(of: hasAlarms) { on in
-            DispatchQueue.main.async { tabRouter.barHasAlarms = on }
-        }
-        .onChange(of: migrationSubtitle) { next in
-            DispatchQueue.main.async { tabRouter.barSyncSubtitle = next }
-        }
-        .onChange(of: keepScreenAwake) { on in
-            DispatchQueue.main.async { tabRouter.barKeepScreenAwake = on }
-        }
-        // B14d: the fixed bar steps aside when this line pushes a chat. Same root test
-        // as goHome() above (path on iPhone, selection on the iPad split layout).
-        .onAppear { syncFixedBarAtRoot(); syncFixedBarFlags() }
-        .onChange(of: navigationPath) { _ in syncFixedBarAtRoot() }
-        .onChange(of: selectedSessionId) { _ in syncFixedBarAtRoot() }
         .sheet(item: $sessionToDelete) { session in
             DeleteConfirmSheet(info: $singleDeleteInfo, isLoading: false) {
                 print("[DELETE] onDelete called for session: \(session.id)")
@@ -1803,7 +1823,7 @@ struct ContentView: View {
         let selecting = isSelecting
         let alarms = hasAlarms
         let subtitle = migrationSubtitle
-        let awake = keepScreenAwake
+        let awake = keepAwakeFlag
         DispatchQueue.main.async {
             tabRouter.localSelecting = selecting
             tabRouter.barHasAlarms = alarms
@@ -2111,7 +2131,7 @@ struct ContentView: View {
     }
 
     var body: some View {
-        bodyStateStage(bodyPresentationStage(bodyEventStage(GeometryReader { geo in
+        bodyStateStage(bodyBarSeamStage(bodyPresentationStage(bodyEventStage(GeometryReader { geo in
         GeometryReader { geo in
             let wide = isIPad && geo.size.width >= compactThreshold
             Group {
@@ -2137,7 +2157,7 @@ struct ContentView: View {
                 wireMenuActions()
             }
         }
-        })))
+        }))))
     }
 
     // MARK: - Split Layout (iPad / wide window)

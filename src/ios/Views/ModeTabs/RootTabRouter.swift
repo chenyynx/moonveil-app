@@ -70,5 +70,10 @@ enum LocalBarAction {
     case toolSheet(ToolSheet)
     case terminal
     case alarmList
+    #if DEBUG
+    /// Drives ContentView's `keepScreenAwake`, which is itself declared inside
+    /// `#if DEBUG` — so the case has to be DEBUG-only too, otherwise Release builds
+    /// reference a symbol that does not exist (CI 426e2a2).
     case toggleKeepAwake
+    #endif
 }
