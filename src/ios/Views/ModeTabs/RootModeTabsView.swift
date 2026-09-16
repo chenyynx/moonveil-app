@@ -110,7 +110,7 @@ struct RootModeTabsView: View {
     private var pageSwipe: some Gesture {
         // 10pt = SwiftUI's own default drag threshold (there is no system default for
         // the two numbers below — SwiftUI ships no swipe-to-switch-page control).
-        DragGesture(minimumDistance: 10)
+        DragGesture(minimumDistance: 12)   // pp 2026-09-16: directionLockDistance = 12pt
             .onChanged { value in
                 let dx = value.translation.width
                 let dy = value.translation.height
@@ -156,9 +156,13 @@ struct RootModeTabsView: View {
     private static let gearLeadingInset: CGFloat = 16
     private static let gearBandHeight: CGFloat = 44
     private static let gearDiameter: CGFloat = 44
-    /// Gear ink box measured 23.3×23.0pt on that screenshot; SF Symbol `gear` runs at
-    /// roughly 1.05× its point size, so 22pt reproduces it.
+    /// 22pt = AA's own number for this glyph in its toolbar (not derived from the old
+    /// gear's ink box any more). `AppSymbol` wraps the size in @ScaledMetric, so it also
+    /// grows with Dynamic Type the way upstream's does.
     private static let gearSymbolSize: CGFloat = 22
+    private static let restShadowOpacity: Double = 0.06
+    @State private var gearPressed = false
+    @Environment(\.colorScheme) private var colorScheme
 
     /// Hidden when the local line is not at its list root (a pushed chat owns that bar)
     /// or when rows are checked (the page draws Cancel at this edge). The remote line has
@@ -177,22 +181,44 @@ struct RootModeTabsView: View {
         Button {
             router.showSettings = true
         } label: {
-            Image(systemName: "gear")
-                .font(.system(size: Self.gearSymbolSize))
+            // AA's own drawer glyph, verbatim: `AppSymbol("sidebar.left", size: 22)`
+            // (upstream ChatPageToolbar.swift:99-101 → asset aa-TextAlignStart, a Web
+            // Lucide path shipped as a native template vector). The asset and the
+            // mapping were already in this repo from batch 8b, so nothing is invented
+            // and nothing new needs to ship.
+            AppSymbol("sidebar.left", size: Self.gearSymbolSize)
                 .foregroundStyle(Color.primary)
                 .frame(width: Self.gearDiameter, height: Self.gearDiameter)
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        // AppSymbol hides itself from a11y (upstream does too), so the button must
+        // carry the label — otherwise VoiceOver silently loses the entry point.
+        .accessibilityLabel(Text(String(localized: "Settings")))
+        .buttonStyle(BarPressStyle(pressed: $gearPressed))
         .background {
-            if #available(iOS 26.0, *) {
-                Circle().fill(.clear).glassEffect(.regular.interactive(), in: Circle())
-            } else {
+            ZStack {
+                if #available(iOS 26.0, *) {
+                    Circle().fill(.clear).glassEffect(.regular.interactive(), in: Circle())
+                } else {
+                    Circle()
+                        .fill(Color(UIColor.secondarySystemBackground))
+                        .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                }
+                // Grow + sheen + deeper shadow are DRAWN from `gearPressed`, because
+                // `.interactive()` only fires for a glass that sits on the control
+                // itself — ours lives in a background layer, so it would never light up
+                // (same lesson as the pill, B16-PILL-FEEL). Numbers shared with the pill
+                // so the fixed bar speaks one material language.
                 Circle()
-                    .fill(Color(UIColor.secondarySystemBackground))
-                    .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                    .fill(Color.white.opacity(gearPressed
+                                              ? (colorScheme == .dark ? ModeTabPicker.sheenDark : ModeTabPicker.sheenLight)
+                                              : 0))
             }
         }
+        .shadow(color: .black.opacity(gearPressed ? 0.14 : Self.restShadowOpacity),
+                radius: gearPressed ? 7 : 3, y: 1)
+        .scaleEffect(gearPressed ? ModeTabPicker.dragScale : 1)
+        .animation(ModeTabPicker.settle, value: gearPressed)
         .padding(.leading, Self.gearLeadingInset)
         // 44pt disc inside a 44pt band: centring is exact, nothing to fudge.
         .padding(.top, (Self.gearBandHeight - Self.gearDiameter) / 2)
@@ -236,5 +262,22 @@ struct RootModeTabsView: View {
                 router.route(to: .local)
             }
         )
+    }
+}
+
+/// Reports a button's own press state outward. SwiftUI's glass `interactive()` variant
+/// cannot reach a glass that lives in a `.background` layer, so the fixed bar draws its
+/// own press emphasis and needs the flag back at the view level.
+private struct BarPressStyle: ButtonStyle {
+    let pressed: Binding<Bool>
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .onChange(of: configuration.isPressed) { down in
+                // Async: `isPressed` can flip inside a view-update transaction, and
+                // writing state there is the "Publishing changes from within view
+                // updates" warning this module already hit twice.
+                DispatchQueue.main.async { pressed.wrappedValue = down }
+            }
     }
 }

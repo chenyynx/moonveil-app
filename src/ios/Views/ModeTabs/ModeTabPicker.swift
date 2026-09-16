@@ -51,18 +51,50 @@ struct ModeTabPicker: View {
     /// below is the safety net if a pan is stolen and onEnded never arrives.
     @State private var progress: CGFloat = 0
     @State private var isDragging = false
+    /// B16: direction is decided ONCE per gesture and then latched. The old code
+    /// re-tested "more horizontal than vertical" on every event, so any mid-drag
+    /// vertical drift made the guard bail out, `progress` stopped updating and the pill
+    /// froze under the finger and then lurched — that is 「卡卡的」. Once claimed, the
+    /// gesture is ours until the finger lifts.
+    @State private var directionLocked = false
+    /// True while a segment is held down — the pill lights up for a tap too, not only a
+    /// scrub (otherwise a tap reads as dead until the switch lands).
+    @State private var pressedMode: AppSourceMode?
+    @Environment(\.colorScheme) private var colorScheme
 
-    // ── Geometry (measured off pp's Grok frames: pill hugs the label, no track) ─────
-    private static let pillHeight: CGFloat = 26
-    private static let labelHPadding: CGFloat = 12
+    // ── Geometry — calibrated off pp's Grok screenshot (photo_33EAEE5C, 1179px@3x) ──
+    // Vertical scan through the pill's centre column: white disc runs 67.7pt → 99.0pt,
+    // i.e. height ≈ 30pt. Horizontal scan through its centre row: 103.7 → 155.0pt =
+    // 51.3pt wide around a 25.0pt-wide 提问 ink box → side padding ≈ 13pt.
+    // Ink heights (提问 12.3pt, Imagine 13.0pt incl. descender) put the label at 14pt,
+    // so the pill is deliberately tall relative to the text — that is what mine lacked
+    // (26pt pill / 15pt text read as 「有点窄」).
+    private static let pillHeight: CGFloat = 30
+    private static let labelHPadding: CGFloat = 13
     private static let segmentSpacing: CGFloat = 2
-    private static let labelSize: CGFloat = 15
-    private static let rowHeight: CGFloat = 36
+    private static let labelSize: CGFloat = 14
+    /// Both segments carry the SAME colour and the SAME weight (pp 2026-09-16:「两段都
+    /// 黑」then「未选中也要一样的粗细」) — the glass pill alone marks the selection.
+    /// Grok differentiates by colour (选中黑/未选中灰); we deliberately do not, so if a
+    /// future pass wants the cue back, this one constant is the only place to split.
+    private static let labelWeight: Font.Weight = .semibold
+    private static let rowHeight: CGFloat = 40
 
     // ── Motion ────────────────────────────────────────────────────────────────────
-    private static let settle = Animation.spring(response: 0.36, dampingFraction: 0.78)
-    /// Travel (pt) before a scrub counts as a drag at all — SwiftUI's own default is 10.
-    private static let dragSlop: CGFloat = 10
+    /// internal on purpose: the fixed bar's gear wears the SAME emphasis and the SAME
+    /// spring, so the numbers live in one place (B16).
+    static let settle = Animation.spring(response: 0.36, dampingFraction: 0.78)
+    /// Travel (pt) before a scrub counts as a drag at all. Was 10 (SwiftUI's default),
+    /// and that dead zone is half of 「不跟手」: the finger moves, nothing moves, then it
+    /// jumps in. 3pt is enough to distinguish a scrub from a tap.
+    private static let dragSlop: CGFloat = 3
+    /// Grok's own web token for this pill is `box-shadow: 0 1px 3px rgba(0,0,0,.06)`
+    /// (pp pasted it, 2026-09-16) — lighter than what I had, so the resting shadow follows it.
+    private static let restShadow = (opacity: 0.06, radius: CGFloat(3), y: CGFloat(1))
+    /// Same source: active state is `scale(0.97)`, not the 0.92 I invented.
+    private static let pressScale: CGFloat = 0.97
+    /// pp's own tuning (2026-09-16, verbatim): horizontal beats vertical by 1.35×.
+    private static let horizontalRatio: CGFloat = 1.35
 
     private var label: (AppSourceMode) -> String {
         { $0 == .local ? localLabel : remoteLabel }
@@ -117,6 +149,7 @@ struct ModeTabPicker: View {
             // Safety net for a stolen pan that never delivered onEnded.
             progress = 0
             isDragging = false
+            directionLocked = false
         }
     }
 
@@ -125,14 +158,23 @@ struct ModeTabPicker: View {
             tap(mode)
         } label: {
             Text(label(mode))
-                .font(.system(size: Self.labelSize,
-                              weight: mode == selection ? .semibold : .regular))
+                .font(.system(size: Self.labelSize, weight: Self.labelWeight))
                 .foregroundStyle(Color.primary)     // 两段都黑字（pp 09-16）
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(SegmentButtonStyle())
+        .buttonStyle(SegmentButtonStyle { down in
+            // The pill lights up for a held-down segment too, not only for a scrub —
+            // otherwise a tap looks dead until the switch lands. The style reports its
+            // own `isPressed` back here because ButtonStyle cannot otherwise talk to us.
+            // Async write: `isPressed` can flip inside a SwiftUI transaction, and
+            // mutating state there is the "Publishing changes from within view updates"
+            // warning we already hit twice in this module.
+            DispatchQueue.main.async {
+                pressedMode = down ? mode : (pressedMode == mode ? nil : pressedMode)
+            }
+        })
     }
 
     /// The single glass layer: position AND width interpolate with the finger, so a
@@ -155,8 +197,29 @@ struct ModeTabPicker: View {
         }
         .frame(width: f.width, height: Self.pillHeight)
         .offset(x: f.minX, y: (Self.rowHeight - Self.pillHeight) / 2)
+        // 提亮和放大是**画出来的**，不是 `.interactive()` 给的：那个变体只在"真控件"的
+        // 按压态上生效，而这一层是装饰层、还 `allowsHitTesting(false)`，所以它永远不亮
+        // （上游 AA 的同类装饰层用的就是不带 interactive 的 `.regular`，同一个道理）。
+        // 手指按住/拖动 → 轻微长大 + 一层白色高光淡入 + 阴影加深，全部走同一条 spring。
+        .scaleEffect(emphasised ? Self.dragScale : 1)
+        .overlay {
+            Capsule()
+                .fill(Color.white.opacity(emphasised ? (colorScheme == .dark ? Self.sheenDark : Self.sheenLight) : 0))
+        }
+        .shadow(color: .black.opacity(emphasised ? 0.14 : Self.restShadow.opacity),
+                radius: emphasised ? 7 : Self.restShadow.radius, y: Self.restShadow.y)
+        // The snap spring is bound to `selection.slot` EXPLICITLY. Relying on the
+        // `withAnimation` around the assignment was not enough once the emphasis
+        // modifiers went on — the pill teleported instead of settling (pp 2026-09-16
+        // 「弹簧效果也没了」). During a scrub `slot` does not change, so the pill still
+        // tracks the finger 1:1 with no animation lag.
+        .animation(Self.settle, value: selection.slot)
+        .animation(Self.settle, value: emphasised)
         .allowsHitTesting(false)
     }
+
+    /// Either input lights the pill up: the finger scrubbing it, or a held-down segment.
+    private var emphasised: Bool { isDragging || pressedMode != nil }
 
     /// Pill rect at `selection.slot + progress`, clamped to the row and eased by the
     /// edge resistance so an over-drag resists instead of flying away.
@@ -195,6 +258,10 @@ struct ModeTabPicker: View {
     }
 
     private static let edgeResistance: CGFloat = 0.32
+    /// Emphasis while the finger owns the pill (dragging) or is down on a segment.
+    static let dragScale: CGFloat = 1.06
+    static let sheenLight: Double = 0.26
+    static let sheenDark: Double = 0.16
 
     private func tap(_ mode: AppSourceMode) {
         if mode == selection {
@@ -213,7 +280,14 @@ struct ModeTabPicker: View {
     private func scrubGesture() -> some Gesture {
         DragGesture(minimumDistance: Self.dragSlop, coordinateSpace: .local)
             .onChanged { value in
-                guard abs(value.translation.width) > abs(value.translation.height) * 1.35 else { return }
+                if !directionLocked {
+                    // Claim the gesture only when the travel is clearly sideways; before
+                    // that, a vertical drag belongs to the list and we stay out of it.
+                    guard abs(value.translation.width) > Self.dragSlop,
+                          abs(value.translation.width) > abs(value.translation.height) * Self.horizontalRatio
+                    else { return }
+                    directionLocked = true
+                }
                 isDragging = true
                 progress = value.translation.width / slotStride
                 let target = nearestMode
@@ -224,6 +298,7 @@ struct ModeTabPicker: View {
             }
             .onEnded { _ in
                 let target = nearestMode
+                directionLocked = false
                 detented = nil
                 withAnimation(Self.settle) {
                     isDragging = false
@@ -260,10 +335,17 @@ struct ModeTabPicker: View {
 /// Press feedback for the labels. The glass pill itself brightens and scales through
 /// its `interactive` variant; the text still needs a hint that it is the thing under
 /// the finger, and Grok's own pressed scale is 0.92.
+/// Plain press feedback for a segment (the system `.glass` style used upstream brought
+/// its own scale+dim; we draw the pill, so we bring the feedback). Also reports
+/// `isPressed` outward so the pill can light up while a segment is held.
 private struct SegmentButtonStyle: ButtonStyle {
+    let onPressChange: (Bool) -> Void
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
+            .scaleEffect(configuration.isPressed ? ModeTabPicker.pressScale : 1)
             .opacity(configuration.isPressed ? 0.72 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { down in onPressChange(down) }
     }
 }

@@ -243,3 +243,53 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - Semantics: 能力面持平或变大 —— 齿轮动作不变；**Remote 档新增设置入口（加法）**；深链/语言切换/权限/环境变量四条入口全部保留；勾选态 Cancel/Select All 未动。
 - 已知观感风险（真机看）：齿轮位置按 leading 16pt、band 44pt 居中算，与系统 toolbar 的内缩可能差 1-3pt；形状是玻璃自绘，不再声称与系统逐像素同。
 - EXIT: 若下一批（两页平移 + 胶囊上提）落地，齿轮并入同一条固定栏，本节结构不变；若 pp 判齿轮形状不可接受，回退方向是"齿轮留在页内 + 接受它随页滑走"，不是回去冒充系统按钮。
+
+### B16-PILL-FEEL — 拖动不跟手 + 不放大不发亮（2026-09-16, pp「胶囊这下对了 但是我拖着胶囊不跟手啊卡卡的」「而且我拖动也没有放大和发亮」）
+- Files: `Views/ModeTabs/ModeTabPicker.swift`、`Views/ModeTabs/RootModeTabsView.swift`（1 行）
+- 三处根因：
+  1. `dragSlop = 10`（照抄 SwiftUI 默认）= 起手 10pt 死区，手指先空走再"跳进来"。→ **3pt**。
+  2. 方向判定 `guard |dx| > |dy|×1.35` 挂在**每个** onChanged 上、无锁存：中途手指稍偏竖直就 return，`progress` 停更 → 胶囊在手指下冻住再蹿上来（= 卡卡的）。→ **一次判定 + 锁存到松手**（`directionLocked`，onEnded / onChange(selection) 双复位）。1.35 用 pp 给的数；外壳整页滑动 `pageSwipe` 的 minimumDistance 也从 10 改成 pp 给的 12。
+  3. **`.interactive()` 不会为我们亮**：那个变体只在"真控件"的按压态上生效，而这一层是装饰层且 `allowsHitTesting(false)` → 永不放大/提亮。上游 AA 同类装饰层用的正是**不带 interactive 的 `.regular`**（`AuthGlassCompat.swift:11`），同一个道理。→ 提亮放大**自己画**：`scaleEffect 1.06` + 白色高光 `overlay`（浅色 0.26 / 深色 0.16）+ 阴影 0.09→0.18、radius 6→9，走同一条 spring；点按任一段也亮（`SegmentButtonStyle` 新增 `onPressChange` 把 `isPressed` 回传，写在 `DispatchQueue.main.async` 里避 "Publishing changes from within view updates"）。
+- Semantics: 纯观感层，能力面不变（点档 soft 触感、越界 detent、就近吸附、onLocalRetap 开 sync 详情、整条顶栏宽热区 + highPriorityGesture 全部保留）。旋钮全做成常数，真机若过头按数回调。
+- 门：parse / freeze / import-scan / fork-point 全 rc=0。⚠️ parse≠编译：本轮新增 `@Environment(\.colorScheme)`、`ButtonStyle` 带闭包属性、`onChange(of: configuration.isPressed)` 三处，都在 CI 才见真章。
+- 现场注记：`PATCHES.md` 与 `SelectableMarkdownView.swift` 工作区里另有**另一会话在飞的行内代码批**，提交本批时只 add ModeTabs 两个文件，不裹别人的活。
+
+### B16-PILL-SIZE — 胶囊高度按 Grok 截图重量（2026-09-16, pp「胶囊的高度不太对 现在有点窄 你对照gork这个来量一下」+ 贴 Grok 的 CSS token 表）
+- File: `Views/ModeTabs/ModeTabPicker.swift`（纯观感层，能力面不变）
+- 量法：pp 新图 `photo_33EAEE5C.png`（1179px@3x，Grok 现役顶栏），过胶囊中心列/行做亮度阈值扫描（白盘 ≥252）：
+  | 量 | Grok 实测 | 我原来 | 改成 |
+  |---|---|---|---|
+  | 盘高 | 67.7→99.0pt = **31.3pt** | 26 | **30** |
+  | 盘宽（提问） | 103.7→155.0pt = **51.3pt**（墨迹宽 25.0pt） | 字宽+24 | 字宽+**26**（hPadding 13） |
+  | 字号 | 墨迹高 提问 12.3 / Imagine 13.0（含降部）→ **14pt** | 15 | **14** |
+  | 静息阴影 | 他贴的 web token `0 1px 3px rgba(0,0,0,.06)` | 0.09/r6/y1 | **0.06/r3/y1** |
+  | 按压缩放 | 他贴的 token `scale(0.97)` | 0.92 | **0.97** |
+  - 结论：**"窄"不是宽度问题，是盘高与字号的比例** —— Grok 是 30pt 盘包 14pt 字（留 16pt），我是 26pt 盘包 15pt 字（留 11pt）。
+- 有意未跟：Grok 的 web token 写「选中变黑，未选中灰色」，其截图里第三档 Build 也确实偏灰；pp 上午明说我们「两段都黑」→ 保留两段黑，要翻只改 `segment` 的 foregroundStyle 一行。
+- 🔴 自查抓到一处 CI-only 错：`SegmentButtonStyle` 里写 `Self.pressScale` —— 那是**另一个类型**，parse 不解析名字所以本地全绿、CI 必炸。已改 `ModeTabPicker.pressScale`（同文件 private 可见）。判例：把常数加在 A 类型、在 B 类型里用 `Self.` 引用 = 必错，加完常数要问"用它的那行在哪个类型里"。
+- 门：parse / freeze / import-scan / fork-point 全 rc=0。仍须 CI 终审（本轮新增 `@Environment(\.colorScheme)`、带闭包的 ButtonStyle、`onChange(of: configuration.isPressed)`）。
+
+### B16-PILL-WEIGHT — 两段同字重（2026-09-16, pp「两段都黑」→「没选中的是不是字体要偏细一些？」→「未选中也要一样的粗细 改一下」）
+- 终态：`segment` 字重 = 单一常数 `labelWeight = .semibold`，**选中与未选中同字重、同黑色**，选中态只由那颗玻璃胶囊标记。Grok 是靠颜色分档（选中黑/未选中灰），我们有意不用。
+- 过程留痕：中途按 pp 上一问把未选中降到 `.light`（一版），下一条指令即改回同字重 → 常数合并为一个，将来要恢复对比只改这一处。
+- 诚实标注：Grok 未选中的真实字重**没能量净**（CJK 竖笔与相邻笔画合并、Latin 样本 stroke/em=0.141 被阈值污染）⇒ 这类"细一点/粗一点"的判决跟 pp 的眼睛走，不跟数据走。
+- 门：parse / import-scan rc=0。
+
+### B16-BAR-EMPHASIS — 齿轮的放大/发亮/弹簧 + 胶囊落位弹簧（2026-09-16, pp「那个设置按钮 拖动放大、发亮效果没了」「弹簧效果也没了」）
+- Files: `Views/ModeTabs/RootModeTabsView.swift`、`Views/ModeTabs/ModeTabPicker.swift`（纯观感层，能力面零变化）
+- **同一个病根的第二个实例**：齿轮的玻璃写在 `.background { Circle().glassEffect(.regular.interactive(), …) }` 里 —— `interactive()` 只对"长在控件自己身上"的玻璃生效，背景层里的玻璃它管不着，所以永不放大永不亮。修法与胶囊一致：**按下态自己画**。
+  - 新增 `BarPressStyle: ButtonStyle` 把 `configuration.isPressed` 经 `DispatchQueue.main.async` 回传到 `@State gearPressed`（同模块已撞过两次 "Publishing changes from within view updates"）。
+  - `gearPressed` → `scaleEffect(ModeTabPicker.dragScale)` + 白高光 `Circle().fill(.white.opacity(…))`（浅 .26 / 深 .16，故外壳重新引入 `@Environment(\.colorScheme)`）+ 阴影 0.06/r3 → 0.14/r7，`.animation(ModeTabPicker.settle, value: gearPressed)`。
+  - **常数共享**：`settle / dragScale / sheenLight / sheenDark` 由 `private static` 提为 `static`（internal），齿轮直接引用 `ModeTabPicker.*` —— 固定栏只说一种材质语言，两处不会各调各的手感。跨类型引用一律写类型名，不写 `Self.`（本轮已按 B16-PILL-SIZE 的判例自查过，grep 零误用）。
+- 🔴 **顺带查出胶囊的落位弹簧也掉了**（pp 第二句「弹簧效果也没了」的真因之一）：加 emphasis 修饰层之后，只靠 `withAnimation(settle){ selection = … }` 不够 —— 值经 `@StateObject`/`Binding` 传播时事务动画没吃到，胶囊瞬移。→ 在 pill 上显式钉 `.animation(Self.settle, value: selection.slot)`。拖动中 `slot` 不变，所以跟手仍是 1:1 无拖滞。
+- 门：parse / freeze / import-scan / fork-point 全 rc=0；diff ModeTabs 两文件 +136/−19。⚠️ parse≠编译：本轮新增 ButtonStyle 带 `Binding`、`onChange(of: configuration.isPressed)`、跨文件 internal 常数引用，CI 终审。
+- 停在未提交。并发纪律：另一会话已把 `SelectableMarkdownView.swift` 放进暂存区 → 提交用 pathspec 形式 `git commit -- <ModeTabs 两文件>`，不裹别人的活。
+
+### B16-BAR-ICON — 设置入口图标换成 AA 的抽屉按钮（2026-09-16, pp「把设置按钮的那个图标改一下吧 改成aa的那个抽屉按钮」）
+- File: `Views/ModeTabs/RootModeTabsView.swift`（纯外观，动作与入口零变化）
+- 上游取证（不私造）：AA 的抽屉按钮 = `Views/Chat/ChatPageToolbar.swift:99-101` 的 `struct SidebarMenuIcon { AppSymbol("sidebar.left", size: 22) }`，`AppSymbolAssets.swift:90` 把 `sidebar.left` 映射到资源 **`aa-TextAlignStart`**（Web Lucide 路径，template 向量）。按钮外再挂 `.accessibilityLabel(String(localized: "打开侧栏"))`。
+- 落地：`Image(systemName: "gear")` → `AppSymbol("sidebar.left", size: 22)`。资源与映射**仓里早就有**（批 8b 的 SettingsSkin 面），本次零新增资源、pbxproj 不动，`audit-aa-assets.py` 照绿。
+- 尺寸口径：22pt 用 AA 自己的数（不再沿用旧齿轮墨迹反推的 22）；`AppSymbol` 内部是 `@ScaledMetric(relativeTo: .body)`，所以跟着动态字体走，和上游同形为。
+- 🔴 a11y 不静默降级：`AppSymbol` 自带 `.accessibilityHidden(true)`（上游也这样），所以按钮必须自己带标签 —— 补 `.accessibilityLabel(Text(String(localized: "Settings")))`，用仓内已有词条（`Localizable.xcstrings:76808`，9 语已译）。
+- 语义申报：这个图形在上游表示"开侧栏"，我们挂在"开设置"上（pp 要的是这个形）。标签仍写 Settings，不跟图形改成"侧栏"，免得 VoiceOver 与实际动作不一致。
+- 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0。
