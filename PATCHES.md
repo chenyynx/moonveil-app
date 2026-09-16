@@ -395,6 +395,24 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - Semantics: 按钮 tap 行为(slash 菜单开合 + 聚焦)一字未动;纯图形替换。
 - 死隔离四问: ① AIChatView 本机+远端共用,纯图标渲染、无状态分流;② 无共享路径;③ 资源与映射都是仓内现成件(B16-BAR-ICON 判据:换图标先查仓内同名件),零新机制;④ 回归项 = slash 菜单开合、点按热区 34pt、深浅色(模板渲染跟随 inputIconFg)。
 
+### B16-PILL-WHITE — 静息胶囊发灰的修复:content 显式透明 + 浅色 white tint(2026-09-17, pp 装机 5e1ad0c「顶部胶囊还是灰色啊」)
+- File: `src/ios/Views/ModeTabs/ModeTabPicker.swift`(`pillLayer`)
+- 双重根因:
+  1. content 用了裸 `Capsule()` —— Shape 作为视图吃默认前景填充,半透明玻璃下垫了默认色层,玻璃被压暗成「实色灰」观感。
+  2. `.regular` 玻璃在浅色模式的中性基色偏灰,没往白推。
+- 修复: content → `Color.clear`(显式透明);浅色 `.regular.tint(.white)`(仓内先例 ContentView:4321 `fabCircleSurface` 的 `Glass.regular.tint($0)`,官方 API);深色不 tint(防泛白)。dragSheen/scale/offset/animation 全保留。
+- Semantics: 纯材质渲染层,拖动跟手/发光放大/交互面零变化。
+- 死隔离四问: ① ModeTabPicker 为我们接管文件,纯视觉;② 无共享路径;③ tint 用仓内既有先例;④ 回归项 = 浅色白玻璃、深色维持、拖动各态。
+- EXIT: 若 tint(.white) 过白/过淡,调为 `.white.opacity(~0.7)` 或去掉 tint 只留 content 修复(两种效果叠加,可单拆)。
+
+### B16-SEND-SMOOTH — 贴底发送零滚动:发送路径竞态收敛(2026-09-17, pp「chatgpt 那种用户发送的文字之后丝滑的效果怎么做的」→「可以」)
+- File: `src/ios/Agent/MessageList/CollectionViewMessageListV3.swift`(forceScrollToBottom sink,单处)
+- 机制(调研): ChatGPT 丝滑三要素 = ①天然置底(翻转法/锚定插入,无「先插入再滚」两步) ②插入+位移+输入框回缩同一事务同曲线 ③流式直驱不逐帧 scrollTo。本项目已有设施:applySnapshot 尾部在 autoScrolling 时**同帧无动画钉底**;流式生长有 invalidationContext glue(T-ios-stream-natural-transitions);userBrowsing 保护已存在。
+- 本批改动: 发送时 forceScrollToBottom 由「永远 animated:true」改为**贴底零滚动**——`isNearBottom()` 为 true 时只用无动画确认(插入已同帧钉底,这一发是幂等保险),真正离开过底部时才用动画带回。消除「apply 同帧 pin × 键盘收起 0.25s × 追滚动画」三方竞争,观感 = 内容从底部顶入(ChatGPT 式)。
+- 有意未动: ①apply 尾部的 pin 计算与 80ms coalesced 保险(处理 UIHostingConfiguration 异步测量的 undershoot,历史修复勿扰);②inset 更新路径(已有 T-inputbar-shrink-content-bump 双向 re-pin 修复,成熟);③输入框高度回缩动画(SwiftUI 侧,风险大收益不明,真机看过再说)。
+- Semantics: 信号语义零变化(8 处调用点全部受益:贴底幂等/非贴底保留动画);userBrowsing 保护不动;无新增状态。
+- 死隔离四问: ① CollectionViewMessageListV3 是本机+远端共用渲染件,改的是滚动行为一处分支,两端同行为(预期);② 无共享文件路径;③ 无新机制(用现有 isNearBottom/scrollToBottomNow 设施);④ 回归项 = 两端:发送(贴底/翻上后)滚动、重试/恢复/回底按钮、流式跟随、键盘收起后位置。
+
 ### B16-INPUTBAR — 输入栏:interactive 玻璃放大发亮 + 三图标黑字/#F1F1F1 底 + 圆角(2026-09-17, pp「把输入框改成 claudio 那样放大和发亮…➕号、/号、语音图标改成黑色,背景底色 #F1F1F1…输入框的圆角再圆一点,输入框上面的状态条也圆一点」）
 - File: `src/ios/Views/Chat/AIChatView.swift`（单文件）
 - 四处:
