@@ -45,8 +45,6 @@ struct ModeTabPicker: View {
     /// Tap on the already-selected local segment (upstream title-tap action).
     var onLocalRetap: (() -> Void)?
 
-    @Environment(\.colorScheme) private var colorScheme
-
     /// Live drag position in slot units (0 = parked on `selection`). @State rather than
     /// @GestureState because the pill must ANIMATE into its snapped home, and the
     /// GestureState auto-reset does not join our transaction. `onChange(of: selection)`
@@ -71,7 +69,7 @@ struct ModeTabPicker: View {
     }
 
     private func slotWidth(_ mode: AppSourceMode) -> CGFloat {
-        ceil(textWidth(label(mode))) + Self.labelHPadding * 2
+        ceil(Self.textWidth(label(mode))) + Self.labelHPadding * 2
     }
 
     /// Left edge of each segment inside the row (the row is centered by the toolbar).
@@ -139,6 +137,7 @@ struct ModeTabPicker: View {
 
     /// The single glass layer: position AND width interpolate with the finger, so a
     /// wider label stretches it on the way over — that is the 形变 pp confirmed.
+    @ViewBuilder
     private var pill: some View {
         // No GeometryReader: every number here is computed from the labels, so the
         // glass cannot be laid out greedily and cannot flash on the first frame.
