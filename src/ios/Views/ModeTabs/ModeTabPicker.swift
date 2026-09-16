@@ -165,11 +165,16 @@ struct ModeTabPicker: View {
     /// why my hand-drawn emphasis was the wrong tool for this job. iOS < 26 has no glass
     /// at all, so the row renders bare and the pill's solid fallback carries it.
     @ViewBuilder
-    private func glassRow<Content: View>(@ViewBuilder _ content: Content) -> some View {
+    private func glassRow<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        // The parameter is a CLOSURE returning Content. Declaring it as `_ content:
+        // Content` made `glassRow { rowContent }` infer Content as the `View`
+        // existential, and every modifier after the call then blew up in CI with
+        // "instance member 'padding' cannot be used on type 'View'" (run 35067152326) —
+        // parse never resolves generics, so only the real compiler can catch this.
         if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: Self.glassSpacing) { content }
+            GlassEffectContainer(spacing: Self.glassSpacing) { content() }
         } else {
-            content
+            content()
         }
     }
 
