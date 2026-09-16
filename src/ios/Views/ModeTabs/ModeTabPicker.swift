@@ -66,8 +66,6 @@ struct ModeTabPicker: View {
     /// Set when the first real travel was clearly vertical: the list owns this gesture,
     /// and we stay out of it until the finger lifts.
     @State private var directionRejected = false
-    /// Namespace for the pill's morphing glass (AA: `@Namespace private var glass`).
-    @Namespace private var glassNS
     /// True while a segment is held down — the pill lights up for a tap too, not only a
     /// scrub (otherwise a tap reads as dead until the switch lands).
     @State private var pressedMode: AppSourceMode?
@@ -95,8 +93,6 @@ struct ModeTabPicker: View {
     /// internal on purpose: the fixed bar's gear wears the SAME emphasis and the SAME
     /// spring, so the numbers live in one place (B16).
     static let settle = Animation.spring(response: 0.36, dampingFraction: 0.78)
-    /// 12pt = AA's container spacing: glasses closer than this merge like liquid.
-    private static let glassSpacing: CGFloat = 12
     /// Travel (pt) before a scrub counts as a drag at all. Was 10 (SwiftUI's default),
     /// and that dead zone is half of 「不跟手」: the finger moves, nothing moves, then it
     /// jumps in. 3pt is enough to distinguish a scrub from a tap.
@@ -142,7 +138,7 @@ struct ModeTabPicker: View {
     }
 
     var body: some View {
-        glassRow { rowContent }
+        rowContent
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         // highPriorityGesture: a plain `.gesture` here was eaten by the segment buttons
@@ -154,27 +150,6 @@ struct ModeTabPicker: View {
             isDragging = false
             directionLocked = false
             directionRejected = false
-        }
-    }
-
-    /// THE container is the part that matters. `GlassEffectContainer` + a `glassEffectID`
-    /// namespace is what makes iOS 26 glass respond to interaction AND morph between
-    /// shapes — AA's composer does exactly this (ChatComposer.swift:21 container /
-    /// :61 `.regular.interactive()` / :62 `.glassEffectID("composer", in: glass)`, with
-    /// `@Namespace private var glass`). A glass outside a container is inert, which is
-    /// why my hand-drawn emphasis was the wrong tool for this job. iOS < 26 has no glass
-    /// at all, so the row renders bare and the pill's solid fallback carries it.
-    @ViewBuilder
-    private func glassRow<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        // The parameter is a CLOSURE returning Content. Declaring it as `_ content:
-        // Content` made `glassRow { rowContent }` infer Content as the `View`
-        // existential, and every modifier after the call then blew up in CI with
-        // "instance member 'padding' cannot be used on type 'View'" (run 35067152326) —
-        // parse never resolves generics, so only the real compiler can catch this.
-        if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: Self.glassSpacing) { content() }
-        } else {
-            content()
         }
     }
 
@@ -232,10 +207,7 @@ struct ModeTabPicker: View {
                 Capsule()
                     .fill(.clear)
                     .glassEffect(.regular.interactive(), in: .capsule)
-                    // One identity for the moving glass: as its frame animates between
-                    // slots the SYSTEM stretches it (the 拉长延伸 pp asked for) rather
-                    // than me faking a scale.
-                    .glassEffectID("modePill", in: glassNS)
+
             } else {
                 Capsule()
                     .fill(Color(UIColor.secondarySystemBackground))
