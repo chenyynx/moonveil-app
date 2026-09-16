@@ -184,18 +184,26 @@ struct RootModeTabsView: View {
     /// `@Namespace private var glass`). It is the CONTAINER that makes `.interactive()`
     /// respond; a glass parked in a `.background` layer never gets a press, which is why
     /// my earlier "draw the emphasis" version looked dead next to the system's.
-    @ViewBuilder
     private var gearButton: some View {
-        if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: Self.glassSpacing) {
+        // `Group` is load-bearing: chaining `.padding` straight onto a bare
+        // `if #available` block inside a `@ViewBuilder` property makes the compiler fall
+        // back to the `View` existential, and CI dies one line later with
+        // "instance member 'padding' cannot be used on type 'View'"
+        // (runs 35067152326 and 35068323175). The repo's own compiling glass code uses
+        // either a Group (ModeTabPicker.pill) or a ViewModifier (ContentView
+        // SearchBarSurface / FABGlassMorphID) for exactly this reason.
+        Group {
+            if #available(iOS 26.0, *) {
+                GlassEffectContainer(spacing: Self.glassSpacing) {
+                    gearControl
+                        .glassEffect(.regular.interactive(), in: Circle())
+                        .glassEffectID("settingsGear", in: gearGlassNS)
+                }
+            } else {
                 gearControl
-                    .glassEffect(.regular.interactive(), in: Circle())
-                    .glassEffectID("settingsGear", in: gearGlassNS)
+                    .background(Circle().fill(Color(UIColor.secondarySystemBackground)))
+                    .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 1))
             }
-        } else {
-            gearControl
-                .background(Circle().fill(Color(UIColor.secondarySystemBackground)))
-                .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 1))
         }
         .padding(.leading, Self.gearLeadingInset)
         // 44pt disc inside a 44pt band: centring is exact, nothing to fudge.
