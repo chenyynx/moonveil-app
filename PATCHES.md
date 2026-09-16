@@ -368,3 +368,8 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - 修法：`RootTabRouter.pageSwipeArmed`（published）—— 外壳在 swipe 确认那一刻置位、抬手复位；`ContentView.sessionList` 的 Group 挂 `.scrollDisabled(pageSwipeArmed)`（纯环境门：只有横向滑动提交期间生效，复位即失效；纯纵向滚动永远不会 armed，普通滚动手感不变）。
 - 死隔离申报：ContentView 是我们已接管的分叉点文件，改动 = 列表上一个环境修饰符，无状态无生命周期无会话逻辑。回归项：非横滑时纵向滚动、行点选/选择、iPad splitList、横滑切页不再带列表位移。
 - 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0；tip c95772a。
+
+### B16-GLASS-HOST — 玻璃挂错宿主（40pt 整段 vs 30pt 标签带）+ 拖动永久卡死（2026-09-16, pp「顶部tab又变这样了」「拖都拖不了了」「是那个玻璃没有附在那个上面」）
+- **玻璃没附在字上**：`TabGlass` 挂在"整行 40pt 的段"上 ⇒ 胶囊高 40pt（不是量出来的 30pt），看着就是浮在字周围的一块大白片。修 = 修饰符移进 Button 的 label 里、包住 **30pt 标签带**（胶囊贴字，点按热区仍整行，glassEffectID 各段共享 ⇒ 系统形变不变）。
+- **拖都拖不了**（两个我的账）：① 方向门"首次含糊即拒绝并锁存"，真手指起手几乎都不是正角度 ⇒ 现在只有**明确纵向**（|dy| > 1.5|dx|）才交给列表，含糊对角允许拖到 20pt 再按主轴判；② 锁存态只在 onEnded 复位，而**手势被取消时 onEnded 不触发** ⇒ 一次取消就永久拒绝。加 `@GestureState gestureInFlight`，结束后**或被取消**都复位 locked/rejected/dragging/progress。
+- 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0；tip 70d40da。
