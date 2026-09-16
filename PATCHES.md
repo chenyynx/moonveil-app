@@ -362,3 +362,9 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - 🔴 "还是卡"的真根因（两个）：① 旧代码 `interpolatedRect` 把 index **钳死在 0...1** ⇒ 手指拖过一档后胶囊停死，往回拖还有死区才动 ⇒ 修成**越界只阻尼不钳死**（edgeResistance 0.32，继续动）；② 容器玻璃逐帧跟手指重渲染 = 真机上很贵 ⇒ 玻璃拖动中静止、形变只发生在松手。
 - 删（全是我自己上批造的、被系统行为替代的过渡件）：胶囊自绘 scale/高光 emphasised、pressedMode 回传、旧独立 pill 视图。保留交互面：跟手、方向早判锁存拒绝态、静默就近吸附、点按 soft、onLocalRetap、整行热区、iOS<26 实色降级。
 - 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0；tip a7fa896。
+
+### B16-SWIPE-LOCK — 横向切页时冻结列表纵向滚动（2026-09-16, pp「左右滑动页面的时候容易滑到上下」）
+- 机制：外壳 `pageSwipe` 是 plain `.gesture` + 方向门（|dx| > 1.2|dy|），切页会触发，但底下会话 List 的纵向滚动不受影响 ⇒ 斜向快滑 = 边切页边滚列表。
+- 修法：`RootTabRouter.pageSwipeArmed`（published）—— 外壳在 swipe 确认那一刻置位、抬手复位；`ContentView.sessionList` 的 Group 挂 `.scrollDisabled(pageSwipeArmed)`（纯环境门：只有横向滑动提交期间生效，复位即失效；纯纵向滚动永远不会 armed，普通滚动手感不变）。
+- 死隔离申报：ContentView 是我们已接管的分叉点文件，改动 = 列表上一个环境修饰符，无状态无生命周期无会话逻辑。回归项：非横滑时纵向滚动、行点选/选择、iPad splitList、横滑切页不再带列表位移。
+- 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0；tip c95772a。
