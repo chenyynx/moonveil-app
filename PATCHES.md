@@ -293,3 +293,10 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - 🔴 a11y 不静默降级：`AppSymbol` 自带 `.accessibilityHidden(true)`（上游也这样），所以按钮必须自己带标签 —— 补 `.accessibilityLabel(Text(String(localized: "Settings")))`，用仓内已有词条（`Localizable.xcstrings:76808`，9 语已译）。
 - 语义申报：这个图形在上游表示"开侧栏"，我们挂在"开设置"上（pp 要的是这个形）。标签仍写 Settings，不跟图形改成"侧栏"，免得 VoiceOver 与实际动作不一致。
 - 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0。
+
+### B16-FIX-VIS — run 35059803697 红一条：`'pressScale' is inaccessible due to 'private'`（2026-09-16）
+- 唯一真错，且是我上一笔带进去的：`SegmentButtonStyle` 跨类型读 `ModeTabPicker.pressScale`，而它是 `private static`。
+- 🔴 **判例（编译门第四类，parse 抓不到）**：Swift 的 `private` 只在**声明它的类型内部**（含同文件的该类型扩展）可见；**同文件的另一个类型读不到，那要 `fileprivate`**。我在台账里写的"同文件 private 可见"是错的，已按 CI 原文纠正。规则：跨类型引用的常数一律显式提 `internal`（或 `fileprivate`），别赌同文件。
+- 修法（只修不删）：`pressScale`、`restShadow` 提为 `static`（internal）；顺带把外壳自己复制的那份 `restShadowOpacity = 0.06` 删掉，齿轮改读 `ModeTabPicker.restShadow.{opacity,radius,y}` —— 固定栏一份材质语言，一处调参两处同效。
+- 自查升级为脚本：正则列出 picker 的 `private static` 成员 ∩ 外壳里 `ModeTabPicker.*` 引用 = 空集才算过（本轮输出"无 ✓"）。
+- 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0。

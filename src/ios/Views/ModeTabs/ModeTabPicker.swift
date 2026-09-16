@@ -90,9 +90,12 @@ struct ModeTabPicker: View {
     private static let dragSlop: CGFloat = 3
     /// Grok's own web token for this pill is `box-shadow: 0 1px 3px rgba(0,0,0,.06)`
     /// (pp pasted it, 2026-09-16) — lighter than what I had, so the resting shadow follows it.
-    private static let restShadow = (opacity: 0.06, radius: CGFloat(3), y: CGFloat(1))
+    static let restShadow = (opacity: 0.06, radius: CGFloat(3), y: CGFloat(1))
     /// Same source: active state is `scale(0.97)`, not the 0.92 I invented.
-    private static let pressScale: CGFloat = 0.97
+    /// internal, not private: `private` would only be visible inside THIS type, and
+    /// SegmentButtonStyle / the fixed bar's gear are separate types in this file — CI
+    /// caught exactly that ('pressScale' is inaccessible, run 35059803697).
+    static let pressScale: CGFloat = 0.97
     /// pp's own tuning (2026-09-16, verbatim): horizontal beats vertical by 1.35×.
     private static let horizontalRatio: CGFloat = 1.35
 

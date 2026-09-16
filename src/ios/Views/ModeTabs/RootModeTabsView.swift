@@ -160,7 +160,6 @@ struct RootModeTabsView: View {
     /// gear's ink box any more). `AppSymbol` wraps the size in @ScaledMetric, so it also
     /// grows with Dynamic Type the way upstream's does.
     private static let gearSymbolSize: CGFloat = 22
-    private static let restShadowOpacity: Double = 0.06
     @State private var gearPressed = false
     @Environment(\.colorScheme) private var colorScheme
 
@@ -215,8 +214,11 @@ struct RootModeTabsView: View {
                                               : 0))
             }
         }
-        .shadow(color: .black.opacity(gearPressed ? 0.14 : Self.restShadowOpacity),
-                radius: gearPressed ? 7 : 3, y: 1)
+        // Resting shadow reads from the pill's constants — one material language for the
+        // fixed bar, one place to tune both.
+        .shadow(color: .black.opacity(gearPressed ? 0.14 : ModeTabPicker.restShadow.opacity),
+                radius: gearPressed ? 7 : ModeTabPicker.restShadow.radius,
+                y: ModeTabPicker.restShadow.y)
         .scaleEffect(gearPressed ? ModeTabPicker.dragScale : 1)
         .animation(ModeTabPicker.settle, value: gearPressed)
         .padding(.leading, Self.gearLeadingInset)
