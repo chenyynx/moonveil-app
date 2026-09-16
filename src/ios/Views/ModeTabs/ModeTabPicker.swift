@@ -3,12 +3,14 @@
 //
 // B15-PILL (pp 2026-09-16 11:4x，看预览逐条确认后定稿：「对 就是这样」)：
 //   ① **无轨道**。以前是「玻璃轨道 + 白实色药丸」两层，现在拆成单层。
-//   ② 玻璃贴在**选中段自己的形状**上：`Capsule().glassEffect(.regular.interactive(), in: .capsule)`。
-//      不是 `.buttonStyle(.glass)` —— 那是按钮样式，浅色态自带灰底和自己的内边距，
-//      ac9b9d0 那颗发灰发胖就是用它（判例：两个 API 不是一回事，不能互为证据）。
-//      也不是 `.ultraThinMaterial`（B14e 用它渲成灰块，同样废）。
-//   ③ 拖动**跟手**，且胶囊宽度在两档之间**插值形变**（"Moonveil" 比 "Remote" 宽 → 中间被拉长）。
-//      提亮 + 放大由 interactive 变体自带，不自己加 scale。
+//   ② 玻璃 = **独立的胶囊层**（B16-DRAG-GLASS，pp 2026-09-17「拖动的那个做玻璃效果发光
+//      放大」）：`Capsule().glassEffect(.regular, in: .capsule)` 挂在自驱位置的空宿主上；
+//      文字层是 GlassEffectContainer 外的兄弟视图、永远画在玻璃之上 —— 容器只把玻璃合成
+//      在**内部**兄弟之上（114541b 盖字事故），够不着容器外的文字。不是 `.buttonStyle(.glass)`
+//      （浅色态自带灰底内边距，ac9b9d0 判例）、不是 `.ultraThinMaterial`（B14e 灰块）。
+//   ③ 拖动 = 玻璃本体跟手（宽度两档间插值），发光+放大自己画（`.interactive()` 只在真
+//      控件按压态生效，装饰层用不了——B16-PILL-FEEL 判例）；松手 spring 吸附。单颗玻璃
+//      自驱位置后，系统 glassEffectID 形变不再需要（@Namespace 已随之移除）。
 //   ④ 松手**就近吸附**：胶囊中心离哪档近就吸回哪档（`round`），不是"过 28% 阈值才换档"。
 //   ⑤ 贴字定宽：每段 = 自身文字宽 + 12pt 内边距，不再平分轨道。
 //
@@ -71,8 +73,8 @@ struct ModeTabPicker: View {
     /// exactly how one cancelled drag could leave `directionRejected` stuck on and make
     /// the pill undraggable until the next selection change (pp:「拖都拖不了了大哥」).
     @GestureState private var gestureInFlight = false
-    /// Namespace for the selected segment's morphing glass (AA: `@Namespace private var glass`).
-    @Namespace private var glassNS
+    /// Light/dark for the drag sheen (the glass itself adapts; the extra glow is ours).
+    @Environment(\.colorScheme) private var colorScheme
 
     // ── Geometry — calibrated off pp's Grok screenshot (photo_33EAEE5C, 1179px@3x) ──
     // Vertical scan through the pill's centre column: white disc runs 67.7pt → 99.0pt,
@@ -175,45 +177,84 @@ struct ModeTabPicker: View {
         }
     }
 
+    // The pill is ONE glass capsule whose position WE drive (selection.slot + progress,
+    // edge-resisted while scrubbing, springing home on release). The labels live in a
+    // SIBLING layer AFTER the container in the ZStack, so they always composite ABOVE
+    // the glass — the container lifts its internal glass over its internal siblings
+    // (114541b), but it cannot touch views OUTSIDE it. This is what lets the drag
+    // follow the finger 1:1 with real glass instead of the old tint ghost.
     @ViewBuilder
     private var rowContent: some View {
         if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: Self.glassSpacing) { bar }
+            ZStack(alignment: .topLeading) {
+                GlassEffectContainer(spacing: Self.glassSpacing) { pillLayer }
+                labelRow
+            }
+            .frame(width: rowWidth, height: Self.rowHeight)
         } else {
-            bar
+            ZStack(alignment: .topLeading) {
+                legacyPillLayer
+                labelRow
+            }
+            .frame(width: rowWidth, height: Self.rowHeight)
         }
     }
 
-    private var bar: some View {
-        ZStack(alignment: .topLeading) {
-            // Ghost while scrubbing: a plain translucent tint, deliberately NOT glass.
-            // A glass piece inside GlassEffectContainer composites ABOVE sibling views —
-            // a glass pill behind the labels hid the selected label's text on device
-            // (「看不到字了」, build 114541b). A plain tint renders under the labels and
-            // is cheap enough to track every finger event 1:1, which is the whole point:
-            // the real glass lives on the selected segment, stays static during a drag,
-            // and only the SYSTEM morphs it to the next segment on release.
-            if isDragging {
-                let r = interpolatedRect()
-                Capsule()
-                    .fill(Color.primary.opacity(0.07))
-                    .frame(width: r.width, height: Self.pillHeight)
-                    .offset(x: r.minX, y: (Self.rowHeight - Self.pillHeight) / 2)
-                    .allowsHitTesting(false)
-                    .animation(Self.settle, value: isDragging)
-            }
-            HStack(spacing: Self.segmentSpacing) {
-                ForEach(AppSourceMode.allCases) { mode in
-                    segment(mode)
-                }
+    private var labelRow: some View {
+        HStack(spacing: Self.segmentSpacing) {
+            ForEach(AppSourceMode.allCases) { mode in
+                segment(mode)
             }
         }
-        .frame(width: rowWidth, height: Self.rowHeight)
+    }
+
+    /// The real glass, following the finger. `.regular` not `.interactive()`: that
+    /// variant only reacts to a REAL control's pressed state (B16-PILL-FEEL), and this
+    /// layer is decoration — the glow and scale are ours. allowsHitTesting stays off so
+    /// the buttons underneath keep every tap.
+    /// Availability lives HERE, not at call sites: `if #available` around the caller
+    /// does NOT protect APIs used inside the callee body (lexically scoped check).
+    @available(iOS 26.0, *)
+    @ViewBuilder
+    private var pillLayer: some View {
+        let r = interpolatedRect()
+        Capsule()
+            .frame(width: r.width, height: Self.pillHeight)
+            .glassEffect(.regular, in: .capsule)
+            .overlay(dragSheen)
+            .scaleEffect(isDragging ? Self.dragScale : 1)
+            .offset(x: r.minX, y: (Self.rowHeight - Self.pillHeight) / 2)
+            .allowsHitTesting(false)
+            .animation(Self.settle, value: isDragging)
+    }
+
+    /// <26 fallback: solid capsule (upstream SearchBarSurface 家规 — no homemade blur).
+    @ViewBuilder
+    private var legacyPillLayer: some View {
+        let r = interpolatedRect()
+        Capsule()
+            .fill(Color(UIColor.secondarySystemBackground))
+            .frame(width: r.width, height: Self.pillHeight)
+            .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+            .overlay(dragSheen)
+            .scaleEffect(isDragging ? Self.dragScale : 1)
+            .offset(x: r.minX, y: (Self.rowHeight - Self.pillHeight) / 2)
+            .allowsHitTesting(false)
+            .animation(Self.settle, value: isDragging)
+    }
+
+    @ViewBuilder
+    private var dragSheen: some View {
+        if isDragging {
+            Capsule()
+                .fill(Color.white)
+                .opacity(colorScheme == .light ? Self.sheenLight : Self.sheenDark)
+                .allowsHitTesting(false)
+        }
     }
 
     private func segment(_ mode: AppSourceMode) -> some View {
-        let selected = mode == selection
-        return Button {
+        Button {
             tap(mode)
         } label: {
             Text(label(mode))
@@ -221,14 +262,10 @@ struct ModeTabPicker: View {
                 .foregroundStyle(Color.primary)     // 两段都黑字（pp 09-16）
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
-                // glass wraps THIS 30pt band, not the whole 40pt row: applying it to the
-                // row-sized segment made the capsule 10pt too tall and it read as a fat
-                // white sticker (pp: 「顶部tab又变这样了」). Same 30pt the calibration
-                // measured off Grok — the pill's height must not grow just because the
-                // system draws it now.
+                // The 30pt band keeps button geometry identical to the era when glass
+                // lived here; pillLayer interpolates over the same rects.
                 .frame(height: Self.pillHeight)
                 .contentShape(Rectangle())
-                .modifier(TabGlass(isSelected: selected, namespace: glassNS))
         }
         .buttonStyle(SegmentButtonStyle())
         // Tap area stays the full row height; only the material hugs the label.
@@ -275,6 +312,14 @@ struct ModeTabPicker: View {
     }
 
     private static let edgeResistance: CGFloat = 0.32
+    /// Drag emphasis (pp 2026-09-17:「拖动的那个做玻璃效果发光放大」— supersedes the
+    /// 2026-09-16「拖动吸附不用触感」which only ever covered HAPTICS). The glass pill
+    /// scales up and gains a white sheen while following the finger.
+    static let dragScale: CGFloat = 1.06
+    /// Sheen strength, light/dark. The glass already carries its own specular; this is
+    /// the extra 发光 on top, deliberately conservative (tune on device).
+    private static let sheenLight: CGFloat = 0.22
+    private static let sheenDark: CGFloat = 0.14
 
     private func tap(_ mode: AppSourceMode) {
         // claudio's DraggableFAB pattern (ContentView.swift:6743-6793): a tap that lands
@@ -377,33 +422,3 @@ private struct SegmentButtonStyle: ButtonStyle {
     }
 }
 
-/// The SELECTED segment wears the system glass on ITSELF — the text is the glass's own
-/// content, so it always shows through (the sibling-pill design covered it). Both
-/// segments share ONE `glassEffectID`, so when the selection changes the system morphs
-/// the glass from the old segment to the new one: the 拉长延伸, drawn by the system
-/// instead of faked. `.interactive()` works here because the glass is on a real control.
-private struct TabGlass: ViewModifier {
-    let isSelected: Bool
-    let namespace: Namespace.ID
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            if isSelected {
-                content
-                    .glassEffect(.regular.interactive(), in: .capsule)
-                    .glassEffectID("modePill", in: namespace)
-            } else {
-                content
-            }
-        } else {
-            if isSelected {
-                content
-                    .background(Capsule().fill(Color(UIColor.secondarySystemBackground)))
-                    .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
-            } else {
-                content
-            }
-        }
-    }
-}
