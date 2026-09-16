@@ -299,17 +299,13 @@ func displayTargetPixels(for data: Data, screenScale: CGFloat) -> CGFloat {
 /// theme and the layout manager's fillBackgroundRectArray (the actual paint
 /// site) so the two can never drift.
 ///
-/// Grok alignment (pp 2026-09-16): light mode drops the pill entirely — Grok's light
-/// theme marks inline code by colour alone, no background. Dark keeps the lifted
-/// #3A3A3C (systemGray4), which is there for a logged reason: systemGray6 resolves to
-/// #1C1C1E in dark, indistinguishable from the near-black chat background, and the code
-/// would read as bare text. Clear in light is invisible, not removed: the painter still
-/// owns one code path for both appearances and `.inlineCodeText` keeps driving tap-copy.
-private let minisInlineCodeBackgroundColor = UIColor { traits in
-    traits.userInterfaceStyle == .dark
-        ? UIColor(red: 0x3A / 255.0, green: 0x3A / 255.0, blue: 0x3C / 255.0, alpha: 1)
-        : .clear
-}
+/// No pill in either appearance (pp 2026-09-17: 深色底块不要) — inline code is
+/// marked by colour alone, mirroring Grok's light theme. History: the dark
+/// branch used a lifted #3A3A3C (systemGray4) because systemGray6 resolves to
+/// #1C1C1E there, indistinguishable from the chat background; pp's visual call
+/// overrode that. Clear is invisible, not removed: the painter still owns one
+/// code path for both appearances and `.inlineCodeText` keeps driving tap-copy.
+private let minisInlineCodeBackgroundColor: UIColor = .clear
 
 /// Mirrors the `.minisChat` MarkdownUI theme using UIKit types.
 struct SelectableMarkdownTheme {
@@ -333,19 +329,15 @@ struct SelectableMarkdownTheme {
         UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.55, green: 0.95, blue: 0.55, alpha: 1) : .systemGreen }
     }
     var inlineCodeBackground: UIColor { minisInlineCodeBackgroundColor }
-    /// Grok's inline-code orange, re-sampled from a CLEAN lossless PNG of the iOS app
-    /// (not the re-encoded JPEG the #F5691F guess came from) = #ED6D2E. The #F5691F
-    /// value over-corrected: the app reads Grok's own #EA6F30 as ~#E47137, so the only
-    /// trustworthy target is Grok's actual solid ink. pp asked to re-match after the
-    /// shipped build looked duller/browner than Grok (2026-09-16).
-    /// Dark mode deliberately keeps the brighter systemOrange: on our #3A3A3C pill the
-    /// sampled orange only reaches ~4.4:1, and readability there outranks pixel parity.
+    /// Inline-code orange, final: saturated pure orange #FF6A00 (255,106,0) in BOTH
+    /// appearances (pp 2026-09-17: 深色也改 — the dark pill is gone, so the colour
+    /// itself must carry the contrast; it measures ~6:1 on the dark chat background,
+    /// above WCAG AA). History: Grok-aligned #EA6F30 -> #F5691F -> #ED6D2E (clean-PNG
+    /// sampling, 2026-09-16); 2026-09-17 pp pivoted from "match Grok" to "more vivid" —
+    /// his RGB picks (227,122,69 / 204,113,66) sampled *less* saturated than the
+    /// incumbent #ED6D2E (74%/58% vs 84%), so the vivid end (100%) was chosen.
     var inlineCodeColor: UIColor {
-        UIColor { traits in
-            traits.userInterfaceStyle == .dark
-                ? .systemOrange
-                : UIColor(red: 0xED / 255.0, green: 0x6D / 255.0, blue: 0x2E / 255.0, alpha: 1)
-        }
+        UIColor(red: 0xFF / 255.0, green: 0x6A / 255.0, blue: 0x00 / 255.0, alpha: 1)
     }
     var blockquoteBarColor: UIColor { UIColor.systemOrange.withAlphaComponent(0.5) }
     var tableBorderColor: UIColor { UIColor.label.withAlphaComponent(0.25) }
