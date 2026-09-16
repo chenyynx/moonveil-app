@@ -476,3 +476,31 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - **玻璃没附在字上**：`TabGlass` 挂在"整行 40pt 的段"上 ⇒ 胶囊高 40pt（不是量出来的 30pt），看着就是浮在字周围的一块大白片。修 = 修饰符移进 Button 的 label 里、包住 **30pt 标签带**（胶囊贴字，点按热区仍整行，glassEffectID 各段共享 ⇒ 系统形变不变）。
 - **拖都拖不了**（两个我的账）：① 方向门"首次含糊即拒绝并锁存"，真手指起手几乎都不是正角度 ⇒ 现在只有**明确纵向**（|dy| > 1.5|dx|）才交给列表，含糊对角允许拖到 20pt 再按主轴判；② 锁存态只在 onEnded 复位，而**手势被取消时 onEnded 不触发** ⇒ 一次取消就永久拒绝。加 `@GestureState gestureInFlight`，结束后**或被取消**都复位 locked/rejected/dragging/progress。
 - 门：parse / freeze / import-scan / fork-point / aa-assets 全 rc=0；tip 70d40da。
+
+### B16-CODE-CARD — 代码块卡片 = Claude 式白底黑字 + 头部条（2026-09-17，pp「这是claude的text还是啥卡片 现在我们的卡片是不是黑色的？」→「照这个先出个预览」→「这下对了 落地吧」；两次打回：微灰条没做 + Code 字体没换等宽）
+- File: `src/ios/Views/Chat/SelectableMarkdownView.swift`（theme + CodeBlockAttachment.makeView）+ `Views/SettingsSkin/AppSymbolAssets.swift` + 新资源 `Assets.xcassets/aa-Maximize2.imageset`
+- 实测取样（pp 截图逐像素/弧线拟合，非猜测）: 浅色 页面#F9F9F7 · 卡片#FFFFFF · 代码字#0B0B0B · 头部分隔线#C9C9C6 · Code 标签#85857F · **圆角 23pt**（左上弧线逐点拟合 R≈69px@3x）；深色 页面#151515 · 卡片#20201F（暖深灰）· 代码字#F0EFEC · 分隔线·图标#5A5957。旧配色（浅 .black+systemGreen 终端风）退役。
+- 结构: 固定 36pt 头部条（左 = 等宽 12pt "code"/语言名灰字——实测字形步进均匀 19/20/20px 判定等宽；底 = 全宽 1px 分隔线）+ 右侧双图标按钮（copy=lucide aa-Copy 仓内现成；maximize-2=新资源，与 B16-LUCIDE-ICONS 同源 v1.46.0 管线）。图标 18pt **光栅化**——`UIImage(named:)` 内在尺寸 24pt，UIButton.setImage 无 symbol 配置可缩，必须 `headerIcon` 重绘（不缩会撑大，审查抓回）。
+- Semantics: 复制按钮逻辑**零改动**（T-ios16/17 防死双绑+debounce+绿勾反馈全保留，仅图标换 lucide）；语言标签由「仅有语言时 11pt 白字」变为「始终 12pt 等宽灰字（无语言显示 code）」=增强；滚动/流式长高/高度测量未动（topOffset 28/12 → 固定 36）。
+- 死隔离四问: ① SelectableMarkdownView 是本机+远端聊天**共用渲染件**——纯呈现层，两端同渲染，无状态分流；② 无共享路径（单文件+资源）；③ 图标走仓内既有 lucide→imageset 管线，无新机制；④ 回归项 = 两端代码块浅/深显示、复制内容正确、内部横竖滚动、流式长高、MarkdownRenderView 路径（编译面）。
+
+### B16-CODE-FULLSCREEN — 代码块全屏查看器（2026-09-17，pp「我们有全屏观看吧」→ 查证仓内无 → 新建）
+- File: 同文件新增 `CodeBlockFullScreenView` + `CodeFullScreenText`；`Views/Chat/AssistantBlockView.swift` 接线（ExpandedCodePayload + @State + fullScreenCover）
+- 链路: `CodeBlockAttachment.onExpand` → `SelectableMarkdownTextView.onExpandCode` → `SelectableMarkdownView.onExpandCode` → AssistantBlockView 呈现层。**nil handler（分页/文件预览等 standalone）时展开按钮自动隐藏**，不生造死按钮。
+- 内容: 全屏可选中可复制；顶栏关闭 + 复制（同 debounce 反馈）；字号跟随 FontSettings；着色与卡片**同源**（共享 CodeSyntaxHighlighter）；深浅同卡片配色（presentationBackground 跟随）。
+- Semantics: 纯新增功能面；既有显示/交互零删减。
+- 死隔离四问: 同 CARD（共用渲染件呈现层新增）；④ 回归项 = 展开→全屏→关闭、长代码滚动、复制、深浅两态、standalone 场景按钮隐藏。
+
+### B16-CODE-HL — 语法高亮（Grok 色板，自研 tokenizer）（2026-09-17，pp「claude的部分是单色部分是有高亮的 不知道咋区分的」→ 语言围栏机制确认 →「高亮颜色用 gork 的颜色」）
+- File: 同文件（theme 增 6 个 hl* 双态色 + `CodeSyntaxHighlighter` ~340 行）
+- 实测色板（Grok 浅/深截图逐 token 取样，apple-vision OCR bbox 对齐语义）: **浅色** 标签·选择器#4880B8 · 属性名·at-rule#7068A8 · CSS 属性名#D05828 · 字符串·数字#50A058 · 注释灰（#8A8A86）；**深色** 标签·选择器·属性名#A0C8F8 · CSS 属性名#F8F8B8 · 字符串#B8F870 · 数字#E878F0 · 注释#808060。⚠️ **深浅两套色相映射不同构**（浅紫/深蓝、浅橙红/深黄、数字浅绿/深紫粉），照抄不换算。
+- 机制: **语言围栏驱动**——有语言标记 → 按语言着色；裸围栏 → 单色（= Claude/Grok 的"部分单色部分高亮"行为）。覆盖 json / html·xml·vue / css·scss / swift / python / js·ts / go / sh bash / yaml / java·kotlin·c·cpp·rust·php·cs·dart / sql；HTML 内嵌 `<style>`/`<script>` 递归按 CSS/JS 规则着色；未知语言/裸围栏回退单色。**纯 Foundation 自研，零第三方依赖**（仓规：Apple 原生 + 不用第三方高亮库）。
+- Semantics: 单色 → 多色（回退路径完整保留）；高度测量仍走单色路径（颜色不影响尺寸）。
+- 真机风险: 大代码块流式重渲染的 tokenizer 成本（O(n) 单遍，但 `paint` 的 Range→NSRange 转换每 token O(n) ⇒ 最坏 O(m·n)）。若真机卡：加 attachment 级 attr 缓存（contentFingerprint → NSAttributedString）。EXIT。
+- 死隔离四问: 同 CARD；④ 回归项 = 两端 json/html/swift/sh 着色（浅/深）、裸围栏仍单色、HTML 内嵌 style 高亮、全屏着色与卡片一致。
+
+### B16-CODE-FONT — 代码块字体 = Geist Mono Medium（2026-09-17，pp「这个字体是只作用于这个吗 正文的字体会不会影响？」→ 边界确认「可以」→「用claude吧」）
+- File: 新资源 `src/ios/Views/Chat/geistmono_medium.ttf`（vercel/geist-font v1.7.2 release 官方包，PS name 实测 = `GeistMono-Medium`，手写 TTF name 表解析确认）+ `src/ios/Minis.xcodeproj/project.pbxproj` **四处纯插入**（照 caveat_wght.ttf 先例：BuildFile/FileRef/Views-Chat 组 children/Resources phase；手术脚本断言链 = 锚点唯一×4 + 括号·括号·方括号平衡 + ID 计数 + 纯插入行集校验；**xcodeproj gem 验证 files=668**）+ `Views/AuthAA/AppFontRegistry.swift`
+- 注册: AppFontRegistry 追加 **nonisolated** `geistMonoMedium(_:)`（lazy 自注册，`nonisolated(unsafe)` flag）——`codeBlockFont` 会被非隔离的 TextKit 路径调用，做成 @MainActor 会编译炸；**@MainActor verbatim 部分（Caveat）零改动**。失败策略：Geist **软失败**（log + Menlo 兜底，打包闪失不崩聊天），Caveat 保持 fail-fast verbatim。
+- 边界（pp 确认）: 只作用于**代码块 + 全屏查看器**；正文 / 行内代码（SF Mono Medium ×0.95 #FF6A00）/ UI 一律不动。三级兜底 Geist→Menlo→monospacedSystemFont，PingFang SC cascade 保留。
+- 死隔离四问: ① 字体注册器为 app 级全局工具（Caveat 既有先例），Chat 引用为同 target 常规使用；② 无共享路径；③ 无新机制（CTFontManager 官方 API，照抄仓内先例）；④ 回归项 = 两端代码块渲染、**正文/行内代码/UI 字体零变化**、Caveat wordmark 不受影响、字体缺失场景 Menlo 兜底。
