@@ -1775,6 +1775,9 @@ final class CodeBlockAttachment: NSTextAttachment {
             // Read directly from the UITextView so we always copy the latest
             // content, even after updateExistingView replaced the attributed text.
             UIPasteboard.general.string = codeTextView?.text
+            // [B16-CODE-HAPTIC] Copy-success haptic (same pattern as
+            // MarkdownRenderView's copy path: .success notification).
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             copyButton?.setImage(UIImage(systemName: "checkmark", withConfiguration: iconConfig), for: .normal)
             copyButton?.tintColor = .systemGreen
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
