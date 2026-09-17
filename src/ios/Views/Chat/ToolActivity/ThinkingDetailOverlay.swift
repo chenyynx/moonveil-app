@@ -26,7 +26,6 @@ struct ThinkingDetailOverlay: View {
     // MARK: Colors (Grok 实拍对照 photo_353E81A2 / photo_2F211FE1)
 
     private static let sheetBg = Color(red: 0.961, green: 0.961, blue: 0.961)       // #F5F5F5
-    private static let titleGray = Color(red: 0.431, green: 0.431, blue: 0.431)     // #6E6E6E
     private static let stepInk = Color(red: 0.239, green: 0.239, blue: 0.239)       // #3D3D3D
     private static let checkGray = Color(red: 0.478, green: 0.478, blue: 0.478)     // #7A7A7A
     private static let connectorGray = Color(red: 0.863, green: 0.863, blue: 0.863) // #DCDCDC
@@ -109,8 +108,8 @@ struct ThinkingDetailOverlay: View {
                 Text(AppLocalized("Thinking result")) // 思考结果
             }
         }
-        .font(.system(size: 13, weight: .semibold))
-        .foregroundStyle(Self.titleGray)
+        .font(.system(size: 17, weight: .semibold)) // [pp 09-18 Claude Summary 实测：标题 ~17.5pt 近黑 #0E0E0E，与正文同级；原 13pt 灰过弱]
+        .foregroundStyle(Color.primary)
         .frame(maxWidth: .infinity)
         .padding(.top, 16) // [pp 09-18] 抓条到标题间距
         .shimmerText()
