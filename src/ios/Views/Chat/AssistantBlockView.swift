@@ -36,6 +36,7 @@ struct AssistantBlockView: View {
         }
     }
 
+    @ViewBuilder
     private var classicBody: some View {
         switch block.kind {
         case .text:

@@ -101,14 +101,15 @@ private extension Color {
     /// Linear mix toward another color (amount 0...1). Canvas-safe (no UIKit).
     func mix(with other: Color, by amount: Double) -> Color {
         let a = min(max(amount, 0), 1)
-        switch (resolve(in: EnvironmentValues()), other.resolve(in: EnvironmentValues())) {
-        case (let lhs, let rhs):
-            return Color(
-                red: lhs.red + (rhs.red - lhs.red) * a,
-                green: lhs.green + (rhs.green - lhs.green) * a,
-                blue: lhs.blue + (rhs.blue - lhs.blue) * a,
-                opacity: lhs.opacity + (rhs.opacity - lhs.opacity) * a
-            )
-        }
+        // Split resolves: a tuple switch here blows the Swift type checker
+        // (CI: "unable to type-check in reasonable time").
+        let lhs = resolve(in: EnvironmentValues())
+        let rhs = other.resolve(in: EnvironmentValues())
+        return Color(
+            red: lhs.red + (rhs.red - lhs.red) * a,
+            green: lhs.green + (rhs.green - lhs.green) * a,
+            blue: lhs.blue + (rhs.blue - lhs.blue) * a,
+            opacity: lhs.opacity + (rhs.opacity - lhs.opacity) * a
+        )
     }
 }
