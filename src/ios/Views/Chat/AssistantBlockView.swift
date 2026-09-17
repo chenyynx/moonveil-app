@@ -84,39 +84,69 @@ struct AssistantBlockView: View {
                             toolSnapshots: toolSnapshots, detailBlock: $detailBlock)
         case .info:
             let allLines = block.content.components(separatedBy: "\n").filter { !$0.isEmpty }
-            // Separate reason lines (⚠️) from the final switched line (✅)
+            // Reason lines arrive ⚠️-prefixed from AIChatViewModel; the last
+            // non-prefixed line is the localized "Switched to …" summary.
+            // [B16-NOTICE-CLAUDE] Claude-style single-line card: emoji→icon,
+            // stacked 10pt text → one 15pt line + `Show`/`Hide` pill.
             let reasonLines = allLines.filter { $0.hasPrefix("⚠️") }
+                .map { String($0.dropFirst("⚠️".count)).trimmingCharacters(in: .whitespaces) }
             let switchedLine = allLines.first { !$0.hasPrefix("⚠️") && !$0.isEmpty }
             // Truncate middle if more than 9 reason lines
             let displayReasons: [String] = {
                 if reasonLines.count <= 9 { return reasonLines }
                 return Array(reasonLines.prefix(4)) + [AppLocalized("⋯ \(reasonLines.count - 8) more")] + Array(reasonLines.suffix(4))
             }()
-            VStack(alignment: .leading, spacing: 3) {
-                ForEach(Array(displayReasons.enumerated()), id: \.offset) { _, line in
-                    Text(line)
-                        .font(.system(size: 10))
-                        .foregroundStyle(ChatColors.primaryText.opacity(0.45))
-                        .lineLimit(2)
-                }
-                if let switchedLine {
-                    HStack(spacing: 5) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.orange.opacity(0.8))
-                        Text(switchedLine)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(ChatColors.primaryText.opacity(0.75))
-                            .lineLimit(2)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .center, spacing: 10) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+                    Text(switchedLine ?? block.content)
+                        .font(.system(size: 15))
+                        .foregroundStyle(ChatColors.primaryText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer(minLength: 8)
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) { infoNoticeExpanded.toggle() }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: infoNoticeExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 11, weight: .semibold))
+                            Text(infoNoticeExpanded ? AppLocalized("Hide") : AppLocalized("Show"))
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundStyle(ChatColors.primaryText)
+                        .padding(.horizontal, 14)
+                        .frame(height: 28)
+                        .background(Color(uiColor: .systemBackground))
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(ChatColors.primaryText.opacity(0.12), lineWidth: 0.5))
                     }
+                    .buttonStyle(.plain)
+                }
+                if infoNoticeExpanded, !displayReasons.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(displayReasons.enumerated()), id: \.offset) { _, line in
+                            HStack(spacing: 7) {
+                                Circle()
+                                    .fill(Color.orange.opacity(0.8))
+                                    .frame(width: 5, height: 5)
+                                Text(line)
+                                    .font(.system(size: 12.5))
+                                    .foregroundStyle(ChatColors.primaryText.opacity(0.6))
+                            }
+                        }
+                    }
+                    .padding(.top, 10)
+                    .padding(.leading, 25)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(Color.orange.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.orange.opacity(0.14), lineWidth: 0.5))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 14)
+            .background(Color.clear)
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(ChatColors.primaryText.opacity(0.12), lineWidth: 0.5))
             .contextMenu {
                 Button {
                     UIPasteboard.general.string = block.content
@@ -275,6 +305,9 @@ struct ToolCapsuleView: View {
     var toolSnapshots: [ToolSnapshotItem] = []
     @Binding var detailBlock: AssistantBlock?
     @State private var dotsActive = false
+    /// [B16-NOTICE-CLAUDE] `Show`/`Hide` the rate-limit reason list inside the
+    /// switched-provider notice (Claude-style single-line card, pp 2026-09-17).
+    @State private var infoNoticeExpanded = false
     /// [T-tool-bg-suspended-hint] Drives the background-suspension info alert.
     @State private var showBgHintAlert = false
     /// [T-ios-memory-write-revoke] Confirmation + result alerts for undoing a

@@ -561,63 +561,90 @@ private struct BridgedAssistantFooterV3: View {
 
     @ViewBuilder
     private func inlineError(_ error: String) -> some View {
-        HStack(alignment: .center, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.caption).foregroundStyle(.red)
-                Text(error).font(.caption).foregroundStyle(.red).lineLimit(2)
-            }
-            .contentShape(Rectangle())
-            .contextMenu {
-                Button {
-                    UIPasteboard.general.string = error
-                } label: {
-                    Label(AppLocalized("Copy Error"), systemImage: "doc.on.doc")
-                }
-            }
-            Spacer()
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 15))
+                .foregroundStyle(.red)
+            Text(error)
+                .font(.system(size: 15))
+                .foregroundStyle(ChatColors.primaryText)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 8)
             if bridge.autoRetryAttempt > 0 {
-                Text("Retry in \(bridge.autoRetryCountdown)s (\(bridge.autoRetryAttempt)/\(AIChatViewModel.retryDelays.count))")
-                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                    .padding(.horizontal, 12).padding(.vertical, 6)
-                    .background(Color.secondary.opacity(0.12)).clipShape(Capsule())
+                Text("\(bridge.autoRetryCountdown)s · \(bridge.autoRetryAttempt)/\(AIChatViewModel.retryDelays.count)")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .frame(height: 28)
+                    .background(Color(uiColor: .systemBackground))
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(ChatColors.primaryText.opacity(0.12), lineWidth: 0.5))
             } else if let onRetry = bridge.onRetry {
                 Button(action: onRetry) {
                     HStack(spacing: 4) {
-                        Image(systemName: "arrow.clockwise").font(.caption.weight(.semibold))
-                        Text(AppLocalized("Retry")).font(.caption.weight(.semibold))
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(AppLocalized("Retry"))
+                            .font(.system(size: 13, weight: .semibold))
                     }
                     .foregroundStyle(ChatColors.primaryText)
-                    .padding(.horizontal, 12).padding(.vertical, 6)
-                    .background(ChatColors.primaryText.opacity(0.15)).clipShape(Capsule())
+                    .padding(.horizontal, 14)
+                    .frame(height: 28)
+                    .background(Color(uiColor: .systemBackground))
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(ChatColors.primaryText.opacity(0.12), lineWidth: 0.5))
                 }
+                .buttonStyle(.plain)
             }
         }
-        .padding(10).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.red.opacity(0.12)).clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(ChatColors.primaryText.opacity(0.12), lineWidth: 0.5))
+        .contextMenu {
+            Button {
+                UIPasteboard.general.string = error
+            } label: {
+                Label(AppLocalized("Copy Error"), systemImage: "doc.on.doc")
+            }
+        }
     }
 
     private var resumeBanner: some View {
-        HStack(alignment: .center, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "pause.circle.fill").font(.caption).foregroundStyle(.orange)
-                Text(AppLocalized("Interrupted — tap Resume to continue")).font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer()
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "info.circle")
+                .font(.system(size: 15))
+                .foregroundStyle(.secondary)
+            Text(AppLocalized("Interrupted — tap Resume to continue"))
+                .font(.system(size: 15))
+                .foregroundStyle(ChatColors.primaryText)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 8)
             if let onResume = bridge.onResume {
                 Button(action: onResume) {
                     HStack(spacing: 4) {
-                        Image(systemName: "play.fill").font(.caption.weight(.semibold))
-                        Text(AppLocalized("Resume")).font(.caption.weight(.semibold))
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(AppLocalized("Resume"))
+                            .font(.system(size: 13, weight: .semibold))
                     }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12).padding(.vertical, 6)
-                    .background(Color.orange).clipShape(Capsule())
+                    .foregroundStyle(ChatColors.primaryText)
+                    .padding(.horizontal, 14)
+                    .frame(height: 28)
+                    .background(Color(uiColor: .systemBackground))
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(ChatColors.primaryText.opacity(0.12), lineWidth: 0.5))
                 }
+                .buttonStyle(.plain)
             }
         }
-        .padding(10).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.08)).clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(ChatColors.primaryText.opacity(0.12), lineWidth: 0.5))
     }
 
     @ViewBuilder
