@@ -2688,6 +2688,7 @@ final class TableAttachment: NSTextAttachment {
         // + card outline, so the pasted image looks like the live view.
         let tableBg = theme.codeBlockBackground
         let tableBorder = theme.codeBlockCardBorderColor
+        let cardCornerRadius = theme.codeBlockCornerRadius
         let copyTableImage: () -> Void = { [weak stack] in
             guard let stack, stack.bounds.width > 0, stack.bounds.height > 0 else { return }
 
@@ -2724,7 +2725,7 @@ final class TableAttachment: NSTextAttachment {
                 // Draw the table content (rows, cells, separators).
                 stack.layer.render(in: ctx.cgContext)
                 // Rounded outer border as visual chrome.
-                let path = UIBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), cornerRadius: theme.codeBlockCornerRadius)
+                let path = UIBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), cornerRadius: cardCornerRadius)
                 border.setStroke()
                 path.lineWidth = 1.0 / UIScreen.main.scale
                 path.stroke()
