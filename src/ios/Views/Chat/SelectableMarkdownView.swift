@@ -10021,20 +10021,14 @@ struct CodeBlockFullScreenView: View {
 
     var body: some View {
         NavigationStack {
-            GeometryReader { geo in
-                ScrollView {
-                    CodeFullScreenText(code: code, language: language)
-                        // [B16-CODE-FULLSCREEN-WRAP2] HARD width pin — the soft
-                        // sizeThatFits width alone didn't win the ScrollView
-                        // negotiation once content exceeded the screen (pp
-                        // 2026-09-17: swift code still clipped both edges,
-                        // short-line json merely looked fixed). The explicit
-                        // frame is the width the text view wraps at.
-                        .frame(width: geo.size.width - 32)
-                        .padding(.horizontal, 16)
-                }
-            }
-            .background(cardBackground)
+            CodeFullScreenText(code: code, language: language)
+                // [B16-CODE-FULLSCREEN-UIKIT] UIKit owns the fullscreen layout
+                // end to end: the text view wraps at its own constraint-pinned
+                // width and scrolls vertically itself — no SwiftUI sizing
+                // negotiation left in the chain. Both prior SwiftUI-side fixes
+                // (soft sizeThatFits 47f190d, hard .frame pin 3f5bbae) still
+                // clipped on device (build 80), so the negotiation is gone.
+                .background(cardBackground)
             .toolbarBackground(cardBackground, for: .navigationBar)
             .navigationTitle(language?.lowercased() ?? "代码")
             .navigationBarTitleDisplayMode(.inline)
@@ -10078,7 +10072,7 @@ struct CodeBlockFullScreenView: View {
 /// [B16-CODE-HL] UITextView wrapper so the fullscreen viewer shares the exact
 /// same token coloring as the inline card (SwiftUI `Text` can't take a
 /// pre-built NSAttributedString; `CodeSyntaxHighlighter` is UIKit-native).
-private struct CodeFullScreenText: UIViewRepresentable {
+private struct CodeFullScreenText: UIViewControllerRepresentable {
     let code: String
     let language: String?
     @Environment(\.colorScheme) private var colorScheme
@@ -10102,55 +10096,75 @@ private struct CodeFullScreenText: UIViewRepresentable {
         return .monospacedSystemFont(ofSize: size, weight: .regular)
     }()
 
-    func makeUIView(context: Context) -> UITextView {
-        let tv = UITextView()
-        tv.isEditable = false
-        tv.isSelectable = true
-        tv.isScrollEnabled = false   // SwiftUI ScrollView owns scrolling
-        tv.backgroundColor = .clear
-        tv.textContainerInset = .zero
-        tv.textContainer.lineFragmentPadding = 0
-        tv.font = Self.monoUIFont
-        applyText(to: tv)
-        return tv
+    func makeUIViewController(context: Context) -> FullScreenCodeHostController {
+        let controller = FullScreenCodeHostController()
+        controller.apply(code: code, language: language)
+        return controller
     }
 
-    // [B16-CODE-FULLSCREEN-WRAP] Without this, the first SwiftUI layout pass
-    // sees an empty UITextView (bogus intrinsic) and the representable ends up
-    // wider than the screen (longest unwrapped line), centered — both 16pt
-    // paddings pushed off-screen, every line clipped ~7 characters on the left
-    // (pp 2026-09-17 screenshot: "import json" -> "json"). Pin the width to
-    // the proposal and size only the height ourselves; lines wrap at it.
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize {
-        let fallback = UIScreen.main.bounds.width - 32
-        let width = proposal.width.flatMap { ($0.isFinite && $0 > 0) ? $0 : nil } ?? fallback
-        // Seed the frame to the target width first — UITextView caches its
-        // layout against stale bounds, which skews sizeThatFits.
-        uiView.frame = CGRect(origin: uiView.frame.origin, size: CGSize(width: width, height: max(uiView.frame.height, 1)))
-        let fitted = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
-        return CGSize(width: width, height: ceil(fitted.height))
+    func updateUIViewController(_ controller: FullScreenCodeHostController, context: Context) {
+        controller.apply(code: code, language: language)
+    }
+}
+
+/// [B16-CODE-FULLSCREEN-UIKIT] UIKit owns the fullscreen layout end to end:
+/// the UITextView wraps at its own constraint-pinned width and scrolls
+/// vertically itself. No SwiftUI sizing negotiation exists in the chain any
+/// more — the soft sizeThatFits (47f190d) AND the hard .frame pin (3f5bbae)
+/// both still clipped on device (build 80, pp 2026-09-17), so the negotiation
+/// itself had to go.
+final class FullScreenCodeHostController: UIViewController {
+    private let textView = UITextView()
+    private var lastApplyKey: String?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .clear
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.isScrollEnabled = true                 // owns vertical scrolling
+        textView.showsVerticalScrollIndicator = false   // [B16-CODE-CARD-FIX4] card family: no knobs
+        textView.showsHorizontalScrollIndicator = false
+        textView.alwaysBounceVertical = true
+        textView.backgroundColor = .clear
+        textView.textContainerInset = .zero
+        textView.textContainer.lineFragmentPadding = 0
+        textView.font = CodeFullScreenText.monoUIFont
+        textView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(textView)
+        NSLayoutConstraint.activate([
+            textView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
+            textView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            textView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 4),
+            textView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -4),
+        ])
     }
 
-    func updateUIView(_ uiView: UITextView, context: Context) {
-        applyText(to: uiView)
-    }
-
-    private func applyText(to tv: UITextView) {
+    /// Re-apply content; the key includes the interface style so a light/dark
+    /// flip re-resolves the dynamic token colors while open.
+    func apply(code: String, language: String?) {
+        let key = "\(code.count)|\(language ?? "-")|\(traitCollection.userInterfaceStyle.rawValue)"
+        guard key != lastApplyKey else { return }
+        lastApplyKey = key
         let ink = UIColor {
             $0.userInterfaceStyle == .dark
                 ? UIColor(red: 0xF0 / 255.0, green: 0xEF / 255.0, blue: 0xEC / 255.0, alpha: 1)
                 : UIColor(red: 0x0B / 255.0, green: 0x0B / 255.0, blue: 0x0B / 255.0, alpha: 1)
         }
-        let attr = CodeSyntaxHighlighter.attributed(
+        let base = CodeSyntaxHighlighter.attributed(
             code: code,
             language: language,
             theme: SelectableMarkdownTheme(baseFontSize: FontSettings.shared.scaledMessage(16.5))
         ) ?? NSAttributedString(string: code, attributes: [
-            .font: Self.monoUIFont,
+            .font: CodeFullScreenText.monoUIFont,
             .foregroundColor: ink,
         ])
-        if tv.attributedText != attr {
-            tv.attributedText = attr
-        }
+        // Belt: force word-wrapping over the whole string so a long line can
+        // never run past the text view's width, whatever the highlighter emits.
+        let attr = NSMutableAttributedString(attributedString: base)
+        let wrap = NSMutableParagraphStyle()
+        wrap.lineBreakMode = .byWordWrapping
+        attr.addAttribute(.paragraphStyle, value: wrap, range: NSRange(location: 0, length: attr.length))
+        textView.attributedText = attr
     }
 }
