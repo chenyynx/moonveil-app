@@ -2681,6 +2681,9 @@ final class TableAttachment: NSTextAttachment {
         // borderless; TableScrollView still owns scroll bookkeeping and the
         // Claude-style edge fades.
         let scrollView = TableScrollView()
+        // [B16-TABLE-FADE2] Fade gradients paint the chat surface colour
+        // (resolved per trait inside TableFadeView).
+        scrollView.fadeColorProvider = { _ in .systemBackground }
         // [B16-CODE-CARD-FIX4] Same card family: no scrollbar knob; wide
         // tables are discovered by dragging, like ChatGPT/Claude tables.
         scrollView.showsHorizontalScrollIndicator = false
@@ -2908,6 +2911,9 @@ final class TableAttachment: NSTextAttachment {
         let stackHeight = rowHeights.reduce(0, +)
         stack.frame = CGRect(x: 0, y: 0, width: tableWidth, height: stackHeight)
         scrollView.addSubview(stack)
+        // Fade overlays sit ABOVE the content (pinned to the viewport).
+        scrollView.addSubview(scrollView.fadeLeading)
+        scrollView.addSubview(scrollView.fadeTrailing)
         scrollView.contentSize = CGSize(width: tableWidth, height: stackHeight)
         scrollView.frame = CGRect(x: 0, y: Self.verticalMargin, width: width, height: stackHeight)
 
@@ -2956,6 +2962,63 @@ final class TableAttachment: NSTextAttachment {
 /// appearance was active when the attachment was first laid out — typically
 /// before the view enters the window, so light-mode `UIColor.label`
 /// resolves and renders nearly invisible against a dark message background.
+/// [B16-TABLE-FADE2] Gradient overlay view for the Claude-style edge fades.
+/// A plain view painted with a background-coloured gradient, pinned to the
+/// scroll view's viewport by TableScrollView.updateEdgeFades. The v1
+/// CAGradientLayer MASK rendered as a solid opaque block over the table
+/// during drags (pp 2026-09-17); a view overlay cannot.
+/// The edge colour re-resolves per trait (mirrors TraitBorderView's hooks).
+final class TableFadeView: UIView {
+    enum Side { case leading, trailing }
+
+    var hostColorProvider: ((UITraitCollection) -> UIColor)? {
+        didSet { applyColors() }
+    }
+    private let side: Side
+    private let gradient = CAGradientLayer()
+
+    init(side: Side) {
+        self.side = side
+        super.init(frame: .zero)
+        isUserInteractionEnabled = false
+        isHidden = true
+        layer.addSublayer(gradient)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        gradient.frame = bounds
+    }
+
+    func applyColors() {
+        let base = hostColorProvider?(traitCollection)?.resolvedColor(with: traitCollection) ?? UIColor.systemBackground
+        let clear = base.withAlphaComponent(0)
+        switch side {
+        case .leading:
+            gradient.colors = [base.cgColor, clear.cgColor]
+            gradient.startPoint = CGPoint(x: 0, y: 0.5)
+            gradient.endPoint = CGPoint(x: 1, y: 0.5)
+        case .trailing:
+            gradient.colors = [clear.cgColor, base.cgColor]
+            gradient.startPoint = CGPoint(x: 0, y: 0.5)
+            gradient.endPoint = CGPoint(x: 1, y: 0.5)
+        }
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        applyColors()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        applyColors()
+    }
+}
+
 final class TableScrollView: UIScrollView, UIScrollViewDelegate {
     /// Closure called every time the trait collection changes; should
     /// return a CGColor resolved for the supplied trait collection.
@@ -2985,14 +3048,24 @@ final class TableScrollView: UIScrollView, UIScrollViewDelegate {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
-    // [B16-TABLE-FADE] Claude-style edge hint (pp 2026-09-17): a soft fade on
-    // whichever side still has hidden content. Implemented as a gradient MASK
-    // (alpha-only — no background colour baked in, so it tracks any host bg).
-    // Width 44pt per the Claude screenshot measurement (~46pt onset / 18pt
-    // fully-clear); hidden when that side is scrolled to the end so the last
-    // glyphs are never permanently dimmed.
+    // [B16-TABLE-FADE2] Claude-style edge hint (pp 2026-09-17): a soft fade on
+    // whichever side still has hidden content. v1 used a gradient MASK on the
+    // layer — during drags it rendered as a solid opaque block over the table
+    // (pp 2026-09-17 video). Now plain gradient overlay views pinned to the
+    // VIEWPORT (frames refreshed here; added above the content stack in
+    // makeView). Width 44pt per the Claude measurement; hidden when that side
+    // is scrolled to the end so the last glyphs are never permanently dimmed.
     var edgeFadeWidth: CGFloat = 44
-    private let edgeFadeMask = CAGradientLayer()
+    var fadeColorProvider: ((UITraitCollection) -> UIColor)? {
+        didSet {
+            fadeLeading.hostColorProvider = fadeColorProvider
+            fadeTrailing.hostColorProvider = fadeColorProvider
+        }
+    }
+    /// Gradient overlays pinned to the viewport. Internal so makeView can
+    /// add them ABOVE the content stack.
+    let fadeLeading = TableFadeView(side: .leading)
+    let fadeTrailing = TableFadeView(side: .trailing)
 
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -3002,25 +3075,19 @@ final class TableScrollView: UIScrollView, UIScrollViewDelegate {
     func updateEdgeFades() {
         let width = bounds.width
         let contentWidth = contentSize.width
-        guard width > 1, contentWidth > width + 2 else { layer.mask = nil; return }
-        let showLeft = contentOffset.x > 1
-        let showRight = contentOffset.x + width < contentWidth - 1
-        guard showLeft || showRight else { layer.mask = nil; return }
         let fade = min(edgeFadeWidth, width * 0.45)
-        var stops: [(loc: CGFloat, alpha: CGFloat)] = [showLeft ? (0, 0) : (0, 1)]
-        if showLeft { stops.append((fade / width, 1)) }
-        if showRight {
-            stops.append((1 - fade / width, 1))
-            stops.append((1, 0))
-        } else {
-            stops.append((1, 1))
+        guard width > 1, fade > 0 else {
+            fadeLeading.isHidden = true
+            fadeTrailing.isHidden = true
+            return
         }
-        edgeFadeMask.frame = bounds
-        edgeFadeMask.startPoint = CGPoint(x: 0, y: 0.5)
-        edgeFadeMask.endPoint = CGPoint(x: 1, y: 0.5)
-        edgeFadeMask.colors = stops.map { UIColor.black.withAlphaComponent($0.alpha).cgColor }
-        edgeFadeMask.locations = stops.map { NSNumber(value: Double($0.loc)) }
-        layer.mask = edgeFadeMask
+        // Pin to the VIEWPORT — bounds.origin tracks contentOffset, so a
+        // scroll-view subview must be framed at bounds.minX/minY to stay
+        // fixed on screen.
+        fadeLeading.frame = CGRect(x: bounds.minX, y: bounds.minY, width: fade, height: bounds.height)
+        fadeTrailing.frame = CGRect(x: bounds.maxX - fade, y: bounds.minY, width: fade, height: bounds.height)
+        fadeLeading.isHidden = !(contentOffset.x > 1)
+        fadeTrailing.isHidden = !(contentOffset.x + width < contentWidth - 1)
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
