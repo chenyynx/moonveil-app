@@ -864,20 +864,26 @@ struct ThinkingBlockView: View {
         // as "tap an old thinking block, see the streaming block's content."
     }
 
+    /// [ICON-SKIN-A] 图标随皮肤；抽成计算属性——嵌进 body 会让整体表达式
+    /// 类型检查超时（iOS Build 35239797210 实证）。
+    private var thinkingHeaderIcon: some View {
+        Group {
+            if ToolRenderStyleStore.current == .new {
+                AppSymbol("sparkles", size: 14)
+            } else {
+                Image("ThinkingIcon")
+                    .resizable()
+                    .frame(width: 14, height: 14)
+            }
+        }
+        .foregroundStyle(.blue)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack(spacing: 6) {
-                Group {
-                    if ToolRenderStyleStore.current == .new {
-                        AppSymbol("sparkles", size: 14) // [ICON-SKIN-A]
-                    } else {
-                        Image("ThinkingIcon")
-                            .resizable()
-                            .frame(width: 14, height: 14)
-                    }
-                }
-                .foregroundStyle(.blue)
+                thinkingHeaderIcon
                 Text(AppLocalized("Deep Thinking"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.blue)
