@@ -88,10 +88,16 @@ struct ToolActivityGroupView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: segment.isDone) // A1 ③ 交叉淡变 ~0.25s
-        .onAppear { ensureStarted() }
+        .onAppear {
+            ensureStarted()
+            withAnimation(.easeOut(duration: 0.34)) { dotsAppeared = true } // [pp 09-18] 点阵出现动画
+        }
         .onChange(of: thinkingHasStarted) { started in
-            // [pp 09-18] 首个思考内容到达那一刻起表（此前 guard 会跳过）。
-            if started { ensureStarted() }
+            // [pp 09-18] 首个思考内容到达那一刻起表 + 「Thinking」/计时出现动画。
+            if started {
+                withAnimation(.easeOut(duration: 0.34)) { textAppeared = true }
+                ensureStarted()
+            }
         }
         // [C2] Any segment change (event rows inserted / state flipped) can
         // change the cell height — reuse the existing thinking-toggle
@@ -130,15 +136,20 @@ struct ToolActivityGroupView: View {
                 // 原 6 视觉仅 ~8.7pt 偏近。
                 HStack(spacing: 10) {
                     ThinkingDotIcon(size: 18)
+                        .opacity(dotsAppeared ? 1 : 0) // [pp 09-18] 两段式 D 出现动画
+                        .offset(x: dotsAppeared ? 0 : -10)
                     // [pp 09-18 真机] 模型实际开始思考（首个思考内容到达）才出现
                     // 「Thinking」与计时；等待响应阶段只有点阵动画（启动槽同）。
-                    if thinkingHasStarted {
+                    Group {
                         Text(verbatim: "Thinking") // [pp 09-17] 固定英文（非本地化）
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(Color.secondary) // Grok 对照：灰（非黑）
                             .sweepShimmer(base: Color.secondary) // [pp 09-18] Claude 同款扫光（cds-shimmer-text-shine 1:1）
                         elapsedCounter
                     }
+                    .opacity(textAppeared ? 1 : 0)
+                    .offset(x: textAppeared ? 0 : -10)
+                    .accessibilityHidden(!textAppeared)
                     Spacer(minLength: 0)
                     if showsStop {
                         Button(action: { onStop?() }) {
@@ -214,6 +225,10 @@ struct ToolActivityGroupView: View {
         .buttonStyle(.plain)
         .accessibilityHint(AppLocalized("Thinking"))
     }
+
+    // MARK: 出现动画状态 [pp 09-18] 点阵/文字两段式 D 动画（左滑入+淡入 0.34s）
+    @State private var dotsAppeared = false
+    @State private var textAppeared = false
 
     // MARK: Helpers
 
@@ -349,13 +364,19 @@ struct ThinkingElapsedText: View {
 /// 计时不再从发送起虚走]。只在 blocks 为空时被调用（否则组视图已承担指示）。
 struct PendingThinkingIndicator: View {
     let messageId: UUID
+    @State private var appeared = false // [pp 09-18] D 出现动画（与运行槽同款）
 
     var body: some View {
         HStack(spacing: 6) {
             ThinkingDotIcon(size: 18)
+                .opacity(appeared ? 1 : 0)
+                .offset(x: appeared ? 0 : -10)
             Spacer(minLength: 0)
         }
         .padding(.vertical, 3)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.34)) { appeared = true }
+        }
     }
 }
 
