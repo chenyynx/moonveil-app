@@ -5,12 +5,16 @@ title = "Moonveil gitleaks config"
 # hard way 2026-09-15: an aws-shaped sentinel slipped through a config lacking this line).
 useDefault = true
 
-[rules.aa-secret]
+# gitleaks v8.30+ requires [[rules]] array-of-tables with a non-empty id
+# (v8.30.1 FTL 'rule |id| is missing or empty' on the old [rules.NAME] shape).
+[[rules]]
+id = "aa-secret"
 description = "AA server secret literal must never be committed (D3 R1 / P0 patch guard)"
 regex = '''AGENT_SERVER_SECRET\s*=\s*["'][^"']+["']'''
 keywords = ["AGENT_SERVER_SECRET"]
 
-[rules.bridge-key]
+[[rules]]
+id = "bridge-key"
 description = "claudio/bridge api key literal guard"
 regex = '''BRIDGE_API_KEY\s*=\s*["'][^"']+["']'''
 keywords = ["BRIDGE_API_KEY"]

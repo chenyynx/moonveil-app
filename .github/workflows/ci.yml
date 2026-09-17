@@ -18,8 +18,11 @@ jobs:
       # Same scan surface: full git history (fetch-depth: 0), repo .gitleaks.toml.
       - name: secret-scan
         run: |
-          curl -sSfL https://raw.githubusercontent.com/gitleaks/gitleaks/master/install.sh | bash -s -- -b /tmp/bin
-          /tmp/bin/gitleaks detect --source . --config .gitleaks.toml --redact --verbose
+          # Pinned release tarball: the raw install.sh one-liner 404s now, and
+          # v8.30+ strictly validates .gitleaks.toml (config fixed to [[rules]]+id).
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o /tmp/gitleaks.tgz
+          tar -xzf /tmp/gitleaks.tgz -C /tmp
+          /tmp/gitleaks detect --source . --config .gitleaks.toml --redact --verbose
       - name: import-direction
         run: bash scripts/import-scan.sh
       - name: pbxproj-input-audit
