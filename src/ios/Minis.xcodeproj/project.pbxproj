@@ -230,6 +230,7 @@
 		E5F200002 /* MinisMediaViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F200012 /* MinisMediaViews.swift */; };
 		E5F200003 /* AssistantBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F200013 /* AssistantBlockView.swift */; };
 		E5TA00002 /* ToolRenderStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5TA00001 /* ToolRenderStyle.swift */; };
+		E5TA0000H /* TurnActivityAggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5TA0000G /* TurnActivityAggregator.swift */; };
 		E5TA0000F /* ThinkingDetailOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5TA0000E /* ThinkingDetailOverlay.swift */; };
 		E5TA0000D /* ToolCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5TA0000C /* ToolCardView.swift */; };
 		E5TA0000B /* ToolActivityGroupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5TA0000A /* ToolActivityGroupView.swift */; };
@@ -969,6 +970,7 @@
 		E5F200012 /* MinisMediaViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinisMediaViews.swift; sourceTree = "<group>"; };
 		E5F200013 /* AssistantBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantBlockView.swift; sourceTree = "<group>"; };
 		E5TA00001 /* ToolRenderStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolRenderStyle.swift; sourceTree = "<group>"; };
+		E5TA0000G /* TurnActivityAggregator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnActivityAggregator.swift; sourceTree = "<group>"; };
 		E5TA0000E /* ThinkingDetailOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkingDetailOverlay.swift; sourceTree = "<group>"; };
 		E5TA0000C /* ToolCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCardView.swift; sourceTree = "<group>"; };
 		E5TA0000A /* ToolActivityGroupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolActivityGroupView.swift; sourceTree = "<group>"; };
@@ -2377,6 +2379,7 @@
 			isa = PBXGroup;
 			children = (
 				E5TA00001 /* ToolRenderStyle.swift */,
+				E5TA0000G /* TurnActivityAggregator.swift */,
 				E5TA0000E /* ThinkingDetailOverlay.swift */,
 				E5TA0000C /* ToolCardView.swift */,
 				E5TA0000A /* ToolActivityGroupView.swift */,
@@ -3210,6 +3213,7 @@
 				E5F200002 /* MinisMediaViews.swift in Sources */,
 				E5F200003 /* AssistantBlockView.swift in Sources */,
 				E5TA00002 /* ToolRenderStyle.swift in Sources */,
+				E5TA0000H /* TurnActivityAggregator.swift in Sources */,
 				E5TA0000F /* ThinkingDetailOverlay.swift in Sources */,
 				E5TA0000D /* ToolCardView.swift in Sources */,
 				E5TA0000B /* ToolActivityGroupView.swift in Sources */,
