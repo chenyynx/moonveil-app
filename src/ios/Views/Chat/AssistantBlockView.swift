@@ -15,14 +15,6 @@ struct AssistantBlockView: View {
     /// down to SelectableMarkdownView (nil for non-text or streaming contexts).
     var onReadAloud: (() -> Void)?
     var onSpeakText: ((String) -> Void)?
-    /// [B16-CODE-CARD] Fullscreen code viewer payload — presented when the
-    /// code block's maximize button fires (Identifiable for .sheet).
-    struct ExpandedCodePayload: Identifiable {
-        let id = UUID()
-        let code: String
-        let language: String?
-    }
-    @State private var expandedCode: ExpandedCodePayload?
     var browserPool: BrowserTabPool?
     var toolSnapshots: [ToolSnapshotItem] = []
     @Binding var highlightedBlockId: UUID?
@@ -132,37 +124,29 @@ struct AssistantBlockView: View {
             onReadAloud: onReadAloud,
             onSpeakText: onSpeakText,
             onExpandCode: { code, language in
-                // [B16-FULLSCREEN-ANIM] The message-list cell hosting this view
-                // applies .transaction { disablesAnimations = true } (upstream
-                // use-after-free guard, CollectionViewMessageListV3). This state
-                // change inherits it, so the sheet would present instantly.
-                // Re-enable for this one mutation; the cell guard untouched.
-                var tx = Transaction()
-                tx.disablesAnimations = false
-                withTransaction(tx) {
-                    expandedCode = ExpandedCodePayload(code: code, language: language)
+                // [B16-FULLSCREEN-ANIM2] Present through UIKit directly. The
+                // cell hosting this view applies .transaction { disablesAnimations
+                // = true } (upstream use-after-free guard), which ate the SwiftUI
+                // sheet's presentation animation — twice (the 8468dc5
+                // withTransaction escape included). A UIKit present() plays the
+                // native rise unconditionally; the content stays the same
+                // SwiftUI view inside a UIHostingController.
+                let content = CodeBlockFullScreenView(code: code, language: language)
+                let host = UIHostingController(rootView: content)
+                host.modalPresentationStyle = .pageSheet
+                if let sheet = host.sheetPresentationController {
+                    sheet.detents = [.large()]
+                    sheet.prefersGrabberVisible = false
                 }
+                let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+                let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first
+                guard var top = scene?.keyWindow?.rootViewController else { return }
+                while let presented = top.presentedViewController { top = presented }
+                top.present(host, animated: true)
             }
         )
         .fixedSize(horizontal: false, vertical: true)
         .modifier(MinisOpenURLHandler())
-        // [B16-CODE-FULLSCREEN-SHEET] pp 2026-09-17: rise-up full-height
-        // sheet instead of fullScreenCover — system swipe-down dismissal comes
-        // with it; the X button stays.
-        .sheet(item: $expandedCode) { payload in
-            CodeBlockFullScreenView(
-                code: payload.code,
-                language: payload.language,
-                onDismiss: {
-                    // [B16-FULLSCREEN-ANIM] Dismissal route: the sheet modifier
-                    // lives inside the cell's disablesAnimations scope, so the
-                    // X button must leave it explicitly animated.
-                    var tx = Transaction()
-                    tx.disablesAnimations = false
-                    withTransaction(tx) { expandedCode = nil }
-                }
-            )
-        }
     }
 }
 
