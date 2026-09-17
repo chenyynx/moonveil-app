@@ -430,7 +430,16 @@ struct SelectableMarkdownTheme {
         UIColor(red: 0xFF / 255.0, green: 0x6A / 255.0, blue: 0x00 / 255.0, alpha: 1)
     }
     var blockquoteBarColor: UIColor { UIColor.systemOrange.withAlphaComponent(0.5) }
-    var tableBorderColor: UIColor { UIColor.label.withAlphaComponent(0.25) }
+    /// [B16-TABLE-UI] Option B (pp pick 2026-09-17): table = data card, same
+    /// family as the code card. Hairline between body rows (#E7E7E3 / #2A2A29),
+    /// light header fill (#F3F3F0 / #262624). Card outline + header divider
+    /// reuse codeBlockCardBorderColor / codeBlockHeaderDividerColor.
+    var tableRowHairline: UIColor {
+        UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0x2A / 255.0, green: 0x2A / 255.0, blue: 0x29 / 255.0, alpha: 1) : UIColor(red: 0xE7 / 255.0, green: 0xE7 / 255.0, blue: 0xE3 / 255.0, alpha: 1) }
+    }
+    var tableHeaderFill: UIColor {
+        UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0x26 / 255.0, green: 0x26 / 255.0, blue: 0x24 / 255.0, alpha: 1) : UIColor(red: 0xF3 / 255.0, green: 0xF3 / 255.0, blue: 0xF0 / 255.0, alpha: 1) }
+    }
 
     func headingFont(level: Int) -> UIFont {
         let size: CGFloat
@@ -2642,7 +2651,7 @@ final class TableAttachment: NSTextAttachment {
         // re-applies the layer.borderColor in `traitCollectionDidChange`.
         let scrollView = TableScrollView()
         scrollView.borderColorProvider = { [theme] traits in
-            theme.tableBorderColor.resolvedColor(with: traits).cgColor
+            theme.codeBlockCardBorderColor.resolvedColor(with: traits).cgColor
         }
         scrollView.showsHorizontalScrollIndicator = true
         scrollView.showsVerticalScrollIndicator = false
@@ -2675,11 +2684,10 @@ final class TableAttachment: NSTextAttachment {
         // Captured weakly to avoid retaining the view tree past its lifetime;
         // a fresh image-renderer draws its layer hierarchy at screen scale over
         // the resolved table background + rounded border.
-        // No dedicated table-background in the theme; use the system background
-        // so the copied image is legible (adapts to light/dark) behind the
-        // cell text, which carries its own foreground colors.
-        let tableBg = UIColor.systemBackground
-        let tableBorder = theme.tableBorderColor
+        // [B16-TABLE-UI] Copy mirrors the Option-B card: code-card background
+        // + card outline, so the pasted image looks like the live view.
+        let tableBg = theme.codeBlockBackground
+        let tableBorder = theme.codeBlockCardBorderColor
         let copyTableImage: () -> Void = { [weak stack] in
             guard let stack, stack.bounds.width > 0, stack.bounds.height > 0 else { return }
 
@@ -2716,9 +2724,9 @@ final class TableAttachment: NSTextAttachment {
                 // Draw the table content (rows, cells, separators).
                 stack.layer.render(in: ctx.cgContext)
                 // Rounded outer border as visual chrome.
-                let path = UIBezierPath(roundedRect: bounds.insetBy(dx: 0.25, dy: 0.25), cornerRadius: 8)
+                let path = UIBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), cornerRadius: theme.codeBlockCornerRadius)
                 border.setStroke()
-                path.lineWidth = 0.5
+                path.lineWidth = 1.0 / UIScreen.main.scale
                 path.stroke()
             }
             UIPasteboard.general.image = image
@@ -2731,6 +2739,11 @@ final class TableAttachment: NSTextAttachment {
             let rowHeight = rowHeights[rowIdx]
             let rowView = UIView()
             rowView.translatesAutoresizingMaskIntoConstraints = false
+            // [B16-TABLE-UI] Header row carries the light fill, same family
+            // as the code-card header strip.
+            if rowIdx == 0 {
+                rowView.backgroundColor = theme.tableHeaderFill
+            }
 
             var x: CGFloat = 0
             for (colIdx, cell) in row.cells.enumerated() where colIdx < colCount {
@@ -2849,21 +2862,17 @@ final class TableAttachment: NSTextAttachment {
                     }
                 }
 
-                // Vertical separator — full height to connect across rows
-                if colIdx < colCount - 1 {
-                    let sep = UIView()
-                    sep.backgroundColor = theme.tableBorderColor
-                    sep.frame = CGRect(x: x + columnWidths[colIdx] - 0.25, y: 0, width: 0.5, height: rowHeight)
-                    rowView.addSubview(sep)
-                }
                 x += columnWidths[colIdx]
             }
 
-            // Horizontal separator between all rows (bottom edge of each row except last)
+            // Horizontal separator (bottom edge of each row except last):
+            // heavier divider under the header row, light hairline between
+            // body rows, none after the final row (card outline closes it).
             if rowIdx < rows.count - 1 {
                 let hSep = UIView()
-                hSep.backgroundColor = theme.tableBorderColor
-                hSep.frame = CGRect(x: 0, y: rowHeight - 0.25, width: tableWidth, height: 0.5)
+                hSep.backgroundColor = rowIdx == 0 ? theme.codeBlockHeaderDividerColor : theme.tableRowHairline
+                let hair = 1.0 / UIScreen.main.scale
+                hSep.frame = CGRect(x: 0, y: rowHeight - hair, width: tableWidth, height: hair)
                 rowView.addSubview(hSep)
             }
 
@@ -2886,8 +2895,10 @@ final class TableAttachment: NSTextAttachment {
         // traitCollectionDidChange via `borderColorProvider`, so dark-mode
         // hosts always get the right resolved color even when the view was
         // initially created off-window.
-        scrollView.layer.cornerRadius = 8
-        scrollView.layer.borderWidth = 0.5
+        // [B16-TABLE-UI] Same chrome as the code card: 23pt corners,
+        // 1px hairline outline (color via borderColorProvider above).
+        scrollView.layer.cornerRadius = theme.codeBlockCornerRadius
+        scrollView.layer.borderWidth = 1.0 / UIScreen.main.scale
         scrollView.applyBorderColorForCurrentTraits()
         scrollView.clipsToBounds = true
 
