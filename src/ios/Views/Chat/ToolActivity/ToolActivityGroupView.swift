@@ -28,6 +28,9 @@ struct ToolActivityGroupView: View {
 
     private static var startCache: [UUID: Date] = [:]
 
+    /// 入口行统一灰（图标/文字/chevron 同色）[Claude photo_25B6FFE9 实测核心墨色]。
+    private static let headlineGray = Color(red: 0.478, green: 0.475, blue: 0.455)  // #7A7974
+
     /// Event window: chat shows the last three event lines [A4, pp 定 2026-09-17：最多排三个].
     private var eventBlocks: [AssistantBlock] {
         segment.toolIds.suffix(3).compactMap { id in
@@ -176,20 +179,21 @@ struct ToolActivityGroupView: View {
         Button {
             onOpenDetail?(segment)
         } label: {
-            HStack(spacing: 10) {
-                // [pp 09-18] 入口行带时钟图标（Claude 对照 photo_A40145F3 实测：⏱16pt 灰
-                // + 句子 + chevron；覆盖 09-17 Grok 帧06 的"无图标"判定）。
+            HStack(spacing: 12) {
+                // [pp 09-18 1:1 复刻 Claude photo_25B6FFE9 实测] ⏱16pt + 摘要 14pt regular
+                // #7A7974 + chevron 紧跟文字后 21pt（未满行随文字收尾，非贴右缘）。
                 Image(systemName: "clock")
                     .font(.system(size: 16))
-                    .foregroundStyle(Color.secondary)
+                    .foregroundStyle(Self.headlineGray)
                 Text(thinkingHeadline ?? lastToolSummary ?? AppLocalized("Thinking result")) // [pp 09-18] 思考要点句 → 聚合页重点（toolSummary）→ 思考结果
-                    .font(.system(size: 14, weight: .medium)) // [pp 09-18] 摘要比正文小一档（Claude 15/17 同比例）
-                    .foregroundStyle(Color.secondary)
+                    .font(.system(size: 14)) // [pp 09-18] 14pt regular（Claude 同档，轻质感；1:1 实测）
+                    .foregroundStyle(Self.headlineGray)
                     .lineLimit(1)
-                AppSymbol("chevron.right", size: 20) // [pp 09-17] Lucide 官方 chevron-right；尺寸对齐 Grok 实测（视觉 5×10pt）
-                    .foregroundStyle(Color.secondary)
-                Spacer(minLength: 0)
+                AppSymbol("chevron.right", size: 20) // [pp 09-17] Lucide 官方 chevron-right（视觉 ~6×11pt = Claude 同尺寸）
+                    .foregroundStyle(Self.headlineGray)
+                    .padding(.leading, 9) // 文字→chevron 总距 21pt [Claude 实测]
             }
+            .frame(maxWidth: .infinity, alignment: .leading) // 热区全宽（Spacer 推挤改随文布局）
             .padding(.vertical, 3)
             .contentShape(Rectangle())
         }
