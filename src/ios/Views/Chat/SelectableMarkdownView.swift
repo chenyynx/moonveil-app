@@ -1658,11 +1658,18 @@ final class CodeBlockAttachment: NSTextAttachment {
         let inset = leftInset
         let contentWidth = width - inset
 
-        let container = UIView()
+        let container = TraitBorderView()
         container.backgroundColor = theme.codeBlockBackground
         container.layer.cornerRadius = theme.codeBlockCornerRadius
         container.layer.borderWidth = 1.0 / UIScreen.main.scale   // [B16-CODE-CARD-FIX] card outline (was missing on device)
-        container.layer.borderColor = theme.codeBlockCardBorderColor.cgColor
+        // [B16-CODE-CARD-FIX2] Trait-aware border: the frozen CGColor resolved
+        // at creation locks in light mode for off-window streaming renders —
+        // the dark host then showed the LIGHT outline. Same mechanism as
+        // TableScrollView.borderColorProvider.
+        container.borderColorProvider = { [theme] traits in
+            theme.codeBlockCardBorderColor.resolvedColor(with: traits).cgColor
+        }
+        container.applyBorderColorForCurrentTraits()
         container.clipsToBounds = true
 
         let headerHeight: CGFloat = 36   // [B16-CODE-CARD] fixed header strip (label + divider)
@@ -2988,6 +2995,36 @@ final class TableScrollView: UIScrollView, UIScrollViewDelegate {
         onInteractionEnded = nil
         callback()
     }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        applyBorderColorForCurrentTraits()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        // The trait collection becomes meaningful only after the view is
+        // attached to a window; resolve once at that moment so the border
+        // is correct on the very first frame the user sees.
+        applyBorderColorForCurrentTraits()
+    }
+
+    func applyBorderColorForCurrentTraits() {
+        guard let provider = borderColorProvider else { return }
+        layer.borderColor = provider(traitCollection)
+    }
+}
+
+/// Plain-UIView twin of TableScrollView's border mechanics: re-resolves its
+/// `layer.borderColor` on every trait change and on window attach. A CGColor
+/// frozen from a dynamic UIColor locks in whichever appearance was active at
+/// view creation — off-window streaming renders create in light mode, so a
+/// code card built there showed the LIGHT outline on a dark host (pp
+/// 2026-09-17 screenshot: #E3E3E0 border on a #20201F card).
+final class TraitBorderView: UIView {
+    /// Closure called every time the trait collection changes; should
+    /// return a CGColor resolved for the supplied trait collection.
+    var borderColorProvider: ((UITraitCollection) -> CGColor)?
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
