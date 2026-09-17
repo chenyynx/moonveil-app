@@ -87426,6 +87426,22 @@
         }
       }
     },
+    "Thinking result": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "思考结果"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "思考結果"
+          }
+        }
+      }
+    },
     "Thinking Intensity": {
       "localizations": {
         "de": {

@@ -17,7 +17,7 @@ struct ThinkingDotIcon: View {
     var size: CGFloat = 18
     /// Lit dot color (follows label color by default).
     var inkColor: Color = .primary
-    var dimColor: Color = Color(red: 0.788, green: 0.788, blue: 0.788) // ≈#C9C9C9
+    var dimColor: Color = Color(red: 0.71, green: 0.71, blue: 0.71) // ≈#B5B5B5 [帧01 实测 180/255]
 
     private static let cycle: Double = 2.0
     private static let orbit: Double = 1.0      // 8 站巡游
@@ -35,7 +35,8 @@ struct ThinkingDotIcon: View {
                 let t = timeline.date.timeIntervalSinceReferenceDate
                     .truncatingRemainder(dividingBy: Self.cycle)
                 let cell = sz.width / 3
-                let d = cell * 0.34 // 所有点同尺寸 [帧证据 ①]
+                // [帧01 实测] 点径 2.67pt / 间距 5.67pt → 比 0.47（此前 0.34 太小）
+                let d = cell * 0.47
 
                 func pos(_ gx: CGFloat, _ gy: CGFloat) -> CGPoint {
                     CGPoint(x: cell / 2 + gx * cell, y: cell / 2 + gy * cell)

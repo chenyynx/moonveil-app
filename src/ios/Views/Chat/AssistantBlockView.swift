@@ -312,6 +312,8 @@ struct ToolCapsuleView: View {
     var toolSnapshots: [ToolSnapshotItem] = []
     @Binding var detailBlock: AssistantBlock?
     @State private var dotsActive = false
+    /// [ICON-SKIN-A] 图标随皮肤联动 observer（切换即刷新）。
+    @AppStorage("toolRenderStyle") private var renderStyleStorage: Int = ToolRenderStyle.new.rawValue
     /// [T-tool-bg-suspended-hint] Drives the background-suspension info alert.
     @State private var showBgHintAlert = false
     /// [T-ios-memory-write-revoke] Confirmation + result alerts for undoing a
@@ -663,14 +665,15 @@ struct ToolCapsuleView: View {
     @ViewBuilder
     private var statusOrIcon: some View {
         Group {
-            // [E 批 tool-render-replication] Lucide via AppSymbol; memory keeps
-            // its SF symbol (pp 拍板 2026-09-17). Unknown keys fall back to SF.
-            if icon == "brain.head.profile" {
-                Image(systemName: icon)
-            } else if AppSymbolAssets.names[icon] != nil {
-                AppSymbol(icon, size: 13)
+            // [ICON-SKIN-A] 图标随皮肤联动（pp 2026-09-17）：新版=Lucide；
+            // Classic=SF 原版（doc.plus 回退 doc.text.fill）；memory 两版都 SF。
+            if ToolRenderStyleStore.current == .new,
+               icon != "brain.head.profile",
+               AppSymbolAssets.names[icon] != nil {
+                // [pp 09-17] Lucide 内边距补偿：15 框视觉 ≈ SF 13pt 字体图标
+                AppSymbol(icon, size: 15)
             } else {
-                Image(systemName: icon)
+                Image(systemName: icon == "doc.plus" ? "doc.text.fill" : icon)
             }
         }
         .font(.system(size: 13))
@@ -865,8 +868,16 @@ struct ThinkingBlockView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack(spacing: 6) {
-                AppSymbol("sparkles", size: 14) // [E 批] Lucide sparkles
-                    .foregroundStyle(.blue)
+                Group {
+                    if ToolRenderStyleStore.current == .new {
+                        AppSymbol("sparkles", size: 14) // [ICON-SKIN-A]
+                    } else {
+                        Image("ThinkingIcon")
+                            .resizable()
+                            .frame(width: 14, height: 14)
+                    }
+                }
+                .foregroundStyle(.blue)
                 Text(AppLocalized("Deep Thinking"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.blue)
@@ -1190,8 +1201,16 @@ struct ThinkingLevelSheetView: View {
             onSelect(level)
         } label: {
             HStack {
-                AppSymbol("sparkles", size: 16) // [E 批] Lucide sparkles
-                    .opacity(level == .off ? 0.4 : 1.0)
+                Group {
+                    if ToolRenderStyleStore.current == .new {
+                        AppSymbol("sparkles", size: 16) // [ICON-SKIN-A]
+                    } else {
+                        Image("ThinkingIcon")
+                            .resizable()
+                            .frame(width: 16, height: 16)
+                    }
+                }
+                .opacity(level == .off ? 0.4 : 1.0)
                 Text(level.displayName)
                     .foregroundStyle(.primary)
                 Spacer()

@@ -252,11 +252,19 @@ struct ModelGroupDetailView: View {
                     }
                 )) {
                     HStack {
-                        AppSymbol("sparkles", size: 11) // [E 批] Lucide sparkles (asset 已 template)
-                            .foregroundStyle(.white)
-                            .frame(width: 11, height: 11)
-                            .frame(width: 21, height: 21)
-                            .background(.purple, in: Circle())
+                        Group {
+                            if ToolRenderStyleStore.current == .new {
+                                AppSymbol("sparkles", size: 11) // [ICON-SKIN-A]
+                            } else {
+                                Image("ThinkingIcon")
+                                    .resizable()
+                                    .renderingMode(.template)
+                            }
+                        }
+                        .foregroundStyle(.white)
+                        .frame(width: 11, height: 11)
+                        .frame(width: 21, height: 21)
+                        .background(.purple, in: Circle())
                         Text("Enable Reasoning")
                     }
                 }

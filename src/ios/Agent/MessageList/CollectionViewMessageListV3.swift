@@ -438,7 +438,13 @@ private struct BridgedAssistantFooterV3: View {
     /// [T-ios-typing-indicator-scope] Single source of truth on `ChatMessage`
     /// — see `shouldShowTypingIndicator` for the per-round semantics.
     private var showsTypingIndicator: Bool {
-        bridge.isActiveMessage && message.shouldShowTypingIndicator
+        guard bridge.isActiveMessage else { return false }
+        // [pp 09-17 新皮肤] 启动槽只在一切开始前（blocks 为空）；round 之间
+        // 由消息内组视图（槽持续转 / 入口行）承担，避免双指示。
+        if ToolRenderStyleStore.current == .new {
+            return message.blocks.isEmpty
+        }
+        return message.shouldShowTypingIndicator
     }
 
     /// True when any of the footer's conditional sections will actually
@@ -458,7 +464,11 @@ private struct BridgedAssistantFooterV3: View {
             // Typing indicator — "request out, nothing back yet", evaluated per
             // ROUND. See `ChatMessage.shouldShowTypingIndicator`.
             if showsTypingIndicator {
-                TypingIndicator()
+                if ToolRenderStyleStore.current == .new {
+                    PendingThinkingIndicator(messageId: message.id)
+                } else {
+                    TypingIndicator()
+                }
             }
 
             // Inline error

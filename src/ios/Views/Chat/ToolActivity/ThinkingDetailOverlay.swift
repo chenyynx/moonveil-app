@@ -24,8 +24,10 @@ struct ThinkingDetailOverlay: View {
     private static let thinkingGray = Color(red: 0.439, green: 0.439, blue: 0.439) // #707070
     private static let timelineGray = Color(red: 0.890, green: 0.890, blue: 0.882) // #E3E3E1
 
-    private var thinkingBlock: AssistantBlock? {
-        segment.thinkingId.flatMap { id in message.blocks.first { $0.id == id } }
+    /// All thinking blocks of this stage (a stage absorbs every
+    /// thinking/tool loop until the next reply content) [pp 09-17 v3].
+    private var thinkingBlocks: [AssistantBlock] {
+        segment.thinkingIds.compactMap { id in message.blocks.first { $0.id == id } }
     }
 
     private var toolBlocks: [AssistantBlock] {
@@ -37,7 +39,7 @@ struct ThinkingDetailOverlay: View {
     var body: some View {
         VStack(spacing: 0) {
             // 居中灰标题 [Grok 对照：标题居中，非左对齐]
-            Text(AppLocalized("Thinking"))
+            Text(verbatim: "Thinking") // [pp 09-17] 灰标题固定英文
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(Self.titleGray)
                 .frame(maxWidth: .infinity)
@@ -69,16 +71,21 @@ struct ThinkingDetailOverlay: View {
             withAnimation(.easeInOut(duration: 0.25)) { thinkingExpanded.toggle() }
         } label: {
             HStack(spacing: 10) {
+                // [pp 09-17] 完成态不显示图标——只有运行中的 thinking 图标
+                // （spinner/点阵）才显示。
                 if isSegmentRunning {
                     CometSpinner(size: 20, color: Self.thinkingGray) // [Grok 对照] 大 spinner
-                } else {
-                    AppSymbol("sparkles", size: 18)
-                        .foregroundStyle(Self.thinkingGray)
                 }
-                Text(AppLocalized(isSegmentRunning ? "Thinking…" : "Thinking"))
-                    .font(.system(size: 16))
-                    .foregroundStyle(Self.thinkingGray)
-                    .shimmerText()
+                Group {
+                    if isSegmentRunning {
+                        Text(AppLocalized("Thinking…"))
+                    } else {
+                        Text(verbatim: "Thinking") // [pp 09-17] 完成态
+                    }
+                }
+                .font(.system(size: 16))
+                .foregroundStyle(Self.thinkingGray)
+                .shimmerText()
                 Spacer(minLength: 0)
                 AppSymbol("chevron.down", size: 16)
                     .foregroundStyle(Self.thinkingGray.opacity(0.8))
@@ -93,8 +100,9 @@ struct ThinkingDetailOverlay: View {
     /// ink, latest run in light gray, all ink when finished.
     @ViewBuilder
     private var thinkingBody: some View {
-        if let tb = thinkingBlock, !tb.content.isEmpty {
-            let text = tb.content
+        let merged = thinkingBlocks.map(\.content).filter { !$0.isEmpty }.joined(separator: "\n\n")
+        if !merged.isEmpty {
+            let text = merged
             let tailCount = min(24, text.count)
             let settled = String(text.dropLast(tailCount))
             let tail = String(text.suffix(tailCount))

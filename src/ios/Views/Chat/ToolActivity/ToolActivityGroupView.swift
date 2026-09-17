@@ -68,9 +68,9 @@ struct ToolActivityGroupView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     ThinkingDotIcon(size: 18)
-                    Text(AppLocalized("Thinking"))
+                    Text(verbatim: "Thinking") // [pp 09-17] 固定英文（非本地化）
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(Color(uiColor: .label))
+                        .foregroundStyle(Color.secondary) // Grok 对照：灰（非黑）
                     elapsedCounter
                     Spacer(minLength: 0)
                     if showsStop {
@@ -102,21 +102,9 @@ struct ToolActivityGroupView: View {
         .accessibilityHint(AppLocalized("Thinking"))
     }
 
-    /// [A3] No counter for the first ~0.7s, then "· Ns" at 1 Hz from start.
-    @ViewBuilder
+    /// [A3] 计时文字（与启动槽共用同一组件，0.7s 规则 + 1Hz）。
     private var elapsedCounter: some View {
-        if let start = startedAt {
-            TimelineView(.periodic(from: start, by: 1)) { timeline in
-                let elapsed = timeline.date.timeIntervalSince(start)
-                Group {
-                    if elapsed >= 0.7 {
-                        Text("· \(max(1, Int(ceil(elapsed - 0.7))))s")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(Color.secondary)
-                    }
-                }
-            }
-        }
+        ThinkingElapsedText(start: startedAt)
     }
 
     /// Shell stop affordance only while a shell tool is in flight
@@ -138,14 +126,14 @@ struct ToolActivityGroupView: View {
         Button {
             onOpenDetail?(segment)
         } label: {
-            HStack(spacing: 6) {
-                AppSymbol("sparkles", size: 16) // thinking = sparkles [SELECTION.md]
-                    .foregroundStyle(Color.secondary)
-                Text(AppLocalized("Thinking"))
+            HStack(spacing: 4) { // [帧06] Grok 文字-箭头间距 ≈10pt
+                // [pp 09-17] 入口行无图标（Grok 帧证据 06_entry_row：只有
+                // 文字+chevron）；"thinking 图标"仅运行态点阵显示。
+                Text(AppLocalized("Thinking result")) // [pp 09-17] 完成态=思考结果
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(Color.secondary)
-                AppSymbol("chevron.right", size: 14)
-                    .foregroundStyle(Color.secondary.opacity(0.7))
+                AppSymbol("chevron.right", size: 20) // [pp 09-17] Lucide 官方 chevron-right；尺寸对齐 Grok 实测（视觉 5×10pt）
+                    .foregroundStyle(Color.secondary)
                 Spacer(minLength: 0)
             }
             .padding(.vertical, 3)
@@ -159,10 +147,17 @@ struct ToolActivityGroupView: View {
 
     private func ensureStarted() {
         if startedAt == nil {
-            let cached = Self.startCache[segment.anchorId]
-            let start = cached ?? Date.now
-            Self.startCache[segment.anchorId] = start
-            startedAt = start
+            if let cached = Self.startCache[segment.anchorId] {
+                startedAt = cached
+            } else if let pending = ThinkingRunClock.takeover(message.id) {
+                // [pp 09-17] 接管启动槽的计时起点 → 计数从发送起连续。
+                Self.startCache[segment.anchorId] = pending
+                startedAt = pending
+            } else {
+                let start = Date.now
+                Self.startCache[segment.anchorId] = start
+                startedAt = start
+            }
         }
     }
 }
@@ -207,6 +202,68 @@ extension TurnActivityAggregator {
                 toolState: state,
                 isActiveThinking: kind == .thinking && b.id == lastId && isActiveMessage
             )
+        }
+    }
+}
+
+// MARK: - 新皮肤启动槽 + 计时衔接 [pp 09-17 装机反馈]
+
+/// 计时衔接：发送 → 首个块 期间由 PendingThinkingIndicator 起表；消息内组视图
+/// 接管同一段计时（消费起点），保证计数连续不重数、不跳回。
+enum ThinkingRunClock {
+    private static var pending: [UUID: Date] = [:]
+
+    /// 启动槽调用：取已存在起点或写入 now（cell 复用重建时不重数）。
+    static func seed(_ messageId: UUID) -> Date {
+        if let d = pending[messageId] { return d }
+        let d = Date()
+        pending[messageId] = d
+        return d
+    }
+
+    /// 组视图接管调用：消费该起点（一次性）。
+    static func takeover(_ messageId: UUID) -> Date? {
+        pending.removeValue(forKey: messageId)
+    }
+}
+
+/// [A3 共用] 计时文字：前 ~0.7s 不显示，随后 "· Ns" 1Hz。
+struct ThinkingElapsedText: View {
+    let start: Date?
+
+    var body: some View {
+        if let start {
+            TimelineView(.periodic(from: start, by: 1)) { timeline in
+                let elapsed = timeline.date.timeIntervalSince(start)
+                if elapsed >= 0.7 {
+                    Text("• \(max(1, Int(ceil(elapsed - 0.7))))秒") // [帧01] Grok 格式
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Color.secondary)
+                }
+            }
+        }
+    }
+}
+
+/// [pp 09-17] 新皮肤启动槽：发送后、首个内容块到达前显示 —— 点阵图标 +
+/// 「Thinking」+ 计时（从发送起）。替代旧版「正在思考…」；块到达后由消息内
+/// 组视图接管续计。只在 blocks 为空时被调用（否则组视图已承担指示）。
+struct PendingThinkingIndicator: View {
+    let messageId: UUID
+    @State private var start: Date?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ThinkingDotIcon(size: 18)
+            Text(verbatim: "Thinking") // [pp 09-17] 固定英文
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color.secondary)
+            ThinkingElapsedText(start: start)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 3)
+        .onAppear {
+            if start == nil { start = ThinkingRunClock.seed(messageId) }
         }
     }
 }

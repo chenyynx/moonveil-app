@@ -526,8 +526,15 @@ struct ChatMessageRow: View {
 
             // Typing indicator — "request out, nothing back yet", evaluated per
             // ROUND. See `ChatMessage.shouldShowTypingIndicator`.
-            if isActiveMessage && message.shouldShowTypingIndicator {
-                TypingIndicator()
+            // [pp 09-17 新皮肤] blocks 空→新启动槽；其余由组视图承担。
+            if isActiveMessage && (ToolRenderStyleStore.current == .new
+                ? message.blocks.isEmpty
+                : message.shouldShowTypingIndicator) {
+                if ToolRenderStyleStore.current == .new {
+                    PendingThinkingIndicator(messageId: message.id)
+                } else {
+                    TypingIndicator()
+                }
             }
 
             // Inline error + retry

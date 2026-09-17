@@ -633,7 +633,7 @@ struct AIChatView: View {
                                         segment: ctx.segment,
                                         isActiveMessage: vm.isProcessing
                                     )
-                                    .presentationDetents([.fraction(0.55), .large])
+                                    .presentationDetents([.fraction(0.55), .large], selection: $sheetDetent)
                                     .presentationDragIndicator(.visible)
                                 }
                             }
@@ -2473,8 +2473,16 @@ struct AIChatView: View {
         // for enabling deep thinking. Dim the icon in that state — matches the
         // 0.4 Off-row convention in ThinkingLevelSheetView.
         HStack(spacing: 2) {
-            AppSymbol("sparkles", size: 6) // [E 批] Lucide sparkles
-                .opacity(level.isEnabled ? 1.0 : 0.4)
+            Group {
+                if ToolRenderStyleStore.current == .new {
+                    AppSymbol("sparkles", size: 6) // [ICON-SKIN-A]
+                } else {
+                    Image("ThinkingIcon")
+                        .resizable()
+                        .frame(width: 6, height: 6)
+                }
+            }
+            .opacity(level.isEnabled ? 1.0 : 0.4)
             Text(level.displayName)
                 .font(.system(size: 8, weight: .medium))
         }
@@ -2858,6 +2866,11 @@ struct AIChatView: View {
         var id: String { "\(messageId.uuidString)-\(segment.anchorId.uuidString)" }
     }
     @State private var toolActivityDetail: ToolActivityDetailContext?
+    /// [pp 09-17] 钉住当前 detent：流式更新改变内容高度时，系统重吸附会让
+    /// sheet 顶边横跳 — selection 绑定后高度只随用户拖拽变化。
+    @State private var sheetDetent: PresentationDetent = .fraction(0.55)
+    /// [ICON-SKIN-A] 图标随皮肤联动 observer（命令菜单/思考等级指示等 chrome）。
+    @AppStorage("toolRenderStyle") private var renderStyleStorage: Int = ToolRenderStyle.new.rawValue
 
     @ViewBuilder
     private var floatingToolPreview: some View {
@@ -4480,7 +4493,15 @@ struct AIChatView: View {
                 HStack(spacing: 8) {
                     Group {
                         if cmd.id == "thinking" {
-                            AppSymbol("sparkles", size: 16) // [E 批] Lucide sparkles
+                            Group {
+                                if ToolRenderStyleStore.current == .new {
+                                    AppSymbol("sparkles", size: 16) // [ICON-SKIN-A]
+                                } else {
+                                    Image("ThinkingIcon")
+                                        .resizable()
+                                        .frame(width: 16, height: 16)
+                                }
+                            }
                         } else {
                             Image(systemName: cmd.icon)
                                 .font(.system(size: 14, weight: .medium))
@@ -6143,7 +6164,16 @@ private struct TokenUsageSheet: View {
 
                 if let thinkingInfo = vm.currentModelThinkingInfo {
                     Section("Thinking") {
-                        StatRow(label: "Thinking", value: thinkingInfo.enabled ? "On" : "Off", icon: "lightbulb", customIcon: AnyView(AppSymbol("sparkles", size: 14))) // [E batch] Lucide sparkles
+                        StatRow(label: "Thinking", value: thinkingInfo.enabled ? "On" : "Off", icon: "lightbulb", customIcon: AnyView(
+                            // [ICON-SKIN-A] 图标随皮肤联动。
+                            Group {
+                                if ToolRenderStyleStore.current == .new {
+                                    AppSymbol("sparkles", size: 14)
+                                } else {
+                                    Image("ThinkingIcon").resizable()
+                                }
+                            }
+                        ))
                         if thinkingInfo.enabled {
                             StatRow(label: "Level", value: thinkingInfo.level, icon: "slider.horizontal.3")
                         }

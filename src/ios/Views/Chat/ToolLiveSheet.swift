@@ -717,20 +717,37 @@ struct ToolLiveSheet: View {
     }
 
     @ViewBuilder
+    @ViewBuilder
     private var toolIcon: some View {
-        // [E 批 tool-render-replication] Lucide via AppSymbol [SELECTION.md];
-        // memory keeps its SF symbol; info/text stay SF (generic shapes).
-        switch block.kind {
-        case .shellTool: AppSymbol("terminal", size: 14)              // aa-SquareTerminal
-        case .fileReadTool: AppSymbol("doc.text", size: 14)           // aa-FileText
-        case .fileWriteTool: AppSymbol("doc.plus", size: 14)          // aa-FilePlus
-        case .fileEditTool: AppSymbol("square.and.pencil", size: 14)  // aa-SquarePen
-        case .browserTool: AppSymbol("globe", size: 14)               // aa-Globe
-        case .readImageTool: AppSymbol("photo", size: 14)             // aa-Image
-        case .memoryTool: Image(systemName: "brain.head.profile")     // 保持 SF（pp 拍板）
-        case .info: Image(systemName: "arrow.triangle.2.circlepath")
-        case .text: Image(systemName: "text.alignleft")
-        case .thinking: AppSymbol("sparkles", size: 14)               // sparkles
+        // [ICON-SKIN-A] 图标随皮肤联动（pp 2026-09-17）：新版=Lucide
+        // [SELECTION.md]；Classic=SF 原版（含 ThinkingIcon）。
+        if ToolRenderStyleStore.current == .new {
+            switch block.kind {
+            // [pp 09-17] Lucide 内边距补偿：16 框视觉 ≈ SF 14pt 字体图标
+            case .shellTool: AppSymbol("terminal", size: 16)              // aa-SquareTerminal
+            case .fileReadTool: AppSymbol("doc.text", size: 16)           // aa-FileText
+            case .fileWriteTool: AppSymbol("doc.plus", size: 16)          // aa-FilePlus
+            case .fileEditTool: AppSymbol("square.and.pencil", size: 16)  // aa-SquarePen
+            case .browserTool: AppSymbol("globe", size: 16)               // aa-Globe
+            case .readImageTool: AppSymbol("photo", size: 16)             // aa-Image
+            case .memoryTool: Image(systemName: "brain.head.profile")     // 保持 SF（pp 拍板）
+            case .info: Image(systemName: "arrow.triangle.2.circlepath")
+            case .text: Image(systemName: "text.alignleft")
+            case .thinking: AppSymbol("sparkles", size: 14)               // sparkles
+            }
+        } else {
+            switch block.kind {
+            case .shellTool: Image(systemName: "terminal")
+            case .fileReadTool: Image(systemName: "doc.text")
+            case .fileWriteTool: Image(systemName: "doc.text.fill")
+            case .fileEditTool: Image(systemName: "square.and.pencil")
+            case .browserTool: Image(systemName: "globe")
+            case .readImageTool: Image(systemName: "photo")
+            case .memoryTool: Image(systemName: "brain.head.profile")
+            case .info: Image(systemName: "arrow.triangle.2.circlepath")
+            case .text: Image(systemName: "text.alignleft")
+            case .thinking: Image("ThinkingIcon")
+            }
         }
     }
 
@@ -2428,6 +2445,8 @@ private struct ToolStatusBar: View {
     @Binding var expanded: Bool
     @Binding var selectedIdx: Int?
     var leadingInset: CGFloat = 0
+    /// [ICON-SKIN-A] 图标随皮肤联动 observer（切换即刷新）。
+    @AppStorage("toolRenderStyle") private var renderStyleStorage: Int = ToolRenderStyle.new.rawValue
 
     var body: some View {
         HStack(spacing: 2) {
