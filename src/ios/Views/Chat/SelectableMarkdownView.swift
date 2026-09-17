@@ -410,12 +410,16 @@ struct SelectableMarkdownTheme {
         }
     }
     /// [B16-CODE-CARD-FIX] Card outline ring — the preview's 1px border was
-    /// never ported to the UIKit card ("周围的线呢"): light #E3E3E0 / dark #2A2A29.
+    /// never ported to the UIKit card ("周围的线呢"): dark #2A2A29.
+    /// [B16-CODE-CARD-FIX3] Light #E3E3E0 -> #D5D5D1 (pp 2026-09-17: outline
+    /// unreadable in light mode). Same 1px hairline weight as the header
+    /// divider, so visibility was color, not weight; #D5D5D1 keeps one step
+    /// lighter than the #C9C9C6 divider for edge-vs-divider hierarchy.
     var codeBlockCardBorderColor: UIColor {
         UIColor {
             $0.userInterfaceStyle == .dark
                 ? UIColor(red: 0x2A / 255.0, green: 0x2A / 255.0, blue: 0x29 / 255.0, alpha: 1)
-                : UIColor(red: 0xE3 / 255.0, green: 0xE3 / 255.0, blue: 0xE0 / 255.0, alpha: 1)
+                : UIColor(red: 0xD5 / 255.0, green: 0xD5 / 255.0, blue: 0xD1 / 255.0, alpha: 1)
         }
     }
     var inlineCodeBackground: UIColor { minisInlineCodeBackgroundColor }
