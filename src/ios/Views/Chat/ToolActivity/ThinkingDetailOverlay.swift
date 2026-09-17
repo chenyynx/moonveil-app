@@ -1,42 +1,66 @@
 import SwiftUI
 
-// MARK: - Thinking Detail Sheet (汇聚页, 原生 sheet 版)
+// MARK: - Thinking Detail Sheet (汇聚页, Summary 时间线列表版)
 //
-// 2026-09-17 pp 装机两连改判：
-//   ① 弹窗用【原生 sheet】——grabber/圆角/dimming/拖拽吸附/下拉关闭全交系统，
-//     弃用自绘 overlay 壳（B1 自绘版随本改删除）。
-//   ② 排版对照 Grok 实拍：标题居中。
+// 2026-09-17 pp 两连改判：① 弹窗用【原生 sheet】——grabber/圆角/dimming/拖拽
+//   吸附/下拉关闭全交系统，弃用自绘 overlay 壳。② 排版标题居中。
 // 2026-09-18 pp 第三轮改判（Grok photo_353E81A2 / photo_2F211FE1 逐像素实测 +
-// Claude 纯思考弹窗截图）：
-//   - sheet 底 #F5F5F5；顶部标题 =「思考结果」（有工具）/ "Thought for Ns"（纯思考）
-//   - 阶段行完成态 = ✓ + "Thought for Ns"（时长 = ThinkingRunClock 落定值）
-//   - timeline = 项目间短竖线段（1.33pt #DCDCDC，gutter 列）；无贯穿长线
-//   - 无输出工具 = ✓ 完成行（12.5pt #3D3D3D）；有输出 = 描边卡（ToolCardView）
-//   - 纯思考段 = 原文衬线直展（无折叠行 / 无 timeline / 无 chevron）
-// 本视图 = sheet 的内容；detents/背景由调用侧 presentation 修饰符给。
-// 已拍板交互：点思考行 = 展开该阶段思考原文（保持现状）[B5]；尾部渐显 [A6]。
+// Claude 纯思考弹窗截图）：sheet 底 #F5F5F5；timeline 短竖线段；计时三态。
+// 2026-09-18 pp 第四轮改判（Claude Summary 弹窗 photo_7D322C95 / photo_225E7A7A /
+// photo_805DB84A + 指令「汇聚页改成这种…调用了工具有输出就再设一个入口，点击就切页」）：
+//   - 有工具的段 = 【Summary 时间线列表】：思考圆点句 + 工具图标行按消息时间序
+//     交错，行间短竖线连接，可点行右侧 chevron ›（Claude 图三每行都有）
+//   - 思考项 / 有输出的工具项点击 = NavigationStack push 切页：
+//     思考 → 原文衬线页；工具 → Input/Output 详情页
+//   - 工具详情页 Input = toolInputArgs pretty JSON（无则 factory 输入摘要），
+//     Output = block.content；代码卡复用 SelectableMarkdownView fenced block
+//     （语言标签 + 语法高亮 + 23pt 圆角卡 = Claude photo_805DB84A 同构，免费）
+//   - 运行中当前项 = 灰字（photo_225E7A7A：已完成黑句 + 运行中灰 "Thinking…"）
+//   - 无输出的完成工具 = 无 chevron 不可点（pp：「有输出就再设一个入口」）
+//   - 纯思考段保持原文衬线直展（photo_6422F7B6 对照，已拍板）
+//   - 详情页顶栏 = 白圆底返回钮 + 左对齐大标题（photo_805DB84A）；系统
+//     navigationBar 无此形态（inline 居中 17pt / large 34pt 左对齐均不符），
+//     故自绘头部；push/pop 转场仍走系统 NavigationStack（原生转场免费）
+// ToolCardView 描边卡随本改退役（唯一引用点被列表式替代，struct 已删；
+// CometSpinner 仍被运行态使用，保留在本文件）。
 
 struct ThinkingDetailOverlay: View {
     @ObservedObject var message: ChatMessage
     let segment: TurnActivitySegment
     let isActiveMessage: Bool
 
-    @State private var thinkingExpanded = false
+    @State private var path: [SummaryRoute] = []
 
-    // MARK: Colors (Grok 实拍对照 photo_353E81A2 / photo_2F211FE1)
+    // MARK: Colors（Claude Summary 实测 photo_7D322C95 + Grok 沿用）
 
     private static let sheetBg = Color(red: 0.961, green: 0.961, blue: 0.961)       // #F5F5F5
-    private static let stepInk = Color(red: 0.239, green: 0.239, blue: 0.239)       // #3D3D3D
-    private static let checkGray = Color(red: 0.478, green: 0.478, blue: 0.478)     // #7A7A7A
-    private static let connectorGray = Color(red: 0.863, green: 0.863, blue: 0.863) // #DCDCDC
+    private static let rowInk = Color(red: 0.114, green: 0.114, blue: 0.114)        // #1D1D1D 列表句
+    private static let mutedGray = Color(red: 0.533, green: 0.525, blue: 0.506)     // #888681 圆点/图标/chevron
+    private static let connectorGray = Color(red: 0.863, green: 0.863, blue: 0.863) // #DCDCDC 短竖线
 
-    // gutter 几何 [实测：✓中心 x≈25.7pt / 文字 x≈38.3 / 卡 x≈49.3；左缘 20]
-    private static let gutterWidth: CGFloat = 12
-    private static let gutterGap: CGFloat = 7
-    private static let cardIndent: CGFloat = 11
+    // MARK: Route / Timeline model
 
-    /// All thinking blocks of this stage (a stage absorbs every
-    /// thinking/tool loop until the next reply content) [pp 09-17 v3].
+    enum SummaryRoute: Hashable {
+        case thinking
+        case tool(UUID)
+    }
+
+    private enum ItemKind { case thinking, tool }
+
+    private struct TimelineItem: Identifiable {
+        let kind: ItemKind
+        let block: AssistantBlock
+        var id: UUID { block.id }
+    }
+
+    /// 段内全部块按消息时间序交错 [Claude Summary：思考句/工具行混排时间线]。
+    private var timelineItems: [TimelineItem] {
+        let ids = Set(segment.thinkingIds).union(segment.toolIds)
+        return message.blocks
+            .filter { ids.contains($0.id) }
+            .map { TimelineItem(kind: $0.kind == .thinking ? .thinking : .tool, block: $0) }
+    }
+
     private var thinkingBlocks: [AssistantBlock] {
         segment.thinkingIds.compactMap { id in message.blocks.first { $0.id == id } }
     }
@@ -56,46 +80,61 @@ struct ThinkingDetailOverlay: View {
         return max(1, Int(t.rounded()))
     }
 
-    /// 语义标题：LLM 摘要优先（对齐 classic 胶囊 displayTitle [pp 09-18：改 UI 不改语义]），fallback 类型名。
+    /// 语义标题：LLM 摘要优先（对齐 classic 胶囊 displayTitle），fallback 类型名。
     private func displayTitle(for block: AssistantBlock, fallback: String) -> String {
         if let s = block.toolSummary, !s.isEmpty { return s }
         return fallback
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            header
-
-            if isPureThinking {
-                // [pp 09-18] 纯思考：原文衬线直展（无折叠行 / 无 timeline）。
-                ScrollView {
-                    thinkingText(size: 15.5, serif: true)
-                        .padding(.horizontal, 24)
-                        .padding(.top, 14)
-                        .padding(.bottom, 30)
-                }
-            } else {
-                thinkingRow
-                    .padding(.horizontal, 20)
-                    .padding(.top, 14)
-
-                if thinkingExpanded {
-                    thinkingText(size: 13, serif: false)
-                        .padding(.leading, 39) // 20 + gutter 12 + gap 7 [Grok 实测对齐]
-                        .padding(.trailing, 20)
-                        .padding(.top, 8)
-                        .transition(.opacity)
-                }
-
-                cardsList
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Self.sheetBg)
-        .animation(.easeInOut(duration: 0.25), value: thinkingExpanded)
+    /// 思考块要点句（Claude Summary 每步一句；取句规则对齐入口行：末句优先 ≥8 字）。
+    private func summaryLine(_ text: String) -> String? {
+        let cleaned = text
+            .replacingOccurrences(of: "*", with: "")
+            .replacingOccurrences(of: "#", with: "")
+        let sentences = cleaned
+            .components(separatedBy: CharacterSet(charactersIn: "。！？!?\n"))
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        guard let last = sentences.reversed().first(where: { $0.count >= 8 }) else { return nil }
+        return last.count > 80 ? String(last.prefix(80)) + "…" : last
     }
 
-    // MARK: Header
+    var body: some View {
+        NavigationStack(path: $path) {
+            VStack(spacing: 0) {
+                header
+
+                if isPureThinking {
+                    // [pp 09-18] 纯思考：原文衬线直展（无列表 / 无 timeline）。
+                    ScrollView {
+                        thinkingMergedText(size: 15.5, serif: true)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 14)
+                            .padding(.bottom, 30)
+                    }
+                } else {
+                    summaryList
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(Self.sheetBg)
+            .navigationDestination(for: SummaryRoute.self) { route in
+                switch route {
+                case .thinking:
+                    ThinkingDetailPage(
+                        message: message,
+                        segment: segment,
+                        isSegmentRunning: isSegmentRunning,
+                        settledSeconds: settledSeconds
+                    )
+                case .tool(let blockId):
+                    ToolSummaryDetailPage(message: message, blockId: blockId)
+                }
+            }
+        }
+    }
+
+    // MARK: Header（列表页标题，17pt 黑 semibold）
 
     @ViewBuilder
     private var header: some View {
@@ -108,63 +147,140 @@ struct ThinkingDetailOverlay: View {
                 Text(AppLocalized("Thinking result")) // 思考结果
             }
         }
-        .font(.system(size: 17, weight: .semibold)) // [pp 09-18 Claude Summary 实测：标题 ~17.5pt 近黑 #0E0E0E，与正文同级；原 13pt 灰过弱]
+        .font(.system(size: 17, weight: .semibold)) // [pp 09-18 Claude Summary 实测：~17.5pt 近黑，与正文同级]
         .foregroundStyle(Color.primary)
         .frame(maxWidth: .infinity)
         .padding(.top, 16) // [pp 09-18] 抓条到标题间距
         .shimmerText()
     }
 
-    // MARK: Thinking row (状态跟随)
+    // MARK: Summary 时间线列表 [Claude photo_7D322C95 实测：
+    //        圆点中心 x≈36pt / 文字 x≈64pt / 行距 ~41pt / chevron 灰]
 
-    private var thinkingRow: some View {
+    private var summaryList: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(timelineItems.enumerated()), id: \.element.id) { index, item in
+                    if index > 0 {
+                        connectorRow
+                    }
+                    timelineRow(item)
+                }
+            }
+            .padding(.leading, 28) // 圆点中心 = 28 + 16/2 = 36pt [实测 x107/3]
+            .padding(.trailing, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 30)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// 项目间连接短线段 [1.33pt #DCDCDC，居中于圆点列；Claude 竖线 ~30pt]。
+    private var connectorRow: some View {
+        HStack(spacing: 0) {
+            Capsule()
+                .fill(Self.connectorGray)
+                .frame(width: 1.33, height: 22)
+                .frame(width: 16, alignment: .center)
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, 0)
+        .frame(height: 26)
+    }
+
+    @ViewBuilder
+    private func timelineRow(_ item: TimelineItem) -> some View {
+        let isLast = item.block.id == timelineItems.last?.id
+        let isCurrent = isSegmentRunning && isLast // 运行中段的最后一块 = 当前活动项 → 灰 [photo_225E7A7A]
+
+        let route: SummaryRoute? = {
+            switch item.kind {
+            case .thinking:
+                return .thinking
+            case .tool:
+                let inFlight: Bool = {
+                    switch item.block.toolStatus {
+                    case .streaming, .running: return true
+                    default: return false
+                    }
+                }()
+                // [pp 09-18] 有输出（或运行中）才设入口；纯完成无输出不可点。
+                if inFlight || !item.block.content.isEmpty { return .tool(item.block.id) }
+                return nil
+            }
+        }()
+
         Button {
-            withAnimation(.easeInOut(duration: 0.25)) { thinkingExpanded.toggle() }
+            if let route { path.append(route) }
         } label: {
-            HStack(spacing: Self.gutterGap) {
-                // gutter 列：运行=spinner / 完成=✓ [Grok 图C：✓ 挂在 timeline 列上]
+            HStack(alignment: .center, spacing: 20) {
                 Group {
-                    if isSegmentRunning {
-                        CometSpinner(size: 12, color: Self.stepInk)
-                    } else {
-                        checkGlyph
+                    switch item.kind {
+                    case .thinking:
+                        if isCurrent {
+                            CometSpinner(size: 12, color: Self.mutedGray)
+                        } else {
+                            Circle()
+                                .fill(Self.mutedGray)
+                                .frame(width: 7.3, height: 7.3) // [Claude 实测圆点 7.3pt]
+                        }
+                    case .tool:
+                        toolIcon(item.block)
                     }
                 }
-                .frame(width: Self.gutterWidth, height: 14)
+                .frame(width: 16)
 
-                Group {
-                    if isSegmentRunning {
-                        Text(AppLocalized("Thinking…"))
-                    } else if let secs = settledSeconds {
-                        Text(verbatim: "Thought for \(secs)s") // [pp 09-18]
-                    } else {
-                        Text(verbatim: "Thought")
-                    }
+                Text(rowText(for: item, isCurrent: isCurrent))
+                    .font(.system(size: 16)) // [Claude 列表句实测 ~16pt]
+                    .foregroundStyle(isCurrent ? Self.mutedGray : Self.rowInk)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 6)
+
+                if route != nil {
+                    AppSymbol("chevron.right", size: 16)
+                        .foregroundStyle(Self.mutedGray)
                 }
-                .font(.system(size: 12.5))
-                .foregroundStyle(Self.stepInk)
-                .shimmerText()
-
-                Spacer(minLength: 0)
-                AppSymbol("chevron.down", size: 16)
-                    .foregroundStyle(Self.stepInk.opacity(0.7))
-                    .rotationEffect(.degrees(thinkingExpanded ? 180 : 0))
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(route == nil)
     }
 
-    private var checkGlyph: some View {
-        Image(systemName: "checkmark")
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(Self.checkGray)
+    private func rowText(for item: TimelineItem, isCurrent: Bool) -> String {
+        switch item.kind {
+        case .thinking:
+            if isCurrent { return AppLocalized("Thinking…") }
+            if let line = summaryLine(item.block.content) { return line }
+            if let secs = settledSeconds { return "Thought for \(secs)s" }
+            return "Thought"
+        case .tool:
+            if let item = ToolEventRowFactory.item(for: item.block) {
+                return displayTitle(for: item.block, fallback: item.title)
+            }
+            return item.block.toolDescription
+        }
     }
 
-    /// Thinking source text with streaming tail fade [A6]: settled chars in
-    /// ink, latest run light gray while streaming, all ink when finished.
     @ViewBuilder
-    private func thinkingText(size: CGFloat, serif: Bool) -> some View {
+    private func toolIcon(_ block: AssistantBlock) -> some View {
+        if let item = ToolEventRowFactory.item(for: block) {
+            if item.usesSFSymbol {
+                Image(systemName: item.iconName)
+                    .font(.system(size: 15))
+                    .foregroundStyle(Self.mutedGray)
+            } else {
+                AppSymbol(item.iconName, size: 17) // Lucide 内边距补偿：视觉 ≈16 [同 classic 行]
+                    .foregroundStyle(Self.mutedGray)
+            }
+        }
+    }
+
+    // MARK: 纯思考原文（含流式尾渐显 [A6]）
+
+    @ViewBuilder
+    private func thinkingMergedText(size: CGFloat, serif: Bool) -> some View {
         let merged = thinkingBlocks.map(\.content).filter { !$0.isEmpty }.joined(separator: "\n\n")
         if !merged.isEmpty {
             let text = merged
@@ -176,7 +292,7 @@ struct ThinkingDetailOverlay: View {
                 (try? AttributedString(markdown: settled)) ?? AttributedString(settled)
             )
             .font(font)
-            .foregroundStyle(Color(uiColor: .label)) // settled ink
+            .foregroundStyle(Color(uiColor: .label))
             +
             Text(
                 (try? AttributedString(markdown: tail)) ?? AttributedString(tail)
@@ -186,77 +302,213 @@ struct ThinkingDetailOverlay: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
+}
 
-    // MARK: Timeline + cards [Grok 图C：项目间短竖线段，gutter 列挂 ✓/spinner]
+// MARK: - 详情页共享头部 [Claude photo_805DB84A：白圆底返回钮 + 左对齐大标题]
+//
+// 系统 navigationBar 无此形态（inline 居中 17pt / large 34pt），自绘头部；
+// push/pop 转场与返回手势语义仍走系统 NavigationStack（dismiss = pop）。
 
-    private var cardsList: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(toolBlocks, id: \.id) { block in
-                    connectorRow
-                    itemRow(for: block)
-                }
+private struct SummaryDetailHeader: View {
+    let title: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.primary)
+                    .frame(width: 44, height: 44) // 热区 [Claude 白圆钮 ≈44pt]
+                    .background(Circle().fill(Color.white))
+                    .contentShape(Circle())
             }
-            .padding(.leading, 20)
-            .padding(.trailing, 16)
-            .padding(.top, 6)
-            .padding(.bottom, 30)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
+            .buttonStyle(.plain)
 
-    /// 项目间连接短线段 [实测：1.33pt 宽 #DCDCDC，居中于 gutter 列]。
-    private var connectorRow: some View {
-        HStack(spacing: 0) {
-            Capsule()
-                .fill(Self.connectorGray)
-                .frame(width: 1.33, height: 5.5)
-                .frame(width: Self.gutterWidth, alignment: .center)
+            Text(title)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(Color.primary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
             Spacer(minLength: 0)
         }
-        .frame(height: 14)
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 12)
+    }
+}
+
+// MARK: - 思考详情页（push：原文衬线直展）
+
+private struct ThinkingDetailPage: View {
+    @ObservedObject var message: ChatMessage
+    let segment: TurnActivitySegment
+    let isSegmentRunning: Bool
+    let settledSeconds: Int?
+
+    private static let sheetBg = Color(red: 0.961, green: 0.961, blue: 0.961)
+
+    private var thinkingBlocks: [AssistantBlock] {
+        segment.thinkingIds.compactMap { id in message.blocks.first { $0.id == id } }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SummaryDetailHeader(
+                title: settledSeconds.map { "Thought for \($0)s" } ?? "Thought"
+            )
+            ScrollView {
+                thinkingMergedText
+                    .padding(.horizontal, 24)
+                    .padding(.top, 6)
+                    .padding(.bottom, 30)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Self.sheetBg)
+        .navigationBarHidden(true)
     }
 
     @ViewBuilder
-    private func itemRow(for block: AssistantBlock) -> some View {
-        if let item = ToolEventRowFactory.item(for: block) {
-            let inFlight: Bool = {
-                switch block.toolStatus {
-                case .streaming, .running: return true
-                default: return false
-                }
-            }()
-            // [pp 09-18] 完成且无输出 → ✓ 完成行；有输出/运行中 → 描边卡。
-            let isStep = block.content.isEmpty && !inFlight
-            HStack(alignment: .center, spacing: Self.gutterGap) {
-                Group {
-                    if isStep {
-                        checkGlyph
-                    } else {
-                        Color.clear
+    private var thinkingMergedText: some View {
+        let merged = thinkingBlocks.map(\.content).filter { !$0.isEmpty }.joined(separator: "\n\n")
+        if !merged.isEmpty {
+            let text = merged
+            let tailCount = min(24, text.count)
+            let settled = String(text.dropLast(tailCount))
+            let tail = String(text.suffix(tailCount))
+            let font = Font.system(size: 15.5, design: .serif)
+            (Text(
+                (try? AttributedString(markdown: settled)) ?? AttributedString(settled)
+            )
+            .font(font)
+            .foregroundStyle(Color(uiColor: .label))
+            +
+            Text(
+                (try? AttributedString(markdown: tail)) ?? AttributedString(tail)
+            )
+            .font(font)
+            .foregroundStyle(isSegmentRunning ? Color(uiColor: .lightGray) : Color(uiColor: .label)))
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+// MARK: - 工具详情页（push：Input / Output 代码卡）[Claude photo_805DB84A]
+
+private struct ToolSummaryDetailPage: View {
+    @ObservedObject var message: ChatMessage
+    let blockId: UUID
+
+    @Environment(\.dismiss) private var dismiss
+
+    private static let sheetBg = Color(red: 0.961, green: 0.961, blue: 0.961)
+    private static let mutedGray = Color(red: 0.533, green: 0.525, blue: 0.506) // #888681
+
+    private var block: AssistantBlock? {
+        message.blocks.first { $0.id == blockId }
+    }
+
+    var body: some View {
+        Group {
+            if let block {
+                content(block)
+            } else {
+                Color.clear
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func content(_ block: AssistantBlock) -> some View {
+        let title: String = {
+            if let item = ToolEventRowFactory.item(for: block) {
+                if let s = block.toolSummary, !s.isEmpty { return s }
+                return item.title
+            }
+            return block.toolDescription
+        }()
+
+        VStack(spacing: 0) {
+            SummaryDetailHeader(title: title)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    sectionLabel("Input")
+                    codeCard(languageTag(block), inputText(block))
+
+                    let output = block.content
+                    if !output.isEmpty {
+                        sectionLabel("Output")
+                            .padding(.top, 20)
+                        codeCard(languageTag(block), output)
                     }
                 }
-                .frame(width: Self.gutterWidth, height: 14)
-
-                if isStep {
-                    Text(displayTitle(for: block, fallback: item.title))
-                        .font(.system(size: 12.5))
-                        .foregroundStyle(Self.stepInk)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .frame(height: 22, alignment: .center)
-                } else {
-                    ToolCardView(
-                        title: displayTitle(for: block, fallback: item.title),
-                        subtitle: item.detail.isEmpty ? nil : item.detail,
-                        content: block.content,
-                        iconName: item.iconName,
-                        usesSFSymbol: item.usesSFSymbol,
-                        isInFlight: inFlight
-                    )
-                    .padding(.leading, Self.cardIndent)
-                }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .padding(.bottom, 30)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Self.sheetBg)
+        .navigationBarHidden(true)
+    }
+
+    private func sectionLabel(_ key: String) -> some View {
+        Text(AppLocalized(key))
+            .font(.system(size: 15))
+            .foregroundStyle(Self.mutedGray)
+            .padding(.bottom, 10)
+    }
+
+    /// 代码卡 = SelectableMarkdownView fenced block（语言标签 + 语法高亮 + 圆角卡）。
+    private func codeCard(_ lang: String, _ text: String) -> some View {
+        SelectableMarkdownView(markdown: "```\(lang)\n\(text)\n```")
+    }
+
+    /// Input：完整参数 JSON（pretty）优先，factory 输入摘要兜底。
+    private func inputText(_ block: AssistantBlock) -> String {
+        if let raw = block.toolInputArgs, !raw.isEmpty,
+           let data = raw.data(using: .utf8),
+           let obj = try? JSONSerialization.jsonObject(with: data),
+           let pretty = try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]),
+           let s = String(data: pretty, encoding: .utf8), !s.isEmpty {
+            return s
+        }
+        if let item = ToolEventRowFactory.item(for: block), !item.detail.isEmpty {
+            return item.detail
+        }
+        return block.toolDescription
+    }
+
+    private func languageTag(_ block: AssistantBlock) -> String {
+        switch block.kind {
+        case .shellTool: return "shell"
+        case .browserTool: return "browser"
+        case .memoryTool: return "text"
+        case .fileReadTool(let p), .fileWriteTool(let p), .fileEditTool(let p), .readImageTool(let p):
+            return Self.extLang(p)
+        case .text, .thinking, .info: return "text"
+        }
+    }
+
+    private static func extLang(_ path: String) -> String {
+        let ext = (path as NSString).pathExtension.lowercased()
+        switch ext {
+        case "ts": return "typescript"
+        case "js", "mjs", "cjs": return "javascript"
+        case "py": return "python"
+        case "rb": return "ruby"
+        case "sh", "bash", "zsh": return "shell"
+        case "yml": return "yaml"
+        case "md": return "markdown"
+        case "swift", "json", "html", "css", "go", "rs", "java", "c", "cpp", "xml":
+            return ext
+        default:
+            return ext.isEmpty ? "text" : ext
         }
     }
 }
