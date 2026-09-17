@@ -9996,7 +9996,7 @@ enum CodeSyntaxHighlighter {
 
 // MARK: - [B16-CODE-CARD] Fullscreen code viewer
 
-/// Full-screen code viewer presented (via fullScreenCover) when the code
+/// Full-screen code viewer presented (via a full-height rise-up sheet) when the code
 /// block's maximize button is tapped. Mirrors the inline card exactly:
 /// light = white card + near-black ink, dark = #20201F + #F0EFEC (measured
 /// off pp's screenshots 2026-09-17). Reuses the copy-button's debounced
@@ -10065,6 +10065,9 @@ struct CodeBlockFullScreenView: View {
             }
         }
         .presentationBackground(cardBackground)
+        // [B16-CODE-FULLSCREEN-SHEET] Full-height rise-up sheet: system
+        // swipe-down dismissal, rounded top corners; X button retained.
+        .presentationDetents([.large])
     }
 }
 

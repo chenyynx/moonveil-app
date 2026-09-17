@@ -16,7 +16,7 @@ struct AssistantBlockView: View {
     var onReadAloud: (() -> Void)?
     var onSpeakText: ((String) -> Void)?
     /// [B16-CODE-CARD] Fullscreen code viewer payload — presented when the
-    /// code block's maximize button fires (Identifiable for .fullScreenCover).
+    /// code block's maximize button fires (Identifiable for .sheet).
     struct ExpandedCodePayload: Identifiable {
         let id = UUID()
         let code: String
@@ -137,7 +137,10 @@ struct AssistantBlockView: View {
         )
         .fixedSize(horizontal: false, vertical: true)
         .modifier(MinisOpenURLHandler())
-        .fullScreenCover(item: $expandedCode) { payload in
+        // [B16-CODE-FULLSCREEN-SHEET] pp 2026-09-17: rise-up full-height
+        // sheet instead of fullScreenCover — system swipe-down dismissal comes
+        // with it; the X button stays.
+        .sheet(item: $expandedCode) { payload in
             CodeBlockFullScreenView(code: payload.code, language: payload.language)
         }
     }
