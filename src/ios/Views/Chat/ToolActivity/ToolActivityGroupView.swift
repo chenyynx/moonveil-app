@@ -183,9 +183,7 @@ struct ToolActivityGroupView: View {
             HStack(spacing: 12) {
                 // [pp 09-18 1:1 复刻 Claude photo_25B6FFE9 实测] ⏱16pt + 摘要 14pt regular
                 // #7A7974 + chevron 紧跟文字后 21pt（未满行随文字收尾，非贴右缘）。
-                Image(systemName: "clock")
-                    .font(.system(size: 16))
-                    .foregroundStyle(Self.headlineGray)
+                ClaudeClockIcon(size: 16, color: Self.headlineGray) // [pp 09-18 1:1] 缺口环+递进点自绘时钟
                 Text(thinkingHeadline ?? lastToolSummary ?? AppLocalized("Thinking result")) // [pp 09-18] 思考要点句 → 聚合页重点（toolSummary）→ 思考结果
                     .font(.system(size: 14)) // [pp 09-18] 14pt regular（Claude 同档，轻质感；1:1 实测）
                     .foregroundStyle(Self.headlineGray)
@@ -366,5 +364,53 @@ struct PendingThinkingIndicator: View {
         .onAppear {
             if start == nil { start = ThinkingRunClock.seed(messageId) }
         }
+    }
+}
+
+
+// MARK: - Claude Clock Icon (入口行) [pp 09-18 1:1 复刻 photo_25B6FFE9]
+//
+// 极坐标实测（见 patch 注释）：缺口圆环 + 三递进点（"进行中"隐喻）+ 12/4:30 指针。
+// SF clock（全圆无点）与 Lucide clock（全圆）均无此形 → 自绘。颜色/尺寸与文字同灰。
+
+struct ClaudeClockIcon: View {
+    var size: CGFloat = 16
+    var color: Color
+
+    var body: some View {
+        Canvas { ctx, sz in
+            let u = sz.width / 24 // 设计画布 24
+            let c = CGPoint(x: 12 * u, y: 12 * u)
+            let lw = 2.0 * u
+
+            // 缺口圆环：252°→546°(=186°+360) 顺时针，缺口在左上 [实测]
+            var arc = Path()
+            arc.addArc(center: c, radius: 11 * u,
+                       startAngle: .degrees(252), endAngle: .degrees(546),
+                       clockwise: true)
+            ctx.stroke(arc, with: .color(color),
+                       style: StrokeStyle(lineWidth: lw, lineCap: .round))
+
+            // 缺口区三点，指向弧端渐大 [实测 200°/225°/245°]
+            let dots: [(Double, Double)] = [(200, 1.4), (225, 1.9), (245, 2.5)]
+            for (deg, dia) in dots {
+                let rad = deg * Double.pi / 180
+                let px = c.x + CGFloat(cos(rad)) * 11 * u
+                let py = c.y + CGFloat(sin(rad)) * 11 * u
+                let d = CGFloat(dia) * u
+                ctx.fill(Path(ellipseIn: CGRect(x: px - d / 2, y: py - d / 2, width: d, height: d)),
+                         with: .color(color))
+            }
+
+            // 指针：12 点竖针 + ~4:30 斜针 [同 Lucide clock 手]
+            var hands = Path()
+            hands.move(to: CGPoint(x: 12 * u, y: 6.5 * u))
+            hands.addLine(to: CGPoint(x: 12 * u, y: 12 * u))
+            hands.addLine(to: CGPoint(x: 15.8 * u, y: 14.4 * u))
+            ctx.stroke(hands, with: .color(color),
+                       style: StrokeStyle(lineWidth: lw, lineCap: .round, lineJoin: .round))
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
     }
 }
