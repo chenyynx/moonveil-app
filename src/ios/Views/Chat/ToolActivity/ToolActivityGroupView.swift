@@ -36,8 +36,10 @@ struct ToolActivityGroupView: View {
     }
 
     private var running: Bool { !segment.isDone }
-    /// 思考要点句 [pp 09-18 Claude 对照：入口行显示语义摘要句而非固定文案]。
-    /// 取该段思考首个有意义句子（≥8 字，跳过「好的。」这类应答短句），失败回退「思考结果」。
+    /// 思考要点句 [pp 09-18 Claude 对照实锤：消息流入口行句子 = Summary 弹窗最后一条
+    /// 思考叙述句（同源同数据）；Claude 的句子由其「摘要思考」层生成，moonveil 无此层，
+    /// 以启发式对齐——取该段思考最后一个有意义句（≥8 字，跳过「好的。」类应答短句）。
+    /// 仍取不到 → 该段最后一条 toolSummary（聚合页重点内容）→「思考结果」（entryRow 侧兜底）。
     private var thinkingHeadline: String? {
         let merged = segment.thinkingIds
             .compactMap { id in message.blocks.first { $0.id == id } }
@@ -50,8 +52,19 @@ struct ToolActivityGroupView: View {
             .components(separatedBy: CharacterSet(charactersIn: "。！？!?\n"))
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        guard let first = sentences.first(where: { $0.count >= 8 }) else { return nil }
-        return first.count > 80 ? String(first.prefix(80)) + "…" : first
+        guard let last = sentences.reversed().first(where: { $0.count >= 8 }) else { return nil }
+        return last.count > 80 ? String(last.prefix(80)) + "…" : last
+    }
+
+    /// 兜底摘要：该段最后一条工具的 LLM 语义摘要 [pp 09-18：取不到思考句时取聚合页重点]。
+    private var lastToolSummary: String? {
+        for id in segment.toolIds.reversed() {
+            if let b = message.blocks.first(where: { $0.id == id }),
+               let s = b.toolSummary, !s.isEmpty {
+                return s
+            }
+        }
+        return nil
     }
 
     var body: some View {
@@ -160,7 +173,7 @@ struct ToolActivityGroupView: View {
             HStack(spacing: 4) { // [帧06] Grok 文字-箭头间距 ≈10pt
                 // [pp 09-17] 入口行无图标（Grok 帧证据 06_entry_row：只有
                 // 文字+chevron）；"thinking 图标"仅运行态点阵显示。
-                Text(thinkingHeadline ?? AppLocalized("Thinking result")) // [pp 09-18] 思考要点句（Claude 对照），fallback=思考结果
+                Text(thinkingHeadline ?? lastToolSummary ?? AppLocalized("Thinking result")) // [pp 09-18] 思考要点句 → 聚合页重点（toolSummary）→ 思考结果
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(Color.secondary)
                     .lineLimit(1)
