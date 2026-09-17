@@ -104,7 +104,8 @@ struct ToolCardView: View {
                 Text(content)
                     .font(.system(size: 13, design: .monospaced))
                     .foregroundStyle(Self.monoInk)
-                    .lineLimit(12)
+                    // [pp 09-18] 工具内容完整显示（原 lineLimit(12) 截断）——聚合页外层
+                    // ScrollView 负责滚动，卡内不再限行。
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)

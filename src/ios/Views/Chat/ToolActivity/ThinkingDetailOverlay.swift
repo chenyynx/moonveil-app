@@ -38,12 +38,12 @@ struct ThinkingDetailOverlay: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 居中灰标题 [Grok 对照：标题居中，非左对齐]
-            Text(verbatim: "Thinking") // [pp 09-17] 灰标题固定英文
+            // 居中标题 [Grok 对照：标题居中，非左对齐；pp 09-18 改判=「思考结果」]
+            Text(AppLocalized("Thinking result")) // 思考结果
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(Self.titleGray)
                 .frame(maxWidth: .infinity)
-                .padding(.top, 4)
+                .padding(.top, 16)  // [pp 09-18] 抓条到标题间距（原4太贴抓条）
                 .shimmerText()
 
             thinkingRow
