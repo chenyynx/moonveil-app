@@ -170,9 +170,12 @@ struct ToolActivityGroupView: View {
         Button {
             onOpenDetail?(segment)
         } label: {
-            HStack(spacing: 4) { // [帧06] Grok 文字-箭头间距 ≈10pt
-                // [pp 09-17] 入口行无图标（Grok 帧证据 06_entry_row：只有
-                // 文字+chevron）；"thinking 图标"仅运行态点阵显示。
+            HStack(spacing: 10) {
+                // [pp 09-18] 入口行带时钟图标（Claude 对照 photo_A40145F3 实测：⏱16pt 灰
+                // + 句子 + chevron；覆盖 09-17 Grok 帧06 的"无图标"判定）。
+                Image(systemName: "clock")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color.secondary)
                 Text(thinkingHeadline ?? lastToolSummary ?? AppLocalized("Thinking result")) // [pp 09-18] 思考要点句 → 聚合页重点（toolSummary）→ 思考结果
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(Color.secondary)
