@@ -30,8 +30,6 @@ struct ThinkingDetailOverlay: View {
     let isActiveMessage: Bool
     /// [pp 09-18] sheet 改全屏翻页 overlay 后系统不再提供下拉关闭 → 头部返回钮回调。
     var onClose: (() -> Void)? = nil
-    /// [pp 09-18] sheet 改全屏翻页 overlay 后系统不再提供下拉关闭 → 头部返回钮回调。
-    var onClose: (() -> Void)? = nil
 
     @State private var path: [SummaryRoute] = []
 
