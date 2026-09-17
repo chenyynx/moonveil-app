@@ -1856,8 +1856,16 @@ final class CodeBlockAttachment: NSTextAttachment {
         let forwarder = CodeExpandForwarder()
         forwarder.language = language
         objc_setAssociatedObject(wrapper, &Self.expandForwarderKey, forwarder, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        // [B16-FULLSCREEN-ANIM3] Same double-fire guard as performCopy: one tap
+        // arrives through BOTH the touchUpInside action and the fallback tap
+        // gesture (cancelsTouchesInView=false — the dead-button workaround).
+        // eacfb83 copied the double-bind but not the debounce, so the UIKit
+        // present ran twice per tap ("弹两遍").
+        let expandDebounce = CopyDebounce()
         let performExpand: () -> Void = { [weak codeTextView, weak forwarder] in
             guard let tv = codeTextView, let fw = forwarder else { return }
+            guard Date().timeIntervalSince(expandDebounce.last) > 0.3 else { return }
+            expandDebounce.last = Date()
             fw.fire?(tv.text ?? "", fw.language)
         }
         expandButton.addAction(UIAction { _ in performExpand() }, for: .touchUpInside)
