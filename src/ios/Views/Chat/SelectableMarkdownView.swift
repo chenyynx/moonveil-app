@@ -317,7 +317,18 @@ struct SelectableMarkdownTheme {
         self.baseFontSize = baseFontSize ?? 16.5
     }
 
-    var baseFont: UIFont { .systemFont(ofSize: baseFontSize) }
+    var baseFont: UIFont { Self.serifFont(ofSize: baseFontSize) }
+
+    /// [B16-SERIF] pp 2026-09-17: whole-content serif, Claude-style. Claude's
+    /// message face is a licensed serif (Tiempos family) we can't bundle; the
+    /// system serif design (New York) is the closest free substitute. ALL
+    /// message-text fonts route through here; monospace (inline code / code
+    /// blocks) is deliberately NOT serif, mirroring Claude.
+    static func serifFont(ofSize size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+        let base = UIFont.systemFont(ofSize: size, weight: weight)
+        guard let descriptor = base.fontDescriptor.withDesign(.serif) else { return base }
+        return UIFont(descriptor: descriptor, size: size)
+    }
 
     /// [B16-TABLE-FONT] pp 2026-09-17: table cells sit one notch below body text
     /// (Grok/ChatGPT-style "attached content" cue; verified same-size before this
@@ -434,6 +445,7 @@ struct SelectableMarkdownTheme {
         UIColor(red: 0xFF / 255.0, green: 0x6A / 255.0, blue: 0x00 / 255.0, alpha: 1)
     }
     var blockquoteBarColor: UIColor { UIColor.systemOrange.withAlphaComponent(0.5) }
+    /// [Superseded 2026-09-17: borderless Claude style — see `tableLineColor`.]
     /// [B16-TABLE-UI] Option B (pp pick 2026-09-17): table = data card, same
     /// family as the code card. Hairline between body rows (#E7E7E3 / #2A2A29),
     /// light header fill (#F3F3F0 / #262624). Card outline + header divider
@@ -443,6 +455,14 @@ struct SelectableMarkdownTheme {
     }
     var tableHeaderFill: UIColor {
         UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0x26 / 255.0, green: 0x26 / 255.0, blue: 0x24 / 255.0, alpha: 1) : UIColor(red: 0xF3 / 255.0, green: 0xF3 / 255.0, blue: 0xF0 / 255.0, alpha: 1) }
+    }
+
+    /// [B16-TABLE-CLAUDE] pp 2026-09-17 (Claude-app style, pixel-measured):
+    /// the borderless table's single hairline colour — header underline AND
+    /// body row seams share it. Light #B7B7B6 on white = label at 28%;
+    /// dark ≈ label at 26%.
+    var tableLineColor: UIColor {
+        UIColor { $0.userInterfaceStyle == .dark ? UIColor.label.withAlphaComponent(0.26) : UIColor.label.withAlphaComponent(0.28) }
     }
 
     func headingFont(level: Int) -> UIFont {
@@ -456,7 +476,7 @@ struct SelectableMarkdownTheme {
         case 6: size = baseFontSize * 0.85; weight = .semibold
         default: size = baseFontSize; weight = .semibold // H4 and fallback
         }
-        return .systemFont(ofSize: size, weight: weight)
+        return Self.serifFont(ofSize: size, weight: weight)
     }
 
     /// Ratios measured off pp's iOS screenshots (2026-09-16), not off Grok's web CSS
@@ -879,7 +899,7 @@ fileprivate final class MarkdownNSRenderer {
         bulletAttrs[.foregroundColor] = bulletColor
         // 1.25× bold makes the Unicode bullet read at roughly the same
         // visual weight as the prior SF-symbol filled circle.
-        bulletAttrs[.font] = UIFont.systemFont(ofSize: theme.baseFontSize * 1.25, weight: .bold)
+        bulletAttrs[.font] = SelectableMarkdownTheme.serifFont(ofSize: theme.baseFontSize * 1.25, weight: .bold)
         // Small negative baseline offset so the bullet sits near the
         // body text's x-height rather than its cap-height.
         bulletAttrs[.baselineOffset] = -theme.baseFontSize * 0.05
@@ -2134,7 +2154,9 @@ final class TableAttachment: NSTextAttachment {
     /// Spacing controlled by RenderedBlock margins; no extra padding inside attachment
     static let verticalMargin: CGFloat = 0
     static let minRowHeight: CGFloat = 36
-    static let cellPaddingH: CGFloat = 16
+    // [B16-TABLE-CLAUDE] 16 -> 12: Claude text starts ~11pt inside the body
+    // margin (28pt vs 17pt, measured 2026-09-17); 12 with our hairlines.
+    static let cellPaddingH: CGFloat = 12
     static let cellPaddingV: CGFloat = 8
 
     /// Narrowest real (non-probe) attachment width observed process-wide, used as
@@ -2300,8 +2322,8 @@ final class TableAttachment: NSTextAttachment {
             for (colIdx, cell) in row.cells.enumerated() where colIdx < colCount {
                 let text = cell.content.plainText
                 let font: UIFont = rowIdx == 0
-                    ? .systemFont(ofSize: theme.tableCellFontSize, weight: .semibold)
-                    : .systemFont(ofSize: theme.tableCellFontSize)
+                    ? SelectableMarkdownTheme.serifFont(ofSize: theme.tableCellFontSize, weight: .semibold)
+                    : SelectableMarkdownTheme.serifFont(ofSize: theme.tableCellFontSize)
                 let size = (text as NSString).size(withAttributes: [.font: font])
                 let requested = ceil(size.width) + Self.cellPaddingH * 2 + 12
                 columnWidths[colIdx] = min(width * 5, max(columnWidths[colIdx], requested))
@@ -2319,8 +2341,8 @@ final class TableAttachment: NSTextAttachment {
         for (rowIdx, row) in rows.enumerated() {
             for (colIdx, cell) in row.cells.enumerated() where colIdx < colCount {
                 let font: UIFont = rowIdx == 0
-                    ? .systemFont(ofSize: theme.tableCellFontSize, weight: .semibold)
-                    : .systemFont(ofSize: theme.tableCellFontSize)
+                    ? SelectableMarkdownTheme.serifFont(ofSize: theme.tableCellFontSize, weight: .semibold)
+                    : SelectableMarkdownTheme.serifFont(ofSize: theme.tableCellFontSize)
                 let cellWidth = columnWidths[colIdx] - Self.cellPaddingH * 2
                 let attrStr = renderCellInlines(cell.content, baseFont: font)
                 let boundingRect = attrStr.boundingRect(
@@ -2655,21 +2677,10 @@ final class TableAttachment: NSTextAttachment {
         let wrapper = UIView()
         wrapper.backgroundColor = .clear
 
-        // CALayer.borderColor is a CGColor and CGColor doesn't track dynamic
-        // UIColor traits — once we resolve `.cgColor`, it's frozen at the
-        // light/dark mode that was active *at resolution time*. When this
-        // attachment view is created off-window (typical for the first
-        // streaming render of a table), the trait collection is the default
-        // (light mode) and resolving `UIColor.label` at 25% alpha gives a
-        // near-black border that disappears against the dark message
-        // background. Re-entering the session creates the view while the
-        // textView is on-window with the right trait collection, which is
-        // why the border returns. Use a UIScrollView subclass that
-        // re-applies the layer.borderColor in `traitCollectionDidChange`.
+        // [B16-TABLE-CLAUDE] No border wiring any more — the table is
+        // borderless; TableScrollView still owns scroll bookkeeping and the
+        // Claude-style edge fades.
         let scrollView = TableScrollView()
-        scrollView.borderColorProvider = { [theme] traits in
-            theme.codeBlockCardBorderColor.resolvedColor(with: traits).cgColor
-        }
         // [B16-CODE-CARD-FIX4] Same card family: no scrollbar knob; wide
         // tables are discovered by dragging, like ChatGPT/Claude tables.
         scrollView.showsHorizontalScrollIndicator = false
@@ -2702,12 +2713,11 @@ final class TableAttachment: NSTextAttachment {
         // `tableWidth × stackHeight`, so long/wide tables come out complete.
         // Captured weakly to avoid retaining the view tree past its lifetime;
         // a fresh image-renderer draws its layer hierarchy at screen scale over
-        // the resolved table background + rounded border.
-        // [B16-TABLE-UI] Copy mirrors the Option-B card: code-card background
-        // + card outline, so the pasted image looks like the live view.
-        let tableBg = theme.codeBlockBackground
-        let tableBorder = theme.codeBlockCardBorderColor
-        let cardCornerRadius = theme.codeBlockCornerRadius
+        // the resolved message background.
+        // [B16-TABLE-CLAUDE] Copy mirrors the borderless Claude style: fill
+        // with the message surface (systemBackground — what the live table
+        // sits on); no card, no outline.
+        let tableBg = UIColor.systemBackground
         let copyTableImage: () -> Void = { [weak stack] in
             guard let stack, stack.bounds.width > 0, stack.bounds.height > 0 else { return }
 
@@ -2732,22 +2742,16 @@ final class TableAttachment: NSTextAttachment {
             // color instead of leaving transparent corners that show white on a
             // light paste target.
             let bg = tableBg.resolvedColor(with: stack.traitCollection)
-            let border = tableBorder.resolvedColor(with: stack.traitCollection)
             let fmt = UIGraphicsImageRendererFormat.default()
             fmt.opaque = true
             let renderer = UIGraphicsImageRenderer(bounds: bounds, format: fmt)
             let image = renderer.image { ctx in
-                // Fill the ENTIRE rect (incl. the four corners outside the
-                // rounded path) so there are no transparent/white corners.
+                // Opaque fill: the borderless table is transparent, so the
+                // pasteboard image needs a resolved canvas colour.
                 bg.setFill()
                 ctx.fill(bounds)
                 // Draw the table content (rows, cells, separators).
                 stack.layer.render(in: ctx.cgContext)
-                // Rounded outer border as visual chrome.
-                let path = UIBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), cornerRadius: cardCornerRadius)
-                border.setStroke()
-                path.lineWidth = 1.0 / UIScreen.main.scale
-                path.stroke()
             }
             UIPasteboard.general.image = image
             // [T-toast-feedback] Confirm the image copy succeeded.
@@ -2759,11 +2763,7 @@ final class TableAttachment: NSTextAttachment {
             let rowHeight = rowHeights[rowIdx]
             let rowView = UIView()
             rowView.translatesAutoresizingMaskIntoConstraints = false
-            // [B16-TABLE-UI] Header row carries the light fill, same family
-            // as the code-card header strip.
-            if rowIdx == 0 {
-                rowView.backgroundColor = theme.tableHeaderFill
-            }
+            // [B16-TABLE-CLAUDE] No header fill — borderless style.
 
             var x: CGFloat = 0
             for (colIdx, cell) in row.cells.enumerated() where colIdx < colCount {
@@ -2778,8 +2778,8 @@ final class TableAttachment: NSTextAttachment {
                 }
 
                 let baseFont: UIFont = rowIdx == 0
-                    ? .systemFont(ofSize: theme.tableCellFontSize, weight: .semibold)
-                    : .systemFont(ofSize: theme.tableCellFontSize)
+                    ? SelectableMarkdownTheme.serifFont(ofSize: theme.tableCellFontSize, weight: .semibold)
+                    : SelectableMarkdownTheme.serifFont(ofSize: theme.tableCellFontSize)
 
                 let attrStr = NSMutableAttributedString(attributedString: renderCellInlines(cell.content, baseFont: baseFont))
                 let paraStyle = NSMutableParagraphStyle()
@@ -2886,11 +2886,11 @@ final class TableAttachment: NSTextAttachment {
             }
 
             // Horizontal separator (bottom edge of each row except last):
-            // heavier divider under the header row, light hairline between
-            // body rows, none after the final row (card outline closes it).
+            // [B16-TABLE-CLAUDE] one line colour everywhere (header underline
+            // included), none after the final row — borderless Claude style.
             if rowIdx < rows.count - 1 {
                 let hSep = UIView()
-                hSep.backgroundColor = rowIdx == 0 ? theme.codeBlockHeaderDividerColor : theme.tableRowHairline
+                hSep.backgroundColor = theme.tableLineColor
                 let hair = 1.0 / UIScreen.main.scale
                 hSep.frame = CGRect(x: 0, y: rowHeight - hair, width: tableWidth, height: hair)
                 rowView.addSubview(hSep)
@@ -2911,15 +2911,9 @@ final class TableAttachment: NSTextAttachment {
         scrollView.contentSize = CGSize(width: tableWidth, height: stackHeight)
         scrollView.frame = CGRect(x: 0, y: Self.verticalMargin, width: width, height: stackHeight)
 
-        // Border — borderColor is re-applied by TableScrollView on every
-        // traitCollectionDidChange via `borderColorProvider`, so dark-mode
-        // hosts always get the right resolved color even when the view was
-        // initially created off-window.
-        // [B16-TABLE-UI] Same chrome as the code card: 23pt corners,
-        // 1px hairline outline (color via borderColorProvider above).
-        scrollView.layer.cornerRadius = theme.codeBlockCornerRadius
-        scrollView.layer.borderWidth = 1.0 / UIScreen.main.scale
-        scrollView.applyBorderColorForCurrentTraits()
+        // [B16-TABLE-CLAUDE] Borderless: the B16-TABLE-UI card chrome (23pt
+        // corners + hairline outline) is retired. Clipping stays for scroll
+        // containment and the edge-fade mask.
         scrollView.clipsToBounds = true
 
         wrapper.addSubview(scrollView)
@@ -2947,6 +2941,9 @@ final class TableAttachment: NSTextAttachment {
             applyClamped()
             DispatchQueue.main.async(execute: applyClamped)
         }
+
+        // [B16-TABLE-FADE] First fade pass — bounds/contentSize are final here.
+        scrollView.updateEdgeFades()
 
         return wrapper
     }
@@ -2988,7 +2985,46 @@ final class TableScrollView: UIScrollView, UIScrollViewDelegate {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
+    // [B16-TABLE-FADE] Claude-style edge hint (pp 2026-09-17): a soft fade on
+    // whichever side still has hidden content. Implemented as a gradient MASK
+    // (alpha-only — no background colour baked in, so it tracks any host bg).
+    // Width 44pt per the Claude screenshot measurement (~46pt onset / 18pt
+    // fully-clear); hidden when that side is scrolled to the end so the last
+    // glyphs are never permanently dimmed.
+    var edgeFadeWidth: CGFloat = 44
+    private let edgeFadeMask = CAGradientLayer()
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        updateEdgeFades()
+    }
+
+    func updateEdgeFades() {
+        let width = bounds.width
+        let contentWidth = contentSize.width
+        guard width > 1, contentWidth > width + 2 else { layer.mask = nil; return }
+        let showLeft = contentOffset.x > 1
+        let showRight = contentOffset.x + width < contentWidth - 1
+        guard showLeft || showRight else { layer.mask = nil; return }
+        let fade = min(edgeFadeWidth, width * 0.45)
+        var stops: [(loc: CGFloat, alpha: CGFloat)] = [showLeft ? (0, 0) : (0, 1)]
+        if showLeft { stops.append((fade / width, 1)) }
+        if showRight {
+            stops.append((1 - fade / width, 1))
+            stops.append((1, 0))
+        } else {
+            stops.append((1, 1))
+        }
+        edgeFadeMask.frame = bounds
+        edgeFadeMask.startPoint = CGPoint(x: 0, y: 0.5)
+        edgeFadeMask.endPoint = CGPoint(x: 1, y: 0.5)
+        edgeFadeMask.colors = stops.map { UIColor.black.withAlphaComponent($0.alpha).cgColor }
+        edgeFadeMask.locations = stops.map { NSNumber(value: Double($0.loc)) }
+        layer.mask = edgeFadeMask
+    }
+
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        updateEdgeFades()
         if isTracking || isDragging || isDecelerating {
             onUserScroll?(contentOffset)
         }
@@ -8223,7 +8259,7 @@ struct SelectableMarkdownView: UIViewRepresentable {
             if _hasPlainSuffix {
                 let mut = NSMutableAttributedString(attributedString: renderedBody)
                 let suffixAttrs: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: FontSettings.shared.scaledMessage(16.5)),
+                    .font: SelectableMarkdownTheme.serifFont(ofSize: FontSettings.shared.scaledMessage(16.5)),
                     .foregroundColor: UIColor.label,
                 ]
                 mut.append(NSAttributedString(string: _splitForUpdate.plainSuffix, attributes: suffixAttrs))
@@ -8766,7 +8802,7 @@ struct SelectableMarkdownView: UIViewRepresentable {
                 } else {
                     let mut = NSMutableAttributedString(attributedString: rendered)
                     let suffixAttrs: [NSAttributedString.Key: Any] = [
-                        .font: UIFont.systemFont(ofSize: FontSettings.shared.scaledMessage(16.5)),
+                        .font: SelectableMarkdownTheme.serifFont(ofSize: FontSettings.shared.scaledMessage(16.5)),
                         .foregroundColor: UIColor.label,
                     ]
                     mut.append(NSAttributedString(string: split.plainSuffix, attributes: suffixAttrs))
