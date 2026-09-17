@@ -101,15 +101,16 @@ private extension Color {
     /// Linear mix toward another color (amount 0...1). Canvas-safe (no UIKit).
     func mix(with other: Color, by amount: Double) -> Color {
         let a = min(max(amount, 0), 1)
-        // Split resolves: a tuple switch here blows the Swift type checker
-        // (CI: "unable to type-check in reasonable time").
+        // Color.Resolved components are Float; `a` is Double. Mixed
+        // arithmetic inside one Color(...) init blows the Swift type
+        // checker (CI ×2), so each channel is its own statement with an
+        // explicit Double conversion.
         let lhs = resolve(in: EnvironmentValues())
         let rhs = other.resolve(in: EnvironmentValues())
-        return Color(
-            red: lhs.red + (rhs.red - lhs.red) * a,
-            green: lhs.green + (rhs.green - lhs.green) * a,
-            blue: lhs.blue + (rhs.blue - lhs.blue) * a,
-            opacity: lhs.opacity + (rhs.opacity - lhs.opacity) * a
-        )
+        let r = Double(lhs.red) + (Double(rhs.red) - Double(lhs.red)) * a
+        let g = Double(lhs.green) + (Double(rhs.green) - Double(lhs.green)) * a
+        let b = Double(lhs.blue) + (Double(rhs.blue) - Double(lhs.blue)) * a
+        let o = Double(lhs.opacity) + (Double(rhs.opacity) - Double(lhs.opacity)) * a
+        return Color(red: r, green: g, blue: b, opacity: o)
     }
 }
