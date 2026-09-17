@@ -318,6 +318,12 @@ struct SelectableMarkdownTheme {
     }
 
     var baseFont: UIFont { .systemFont(ofSize: baseFontSize) }
+
+    /// [B16-TABLE-FONT] pp 2026-09-17: table cells sit one notch below body text
+    /// (Grok/ChatGPT-style "attached content" cue; verified same-size before this
+    /// change). Ratio of `baseFontSize` so the chat font-size slider keeps working.
+    /// Header row keeps semibold at this reduced size.
+    var tableCellFontSize: CGFloat { baseFontSize * 0.9 }
     var labelColor: UIColor { .label }
     var secondaryLabelColor: UIColor { .secondaryLabel }
     var accentColor: UIColor { .systemOrange }
@@ -2268,8 +2274,8 @@ final class TableAttachment: NSTextAttachment {
             for (colIdx, cell) in row.cells.enumerated() where colIdx < colCount {
                 let text = cell.content.plainText
                 let font: UIFont = rowIdx == 0
-                    ? .systemFont(ofSize: theme.baseFontSize, weight: .semibold)
-                    : .systemFont(ofSize: theme.baseFontSize)
+                    ? .systemFont(ofSize: theme.tableCellFontSize, weight: .semibold)
+                    : .systemFont(ofSize: theme.tableCellFontSize)
                 let size = (text as NSString).size(withAttributes: [.font: font])
                 let requested = ceil(size.width) + Self.cellPaddingH * 2 + 12
                 columnWidths[colIdx] = min(width * 5, max(columnWidths[colIdx], requested))
@@ -2287,8 +2293,8 @@ final class TableAttachment: NSTextAttachment {
         for (rowIdx, row) in rows.enumerated() {
             for (colIdx, cell) in row.cells.enumerated() where colIdx < colCount {
                 let font: UIFont = rowIdx == 0
-                    ? .systemFont(ofSize: theme.baseFontSize, weight: .semibold)
-                    : .systemFont(ofSize: theme.baseFontSize)
+                    ? .systemFont(ofSize: theme.tableCellFontSize, weight: .semibold)
+                    : .systemFont(ofSize: theme.tableCellFontSize)
                 let cellWidth = columnWidths[colIdx] - Self.cellPaddingH * 2
                 let attrStr = renderCellInlines(cell.content, baseFont: font)
                 let boundingRect = attrStr.boundingRect(
@@ -2739,8 +2745,8 @@ final class TableAttachment: NSTextAttachment {
                 }
 
                 let baseFont: UIFont = rowIdx == 0
-                    ? .systemFont(ofSize: theme.baseFontSize, weight: .semibold)
-                    : .systemFont(ofSize: theme.baseFontSize)
+                    ? .systemFont(ofSize: theme.tableCellFontSize, weight: .semibold)
+                    : .systemFont(ofSize: theme.tableCellFontSize)
 
                 let attrStr = NSMutableAttributedString(attributedString: renderCellInlines(cell.content, baseFont: baseFont))
                 let paraStyle = NSMutableParagraphStyle()
