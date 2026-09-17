@@ -174,7 +174,7 @@ struct ThinkingDetailOverlay: View {
             .font(.system(size: 17, weight: .semibold)) // [pp 09-18 Claude Summary 实测：~17.5pt 近黑，与正文同级]
             .foregroundStyle(Color.primary)
             .frame(maxWidth: .infinity)
-            .shimmerText()
+            .sweepShimmer(base: .primary) // [pp 09-18] 呼吸式换 Claude 扫光
 
             if let onClose {
                 HStack {

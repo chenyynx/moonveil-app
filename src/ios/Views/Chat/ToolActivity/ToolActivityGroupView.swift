@@ -122,6 +122,7 @@ struct ToolActivityGroupView: View {
                     Text(verbatim: "Thinking") // [pp 09-17] 固定英文（非本地化）
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(Color.secondary) // Grok 对照：灰（非黑）
+                        .sweepShimmer(base: Color.secondary) // [pp 09-18] Claude 同款扫光（cds-shimmer-text-shine 1:1）
                     elapsedCounter
                     Spacer(minLength: 0)
                     if showsStop {
