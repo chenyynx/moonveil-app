@@ -39,6 +39,13 @@ struct ToolActivityGroupView: View {
     }
 
     private var running: Bool { !segment.isDone }
+    /// 模型实际开始思考 = 该段任一 thinking 块已有流式内容 [pp 09-18：
+    /// 「Thinking」文字与计时在此刻出现/起算；此前只有点阵动画]。
+    private var thinkingHasStarted: Bool {
+        segment.thinkingIds.contains { id in
+            message.blocks.first { $0.id == id }?.content.isEmpty == false
+        }
+    }
     /// 思考要点句 [pp 09-18 Claude 对照实锤：消息流入口行句子 = Summary 弹窗最后一条
     /// 思考叙述句（同源同数据）；Claude 的句子由其「摘要思考」层生成，moonveil 无此层，
     /// 以启发式对齐——取该段思考最后一个有意义句（≥8 字，跳过「好的。」类应答短句）。
@@ -82,6 +89,10 @@ struct ToolActivityGroupView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: segment.isDone) // A1 ③ 交叉淡变 ~0.25s
         .onAppear { ensureStarted() }
+        .onChange(of: thinkingHasStarted) { started in
+            // [pp 09-18] 首个思考内容到达那一刻起表（此前 guard 会跳过）。
+            if started { ensureStarted() }
+        }
         // [C2] Any segment change (event rows inserted / state flipped) can
         // change the cell height — reuse the existing thinking-toggle
         // invalidation channel (object = anchor block id).
@@ -119,11 +130,15 @@ struct ToolActivityGroupView: View {
                 // 原 6 视觉仅 ~8.7pt 偏近。
                 HStack(spacing: 10) {
                     ThinkingDotIcon(size: 18)
-                    Text(verbatim: "Thinking") // [pp 09-17] 固定英文（非本地化）
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(Color.secondary) // Grok 对照：灰（非黑）
-                        .sweepShimmer(base: Color.secondary) // [pp 09-18] Claude 同款扫光（cds-shimmer-text-shine 1:1）
-                    elapsedCounter
+                    // [pp 09-18 真机] 模型实际开始思考（首个思考内容到达）才出现
+                    // 「Thinking」与计时；等待响应阶段只有点阵动画（启动槽同）。
+                    if thinkingHasStarted {
+                        Text(verbatim: "Thinking") // [pp 09-17] 固定英文（非本地化）
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(Color.secondary) // Grok 对照：灰（非黑）
+                            .sweepShimmer(base: Color.secondary) // [pp 09-18] Claude 同款扫光（cds-shimmer-text-shine 1:1）
+                        elapsedCounter
+                    }
                     Spacer(minLength: 0)
                     if showsStop {
                         Button(action: { onStop?() }) {
@@ -203,13 +218,12 @@ struct ToolActivityGroupView: View {
     // MARK: Helpers
 
     private func ensureStarted() {
+        // [pp 09-18] 计时起点 = 思考实际开始（首个思考内容到达），不再从发送
+        // 时刻接力（启动槽已不再 seed）——等待响应不计入思考时长。
+        guard thinkingHasStarted else { return }
         if startedAt == nil {
             if let cached = Self.startCache[segment.anchorId] {
                 startedAt = cached
-            } else if let pending = ThinkingRunClock.takeover(message.id) {
-                // [pp 09-17] 接管启动槽的计时起点 → 计数从发送起连续。
-                Self.startCache[segment.anchorId] = pending
-                startedAt = pending
             } else {
                 let start = Date.now
                 Self.startCache[segment.anchorId] = start
@@ -268,26 +282,12 @@ extension TurnActivityAggregator {
 /// 计时衔接：发送 → 首个块 期间由 PendingThinkingIndicator 起表；消息内组视图
 /// 接管同一段计时（消费起点），保证计数连续不重数、不跳回。
 enum ThinkingRunClock {
-    private static var pending: [UUID: Date] = [:]
 
     // [pp 09-18] 三态计时：运行 → 冻结（错误/完成）→ 续走（重试不跳回）。
     // 冻结/续走按 segment 锚点（anchorId 全局唯一）；错误等待不计入时长。
     private static var pauseAt: [UUID: Date] = [:]              // 暂停时刻（冻结显示基准）
     private static var pausedOffset: [UUID: TimeInterval] = [:] // 累计暂停时长（resume 平移）
     private static var frozen: [UUID: TimeInterval] = [:]       // 终值（完成/错误冻结后查询）
-
-    /// 启动槽调用：取已存在起点或写入 now（cell 复用重建时不重数）。
-    static func seed(_ messageId: UUID) -> Date {
-        if let d = pending[messageId] { return d }
-        let d = Date()
-        pending[messageId] = d
-        return d
-    }
-
-    /// 组视图接管调用：消费该起点（一次性）。
-    static func takeover(_ messageId: UUID) -> Date? {
-        pending.removeValue(forKey: messageId)
-    }
 
     /// 显示时长：终值优先；暂停中冻结在暂停时刻；否则实时。
     static func elapsed(anchorId: UUID, start: Date, now: Date) -> TimeInterval {
@@ -344,26 +344,18 @@ struct ThinkingElapsedText: View {
     }
 }
 
-/// [pp 09-17] 新皮肤启动槽：发送后、首个内容块到达前显示 —— 点阵图标 +
-/// 「Thinking」+ 计时（从发送起）。替代旧版「正在思考…」；块到达后由消息内
-/// 组视图接管续计。只在 blocks 为空时被调用（否则组视图已承担指示）。
+/// [pp 09-17→09-18 改版] 新皮肤启动槽：发送后、模型响应前显示 —— 只有点阵
+/// 动画 [pp 09-18：「Thinking」文字与计时在思考实际开始（运行槽侧）才出现，
+/// 计时不再从发送起虚走]。只在 blocks 为空时被调用（否则组视图已承担指示）。
 struct PendingThinkingIndicator: View {
     let messageId: UUID
-    @State private var start: Date?
 
     var body: some View {
         HStack(spacing: 6) {
             ThinkingDotIcon(size: 18)
-            Text(verbatim: "Thinking") // [pp 09-17] 固定英文
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Color.secondary)
-            ThinkingElapsedText(start: start)
             Spacer(minLength: 0)
         }
         .padding(.vertical, 3)
-        .onAppear {
-            if start == nil { start = ThinkingRunClock.seed(messageId) }
-        }
     }
 }
 
