@@ -183,7 +183,7 @@ struct ToolActivityGroupView: View {
                     .font(.system(size: 16))
                     .foregroundStyle(Color.secondary)
                 Text(thinkingHeadline ?? lastToolSummary ?? AppLocalized("Thinking result")) // [pp 09-18] 思考要点句 → 聚合页重点（toolSummary）→ 思考结果
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 14, weight: .medium)) // [pp 09-18] 摘要比正文小一档（Claude 15/17 同比例）
                     .foregroundStyle(Color.secondary)
                     .lineLimit(1)
                 AppSymbol("chevron.right", size: 20) // [pp 09-17] Lucide 官方 chevron-right；尺寸对齐 Grok 实测（视觉 5×10pt）

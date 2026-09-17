@@ -31,7 +31,9 @@ struct ThinkingDetailOverlay: View {
     /// [pp 09-18] sheet 改全屏翻页 overlay 后系统不再提供下拉关闭 → 头部返回钮回调。
     var onClose: (() -> Void)? = nil
 
-    @State private var path: [SummaryRoute] = []
+    // [pp 09-18 装机 #117] 嵌套 NavigationStack 打爆外壳 stackNav → 详情页改
+    // ZStack 自绘栈：page 非 nil 时从右推入，返回钮推回（转场视觉不变）。
+    @State private var page: SummaryRoute?
 
     // MARK: Colors（Claude Summary 实测 photo_7D322C95 + Grok 沿用）
 
@@ -102,7 +104,7 @@ struct ThinkingDetailOverlay: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
+        ZStack {
             VStack(spacing: 0) {
                 header
 
@@ -119,20 +121,37 @@ struct ThinkingDetailOverlay: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(Self.sheetBg)
-            .navigationDestination(for: SummaryRoute.self) { route in
-                switch route {
-                case .thinking:
-                    ThinkingDetailPage(
-                        message: message,
-                        segment: segment,
-                        isSegmentRunning: isSegmentRunning,
-                        settledSeconds: settledSeconds
-                    )
-                case .tool(let blockId):
-                    ToolSummaryDetailPage(message: message, blockId: blockId)
-                }
+
+            if let page {
+                detailPage(page)
+                    .transition(.move(edge: .trailing))
+                    .zIndex(10)
             }
+        }
+        .background(Self.sheetBg)
+    }
+
+    private func pushPage(_ p: SummaryRoute) {
+        withAnimation(.easeOut(duration: 0.28)) { page = p }
+    }
+
+    private func popPage() {
+        withAnimation(.easeOut(duration: 0.28)) { page = nil }
+    }
+
+    @ViewBuilder
+    private func detailPage(_ page: SummaryRoute) -> some View {
+        switch page {
+        case .thinking:
+            ThinkingDetailPage(
+                message: message,
+                segment: segment,
+                isSegmentRunning: isSegmentRunning,
+                settledSeconds: settledSeconds,
+                onBack: popPage
+            )
+        case .tool(let blockId):
+            ToolSummaryDetailPage(message: message, blockId: blockId, onBack: popPage)
         }
     }
 
@@ -233,7 +252,7 @@ struct ThinkingDetailOverlay: View {
         }()
 
         Button {
-            if let route { path.append(route) }
+            if let route { pushPage(route) }
         } label: {
             HStack(alignment: .center, spacing: 20) {
                 Group {
@@ -333,13 +352,11 @@ struct ThinkingDetailOverlay: View {
 
 private struct SummaryDetailHeader: View {
     let title: String
-    @Environment(\.dismiss) private var dismiss
+    var onBack: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            Button {
-                dismiss()
-            } label: {
+            Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Color.primary)
@@ -370,6 +387,7 @@ private struct ThinkingDetailPage: View {
     let segment: TurnActivitySegment
     let isSegmentRunning: Bool
     let settledSeconds: Int?
+    var onBack: () -> Void
 
     private static let sheetBg = Color(red: 0.961, green: 0.961, blue: 0.961)
 
@@ -380,7 +398,8 @@ private struct ThinkingDetailPage: View {
     var body: some View {
         VStack(spacing: 0) {
             SummaryDetailHeader(
-                title: settledSeconds.map { "Thought for \($0)s" } ?? "Thought"
+                title: settledSeconds.map { "Thought for \($0)s" } ?? "Thought",
+                onBack: onBack
             )
             ScrollView {
                 thinkingMergedText
@@ -391,7 +410,6 @@ private struct ThinkingDetailPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Self.sheetBg)
-        .navigationBarHidden(true)
     }
 
     @ViewBuilder
@@ -424,8 +442,7 @@ private struct ThinkingDetailPage: View {
 private struct ToolSummaryDetailPage: View {
     @ObservedObject var message: ChatMessage
     let blockId: UUID
-
-    @Environment(\.dismiss) private var dismiss
+    var onBack: () -> Void
 
     private static let sheetBg = Color(red: 0.961, green: 0.961, blue: 0.961)
     private static let mutedGray = Color(red: 0.533, green: 0.525, blue: 0.506) // #888681
@@ -455,7 +472,7 @@ private struct ToolSummaryDetailPage: View {
         }()
 
         VStack(spacing: 0) {
-            SummaryDetailHeader(title: title)
+            SummaryDetailHeader(title: title, onBack: onBack)
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     sectionLabel(AppLocalized("Input"))
@@ -476,7 +493,6 @@ private struct ToolSummaryDetailPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Self.sheetBg)
-        .navigationBarHidden(true)
     }
 
     private func sectionLabel(_ title: String) -> some View {
