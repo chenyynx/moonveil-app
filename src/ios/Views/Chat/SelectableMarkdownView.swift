@@ -330,11 +330,13 @@ struct SelectableMarkdownTheme {
         return UIFont(descriptor: descriptor, size: size)
     }
 
-    /// [B16-TABLE-FONT] pp 2026-09-17: table cells sit one notch below body text
-    /// (Grok/ChatGPT-style "attached content" cue; verified same-size before this
-    /// change). Ratio of `baseFontSize` so the chat font-size slider keeps working.
-    /// Header row keeps semibold at this reduced size.
-    var tableCellFontSize: CGFloat { baseFontSize * 0.9 }
+    /// [B16-TABLE-FONT2] pp 2026-09-17 second call (device review vs Claude
+    /// reference photo_B78EF524): table cells = body size (1.0x). Claude's
+    /// table text measures the same ink height as its body text (data 42px vs
+    /// body 41px @3x). Supersedes the earlier "one notch below" 0.9x call.
+    /// Ratio of `baseFontSize` so the chat font-size slider keeps working.
+    /// Header row stays semibold.
+    var tableCellFontSize: CGFloat { baseFontSize * 1.0 }
     var labelColor: UIColor { .label }
     var secondaryLabelColor: UIColor { .secondaryLabel }
     var accentColor: UIColor { .systemOrange }

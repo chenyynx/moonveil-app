@@ -541,3 +541,9 @@ pp 拍板：完全 Grok 式（聊天内 thinking=入口行零展开）、阶段�
 - Why: 模型给数字列写 `---:`/`:---:` 对齐标记，渲染器自上游开源版以来忠实跟随 → 表头行出现 2 左 + 2 右混排（pp 装机反馈 photo_654DA3AB）。Claude app 的表格无此混排，全部左对齐。
 - Fix: 单元格 alignment 统一 `.left`（表头与数据同规则，一处 switch → 直接赋值）。
 - 回归: 文本表（应无变化，此前即全左）/ 含 `---:` 标记的数字列表现在全左 / 表头 semibold 不变 / copy-as-image 同源。
+
+### B16-TABLE-FONT2 — 表格字号 0.9× → 1.0×（=正文，2026-09-17 pp 再拍板）
+- File: `src/ios/Views/Chat/SelectableMarkdownView.swift`（`tableCellFontSize`，一处）。
+- Why: pp 装机对照 Claude（photo_B78EF524）问「claude 的表格字体大小和正文是不是一样的」→ 实测确认一样大（表格数据墨高 42px vs 正文 41px @3x；表头同尺寸仅加粗）→ pp「改」= 与正文同大。
+- 覆盖: B16-TABLE-FONT（0.9×「低正文一档」，同日撤销）。
+- 回归: 行高/内距动态计算（`boundingRect + cellPaddingV*2`）无 0.9 硬编码依赖; 字号滑杆仍跟随 baseFontSize; 表头 semibold 不变。
