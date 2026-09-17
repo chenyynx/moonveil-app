@@ -624,19 +624,17 @@ struct AIChatView: View {
                             .padding(.bottom, inputBarHeight)
                             // [C3] New-skin 汇聚页 — single host for local +
                             // remote sessions (AIChatView owns both) [H5].
-                            .fullScreenCover(item: $toolActivityDetail) { ctx in
+                            // 2026-09-17 pp 装机改判：原生 sheet（系统 grabber/
+                            // dimming/拖拽/下拉关闭），内容视图不再自带壳。
+                            .sheet(item: $toolActivityDetail) { ctx in
                                 if let msg = vm.messages.first(where: { $0.id == ctx.messageId }) {
                                     ThinkingDetailOverlay(
                                         message: msg,
                                         segment: ctx.segment,
-                                        isActiveMessage: vm.isProcessing,
-                                        isPresented: Binding(
-                                            get: { toolActivityDetail != nil },
-                                            set: { if !$0 { toolActivityDetail = nil } }
-                                        )
+                                        isActiveMessage: vm.isProcessing
                                     )
-                                    .presentationBackground(.clear)
-                                    .interactiveDismissDisabled(true)
+                                    .presentationDetents([.fraction(0.55), .large])
+                                    .presentationDragIndicator(.visible)
                                 }
                             }
                             .onReceive(
