@@ -92,14 +92,18 @@ struct ToolEventRow: View {
     var body: some View {
         // [pp 09-18 真机 photo_E2402C58] .firstTextBaseline 使 Lucide 画布图标视觉中心
         // 比文字高 ~2.8pt（图标无基线概念）→ 垂直居中对齐。
-        HStack(alignment: .center, spacing: 6) {
+        // [pp 09-18 Grok 对照 photo_CCA700E4] 图标列 frame 18（与点阵同宽）+ spacing 10
+        // → 事件行图标/文字列与 Thinking 行完全同列（Grok 实测：图标中心 ~27pt、文字 ~47pt）。
+        HStack(alignment: .center, spacing: 10) {
             if item.usesSFSymbol {
                 Image(systemName: item.iconName)
                     .font(.system(size: 15))
                     .foregroundStyle(iconColor)
+                    .frame(width: 18)
             } else {
                 AppSymbol(item.iconName, size: 16) // [Grok 对照] 图标与标题等高偏大
                     .foregroundStyle(iconColor)
+                    .frame(width: 18)
             }
             if item.isFileClass {
                 Text(item.title)

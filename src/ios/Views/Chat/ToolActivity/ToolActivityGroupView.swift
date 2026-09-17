@@ -109,7 +109,9 @@ struct ToolActivityGroupView: View {
         Button {
             onOpenDetail?(segment)
         } label: {
-            VStack(alignment: .leading, spacing: 4) {
+            // [pp 09-18 Grok 对照 photo_CCA700E4] 行距对齐：Thinking→首事件 34.7pt /
+            // 事件行间 36pt（Grok 实测）→ VStack 4→18（现值实测 19.7/22pt 偏紧）。
+            VStack(alignment: .leading, spacing: 18) {
                 // [pp 09-18 真机] 点阵与 Thinking 间距对齐入口行 clock→摘要（spacing 10），
                 // 原 6 视觉仅 ~8.7pt 偏近。
                 HStack(spacing: 10) {
@@ -136,7 +138,9 @@ struct ToolActivityGroupView: View {
                             accentColor: ToolActivityIcon.accentColor(for: block.kind),
                             status: block.toolStatus
                         )
-                        .padding(.leading, 21)
+                        // [pp 09-18 Grok 对照] 事件行图标列与点阵同列（Grok 三行图标
+                        // 中心同 x≈27pt）——删 21pt 缩进；列对齐由 ToolEventRow 内部
+                        // 18pt 图标 frame + spacing 10 保证。
                         .transition(.opacity.animation(.easeInOut(duration: 0.35))) // A4 淡入 0.3-0.4s
                     }
                 }

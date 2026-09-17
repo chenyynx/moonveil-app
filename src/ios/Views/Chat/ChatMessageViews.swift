@@ -358,6 +358,10 @@ struct ChatMessageRow: View {
         return text
     }
 
+    /// [pp 09-18] New 皮肤隐藏助手名字行的开关（与 AssistantBlockView 同 key 即时刷新）。
+    @AppStorage("toolRenderStyle") private var labelRenderStyle: Int = ToolRenderStyle.new.rawValue
+    private var isClassicSkin: Bool { ToolRenderStyle(rawValue: labelRenderStyle) == .classic }
+
     private var userRow: some View {
         HStack {
             Spacer(minLength: 60)
@@ -472,6 +476,8 @@ struct ChatMessageRow: View {
 
     private var assistantRow: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // [pp 09-18] New 皮肤不显示「✦ 名字」行（Grok 对照无此行）；classic 保留。
+            if isClassicSkin {
             // Assistant label
             HStack(spacing: 6) {
                 Image(systemName: "sparkles")
@@ -489,6 +495,7 @@ struct ChatMessageRow: View {
                     .foregroundStyle(ChatColors.primaryText)
             }
             .padding(.top, 4)
+            }
 
             ForEach(message.blocks) { block in
                 AssistantBlockView(

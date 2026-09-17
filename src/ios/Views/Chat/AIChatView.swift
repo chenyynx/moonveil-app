@@ -624,17 +624,27 @@ struct AIChatView: View {
                             .padding(.bottom, inputBarHeight)
                             // [C3] New-skin 汇聚页 — single host for local +
                             // remote sessions (AIChatView owns both) [H5].
-                            // 2026-09-17 pp 装机改判：原生 sheet（系统 grabber/
-                            // dimming/拖拽/下拉关闭），内容视图不再自带壳。
-                            .sheet(item: $toolActivityDetail) { ctx in
-                                if let msg = vm.messages.first(where: { $0.id == ctx.messageId }) {
+                            // 2026-09-18 pp 改判：弹出动画要「翻页」（Grok 详情页形态：
+                            // 全屏、从右推入/右滑出）→ 弃 sheet 上滑，改全屏 overlay +
+                            // move(edge: .trailing) 转场。原生等价物已穷尽：sheet/
+                            // fullScreenCover 无自定义转场 API；外层聊天流是 VC 列表
+                            // 非 NavigationStack 容器，迁栈 = 大手术。关闭走头部返回钮。
+                            .overlay(alignment: .trailing) {
+                                if let ctx = toolActivityDetail,
+                                   let msg = vm.messages.first(where: { $0.id == ctx.messageId }) {
                                     ThinkingDetailOverlay(
                                         message: msg,
                                         segment: ctx.segment,
                                         isActiveMessage: vm.isProcessing
-                                    )
-                                    .presentationDetents([.fraction(0.55), .large], selection: $sheetDetent)
-                                    .presentationDragIndicator(.visible)
+                                    ) {
+                                        withAnimation(.easeOut(duration: 0.28)) {
+                                            toolActivityDetail = nil
+                                        }
+                                    }
+                                    .frame(width: UIScreen.main.bounds.width)
+                                    .ignoresSafeArea()
+                                    .transition(.move(edge: .trailing))
+                                    .zIndex(50)
                                 }
                             }
                             .onReceive(
@@ -644,7 +654,9 @@ struct AIChatView: View {
                                 guard let seg = note.userInfo?["segment"] as? TurnActivitySegment,
                                       let mid = note.userInfo?["messageId"] as? UUID,
                                       vm.messages.contains(where: { $0.id == mid }) else { return }
-                                toolActivityDetail = ToolActivityDetailContext(messageId: mid, segment: seg)
+                                withAnimation(.easeOut(duration: 0.28)) { // [pp 09-18] 翻页推入
+                                    toolActivityDetail = ToolActivityDetailContext(messageId: mid, segment: seg)
+                                }
                             }
                     }
                 }
@@ -2866,9 +2878,7 @@ struct AIChatView: View {
         var id: String { "\(messageId.uuidString)-\(segment.anchorId.uuidString)" }
     }
     @State private var toolActivityDetail: ToolActivityDetailContext?
-    /// [pp 09-17] 钉住当前 detent：流式更新改变内容高度时，系统重吸附会让
-    /// sheet 顶边横跳 — selection 绑定后高度只随用户拖拽变化。
-    @State private var sheetDetent: PresentationDetent = .fraction(0.55)
+    // [pp 09-18] detent 钉住状态随汇聚页改版（sheet→翻页 overlay）一并移除。
     /// [ICON-SKIN-A] 图标随皮肤联动 observer（命令菜单/思考等级指示等 chrome）。
     @AppStorage("toolRenderStyle") private var renderStyleStorage: Int = ToolRenderStyle.new.rawValue
 

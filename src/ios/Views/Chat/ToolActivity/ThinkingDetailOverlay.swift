@@ -28,6 +28,10 @@ struct ThinkingDetailOverlay: View {
     @ObservedObject var message: ChatMessage
     let segment: TurnActivitySegment
     let isActiveMessage: Bool
+    /// [pp 09-18] sheet 改全屏翻页 overlay 后系统不再提供下拉关闭 → 头部返回钮回调。
+    var onClose: (() -> Void)? = nil
+    /// [pp 09-18] sheet 改全屏翻页 overlay 后系统不再提供下拉关闭 → 头部返回钮回调。
+    var onClose: (() -> Void)? = nil
 
     @State private var path: [SummaryRoute] = []
 
@@ -138,20 +142,40 @@ struct ThinkingDetailOverlay: View {
 
     @ViewBuilder
     private var header: some View {
-        Group {
-            if isPureThinking, isSegmentRunning {
-                Text(AppLocalized("Thinking…"))
-            } else if isPureThinking, let secs = settledSeconds {
-                Text(verbatim: "Thought for \(secs)s") // [pp 09-18] Claude 式
-            } else {
-                Text(AppLocalized("Thinking result")) // 思考结果
+        // [pp 09-18] 翻页 overlay 无系统 grabber/下拉关闭 → 头部左上白圆底返回钮
+        // （与详情页 SummaryDetailHeader 同构）；标题保持居中 [32228f2 拍板]。
+        ZStack {
+            Group {
+                if isPureThinking, isSegmentRunning {
+                    Text(AppLocalized("Thinking…"))
+                } else if isPureThinking, let secs = settledSeconds {
+                    Text(verbatim: "Thought for \(secs)s") // [pp 09-18] Claude 式
+                } else {
+                    Text(AppLocalized("Thinking result")) // 思考结果
+                }
+            }
+            .font(.system(size: 17, weight: .semibold)) // [pp 09-18 Claude Summary 实测：~17.5pt 近黑，与正文同级]
+            .foregroundStyle(Color.primary)
+            .frame(maxWidth: .infinity)
+            .shimmerText()
+
+            if let onClose {
+                HStack {
+                    Button(action: onClose) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color.primary)
+                            .frame(width: 44, height: 44) // 热区 [同 Claude 白圆钮]
+                            .background(Circle().fill(Color.white))
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    Spacer()
+                }
+                .padding(.leading, 16)
             }
         }
-        .font(.system(size: 17, weight: .semibold)) // [pp 09-18 Claude Summary 实测：~17.5pt 近黑，与正文同级]
-        .foregroundStyle(Color.primary)
-        .frame(maxWidth: .infinity)
-        .padding(.top, 16) // [pp 09-18] 抓条到标题间距
-        .shimmerText()
+        .padding(.top, 12)
     }
 
     // MARK: Summary 时间线列表 [Claude photo_7D322C95 实测：
@@ -256,8 +280,8 @@ struct ThinkingDetailOverlay: View {
             if let secs = settledSeconds { return "Thought for \(secs)s" }
             return "Thought"
         case .tool:
-            if let item = ToolEventRowFactory.item(for: item.block) {
-                return displayTitle(for: item.block, fallback: item.title)
+            if let row = ToolEventRowFactory.item(for: item.block) {
+                return displayTitle(for: item.block, fallback: row.title)
             }
             return item.block.toolDescription
         }
@@ -436,12 +460,12 @@ private struct ToolSummaryDetailPage: View {
             SummaryDetailHeader(title: title)
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    sectionLabel("Input")
+                    sectionLabel(AppLocalized("Input"))
                     codeCard(languageTag(block), inputText(block))
 
                     let output = block.content
                     if !output.isEmpty {
-                        sectionLabel("Output")
+                        sectionLabel(AppLocalized("Output"))
                             .padding(.top, 20)
                         codeCard(languageTag(block), output)
                     }
@@ -457,8 +481,8 @@ private struct ToolSummaryDetailPage: View {
         .navigationBarHidden(true)
     }
 
-    private func sectionLabel(_ key: String) -> some View {
-        Text(AppLocalized(key))
+    private func sectionLabel(_ title: String) -> some View {
+        Text(verbatim: title) // [CI #114 修复] AppLocalized 只收字面量 key，变量传参编译不过
             .font(.system(size: 15))
             .foregroundStyle(Self.mutedGray)
             .padding(.bottom, 10)
