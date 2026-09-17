@@ -60,37 +60,46 @@ struct ToolActivityGroupView: View {
     // MARK: Running slot
 
     private var runningSlot: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                ThinkingDotIcon(size: 18)
-                Text(AppLocalized("Thinking"))
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color(uiColor: .label))
-                elapsedCounter
-                Spacer(minLength: 0)
-                if showsStop {
-                    Button(action: { onStop?() }) {
-                        Image(systemName: "stop.fill")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Color.secondary)
+        // [pp 09-17] 运行中的槽整体可点 → 汇聚页（实时进度），与完成态入口行
+        // 同一 onOpenDetail 通道；stop 是嵌套内层 Button，点击优先级高于外层。
+        Button {
+            onOpenDetail?(segment)
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    ThinkingDotIcon(size: 18)
+                    Text(AppLocalized("Thinking"))
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Color(uiColor: .label))
+                    elapsedCounter
+                    Spacer(minLength: 0)
+                    if showsStop {
+                        Button(action: { onStop?() }) {
+                            Image(systemName: "stop.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Color.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(AppLocalized("Stop"))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(AppLocalized("Stop"))
+                }
+                ForEach(eventBlocks, id: \.id) { block in
+                    if let item = ToolEventRowFactory.item(for: block) {
+                        ToolEventRow(
+                            item: item,
+                            accentColor: ToolActivityIcon.accentColor(for: block.kind),
+                            status: block.toolStatus
+                        )
+                        .padding(.leading, 21)
+                        .transition(.opacity.animation(.easeInOut(duration: 0.35))) // A4 淡入 0.3-0.4s
+                    }
                 }
             }
-            ForEach(eventBlocks, id: \.id) { block in
-                if let item = ToolEventRowFactory.item(for: block) {
-                    ToolEventRow(
-                        item: item,
-                        accentColor: ToolActivityIcon.accentColor(for: block.kind),
-                        status: block.toolStatus
-                    )
-                    .padding(.leading, 21)
-                    .transition(.opacity.animation(.easeInOut(duration: 0.35))) // A4 淡入 0.3-0.4s
-                }
-            }
+            .padding(.vertical, 3)
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, 3)
+        .buttonStyle(.plain)
+        .accessibilityHint(AppLocalized("Thinking"))
     }
 
     /// [A3] No counter for the first ~0.7s, then "· Ns" at 1 Hz from start.
