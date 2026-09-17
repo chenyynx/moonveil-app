@@ -90,7 +90,9 @@ struct ToolEventRow: View {
     var status: ToolBlockStatus?
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
+        // [pp 09-18 真机 photo_E2402C58] .firstTextBaseline 使 Lucide 画布图标视觉中心
+        // 比文字高 ~2.8pt（图标无基线概念）→ 垂直居中对齐。
+        HStack(alignment: .center, spacing: 6) {
             if item.usesSFSymbol {
                 Image(systemName: item.iconName)
                     .font(.system(size: 15))

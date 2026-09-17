@@ -110,7 +110,9 @@ struct ToolActivityGroupView: View {
             onOpenDetail?(segment)
         } label: {
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
+                // [pp 09-18 真机] 点阵与 Thinking 间距对齐入口行 clock→摘要（spacing 10），
+                // 原 6 视觉仅 ~8.7pt 偏近。
+                HStack(spacing: 10) {
                     ThinkingDotIcon(size: 18)
                     Text(verbatim: "Thinking") // [pp 09-17] 固定英文（非本地化）
                         .font(.system(size: 14, weight: .medium))
