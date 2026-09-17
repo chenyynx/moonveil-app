@@ -12,8 +12,14 @@ jobs:
           # full history: gitleaks range-scans multi-commit pushes; shallow clone
           # made `base^..head` unresolvable -> ERR "partial scan" exit 1 (2026-09-15)
           fetch-depth: 0
+      # [CI-FIX-2026-09-17] gitleaks-action v2 now hard-fails without a paid
+      # GITLEAKS_LICENSE ("License key validation will be enforced") and died
+      # on anonymous API rate limits — run the OSS binary directly instead.
+      # Same scan surface: full git history (fetch-depth: 0), repo .gitleaks.toml.
       - name: secret-scan
-        uses: gitleaks/gitleaks-action@v2
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/gitleaks/gitleaks/master/install.sh | bash -s -- -b /tmp/bin
+          /tmp/bin/gitleaks detect --source . --config .gitleaks.toml --redact --verbose
       - name: import-direction
         run: bash scripts/import-scan.sh
       - name: pbxproj-input-audit
