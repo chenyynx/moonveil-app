@@ -717,7 +717,6 @@ struct ToolLiveSheet: View {
     }
 
     @ViewBuilder
-    @ViewBuilder
     private var toolIcon: some View {
         // [ICON-SKIN-A] 图标随皮肤联动（pp 2026-09-17）：新版=Lucide
         // [SELECTION.md]；Classic=SF 原版（含 ThinkingIcon）。
