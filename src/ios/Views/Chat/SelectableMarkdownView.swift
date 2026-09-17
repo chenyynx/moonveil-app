@@ -1718,6 +1718,7 @@ final class CodeBlockAttachment: NSTextAttachment {
         codeTextView.isSelectable = true
         codeTextView.isScrollEnabled = false // scrollView handles scrolling
         codeTextView.backgroundColor = .clear
+        codeTextView.tintColor = .label // [AA-PARITY-SELECTION]
         codeTextView.textContainerInset = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
         codeTextView.textContainer.lineFragmentPadding = 0
         codeTextView.textContainer.lineBreakMode = .byClipping
@@ -3071,6 +3072,7 @@ private final class TableCellTextView: UITextView, UITextViewDelegate {
     override init(frame: CGRect, textContainer: NSTextContainer?) {
         super.init(frame: frame, textContainer: textContainer)
         self.delegate = self
+        tintColor = .label // [AA-PARITY-SELECTION]
     }
 
     /// [T-ios-table-inline-code-rounded] TextKit1 stack backed by a
@@ -7840,6 +7842,8 @@ struct SelectableMarkdownView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> SelectableMarkdownTextView {
         let textView = SelectableMarkdownTextView()
+// [AA-PARITY-SELECTION] AA tints the whole app with the text color (upstream RootView.swift:52 -> AppTheme.primaryText = black/white), so selection handles render as AA's black dots with a neutral gray highlight instead of system blue. Link colors are explicit (linkTextAttributes) and unaffected.
+        textView.tintColor = .label
         textView.delegate = context.coordinator
         textView.setContentHuggingPriority(.required, for: .vertical)
         textView.setContentCompressionResistancePriority(.required, for: .vertical)
@@ -10133,6 +10137,7 @@ final class FullScreenCodeHostController: UIViewController {
         view.backgroundColor = .clear
         textView.isEditable = false
         textView.isSelectable = true
+        textView.tintColor = .label // [AA-PARITY-SELECTION]
         textView.isScrollEnabled = true                 // owns vertical scrolling
         textView.showsVerticalScrollIndicator = false   // [B16-CODE-CARD-FIX4] card family: no knobs
         textView.showsHorizontalScrollIndicator = false

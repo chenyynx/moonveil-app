@@ -1389,6 +1389,7 @@ struct PastableTextView: UIViewRepresentable {
         tv.delegate = context.coordinator
         tv.font = UIFont.systemFont(ofSize: FontSettings.shared.scaledChatInput(16.5))
         tv.backgroundColor = .clear
+        tv.tintColor = .label // [AA-PARITY-SELECTION] AA NativeComposerEditor.swift:69
         if let maxHeightOverride { tv.maxHeight = maxHeightOverride }
         tv.isScrollEnabled = false
         tv.textContainerInset = .zero

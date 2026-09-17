@@ -6074,6 +6074,7 @@ private struct SelectableTextView: UIViewRepresentable {
         tv.isSelectable = true
         tv.font = .systemFont(ofSize: 14)
         tv.textColor = .label
+        tv.tintColor = .label // [AA-PARITY-SELECTION]
         tv.backgroundColor = .clear
         tv.textContainerInset = UIEdgeInsets(top: 0, left: 0, bottom: 20, right: 0)
         tv.textContainer.lineFragmentPadding = 0
