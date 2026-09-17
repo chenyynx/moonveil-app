@@ -93,9 +93,11 @@ struct ToolActivityGroupView: View {
             withAnimation(.easeOut(duration: 0.34)) { dotsAppeared = true } // [pp 09-18] 点阵出现动画
         }
         .onChange(of: thinkingHasStarted) { started in
-            // [pp 09-18] 首个思考内容到达那一刻起表 + 「Thinking」/计时出现动画。
+            // [pp 09-18] 首个思考内容到达那一刻起表 + 「Thinking」/计时出现动画
+            // + 触屏反馈（与发送消息同款轻档；Claude app 无公开逆向，装机对比可调）。
             if started {
                 withAnimation(.easeOut(duration: 0.34)) { textAppeared = true }
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 ensureStarted()
             }
         }
