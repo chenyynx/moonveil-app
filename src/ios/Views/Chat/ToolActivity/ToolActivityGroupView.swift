@@ -55,6 +55,20 @@ struct ToolActivityGroupView: View {
         .onChange(of: segment) { _ in
             NotificationCenter.default.post(name: .thinkingBlockToggled, object: segment.anchorId)
         }
+        // [pp 09-18] 错误冻结 / 重试续走：失败等待不计入思考秒数。
+        .onChange(of: message.error) { err in
+            if err != nil {
+                ThinkingRunClock.pause(anchorId: segment.anchorId)
+            } else {
+                ThinkingRunClock.resume(anchorId: segment.anchorId)
+            }
+        }
+        // [pp 09-18] 阶段完成 → 落定时长（供汇聚页「Thought for Ns」）。
+        .onChange(of: segment.isDone) { done in
+            if done {
+                ThinkingRunClock.settle(anchorId: segment.anchorId, start: startedAt)
+            }
+        }
     }
 
     // MARK: Running slot
@@ -104,7 +118,7 @@ struct ToolActivityGroupView: View {
 
     /// [A3] 计时文字（与启动槽共用同一组件，0.7s 规则 + 1Hz）。
     private var elapsedCounter: some View {
-        ThinkingElapsedText(start: startedAt)
+        ThinkingElapsedText(start: startedAt, anchorId: segment.anchorId)
     }
 
     /// Shell stop affordance only while a shell tool is in flight
@@ -213,6 +227,12 @@ extension TurnActivityAggregator {
 enum ThinkingRunClock {
     private static var pending: [UUID: Date] = [:]
 
+    // [pp 09-18] 三态计时：运行 → 冻结（错误/完成）→ 续走（重试不跳回）。
+    // 冻结/续走按 segment 锚点（anchorId 全局唯一）；错误等待不计入时长。
+    private static var pauseAt: [UUID: Date] = [:]              // 暂停时刻（冻结显示基准）
+    private static var pausedOffset: [UUID: TimeInterval] = [:] // 累计暂停时长（resume 平移）
+    private static var frozen: [UUID: TimeInterval] = [:]       // 终值（完成/错误冻结后查询）
+
     /// 启动槽调用：取已存在起点或写入 now（cell 复用重建时不重数）。
     static func seed(_ messageId: UUID) -> Date {
         if let d = pending[messageId] { return d }
@@ -225,16 +245,52 @@ enum ThinkingRunClock {
     static func takeover(_ messageId: UUID) -> Date? {
         pending.removeValue(forKey: messageId)
     }
+
+    /// 显示时长：终值优先；暂停中冻结在暂停时刻；否则实时。
+    static func elapsed(anchorId: UUID, start: Date, now: Date) -> TimeInterval {
+        if let f = frozen[anchorId] { return f }
+        let effectiveNow = pauseAt[anchorId] ?? now
+        return max(0, effectiveNow.timeIntervalSince(start) - (pausedOffset[anchorId] ?? 0))
+    }
+
+    /// 错误出现 → 冻结（仅从运行态进入一次）；重试前秒数停住不涨。
+    static func pause(anchorId: UUID, now: Date = .now) {
+        guard frozen[anchorId] == nil, pauseAt[anchorId] == nil else { return }
+        pauseAt[anchorId] = now
+    }
+
+    /// 错误清除/重试 → 续走（暂停时长折入 offset，数字连续不跳回）。
+    static func resume(anchorId: UUID, now: Date = .now) {
+        guard frozen[anchorId] == nil, let pa = pauseAt[anchorId] else { return }
+        pausedOffset[anchorId, default: 0] += now.timeIntervalSince(pa)
+        pauseAt[anchorId] = nil
+    }
+
+    /// 阶段完成 → 落定终值（供汇聚页「Thought for Ns」）。
+    static func settle(anchorId: UUID, start: Date?, now: Date = .now) {
+        guard frozen[anchorId] == nil, let start else { return }
+        frozen[anchorId] = elapsed(anchorId: anchorId, start: start, now: now)
+        pauseAt[anchorId] = nil
+    }
+
+    /// 汇聚页查询：完成态时长（nil = 无数据，旧消息/未落定）。
+    static func frozenValue(anchorId: UUID) -> TimeInterval? {
+        frozen[anchorId]
+    }
 }
 
 /// [A3 共用] 计时文字：前 ~0.7s 不显示，随后 "· Ns" 1Hz。
 struct ThinkingElapsedText: View {
     let start: Date?
+    /// [pp 09-18] 三态计时锚点（错误冻结 / 重试续走 / 完成落定）。
+    var anchorId: UUID? = nil
 
     var body: some View {
         if let start {
             TimelineView(.periodic(from: start, by: 1)) { timeline in
-                let elapsed = timeline.date.timeIntervalSince(start)
+                let elapsed: TimeInterval = anchorId
+                    .map { ThinkingRunClock.elapsed(anchorId: $0, start: start, now: timeline.date) }
+                    ?? timeline.date.timeIntervalSince(start)
                 if elapsed >= 0.7 {
                     Text("• \(max(1, Int(ceil(elapsed - 0.7))))秒") // [帧01] Grok 格式
                         .font(.system(size: 14, weight: .medium))

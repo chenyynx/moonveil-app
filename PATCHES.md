@@ -547,3 +547,16 @@ pp 拍板：完全 Grok 式（聊天内 thinking=入口行零展开）、阶段�
 - Why: pp 装机对照 Claude（photo_B78EF524）问「claude 的表格字体大小和正文是不是一样的」→ 实测确认一样大（表格数据墨高 42px vs 正文 41px @3x；表头同尺寸仅加粗）→ pp「改」= 与正文同大。
 - 覆盖: B16-TABLE-FONT（0.9×「低正文一档」，同日撤销）。
 - 回归: 行高/内距动态计算（`boundingRect + cellPaddingV*2`）无 0.9 硬编码依赖; 字号滑杆仍跟随 baseFontSize; 表头 semibold 不变。
+
+### AGG-SHEET-V3 — 汇聚页第三轮：对齐 Grok/Claude 全套改判（2026-09-18，pp 指单链 photo_CF243117 → photo_353E81A2 → photo_2F211FE1 → Claude 纯思考截图 →「有工具的话这里应该是 Thought 了多少s」+ 错误重试计时冻结）
+- **Files**: `Views/Chat/ToolActivity/ThinkingDetailOverlay.swift`（重写）、`ToolCardView.swift`（重写）、`ToolActivityGroupView.swift`（ThinkingRunClock 三态 + ThinkingElapsedText + 接线）。
+- **视觉规格（photo_353E81A2 / photo_2F211FE1 @3x 逐像素实测）**：
+  1. sheet 底 #F3F3F3 → **#F5F5F5**；顶部标题改 13pt semibold #6E6E6E 居中（有工具=「思考结果」/ 纯思考="Thought for Ns"）；抓条间距 4→16（fd7875f 已半做）。
+  2. 描边卡：底=#F5F5F5（同 sheet，不浮起）+ 1px 描边 #EBEBEB（strokeBorder）+ 圆角 28；标题 13pt semibold、图标近黑（视觉 15pt；SF 15 / AppSymbol 17）、copy 16pt 视觉（size 18、热区 32）；完成态去 chevron（折叠手势保留：点标题行）；分隔线 #DCDCDC；mono 内容 #111；标题行 v-padding 12（行高≈42pt）；内容 pad top 16 / bottom 14。
+  3. 无输出工具 = **✓ 完成行**（SF checkmark 12pt #7A7A7A + 12.5pt #3D3D3D 标题，行高 22）；有输出/运行中 = 描边卡（运行中永远卡+spinner，防流式闪烁）。
+  4. timeline：贯穿长线 → **项目间短竖线段**（1.33pt×5.5pt #DCDCDC，gutter 列居中 x≈25.7pt）；gutter 12 + gap 7 + 卡额外缩进 11（卡左缘 x≈49.3pt）；行距节奏 22+14=36pt（Grok 实测 36.3）。※ 短线段精确起止（上 10.3/下 16.7pt）为近似值，装机校准。
+  5. 纯思考段（无任何工具）= **原文衬线直展**（.system 15.5 serif 纯黑、无折叠行 / 无 timeline / 无 chevron），流式尾部渐显 [A6] 保留。
+- **计时三态**（pp：「模型问题弹出重试，思考时间还是继续记秒。点继续之后正确逻辑是什么」→ 拍板 冻结/续走）：`ThinkingRunClock` 增 `pause/resume/settle/frozenValue`——错误出现冻结显示（不涨）、重试续走（暂停时长折入 offset 平移，数字不回跳）、阶段完成落定终值（错误等待不计入「Thought for Ns」）；接线 = `message.error` / `segment.isDone` 两处 onChange。旧消息无落定值 → 阶段行 fallback "Thought"、纯思考标题 fallback「思考结果」。
+- **回归**：运行槽秒数连续（无错误不冻结）/ 错误冻结不涨 / 重试从原值续走 / 完成后打开 sheet 取落定值 / 多段消息各段独立 / 本地+远端会话同路径（AIChatView 单宿主 [H5]）。
+- **死隔离申报**：三个文件均为 B16 后自造渲染件（非上游 verbatim 范围）；零数据模型/协议/生命周期改动（ChatModels.swift 未触碰）；计时为纯视图层内存态（app 重启/消息重载后无时长 → fallback 生效）。
+- **有意保留待验**：无输出工具暂定 ✓ 行（灰胶囊留给未来系统级事件）；「✓ 完成」尾行未加（Grok 图C 有，待 pp 拍板）；短线段/行距微观值装机校准。

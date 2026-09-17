@@ -1,10 +1,15 @@
 import SwiftUI
 
-// MARK: - Tool Card (白卡)
+// MARK: - Tool Card (Grok 描边卡)
 //
-// 2026-09-17 pp 装机改判（对照 Grok 实拍 photo_800AE8C8）：白底卡（浮在 #F3F3F3
-// sheet 上）+ 无描边 + 圆角 16pt + 大 copy 按钮（视觉 22pt / 热区 32pt）+ 16pt 标题
-// 字 + 全宽分隔线 + mono 深灰内容。折叠交互保留（chevron 旋转 + clip）。
+// 2026-09-17 pp 装机改判（对照 photo_800AE8C8）→ 白卡版。
+// 2026-09-18 pp 第三轮改判（对照 photo_353E81A2 逐像素实测）：
+//   ① 描边卡：底 = sheet 同色 #F5F5F5（不浮起）+ 1px 描边 #EBEBEB + 圆角 28
+//   ② 标题 13pt semibold 近黑、图标近黑（视觉 15pt）、copy 16pt 视觉
+//   ③ 完成态右侧只有 copy（无 chevron；折叠手势保留：点标题行折叠）
+//   ④ 分隔线 #DCDCDC、mono 内容 #111
+// 折叠交互保留（标题行点击 + clip）。无输出工具的 ✓ 完成行由
+// ThinkingDetailOverlay.itemRow 渲染（仅"有输出/运行中"走本卡）。
 
 struct ToolCardView: View {
     let title: String
@@ -12,16 +17,16 @@ struct ToolCardView: View {
     let content: String
     let iconName: String      // AppSymbol key (语义复用聊天内映射)
     let usesSFSymbol: Bool
-    let accentColor: Color
     var isInFlight: Bool = false
 
     @State private var isCollapsed = false
     @State private var copied = false
 
-    private static let cardFill = Color.white                                    // 白卡 [Grok 对照]
-    private static let divider = Color(red: 0.925, green: 0.925, blue: 0.925)    // #ECECEC
-    private static let titleInk = Color(red: 0.082, green: 0.082, blue: 0.082)   // ≈#151515
-    private static let monoInk = Color(red: 0.24, green: 0.24, blue: 0.24)       // 深灰
+    private static let cardFill = Color(red: 0.961, green: 0.961, blue: 0.961)    // #F5F5F5 = sheet 底 [Grok 实测]
+    private static let cardStroke = Color(red: 0.922, green: 0.922, blue: 0.922)  // #EBEBEB hairline [Grok 实测]
+    private static let divider = Color(red: 0.863, green: 0.863, blue: 0.863)     // #DCDCDC [Grok 实测]
+    private static let titleInk = Color(red: 0.082, green: 0.082, blue: 0.082)    // ≈#151515
+    private static let monoInk = Color(red: 0.067, green: 0.067, blue: 0.067)     // #111 [Grok 实测：纯黑]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -34,10 +39,14 @@ struct ToolCardView: View {
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 28)
                 .fill(Self.cardFill)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 28)
+                .strokeBorder(Self.cardStroke, lineWidth: 1) // 内描边：卡底 = sheet 底，靠描边勾轮廓 [Grok 实测]
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 28))
     }
 
     private var titleRow: some View {
@@ -49,32 +58,28 @@ struct ToolCardView: View {
             HStack(spacing: 8) {
                 if usesSFSymbol {
                     Image(systemName: iconName)
-                        .font(.system(size: 18))
-                        .foregroundStyle(accentColor)
+                        .font(.system(size: 15))
+                        .foregroundStyle(Self.titleInk)
                 } else {
-                    AppSymbol(iconName, size: 20) // [Grok 对照] 卡标题图标 ~20pt
-                        .foregroundStyle(accentColor)
+                    AppSymbol(iconName, size: 17) // Lucide 内边距补偿：视觉 ≈15 [Grok 实测 45px/3]
+                        .foregroundStyle(Self.titleInk)
                 }
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Self.titleInk)
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 if isInFlight {
                     CometSpinner(size: 20)
-                } else {
-                    AppSymbol("chevron.down", size: 16)
-                        .foregroundStyle(Color.secondary)
-                        .rotationEffect(.degrees(isCollapsed ? -90 : 0)) // B6 v↔› 同步旋转
                 }
             }
             .padding(.leading, 16)
-            .padding(.trailing, 60) // 给 copy 按钮留位（chevron 之外）
-            .padding(.vertical, 14)
+            .padding(.trailing, 48) // 给 copy 按钮留位
+            .padding(.vertical, 12) // 标题行高 ≈42pt [Grok 实测 42.3]
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        // Copy affordance: 大号纯黑按钮，右缘固定 [Grok 对照 ~22pt]
+        // Copy affordance: 16pt 视觉 / 32pt 热区，右缘固定 [Grok 实测 48px/3]
         .overlay(alignment: .trailing) {
             copyButton
                 .padding(.trailing, 14)
@@ -87,7 +92,7 @@ struct ToolCardView: View {
             copied = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
         } label: {
-            AppSymbol("doc.on.doc", size: 22) // copy [Grok 对照：大按钮]
+            AppSymbol("doc.on.doc", size: 18) // copy [Grok 实测 16pt 视觉]
                 .foregroundStyle(copied ? Color.green : Self.titleInk)
                 .frame(width: 32, height: 32) // 热区
                 .contentShape(Rectangle())
@@ -108,7 +113,8 @@ struct ToolCardView: View {
                     // ScrollView 负责滚动，卡内不再限行。
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
+                    .padding(.top, 16)    // [Grok 实测 17.3pt]
+                    .padding(.bottom, 14) // [Grok 实测 13.7pt]
             }
         }
     }
