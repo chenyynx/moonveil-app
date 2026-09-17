@@ -2851,7 +2851,6 @@ struct AIChatView: View {
 
     // MARK: - Floating Tool Preview
 
-    @ViewBuilder
     // MARK: - Tool Activity Detail Overlay (new-skin 汇聚页) [C3]
 
     /// Identifiable context for the fullScreenCover(item:).
@@ -2862,6 +2861,7 @@ struct AIChatView: View {
     }
     @State private var toolActivityDetail: ToolActivityDetailContext?
 
+    @ViewBuilder
     private var floatingToolPreview: some View {
         let allToolBlocks = vm.messages
             .filter { $0.role == .assistant && !$0.isCompactedHistory }
