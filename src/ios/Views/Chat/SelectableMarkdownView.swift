@@ -10008,6 +10008,9 @@ enum CodeSyntaxHighlighter {
 struct CodeBlockFullScreenView: View {
     let code: String
     var language: String?
+    /// [B16-FULLSCREEN-ANIM] Explicit dismissal so the X button can escape the
+    /// presenting cell's disablesAnimations transaction (see AssistantBlockView).
+    var onDismiss: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -10035,7 +10038,7 @@ struct CodeBlockFullScreenView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        dismiss()
+                        if let onDismiss { onDismiss() } else { dismiss() }
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 15, weight: .semibold))

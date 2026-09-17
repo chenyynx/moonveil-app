@@ -132,7 +132,16 @@ struct AssistantBlockView: View {
             onReadAloud: onReadAloud,
             onSpeakText: onSpeakText,
             onExpandCode: { code, language in
-                expandedCode = ExpandedCodePayload(code: code, language: language)
+                // [B16-FULLSCREEN-ANIM] The message-list cell hosting this view
+                // applies .transaction { disablesAnimations = true } (upstream
+                // use-after-free guard, CollectionViewMessageListV3). This state
+                // change inherits it, so the sheet would present instantly.
+                // Re-enable for this one mutation; the cell guard untouched.
+                var tx = Transaction()
+                tx.disablesAnimations = false
+                withTransaction(tx) {
+                    expandedCode = ExpandedCodePayload(code: code, language: language)
+                }
             }
         )
         .fixedSize(horizontal: false, vertical: true)
@@ -141,7 +150,18 @@ struct AssistantBlockView: View {
         // sheet instead of fullScreenCover — system swipe-down dismissal comes
         // with it; the X button stays.
         .sheet(item: $expandedCode) { payload in
-            CodeBlockFullScreenView(code: payload.code, language: payload.language)
+            CodeBlockFullScreenView(
+                code: payload.code,
+                language: payload.language,
+                onDismiss: {
+                    // [B16-FULLSCREEN-ANIM] Dismissal route: the sheet modifier
+                    // lives inside the cell's disablesAnimations scope, so the
+                    // X button must leave it explicitly animated.
+                    var tx = Transaction()
+                    tx.disablesAnimations = false
+                    withTransaction(tx) { expandedCode = nil }
+                }
+            )
         }
     }
 }
