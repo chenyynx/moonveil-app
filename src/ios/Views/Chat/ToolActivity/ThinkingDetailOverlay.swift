@@ -57,6 +57,12 @@ struct ThinkingDetailOverlay: View {
         return max(1, Int(t.rounded()))
     }
 
+    /// 语义标题：LLM 摘要优先（对齐 classic 胶囊 displayTitle [pp 09-18：改 UI 不改语义]），fallback 类型名。
+    private func displayTitle(for block: AssistantBlock, fallback: String) -> String {
+        if let s = block.toolSummary, !s.isEmpty { return s }
+        return fallback
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -234,7 +240,7 @@ struct ThinkingDetailOverlay: View {
                 .frame(width: Self.gutterWidth, height: 14)
 
                 if isStep {
-                    Text(item.title)
+                    Text(displayTitle(for: block, fallback: item.title))
                         .font(.system(size: 12.5))
                         .foregroundStyle(Self.stepInk)
                         .lineLimit(1)
@@ -242,7 +248,7 @@ struct ThinkingDetailOverlay: View {
                         .frame(height: 22, alignment: .center)
                 } else {
                     ToolCardView(
-                        title: item.title,
+                        title: displayTitle(for: block, fallback: item.title),
                         subtitle: item.detail.isEmpty ? nil : item.detail,
                         content: block.content,
                         iconName: item.iconName,
