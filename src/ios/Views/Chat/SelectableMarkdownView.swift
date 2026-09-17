@@ -1705,8 +1705,10 @@ final class CodeBlockAttachment: NSTextAttachment {
 
         // Scrollable code area (own the pan gesture here for reliable horizontal scroll)
         let scrollView = UIScrollView()
-        scrollView.showsHorizontalScrollIndicator = true
-        scrollView.showsVerticalScrollIndicator = true
+        // [B16-CODE-CARD-FIX4] pp 2026-09-17: no scrollbar knobs inside the
+        // card (red-circled on device screenshot) — drag to scroll, no chrome.
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.showsVerticalScrollIndicator = false
         scrollView.alwaysBounceHorizontal = true
         scrollView.alwaysBounceVertical = true
         scrollView.clipsToBounds = true
@@ -2659,7 +2661,9 @@ final class TableAttachment: NSTextAttachment {
         scrollView.borderColorProvider = { [theme] traits in
             theme.codeBlockCardBorderColor.resolvedColor(with: traits).cgColor
         }
-        scrollView.showsHorizontalScrollIndicator = true
+        // [B16-CODE-CARD-FIX4] Same card family: no scrollbar knob; wide
+        // tables are discovered by dragging, like ChatGPT/Claude tables.
+        scrollView.showsHorizontalScrollIndicator = false
         scrollView.showsVerticalScrollIndicator = false
         scrollView.alwaysBounceHorizontal = false
         scrollView.alwaysBounceVertical = false
