@@ -172,7 +172,10 @@ struct AssistantBlockView: View {
     @ViewBuilder
     private var newToolActivitySlot: some View {
         let segments = TurnActivityAggregator.segments(
-            from: TurnActivityAggregator.adapt(message.blocks, isActiveMessage: isActiveMessage)
+            from: TurnActivityAggregator.adapt(message.blocks, isActiveMessage: isActiveMessage),
+            // [pp 09-17] 回复了正文才算完成一阶段 — the slot keeps spinning
+            // until the text block shows up (or the turn ends).
+            isMessageActive: isActiveMessage
         )
         if let hit = TurnActivityAggregator.role(of: block.id, in: segments),
            hit.isAnchor {

@@ -49,10 +49,10 @@ struct ToolCardView: View {
             HStack(spacing: 8) {
                 if usesSFSymbol {
                     Image(systemName: iconName)
-                        .font(.system(size: 15))
+                        .font(.system(size: 18))
                         .foregroundStyle(accentColor)
                 } else {
-                    AppSymbol(iconName, size: 16)
+                    AppSymbol(iconName, size: 20) // [Grok 对照] 卡标题图标 ~20pt
                         .foregroundStyle(accentColor)
                 }
                 Text(title)
@@ -61,9 +61,9 @@ struct ToolCardView: View {
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 if isInFlight {
-                    CometSpinner(size: 16)
+                    CometSpinner(size: 20)
                 } else {
-                    AppSymbol("chevron.down", size: 14)
+                    AppSymbol("chevron.down", size: 16)
                         .foregroundStyle(Color.secondary)
                         .rotationEffect(.degrees(isCollapsed ? -90 : 0)) // B6 v↔› 同步旋转
                 }

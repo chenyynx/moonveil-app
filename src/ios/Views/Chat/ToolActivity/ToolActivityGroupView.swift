@@ -62,7 +62,7 @@ struct ToolActivityGroupView: View {
     private var runningSlot: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                ThinkingDotIcon(size: 15)
+                ThinkingDotIcon(size: 18)
                 Text(AppLocalized("Thinking"))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(Color(uiColor: .label))
@@ -130,12 +130,12 @@ struct ToolActivityGroupView: View {
             onOpenDetail?(segment)
         } label: {
             HStack(spacing: 6) {
-                AppSymbol("sparkles", size: 14) // thinking = sparkles [SELECTION.md]
+                AppSymbol("sparkles", size: 16) // thinking = sparkles [SELECTION.md]
                     .foregroundStyle(Color.secondary)
                 Text(AppLocalized("Thinking"))
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(Color.secondary)
-                AppSymbol("chevron.right", size: 12)
+                AppSymbol("chevron.right", size: 14)
                     .foregroundStyle(Color.secondary.opacity(0.7))
                 Spacer(minLength: 0)
             }

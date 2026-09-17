@@ -93,10 +93,10 @@ struct ToolEventRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             if item.usesSFSymbol {
                 Image(systemName: item.iconName)
-                    .font(.system(size: 12))
+                    .font(.system(size: 15))
                     .foregroundStyle(iconColor)
             } else {
-                AppSymbol(item.iconName, size: 13)
+                AppSymbol(item.iconName, size: 16) // [Grok 对照] 图标与标题等高偏大
                     .foregroundStyle(iconColor)
             }
             if item.isFileClass {
