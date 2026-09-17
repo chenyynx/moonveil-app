@@ -2994,7 +2994,11 @@ final class TableFadeView: UIView {
     }
 
     func applyColors() {
-        let base = hostColorProvider?(traitCollection)?.resolvedColor(with: traitCollection) ?? UIColor.systemBackground
+        // [doris standalone fix for 20abca3] resolvedColor(with:) returns a
+        // non-optional UIColor — chaining it onto the optional-closure call
+        // plus ?? in one expression fails to type-check. Split: raw -> resolve.
+        let raw = hostColorProvider?(traitCollection) ?? UIColor.systemBackground
+        let base = raw.resolvedColor(with: traitCollection)
         let clear = base.withAlphaComponent(0)
         switch side {
         case .leading:
