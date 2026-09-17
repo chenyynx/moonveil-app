@@ -561,48 +561,49 @@ private struct BridgedAssistantFooterV3: View {
 
     @ViewBuilder
     private func inlineError(_ error: String) -> some View {
-        HStack(alignment: .center, spacing: 10) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 15))
-                .foregroundStyle(.red)
-            Text(error)
-                .font(.system(size: 15))
-                .foregroundStyle(ChatColors.primaryText)
-                .lineLimit(1)
-                .truncationMode(.tail)
-            Spacer(minLength: 8)
-            if bridge.autoRetryAttempt > 0 {
-                Text("\(bridge.autoRetryCountdown)s · \(bridge.autoRetryAttempt)/\(AIChatViewModel.retryDelays.count)")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .frame(height: 28)
-                    .background(Color(uiColor: .systemBackground))
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(ChatColors.primaryText.opacity(0.12), lineWidth: 0.5))
-            } else if let onRetry = bridge.onRetry {
-                Button(action: onRetry) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text(AppLocalized("Retry"))
-                            .font(.system(size: 13, weight: .semibold))
-                    }
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.red)
+                Text(AppLocalized("Request failed"))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(ChatColors.primaryText)
-                    .padding(.horizontal, 14)
-                    .frame(height: 28)
-                    .background(Color(uiColor: .systemBackground))
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(ChatColors.primaryText.opacity(0.12), lineWidth: 0.5))
+                Spacer(minLength: 8)
+                if bridge.autoRetryAttempt > 0 {
+                    Text("\(bridge.autoRetryCountdown)s · \(bridge.autoRetryAttempt)/\(AIChatViewModel.retryDelays.count)")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                } else if let onRetry = bridge.onRetry {
+                    Button(action: onRetry) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text(AppLocalized("Retry"))
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundStyle(Color(uiColor: .systemBackground))
+                        .padding(.horizontal, 14)
+                        .frame(height: 28)
+                        .background(Color(uiColor: .label))
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
+            Text(error)
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .padding(.leading, 21)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 14)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(uiColor: .systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(ChatColors.primaryText.opacity(0.12), lineWidth: 0.5))
         .contentShape(Rectangle())
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(ChatColors.primaryText.opacity(0.12), lineWidth: 0.5))
         .contextMenu {
             Button {
                 UIPasteboard.general.string = error
