@@ -225,6 +225,10 @@ private struct BridgedAssistantHeaderV3: View {
     /// is threaded down the same way every other cell callback already is.
     var onOpenSoulSettings: (() -> Void)?
     var body: some View {
+        // [pp 09-18 装机 #117] New 皮肤不渲染「✦ 名字」行（Grok 对照无此行）。
+        // VC 列表的 header cell 独立于 ChatMessageRow —— R4 只盖了 SwiftUI 路径，
+        // 这条才是真机消息流走的（截图实证名字行仍在）。classic 保留。
+        if ToolRenderStyleStore.current == .classic {
         HStack(spacing: 6) {
             // [T-soul-custom-icon] Honours a user-chosen emoji or image;
             // falls back to the gradient sparkle when unset, so headers for
@@ -283,6 +287,11 @@ private struct BridgedAssistantHeaderV3: View {
         .padding(.horizontal, 16)
         .opacity(message.isCompactedHistory ? 0.5 : 1.0)
         .accessibilityIdentifier("assistantHeader")
+        } else {
+            // New 皮肤：0 高占位，不进 diffable 数据结构（cell 自适应高度 0）。
+            Color.clear
+                .frame(height: 0)
+        }
     }
 }
 
