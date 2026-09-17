@@ -10017,9 +10017,18 @@ struct CodeBlockFullScreenView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                CodeFullScreenText(code: code, language: language)
-                    .padding(16)
+            GeometryReader { geo in
+                ScrollView {
+                    CodeFullScreenText(code: code, language: language)
+                        // [B16-CODE-FULLSCREEN-WRAP2] HARD width pin — the soft
+                        // sizeThatFits width alone didn't win the ScrollView
+                        // negotiation once content exceeded the screen (pp
+                        // 2026-09-17: swift code still clipped both edges,
+                        // short-line json merely looked fixed). The explicit
+                        // frame is the width the text view wraps at.
+                        .frame(width: geo.size.width - 32)
+                        .padding(.horizontal, 16)
+                }
             }
             .background(cardBackground)
             .toolbarBackground(cardBackground, for: .navigationBar)
@@ -10108,6 +10117,9 @@ private struct CodeFullScreenText: UIViewRepresentable {
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize {
         let fallback = UIScreen.main.bounds.width - 32
         let width = proposal.width.flatMap { ($0.isFinite && $0 > 0) ? $0 : nil } ?? fallback
+        // Seed the frame to the target width first — UITextView caches its
+        // layout against stale bounds, which skews sizeThatFits.
+        uiView.frame = CGRect(origin: uiView.frame.origin, size: CGSize(width: width, height: max(uiView.frame.height, 1)))
         let fitted = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
         return CGSize(width: width, height: ceil(fitted.height))
     }
