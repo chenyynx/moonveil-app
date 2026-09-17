@@ -24,6 +24,10 @@ struct AssistantBlockView: View {
     /// cells on BOTH render paths (VC list + SwiftUI list) immediately.
     @AppStorage("toolRenderStyle") private var renderStyleStorage: Int = ToolRenderStyle.new.rawValue
 
+    /// [B16-NOTICE-CLAUDE] `Show`/`Hide` the rate-limit reason list inside the
+    /// switched-provider notice (Claude-style single-line card, pp 2026-09-17).
+    @State private var infoNoticeExpanded = false
+
     var body: some View {
         // [tool-render-replication H2] Skin dispatch. classic = the
         // original switch (frozen, byte-for-byte below); new = Grok-style
@@ -308,9 +312,6 @@ struct ToolCapsuleView: View {
     var toolSnapshots: [ToolSnapshotItem] = []
     @Binding var detailBlock: AssistantBlock?
     @State private var dotsActive = false
-    /// [B16-NOTICE-CLAUDE] `Show`/`Hide` the rate-limit reason list inside the
-    /// switched-provider notice (Claude-style single-line card, pp 2026-09-17).
-    @State private var infoNoticeExpanded = false
     /// [T-tool-bg-suspended-hint] Drives the background-suspension info alert.
     @State private var showBgHintAlert = false
     /// [T-ios-memory-write-revoke] Confirmation + result alerts for undoing a
