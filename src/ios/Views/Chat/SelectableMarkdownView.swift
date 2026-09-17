@@ -2773,12 +2773,11 @@ final class TableAttachment: NSTextAttachment {
                 let cellContentWidth = columnWidths[colIdx] - Self.cellPaddingH * 2
                 let cellFrame = CGRect(x: x + Self.cellPaddingH, y: 0, width: cellContentWidth, height: rowHeight)
 
-                let alignment: NSTextAlignment
-                switch alignments[colIdx] {
-                case .center: alignment = .center
-                case .right: alignment = .right
-                default: alignment = .left
-                }
+                // [B16-TABLE-ALIGN 2026-09-17 pp: Claude 基准] 表头与数据统一
+                // 左对齐。此前忠实跟随 markdown 列对齐标记：模型给数字列写
+                // `---:` 时表头与数据右对齐、其余左对齐 → 表头出现"两列左、
+                // 两列右"混排（pp 装机反馈）；Claude app 的表格无此混排。
+                let alignment: NSTextAlignment = .left
 
                 let baseFont: UIFont = rowIdx == 0
                     ? SelectableMarkdownTheme.serifFont(ofSize: theme.tableCellFontSize, weight: .semibold)

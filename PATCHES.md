@@ -535,3 +535,9 @@ pp 拍板：完全 Grok 式（聊天内 thinking=入口行零展开）、阶段�
 **死隔离四问申报**：①两端影响=AssistantBlockView 是本机+远端共用渲染件，皮肤分支对两端同行为（预期且 pp 拍板 H5 双端）；数据层/Agent 逻辑/事件源零改动。②共享文件 gate=classicBody 字节等价证明+glassBody 拆分零行为变化+AppSymbolAssets 纯插入；class 皮肤下唯一视觉变化=图标 Lucide 化（pp 全局拍板）。③官方等价物=AppSymbol 体系（上游 sync-symbols 管线+89 资产已覆盖 9/10 所需图标，仅新增 FilePlus）；通知/高度失效/设置项均复用现有通道与先例。④回归项=两端：classic 皮肤渲染零变化（图标除外）/new 皮肤全功能/皮肤切换往返/玻璃工具条开关/小窗预览开关/工具执行/stop/重跑/记忆撤销/汇聚页交互。
 
 **待 pp/装机**：A10 产物卡生命周期（存疑）、A9 输入框三态（超出本域未做）、任务卡对应物（不做）、思考行完成态文案（初值=Thinking）、滚动条/顶部滚动行为（默认标准实现）、慢扫光/detent/折叠时长/dimming 精确参数（装机校准）、StatRow ThinkingIcon。
+
+### B16-TABLE-ALIGN — 表格单元格统一左对齐（2026-09-17，pp 装机反馈「表头两列左两列右」+ Claude 基准截图 photo_8FD01B78）
+- File: `src/ios/Views/Chat/SelectableMarkdownView.swift`（TableAttachment cell 循环，一处）。
+- Why: 模型给数字列写 `---:`/`:---:` 对齐标记，渲染器自上游开源版以来忠实跟随 → 表头行出现 2 左 + 2 右混排（pp 装机反馈 photo_654DA3AB）。Claude app 的表格无此混排，全部左对齐。
+- Fix: 单元格 alignment 统一 `.left`（表头与数据同规则，一处 switch → 直接赋值）。
+- 回归: 文本表（应无变化，此前即全左）/ 含 `---:` 标记的数字列表现在全左 / 表头 semibold 不变 / copy-as-image 同源。
