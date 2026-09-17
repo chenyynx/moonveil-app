@@ -36,6 +36,23 @@ struct ToolActivityGroupView: View {
     }
 
     private var running: Bool { !segment.isDone }
+    /// 思考要点句 [pp 09-18 Claude 对照：入口行显示语义摘要句而非固定文案]。
+    /// 取该段思考首个有意义句子（≥8 字，跳过「好的。」这类应答短句），失败回退「思考结果」。
+    private var thinkingHeadline: String? {
+        let merged = segment.thinkingIds
+            .compactMap { id in message.blocks.first { $0.id == id } }
+            .map(\.content)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .replacingOccurrences(of: "*", with: "")
+            .replacingOccurrences(of: "#", with: "")
+        let sentences = merged
+            .components(separatedBy: CharacterSet(charactersIn: "。！？!?\n"))
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        guard let first = sentences.first(where: { $0.count >= 8 }) else { return nil }
+        return first.count > 80 ? String(first.prefix(80)) + "…" : first
+    }
 
     var body: some View {
         Group {
@@ -143,9 +160,10 @@ struct ToolActivityGroupView: View {
             HStack(spacing: 4) { // [帧06] Grok 文字-箭头间距 ≈10pt
                 // [pp 09-17] 入口行无图标（Grok 帧证据 06_entry_row：只有
                 // 文字+chevron）；"thinking 图标"仅运行态点阵显示。
-                Text(AppLocalized("Thinking result")) // [pp 09-17] 完成态=思考结果
+                Text(thinkingHeadline ?? AppLocalized("Thinking result")) // [pp 09-18] 思考要点句（Claude 对照），fallback=思考结果
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(Color.secondary)
+                    .lineLimit(1)
                 AppSymbol("chevron.right", size: 20) // [pp 09-17] Lucide 官方 chevron-right；尺寸对齐 Grok 实测（视觉 5×10pt）
                     .foregroundStyle(Color.secondary)
                 Spacer(minLength: 0)
