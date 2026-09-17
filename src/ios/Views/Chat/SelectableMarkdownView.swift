@@ -10095,10 +10095,28 @@ private struct CodeFullScreenText: UIViewRepresentable {
         tv.textContainerInset = .zero
         tv.textContainer.lineFragmentPadding = 0
         tv.font = Self.monoUIFont
+        applyText(to: tv)
         return tv
     }
 
+    // [B16-CODE-FULLSCREEN-WRAP] Without this, the first SwiftUI layout pass
+    // sees an empty UITextView (bogus intrinsic) and the representable ends up
+    // wider than the screen (longest unwrapped line), centered — both 16pt
+    // paddings pushed off-screen, every line clipped ~7 characters on the left
+    // (pp 2026-09-17 screenshot: "import json" -> "json"). Pin the width to
+    // the proposal and size only the height ourselves; lines wrap at it.
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize {
+        let fallback = UIScreen.main.bounds.width - 32
+        let width = proposal.width.flatMap { ($0.isFinite && $0 > 0) ? $0 : nil } ?? fallback
+        let fitted = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        return CGSize(width: width, height: ceil(fitted.height))
+    }
+
     func updateUIView(_ uiView: UITextView, context: Context) {
+        applyText(to: uiView)
+    }
+
+    private func applyText(to tv: UITextView) {
         let ink = UIColor {
             $0.userInterfaceStyle == .dark
                 ? UIColor(red: 0xF0 / 255.0, green: 0xEF / 255.0, blue: 0xEC / 255.0, alpha: 1)
@@ -10112,8 +10130,8 @@ private struct CodeFullScreenText: UIViewRepresentable {
             .font: Self.monoUIFont,
             .foregroundColor: ink,
         ])
-        if uiView.attributedText != attr {
-            uiView.attributedText = attr
+        if tv.attributedText != attr {
+            tv.attributedText = attr
         }
     }
 }
