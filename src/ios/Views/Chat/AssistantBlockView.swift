@@ -20,8 +20,23 @@ struct AssistantBlockView: View {
     @Binding var highlightedBlockId: UUID?
     @Binding var detailBlock: AssistantBlock?
     private var isHighlighted: Bool { highlightedBlockId == block.id }
+    /// [H3] @AppStorage observes the skin key so a style switch re-renders
+    /// cells on BOTH render paths (VC list + SwiftUI list) immediately.
+    @AppStorage("toolRenderStyle") private var renderStyleStorage: Int = ToolRenderStyle.new.rawValue
 
     var body: some View {
+        // [tool-render-replication H2] Skin dispatch. classic = the
+        // original switch (frozen, byte-for-byte below); new = Grok-style
+        // activity groups. Default = new [H1]; reads go through
+        // ToolRenderStyleStore to tolerate a never-written key.
+        if ToolRenderStyleStore.current == .new {
+            newStyleBody
+        } else {
+            classicBody
+        }
+    }
+
+    private var classicBody: some View {
         switch block.kind {
         case .text:
             if !block.content.isEmpty {
@@ -47,7 +62,7 @@ struct AssistantBlockView: View {
                             commandStartTime: commandStartTime, onStop: onStop,
                             toolSnapshots: toolSnapshots, detailBlock: $detailBlock)
         case .fileWriteTool:
-            ToolCapsuleView(block: block, icon: "doc.text.fill", accentColor: .blue,
+            ToolCapsuleView(block: block, icon: "doc.plus" /* Lucide aa-FilePlus [E 批] */, accentColor: .blue,
                             commandStartTime: commandStartTime, onStop: onStop,
                             toolSnapshots: toolSnapshots, detailBlock: $detailBlock)
         case .fileEditTool:
@@ -110,6 +125,42 @@ struct AssistantBlockView: View {
             }
         }
     }
+    /// New skin: only the segment anchor renders the group; non-anchor
+    /// segment members render nothing (the group draws once, in the
+    /// anchor's cell). Text/info render identically to classic [E 区].
+    @ViewBuilder
+    private var newStyleBody: some View {
+        switch block.kind {
+        case .text, .info:
+            classicBody
+        default:
+            newToolActivitySlot
+        }
+    }
+
+    @ViewBuilder
+    private var newToolActivitySlot: some View {
+        let segments = TurnActivityAggregator.segments(
+            from: TurnActivityAggregator.adapt(message.blocks, isActiveMessage: isActiveMessage)
+        )
+        if let hit = TurnActivityAggregator.role(of: block.id, in: segments),
+           hit.isAnchor {
+            ToolActivityGroupView(
+                message: message,
+                segment: hit.segment,
+                isActiveMessage: isActiveMessage,
+                onOpenDetail: { seg in
+                    NotificationCenter.default.post(
+                        name: .toolActivityDetailRequested,
+                        object: nil,
+                        userInfo: ["segment": seg, "messageId": message.id]
+                    )
+                },
+                onStop: onStop
+            )
+        }
+    }
+
 
     @ViewBuilder
     private var textBlockView: some View {
@@ -573,9 +624,19 @@ struct ToolCapsuleView: View {
 
     @ViewBuilder
     private var statusOrIcon: some View {
-        Image(systemName: icon)
-            .font(.system(size: 13))
-            .foregroundStyle(iconColor)
+        Group {
+            // [E 批 tool-render-replication] Lucide via AppSymbol; memory keeps
+            // its SF symbol (pp 拍板 2026-09-17). Unknown keys fall back to SF.
+            if icon == "brain.head.profile" {
+                Image(systemName: icon)
+            } else if AppSymbolAssets.names[icon] != nil {
+                AppSymbol(icon, size: 13)
+            } else {
+                Image(systemName: icon)
+            }
+        }
+        .font(.system(size: 13))
+        .foregroundStyle(iconColor)
     }
 
     private var iconColor: Color {
@@ -766,9 +827,7 @@ struct ThinkingBlockView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack(spacing: 6) {
-                Image("ThinkingIcon")
-                    .resizable()
-                    .frame(width: 14, height: 14)
+                AppSymbol("sparkles", size: 14) // [E 批] Lucide sparkles
                     .foregroundStyle(.blue)
                 Text(AppLocalized("Deep Thinking"))
                     .font(.system(size: 13, weight: .semibold))
@@ -1093,9 +1152,7 @@ struct ThinkingLevelSheetView: View {
             onSelect(level)
         } label: {
             HStack {
-                Image("ThinkingIcon")
-                    .resizable()
-                    .frame(width: 16, height: 16)
+                AppSymbol("sparkles", size: 16) // [E 批] Lucide sparkles
                     .opacity(level == .off ? 0.4 : 1.0)
                 Text(level.displayName)
                     .foregroundStyle(.primary)

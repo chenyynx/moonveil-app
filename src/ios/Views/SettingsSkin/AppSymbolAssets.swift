@@ -37,6 +37,10 @@ enum AppSymbolAssets {
         "desktopcomputer": "aa-Monitor",
         "desktopcomputer.and.arrow.down": "aa-MonitorDown",
         "doc": "aa-File",
+        // [E 批 tool-render-replication] 手动追加：file_write 用 Lucide
+        // file-plus（aa-FilePlus imageset 同批新增）。重新跑 sync-symbols
+        // 会重建本表——届时需把 Lucide file-plus 加进生成源。
+        "doc.plus": "aa-FilePlus",
         "doc.badge.ellipsis": "aa-FileQuestionMark",
         "doc.badge.gearshape": "aa-FilePenLine",
         "doc.on.doc": "aa-Copy",

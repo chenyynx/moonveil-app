@@ -252,9 +252,7 @@ struct ModelGroupDetailView: View {
                     }
                 )) {
                     HStack {
-                        Image("ThinkingIcon")
-                            .resizable()
-                            .renderingMode(.template)
+                        AppSymbol("sparkles", size: 11) // [E 批] Lucide sparkles (asset 已 template)
                             .foregroundStyle(.white)
                             .frame(width: 11, height: 11)
                             .frame(width: 21, height: 21)

@@ -504,3 +504,34 @@ tools-5.9 假说死（banner 已降、permitsRetry 独苗仍炸，Xcode 26.2 不
 - 注册: AppFontRegistry 追加 **nonisolated** `geistMonoMedium(_:)`（lazy 自注册，`nonisolated(unsafe)` flag）——`codeBlockFont` 会被非隔离的 TextKit 路径调用，做成 @MainActor 会编译炸；**@MainActor verbatim 部分（Caveat）零改动**。失败策略：Geist **软失败**（log + Menlo 兜底，打包闪失不崩聊天），Caveat 保持 fail-fast verbatim。
 - 边界（pp 确认）: 只作用于**代码块 + 全屏查看器**；正文 / 行内代码（SF Mono Medium ×0.95 #FF6A00）/ UI 一律不动。三级兜底 Geist→Menlo→monospacedSystemFont，PingFang SC cascade 保留。
 - 死隔离四问: ① 字体注册器为 app 级全局工具（Caveat 既有先例），Chat 引用为同 target 常规使用；② 无共享路径；③ 无新机制（CTFontManager 官方 API，照抄仓内先例）；④ 回归项 = 两端代码块渲染、**正文/行内代码/UI 字体零变化**、Caveat wordmark 不受影响、字体缺失场景 Menlo 兜底。
+
+### TRR — 「新版」工具渲染皮肤（Grok 式工具活动复刻，批 0/A/B/C/E，2026-09-17）
+pp 拍板：完全 Grok 式（聊天内 thinking=入口行零展开）、阶段级汇聚、皮肤名「新版」默认新版双端生效、玻璃工具条开关新增、图标=Lucide（memory 保持 SF brain.head.profile、thinking=sparkles）、事件/文案全用 moonveil 自己的（零新事件源，数据层零改动）。
+
+**新增（8 文件 + 1 imageset，`Views/Chat/ToolActivity/`）**：
+- `ToolRenderStyle.swift`（N1）：classic/new 枚举 + ToolRenderStyleStore（object(forKey:) 读防 implicit-0 陷阱）+ GlassToolBarStore + `.toolRenderStyleChanged` 通知。默认=.new（H1）。
+- `TurnActivityAggregator.swift`（N2）：纯函数分段器（thinking 开段+连续 tool 归段+text/info 截段+无思考头兜底）。19 项断言测试服务器全绿（/tmp/batchA）。
+- `ToolActivityGroupView.swift`（N3）：槽状态机（运行=点阵+计时+事件行 suffix(2)；完成=入口行「Thinking ›」单向永留）+ 段级计时（0.7s 无计时→1Hz 起跳，起点存视图层 static 缓存 keyed anchorId）+ shell 停止按钮透传 + onChange(segment)→.thinkingBlockToggled 高度失效复用。
+- `ThinkingDotIcon.swift`（N4）：3×3 点阵 TimelineView+Canvas（绕圈0.9+收拢0.3+休止0.4=~1.6s，帧级实证参数）。
+- `ToolEventRow.swift`（N5）：事件行（文件类=黑 semibold+mono #F2F2F4 pill；命令类=灰 #7C7C81）+ ToolEventRowFactory（文案复用 ChatModels 既有 fallback）+ ToolActivityIcon（Lucide 键+accent 色映射）。
+- `ShimmerText.swift`（N8）：慢扫光（呼吸型 0.5s/波+2.6s 周期+3s 首扫延迟，仅 sheet——聊天内实测无扫光）。
+- `ToolCardView.swift`（N7）+ `CometSpinner`（B7 1.4s/圈彗星）：描线卡 #F3F3F3+#E8E8E8 描边+13pt 圆角+copy 按钮+折叠 chevron 旋转。
+- `ThinkingDetailOverlay.swift`（N6）：自绘 overlay（无缩放无模糊+flat 22% dimming）+双 detent（45%/7%）拖拽吸附+grabber 47×4+思考行状态跟随+点击展开思考原文（尾部渐显 A6）+时间线竖线 2pt #E3E3E1+卡缩进 8pt。
+- `Assets.xcassets/aa-FilePlus.imageset/`：Lucide file-plus（E 批 file_write 用）。
+
+**修改（9 文件）**：
+- `AssistantBlockView.swift`：body→皮肤分发（new=锚点渲染组/非锚点空；text/info 与 classic 同）；原 switch 整体改名为 classicBody **字节零改动**（python 平衡扫描+逐字节等价证明已跑）；+@AppStorage 皮肤观察（H3 双路径即刷）。E 批：file_write icon 键 doc.text.fill→doc.plus（**有意改动**——SELECTION 全局换版拍板覆盖 classic 冻结范围，仅此一处）、statusOrIcon→AppSymbol（memory SF 特例+未知键兜底 SF）、ThinkingIcon→sparkles ×2。
+- `ToolLiveSheet.swift`：FloatingToolBar 加 `floatingToolBarEnabled` 总开关（body→bodyContent 拆分，H7 两版通用）+ toolIcon switch 换 AppSymbol。
+- `AIChatView.swift`：+ToolActivityDetailContext/@State + fullScreenCover(item:)（presentationBackground(.clear)+interactiveDismissDisabled）+ .toolActivityDetailRequested 通知接收（messageId 归属校验防多实例误弹）。
+- `CollectionViewMessageListV3.swift`：+.toolRenderStyleChanged 订阅→全量高度缓存失效（照 handleAttachmentSizeChanged 三步姿势）。
+- `ContentView.swift`（AppearanceSettingsView）：+Tool Rendering Picker（classic/new，经 store 写入+发通知）+ Glass Toolbar Toggle。
+- `ConfigRegistry+Builtins.swift`：+chat.toolRenderStyle（IntCodedEnum defaultIndex 1）+chat.glassToolBar。
+- `AppSymbolAssets.swift`：+手动映射 "doc.plus"→"aa-FilePlus"（标注：重新跑 sync-symbols 需把 file-plus 加进生成源）。
+- `ModelGroupDetailView.swift`：ThinkingIcon→sparkles。
+- `Minis.xcodeproj/project.pbxproj`：+ToolActivity 组（8 文件挂载，脚本手术+括号平衡+xcodeproj gem 严格解析双过）。
+
+**StatRow 处 ThinkingIcon 已换（E2 补批，pp 令 2026-09-17）**：`StatRow.customIcon` 从 `Image?` 放宽为 `AnyView?`（private struct，仅本文件 8 处调用，其余 7 处不传参零影响），Thinking 行 → `AnyView(AppSymbol("sparkles", 14))`。ThinkingIcon 代码引用全域清零（资产文件保留未删）。
+
+**死隔离四问申报**：①两端影响=AssistantBlockView 是本机+远端共用渲染件，皮肤分支对两端同行为（预期且 pp 拍板 H5 双端）；数据层/Agent 逻辑/事件源零改动。②共享文件 gate=classicBody 字节等价证明+glassBody 拆分零行为变化+AppSymbolAssets 纯插入；class 皮肤下唯一视觉变化=图标 Lucide 化（pp 全局拍板）。③官方等价物=AppSymbol 体系（上游 sync-symbols 管线+89 资产已覆盖 9/10 所需图标，仅新增 FilePlus）；通知/高度失效/设置项均复用现有通道与先例。④回归项=两端：classic 皮肤渲染零变化（图标除外）/new 皮肤全功能/皮肤切换往返/玻璃工具条开关/小窗预览开关/工具执行/stop/重跑/记忆撤销/汇聚页交互。
+
+**待 pp/装机**：A10 产物卡生命周期（存疑）、A9 输入框三态（超出本域未做）、任务卡对应物（不做）、思考行完成态文案（初值=Thinking）、滚动条/顶部滚动行为（默认标准实现）、慢扫光/detent/折叠时长/dimming 精确参数（装机校准）、StatRow ThinkingIcon。

@@ -831,6 +831,7 @@ extension CollectionViewMessageListV3 {
         // size, but SelfSizingCell's broad-width cache short-circuits
         // preferredLayoutAttributesFitting so the cell never re-measures —
         // bottom of content gets clipped until the chat is re-entered.
+        private var toolRenderStyleSub: AnyCancellable?
         private var attachmentSizeChangedSub: AnyCancellable?
         /// [T-ios-image-squish-probe §2] Same-runloop-tick coalescing for
         /// `.minisAttachmentSizeChanged` bursts (a six-image message fires up
@@ -842,6 +843,36 @@ extension CollectionViewMessageListV3 {
 
         /// The actual `.minisAttachmentSizeChanged` work, run at most once per
         /// runloop tick with every URL that arrived in that tick.
+        /// [H3] Full invalidation after a skin switch (shape mirrors
+        /// handleAttachmentSizeChanged minus burst-coalescing — low freq).
+        private func handleToolRenderStyleChanged() {
+            let rlog = AppLogger(category: "ToolRenderStyle")
+            guard let cv = self.viewController?.collectionView,
+                  let layout = cv.collectionViewLayout as? MessageListLayout else {
+                rlog.warning("[ToolRenderStyle] infra missing")
+                return
+            }
+            for ip in cv.indexPathsForVisibleItems {
+                (cv.cellForItem(at: ip) as? SelfSizingCell)?.clearCachedHeight()
+                layout.invalidateHeight(at: ip.item)
+            }
+            let totalItems = self.dataSource?.snapshot().itemIdentifiers.count ?? 0
+            for idx in 0..<totalItems {
+                layout.invalidateHeight(at: idx)
+            }
+            if let snapshot = self.dataSource?.snapshot() {
+                var snap = snapshot
+                snap.reconfigureItems(snapshot.itemIdentifiers)
+                self.dataSource?.apply(snap, animatingDifferences: false)
+            }
+            // [T-attachment-defer-invalidate] Same deferred layout pass.
+            DispatchQueue.main.async {
+                for ip in cv.indexPathsForVisibleItems {
+                    (cv.cellForItem(at: ip) as? SelfSizingCell)?.clearCachedHeight()
+                }
+                cv.collectionViewLayout.invalidateLayout()
+            }
+        }
         private func handleAttachmentSizeChanged(coalescedUrls: [String]) {
             let alog = AppLogger(category: "AttachmentSize")
             guard let cv = self.viewController?.collectionView,
@@ -2406,6 +2437,15 @@ extension CollectionViewMessageListV3 {
 
             // Subscribe to thinking block toggle notifications (once)
             if attachmentSizeChangedSub == nil {
+                // [H3] Skin switch → full height-cache invalidation
+                // (new and classic can size the same blocks differently).
+                if toolRenderStyleSub == nil {
+                    toolRenderStyleSub = NotificationCenter.default.publisher(for: .toolRenderStyleChanged)
+                        .receive(on: DispatchQueue.main)
+                        .sink { [weak self] _ in
+                            self?.handleToolRenderStyleChanged()
+                        }
+                }
                 attachmentSizeChangedSub = NotificationCenter.default.publisher(for: .minisAttachmentSizeChanged)
                     .receive(on: DispatchQueue.main)
                     .sink { [weak self] notification in

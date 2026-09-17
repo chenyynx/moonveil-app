@@ -229,6 +229,13 @@
 		E5F200001 /* MarkdownPrepRegex.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F200011 /* MarkdownPrepRegex.swift */; };
 		E5F200002 /* MinisMediaViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F200012 /* MinisMediaViews.swift */; };
 		E5F200003 /* AssistantBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F200013 /* AssistantBlockView.swift */; };
+		E5TA00002 /* ToolRenderStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5TA00001 /* ToolRenderStyle.swift */; };
+		E5TA0000F /* ThinkingDetailOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5TA0000E /* ThinkingDetailOverlay.swift */; };
+		E5TA0000D /* ToolCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5TA0000C /* ToolCardView.swift */; };
+		E5TA0000B /* ToolActivityGroupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5TA0000A /* ToolActivityGroupView.swift */; };
+		E5TA00009 /* ToolEventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5TA00008 /* ToolEventRow.swift */; };
+		E5TA00007 /* ThinkingDotIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5TA00006 /* ThinkingDotIcon.swift */; };
+		E5TA00005 /* ShimmerText.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5TA00004 /* ShimmerText.swift */; };
 		E5F200004 /* ChatMessageViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F200014 /* ChatMessageViews.swift */; };
 		E5F200005 /* ChatInputBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F200015 /* ChatInputBar.swift */; };
 		E5F200006 /* ModelSelectionEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F200016 /* ModelSelectionEntity.swift */; };
@@ -961,6 +968,13 @@
 		E5F200011 /* MarkdownPrepRegex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownPrepRegex.swift; sourceTree = "<group>"; };
 		E5F200012 /* MinisMediaViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinisMediaViews.swift; sourceTree = "<group>"; };
 		E5F200013 /* AssistantBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantBlockView.swift; sourceTree = "<group>"; };
+		E5TA00001 /* ToolRenderStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolRenderStyle.swift; sourceTree = "<group>"; };
+		E5TA0000E /* ThinkingDetailOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkingDetailOverlay.swift; sourceTree = "<group>"; };
+		E5TA0000C /* ToolCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCardView.swift; sourceTree = "<group>"; };
+		E5TA0000A /* ToolActivityGroupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolActivityGroupView.swift; sourceTree = "<group>"; };
+		E5TA00008 /* ToolEventRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolEventRow.swift; sourceTree = "<group>"; };
+		E5TA00006 /* ThinkingDotIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkingDotIcon.swift; sourceTree = "<group>"; };
+		E5TA00004 /* ShimmerText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShimmerText.swift; sourceTree = "<group>"; };
 		E5F200014 /* ChatMessageViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageViews.swift; sourceTree = "<group>"; };
 		E5F200015 /* ChatInputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatInputBar.swift; sourceTree = "<group>"; };
 		E5F200016 /* ModelSelectionEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelSelectionEntity.swift; sourceTree = "<group>"; };
@@ -2348,6 +2362,7 @@
 				E5N0000152F3B941A00049557 /* SessionMemoryView.swift */,
 				E5N0000122F3B941A00049557 /* SessionSkillsView.swift */,
 				F1T00010 /* ToolLiveSheet.swift */,
+				E5TA00003 /* ToolActivity */,
 				E53000015 /* UsageStatsView.swift */,
 				F1W00012 /* WebPreviewSheet.swift */,
 				A11Y0002 /* ChatAccessibilityAnnouncer.swift */,
@@ -2356,6 +2371,20 @@
 				D05AF00E000000000000F003 /* geistmono_medium.ttf */,
 			);
 			path = Chat;
+			sourceTree = "<group>";
+		};
+		E5TA00003 /* ToolActivity */ = {
+			isa = PBXGroup;
+			children = (
+				E5TA00001 /* ToolRenderStyle.swift */,
+				E5TA0000E /* ThinkingDetailOverlay.swift */,
+				E5TA0000C /* ToolCardView.swift */,
+				E5TA0000A /* ToolActivityGroupView.swift */,
+				E5TA00008 /* ToolEventRow.swift */,
+				E5TA00006 /* ThinkingDotIcon.swift */,
+				E5TA00004 /* ShimmerText.swift */,
+			);
+			path = ToolActivity;
 			sourceTree = "<group>";
 		};
 		F1V00011 /* Settings */ = {
@@ -3180,6 +3209,13 @@
 				E5F200001 /* MarkdownPrepRegex.swift in Sources */,
 				E5F200002 /* MinisMediaViews.swift in Sources */,
 				E5F200003 /* AssistantBlockView.swift in Sources */,
+				E5TA00002 /* ToolRenderStyle.swift in Sources */,
+				E5TA0000F /* ThinkingDetailOverlay.swift in Sources */,
+				E5TA0000D /* ToolCardView.swift in Sources */,
+				E5TA0000B /* ToolActivityGroupView.swift in Sources */,
+				E5TA00009 /* ToolEventRow.swift in Sources */,
+				E5TA00007 /* ThinkingDotIcon.swift in Sources */,
+				E5TA00005 /* ShimmerText.swift in Sources */,
 				E5F200004 /* ChatMessageViews.swift in Sources */,
 				E5F2009A1 /* EquatableContextMenu.swift in Sources */,
 				E5F200AA1 /* MemoryWriteRevoker.swift in Sources */,

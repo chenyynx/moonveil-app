@@ -217,6 +217,8 @@ struct FloatingToolBar: View {
     @State private var selectedIdx: Int? = nil
     @State private var expanded = false
     @AppStorage("toolPreviewEnabled") private var toolPreviewEnabled: Bool = true
+    /// [H7 glass-toolbar-switch] Master switch for the whole floating toolbar.
+    @AppStorage("floatingToolBarEnabled") private var floatingToolBarEnabled: Bool = true
 
     private var displayedIdx: Int {
         if let idx = selectedIdx, idx < toolBlocks.count { return idx }
@@ -241,6 +243,14 @@ struct FloatingToolBar: View {
     }
 
     var body: some View {
+        // [H7 glass-toolbar-switch] Master switch: hides the whole floating
+        // toolbar when off — two-version universal (independent of skin).
+        if floatingToolBarEnabled {
+            bodyContent
+        }
+    }
+
+    private var bodyContent: some View {
         // Collapsed: thumbnail (optional) + status bar
         ZStack(alignment: .bottomLeading) {
             ToolStatusBar(
@@ -708,17 +718,19 @@ struct ToolLiveSheet: View {
 
     @ViewBuilder
     private var toolIcon: some View {
+        // [E 批 tool-render-replication] Lucide via AppSymbol [SELECTION.md];
+        // memory keeps its SF symbol; info/text stay SF (generic shapes).
         switch block.kind {
-        case .shellTool: Image(systemName: "terminal")
-        case .fileReadTool: Image(systemName: "doc.text")
-        case .fileWriteTool: Image(systemName: "doc.text.fill")
-        case .fileEditTool: Image(systemName: "square.and.pencil")
-        case .browserTool: Image(systemName: "globe")
-        case .readImageTool: Image(systemName: "photo")
-        case .memoryTool: Image(systemName: "brain.head.profile")
+        case .shellTool: AppSymbol("terminal", size: 14)              // aa-SquareTerminal
+        case .fileReadTool: AppSymbol("doc.text", size: 14)           // aa-FileText
+        case .fileWriteTool: AppSymbol("doc.plus", size: 14)          // aa-FilePlus
+        case .fileEditTool: AppSymbol("square.and.pencil", size: 14)  // aa-SquarePen
+        case .browserTool: AppSymbol("globe", size: 14)               // aa-Globe
+        case .readImageTool: AppSymbol("photo", size: 14)             // aa-Image
+        case .memoryTool: Image(systemName: "brain.head.profile")     // 保持 SF（pp 拍板）
         case .info: Image(systemName: "arrow.triangle.2.circlepath")
         case .text: Image(systemName: "text.alignleft")
-        case .thinking: Image("ThinkingIcon")
+        case .thinking: AppSymbol("sparkles", size: 14)               // sparkles
         }
     }
 

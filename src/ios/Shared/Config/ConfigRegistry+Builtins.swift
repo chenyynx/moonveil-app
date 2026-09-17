@@ -1131,6 +1131,24 @@ extension ConfigRegistry {
             userDefaultsKey: "toolPreviewEnabled",
             defaultValue: true
         ))
+
+        // [tool-render-replication H1/H7 2026-09-17] Skin picker + glass
+        // toolbar master switch. Default style = new (defaultIndex 1).
+        r.register(AppStorageIntCodedEnumField(
+            path: "chat.toolRenderStyle",
+            displayName: "Tool rendering",
+            description: "Tool activity rendering skin in chat. New is the redesigned activity style; Classic keeps the previous capsules.",
+            userDefaultsKey: "toolRenderStyle",
+            cases: ["classic", "new"],
+            defaultIndex: 1
+        ))
+        r.register(AppStorageBoolField(
+            path: "chat.glassToolBar",
+            displayName: "Glass toolbar",
+            description: "Show the floating glass toolbar above the input while agent tools run.",
+            userDefaultsKey: "floatingToolBarEnabled",
+            defaultValue: true
+        ))
         r.register(AppStorageBoolField(
             path: "chat.fabOnLeft",
             displayName: "FAB on left",

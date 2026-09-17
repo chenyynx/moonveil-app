@@ -622,6 +622,32 @@ struct AIChatView: View {
                         .capsuleProtectedFrame("inputBar")
                         inputPopupOverlay
                             .padding(.bottom, inputBarHeight)
+                            // [C3] New-skin 汇聚页 — single host for local +
+                            // remote sessions (AIChatView owns both) [H5].
+                            .fullScreenCover(item: $toolActivityDetail) { ctx in
+                                if let msg = vm.messages.first(where: { $0.id == ctx.messageId }) {
+                                    ThinkingDetailOverlay(
+                                        message: msg,
+                                        segment: ctx.segment,
+                                        isActiveMessage: vm.isProcessing,
+                                        isPresented: Binding(
+                                            get: { toolActivityDetail != nil },
+                                            set: { if !$0 { toolActivityDetail = nil } }
+                                        )
+                                    )
+                                    .presentationBackground(.clear)
+                                    .interactiveDismissDisabled(true)
+                                }
+                            }
+                            .onReceive(
+                                NotificationCenter.default.publisher(for: .toolActivityDetailRequested)
+                                    .receive(on: DispatchQueue.main)
+                            ) { note in
+                                guard let seg = note.userInfo?["segment"] as? TurnActivitySegment,
+                                      let mid = note.userInfo?["messageId"] as? UUID,
+                                      vm.messages.contains(where: { $0.id == mid }) else { return }
+                                toolActivityDetail = ToolActivityDetailContext(messageId: mid, segment: seg)
+                            }
                     }
                 }
                 // Collapse the expanded speech player on a tap anywhere in the chat
@@ -2449,9 +2475,7 @@ struct AIChatView: View {
         // for enabling deep thinking. Dim the icon in that state — matches the
         // 0.4 Off-row convention in ThinkingLevelSheetView.
         HStack(spacing: 2) {
-            Image("ThinkingIcon")
-                .resizable()
-                .frame(width: 6, height: 6)
+            AppSymbol("sparkles", size: 6) // [E 批] Lucide sparkles
                 .opacity(level.isEnabled ? 1.0 : 0.4)
             Text(level.displayName)
                 .font(.system(size: 8, weight: .medium))
@@ -2828,6 +2852,16 @@ struct AIChatView: View {
     // MARK: - Floating Tool Preview
 
     @ViewBuilder
+    // MARK: - Tool Activity Detail Overlay (new-skin 汇聚页) [C3]
+
+    /// Identifiable context for the fullScreenCover(item:).
+    struct ToolActivityDetailContext: Identifiable, Equatable {
+        let messageId: UUID
+        let segment: TurnActivitySegment
+        var id: String { "\(messageId.uuidString)-\(segment.anchorId.uuidString)" }
+    }
+    @State private var toolActivityDetail: ToolActivityDetailContext?
+
     private var floatingToolPreview: some View {
         let allToolBlocks = vm.messages
             .filter { $0.role == .assistant && !$0.isCompactedHistory }
@@ -4448,9 +4482,7 @@ struct AIChatView: View {
                 HStack(spacing: 8) {
                     Group {
                         if cmd.id == "thinking" {
-                            Image("ThinkingIcon")
-                                .resizable()
-                                .frame(width: 16, height: 16)
+                            AppSymbol("sparkles", size: 16) // [E 批] Lucide sparkles
                         } else {
                             Image(systemName: cmd.icon)
                                 .font(.system(size: 14, weight: .medium))
@@ -6113,7 +6145,7 @@ private struct TokenUsageSheet: View {
 
                 if let thinkingInfo = vm.currentModelThinkingInfo {
                     Section("Thinking") {
-                        StatRow(label: "Thinking", value: thinkingInfo.enabled ? "On" : "Off", icon: "lightbulb", customIcon: Image("ThinkingIcon"))
+                        StatRow(label: "Thinking", value: thinkingInfo.enabled ? "On" : "Off", icon: "lightbulb", customIcon: AnyView(AppSymbol("sparkles", size: 14))) // [E batch] Lucide sparkles
                         if thinkingInfo.enabled {
                             StatRow(label: "Level", value: thinkingInfo.level, icon: "slider.horizontal.3")
                         }
@@ -6171,7 +6203,9 @@ private struct StatRow: View {
     let label: LocalizedStringKey
     let value: String
     let icon: String
-    var customIcon: Image?
+    /// [E batch tool-render-replication] Widened from Image? to AnyView? so
+    /// AppSymbol (Lucide) icons fit; only the Thinking row uses it.
+    var customIcon: AnyView?
 
     var body: some View {
         HStack {
@@ -6180,7 +6214,6 @@ private struct StatRow: View {
                     Text(label)
                 } icon: {
                     customIcon
-                        .resizable()
                         .frame(width: 14, height: 14)
                 }
             } else {

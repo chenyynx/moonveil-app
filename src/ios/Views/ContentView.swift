@@ -7101,6 +7101,11 @@ private struct AppearanceSettingsView: View {
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @AppStorage("launchScreen") private var launchScreen: Int = 0  // 0=Auto, 1=Last Session, 2=New Chat, 3=Home
     @AppStorage("toolPreviewEnabled") private var toolPreviewEnabled: Bool = true
+    /// [tool-render-replication H1] Raw Int backing for the Tool Rendering
+    /// picker. 0 = classic capsules, 1 = new activity skin. Default = new.
+    @AppStorage("toolRenderStyle") private var toolRenderStyle: Int = ToolRenderStyle.new.rawValue
+    /// [H7] Master switch for the floating glass toolbar (two-version universal).
+    @AppStorage("floatingToolBarEnabled") private var floatingToolBarEnabled: Bool = true
     /// 0 = Return inserts a newline (default), 1 = Return sends the message.
     @AppStorage("returnKeyBehavior") private var returnKeyBehavior: Int = 0
     /// When true, holds `UIApplication.isIdleTimerDisabled` while any session
@@ -7205,11 +7210,19 @@ private struct AppearanceSettingsView: View {
             }
 
             Section {
+                Picker(AppLocalized("Tool Rendering"), selection: Binding(
+                    get: { ToolRenderStyleStore.current.rawValue },
+                    set: { ToolRenderStyleStore.set(ToolRenderStyle(rawValue: $0) ?? .fallback) }
+                )) {
+                    Text(AppLocalized("Classic")).tag(ToolRenderStyle.classic.rawValue)
+                    Text(AppLocalized("New")).tag(ToolRenderStyle.new.rawValue)
+                }
                 Toggle(AppLocalized("Tool Preview Window"), isOn: $toolPreviewEnabled)
+                Toggle(AppLocalized("Glass Toolbar"), isOn: $floatingToolBarEnabled)
             } header: {
                 Text("Tool Status Bar")
             } footer: {
-                Text("Show a live preview thumbnail alongside the tool status bar during agent execution.")
+                Text("Tool Rendering switches the chat tool activity style between the redesigned skin (New) and the previous capsules (Classic); it applies to both local and remote sessions. Glass Toolbar shows or hides the whole floating status bar, and Tool Preview Window controls its live thumbnail.")
             }
 
             // [T-thinking-auto-expand-toggle] Whether a NEW streaming thinking
