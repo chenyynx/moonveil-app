@@ -69,7 +69,7 @@ fragment float4 fragment_sim(VertexOut in [[stage_in]],
     // Frame-rate-independent decay: at 60fps u_dt == 1/60 so this matches the
     // reference 0.90/frame exactly; at 120fps each frame decays a little less
     // so the ember lifetime stays the same number of seconds.
-    float decay = prev * pow(0.90, u_dt * 60.0) * fade_mask;
+    float3 decay = prev * pow(0.90, u.u_dt * 60.0) * fade_mask;
 
     float act = smoothstep(0.95, 1.0, u.u_slider);
     if (act < 0.01 || u.u_elapsed < 0.0) {
