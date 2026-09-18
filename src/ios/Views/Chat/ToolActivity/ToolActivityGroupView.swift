@@ -524,10 +524,14 @@ struct ClaudeClockIcon: View {
             let lw = 2.7123 * u
 
             // 缺口圆环：264.7046°→527.6624°（=167.6624°+360）顺时针，缺口左上 [拟合]
+            // [CC 09-18 修复] SwiftUI 的 clockwise 与直觉相反：false = 角度递增路线。
+            // 原 true 让 264.7°→527.66° 走递减（264.7°→167.66°），只画出 97° 的缺口弧，
+            // 主弧（顶→右→底→左下）整段丢失 —— pp 装机截图实测缺口段被画成主弧即此因。
+            // 旁证：FolderSegmentBorder（同文件族，圆角矩形装机正确）用 false 画 180°→270° 的 90° 角。
             var arc = Path()
             arc.addArc(center: c, radius: 10.6438 * u,
                        startAngle: .degrees(264.7046), endAngle: .degrees(527.6624),
-                       clockwise: true)
+                       clockwise: false)
             ctx.stroke(arc, with: .color(color),
                        style: StrokeStyle(lineWidth: lw, lineCap: .round))
 
