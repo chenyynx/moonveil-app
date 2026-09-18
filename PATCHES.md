@@ -767,3 +767,16 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **判例（可复用）**: ①**cell/UIHostingConfiguration 里凡是要"动"的视觉，优先走 TimelineView 每帧重算 body + 纯值更新**（foregroundStyle 渐变 / Canvas 重绘），不要走 mask/overlay/GeometryReader 这套需要系统渲染层配合的机制——后者在 disablesAnimations 宿主里不被渲染。②扫光 = 文字 foregroundStyle 渐变即可，无需 mask。
 - **死隔离申报**: 呈现层-only（文字着色），不改消息数据/SSE/聚合器/agent 链路；纯新增函数 + body 重写，无 pbxproj/资源改动；回归项 = ①运行槽 Thinking 文字 ②汇聚页标题 ③ThinkingDetailOverlay 标题 ④峰色/方向/周期参数不变 ⑤accessibilityHidden 从 content 移除（不再隐藏底层文字，VoiceOver 可读）。
 - **验证**: 待装机（聊天流 "Thinking" 行应有左→右亮光扫过；汇聚页标题同；30Hz 与点阵一致但带宽 45% 不闪烁）。
+
+### SHIMMER-V7 — 对齐经典版卡片 ShimmerOverlay 机制 + 可见度/频率对齐经典版（覆盖 V6；Doris，2026-09-18 pp：「经典版的卡片都有扫光 你看看呗」+「可见度、频率也跟经典版保持一致」）
+
+- **File**: `src/ios/Views/Chat/ToolActivity/ShimmerText.swift`（+49/−36：body 重写、`shimmerStops` 改稳定 bell 版、增 `@State progress` / `@Environment colorScheme` / `peakOpacity`）。
+- **为什么改**:
+  - V6（上一笔）方向错了：用 **TimelineView 每帧重建渐变**,恰恰踩了经典版 `ShimmerOverlay` 注释明说的坑——“**rebuilding gradient stops every frame** ... CAGradientLayer colorspace teardown race (EXC_BAD_ACCESS at encode_colorspace)”。真机不可靠（要么渲染异常要么崩溃）→ 扫光仍不显示。
+  - pp 点名「经典版的卡片都有扫光」= `AssistantBlockView.ShimmerOverlay`（line 248）在聊天流 cell 里**能正常显示**,它靠的是:① 稳定渐变 stops(一次构建,不每帧重建)② `withAnimation(.repeatForever)` 驱动 offset ③ GeometryReader **同步读尺寸**(不走 onPreferenceChange 回传——那是 v2 跳变的根因)④ `.clipped()`。
+- **V7**: body 改为 ShimmerOverlay 同款——`GeometryReader` 内底层 base 文字 + `overlay` 一条**峰色 bell 渐变光带**(稳定 stops),`withAnimation(.linear(period).repeatForever)` 驱动 `progress` 0→1 使 offset 从左缘外→右缘外扫过文字。**无 mask、无 TimelineView、无 preference 回传**。
+- **可见度/频率对齐经典版**: `period` 默认 **2.8s**（ShimmerOverlay 同款）；`peakOpacity` = 浅 **0.75** / 深 **0.25**（对齐 ShimmerOverlay.peakOpacity）。`sweepShimmer` 扩展默认 period 同步改 2.8（v5 判例：两处默认值必须一致）。
+- **保留**: `phase`/`ease`（unused,未删）、`peak(base)`（峰色=base 混白）、两个调用点 API 不变。
+- **🔴 判例（可复用）**: ①cell 里要动的视觉,若仓内已有**验证可靠**的同屏实现(ShimmerOverlay),**直接对齐它的机制**,不要在它之外发明;②**稳定渐变 stops + offset 动画** 是 cell 里扫光的正解,`TimelineView 每帧重建渐变` 会踩 colorspace teardown;③「disablesAnimations 吞 withAnimation」的旧判例**不成立**——经典版 ShimmerOverlay 正是 withAnimation repeatForever,在聊天 cell 里能动;v2 失败真因是 **onPreferenceChange 回传跳变**（offset 目标 0→真实宽,repeatForever 被替换）。
+- **死隔离申报**: 呈现层-only（文字扫光修饰器重写）,不改消息数据/SSE/聚合器/agent 链路;回归 = ①运行槽 "Thinking" 文字 ②汇聚页标题 ③ThinkingDetailOverlay 标题 ④深浅色 peakOpacity 自适应 ⑤VoiceOver 不受影响（光带 allowsHitTesting(false)）。
+- **验证**: 待装机（聊天流 "Thinking" 行应有左→右亮光扫过、2.8s 一圈、可见度与经典版一致;汇聚页标题同步;深色模式 0.25）。

@@ -43,50 +43,63 @@ import SwiftUI
 
 struct SweepTextShimmerModifier: ViewModifier {
     var base: Color
-    /// 一个完整循环（去 + 回）时长 [pp 09-18 App 实测 2.0s]
-    var period: Double = 2.0
-    /// 去程（左→右）时长；回程 = period − outbound [实测 ~1.6s / ~0.4s]
-    var outbound: Double = 1.6
+    /// 一个完整循环时长 [pp 09-18 要求跟经典版一致：ShimmerOverlay 用 2.8s]
+    var period: Double = 2.8
+    /// [v7] 光带扫过进度 0（左缘外）→ 1（右缘外），withAnimation repeatForever 驱动。
+    @State private var progress: Double = 0.0
+    /// [v7] 可见度跟经典版一致：浅 0.75 / 深 0.25（对齐 ShimmerOverlay.peakOpacity）。
+    @Environment(\.colorScheme) private var colorScheme
+    private var peakOpacity: CGFloat { colorScheme == .light ? 0.75 : 0.25 }
 
     func body(content: Content) -> some View {
-        // [v6 全链路审查 09-18 pp：「扫光依旧没有，修了很多遍」] 前 5 版全部依赖
-        // mask + overlay + GeometryReader 这套系统层机制——在聊天流 cell
-        // （UIHostingConfiguration + `.transaction { $0.disablesAnimations = true }`
-        // 宿主）里不被渲染，所以真机永远看不到。同一 cell 里 ThinkingDotIcon 一直
-        // 能动，前提是 **TimelineView 每帧重算 body + Canvas 命令式重绘**（纯值更新，
-        // 不依赖系统视图层/mask）。本版借同一个可靠前提：把扫光直接做成文字的
-        // foregroundStyle 渐变色——亮色位置随 phase 移动，无 mask、无 overlay、
-        // 无 GeometryReader，必然渲染。频率 30Hz 与点阵一致。
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-            let phase = Self.phase(date: timeline.date, period: period, outbound: outbound)
-            content
-                .foregroundStyle(
+        // [v7 09-18 全链路审查 · 对齐经典版卡片扫光] pp：「经典版的卡片都有扫光」——
+        // AssistantBlockView.ShimmerOverlay 在聊天流 cell 里能正常显示，它靠的是：
+        //   ① 稳定渐变 stops（一次构建，不每帧重建——注释明说每帧重建会踩
+        //      CAGradientLayer colorspace teardown race）；② withAnimation(.repeatForever)
+        //      驱动 offset（不是 TimelineView 每帧重建 body）；③ GeometryReader 同步读
+        //      尺寸（不走 onPreferenceChange 回传——那是 v2 跳变的根因）；④ .clipped()。
+        // 我此前 v3~v6 反复在「弃 withAnimation / 用 mask / TimelineView 每帧重建渐变」
+        // 之间绕，唯独没对齐这套已验证可靠的机制（v6 每帧重建渐变恰恰踩了注释警告的坑）。
+        // v7 照 ShimmerOverlay 同款：峰色光带（稳定 bell 渐变，可见度=经典版 peakOpacity）
+        // 用 withAnimation offset 扫过文字。可见度/频率也跟经典版一致（0.75/0.25、2.8s）。
+        GeometryReader { geo in
+            let w = geo.size.width
+            let bandW = max(w * 0.5, 28)              // 亮带宽（App 实测 ≈ 文字宽一半）
+            let travel = w / 2 + bandW / 2 + 4        // 带中心：左缘外 ⇄ 右缘外
+            content                                  // 底层 base 文字
+                .overlay(
                     LinearGradient(
-                        stops: Self.shimmerStops(base: base, phase: phase),
+                        stops: Self.shimmerStops(base: base, peakOpacity: peakOpacity),
                         startPoint: .leading, endPoint: .trailing
                     )
+                    .frame(width: bandW, height: geo.size.height)
+                    .offset(x: (CGFloat(progress) * 2 - 1) * travel)  // 0(左缘外)→1(右缘外)
+                    .allowsHitTesting(false)
                 )
+        }
+        .clipped()
+        .onAppear {
+            withAnimation(.linear(duration: period).repeatForever(autoreverses: false)) {
+                progress = 1.0
+            }
         }
     }
 
-    /// 扫光渐变的 stop 集：亮带（peak）位置随 phase 在 0（左）→1（右）间移动，两端 base，
-    /// 形成"亮光扫过文字"。带宽 ≈ 文字宽 45%（App 实测亮带 ≈ 文字宽一半）。
-    /// stops locations 必须升序且 clamp 到 [0,1]——亮带贴边时 lo/hi 会重合，LinearGradient
-    /// 允许同 location 的 stop（顺序渐变）。
-    static func shimmerStops(base: Color, phase: Double) -> [Gradient.Stop] {
+    /// 扫光光带的稳定 stop 集（与 progress 无关，一次构建）：峰色 bell 分布——
+    /// 中间峰色不透明、两端透明，透明度乘 peakOpacity（0.75 浅 / 0.25 深，跟经典版一致）。
+    /// 对齐 ShimmerOverlay.stableStops 的做法（稳定 stops 避开每帧重建的 colorspace teardown）。
+    static func shimmerStops(base: Color, peakOpacity: CGFloat) -> [Gradient.Stop] {
         let peak = Self.peak(base)
-        let bw = 0.45
-        let center = min(max(phase, 0), 1)
-        let lo = max(0, center - bw / 2)
-        let hi = min(1, center + bw / 2)
-        let lo2 = min(lo, hi)
-        let hi2 = max(lo, hi)
-        return [
-            .init(color: base, location: 0),
-            .init(color: peak, location: lo2),
-            .init(color: peak, location: hi2),
-            .init(color: base, location: 1),
-        ]
+        let bandRadius: CGFloat = 0.40
+        var stops: [Gradient.Stop] = [.init(color: peak.opacity(0), location: 0)]
+        for i in 0...12 {
+            let frac = CGFloat(i) / 12
+            let pos = 0.5 - bandRadius + frac * bandRadius * 2
+            let dist = (pos - 0.5) / bandRadius
+            stops.append(.init(color: peak.opacity(Double(exp(-4.5 * dist * dist)) * Double(peakOpacity)), location: pos))
+        }
+        stops.append(.init(color: peak.opacity(0), location: 1))
+        return stops
     }
 
     /// 循环内的位置 0（左缘外）→ 1（右缘外）。
@@ -118,10 +131,10 @@ struct SweepTextShimmerModifier: ViewModifier {
 }
 
 extension View {
-    /// Claude 文字扫光 [v5 = App 抽帧实测参数]：2s 一圈（左→右去 1.6s + 回 0.4s）。
+    /// Claude 文字扫光 [v7 = 对齐经典版 ShimmerOverlay]：2.8s 一圈、左→右、可见度 0.75/0.25。
     /// ⚠️ 调用方都不传 period → **默认值必须与 SweepTextShimmerModifier 的一致**，
     /// 否则改结构体的默认值不生效（v5 踩点：两处默认值都要改）。
-    func sweepShimmer(base: Color, period: Double = 2.0) -> some View {
+    func sweepShimmer(base: Color, period: Double = 2.8) -> some View {
         modifier(SweepTextShimmerModifier(base: base, period: period))
     }
 }
