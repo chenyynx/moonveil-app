@@ -30,9 +30,23 @@ import SwiftUI
 // 事务 —— 故本版改用同一驱动：相位取自绝对时间，无需 onAppear 启动门，
 // GeometryReader 只负责量宽。
 
+// v5 [pp 09-18 装机：「扫光不对」→ 按 App 抽帧实测改参数]
+// 来源变了：v1~v4 一直照的是 **claude.ai 网页版生产 CSS**（cds-shimmer-text-shine:
+// 3s / 每圈两端各停 15% / 右→左）。pp 的参照物一直是 **iOS App**，用他录的 14s
+// 屏幕录制（60fps）抽帧逐帧量亮带质心，实测三处都不同：
+//   · 周期 120 帧 ≈ **2.0s**（14s 录到 7 圈，自相关 0.80；网页 CSS 是 3s）
+//   · 方向 **左→右**（网页 CSS 换算也是左→右，我们此前实现反了）
+//   · 节奏**不对称**：慢扫过去 ~1.6s（S 曲线：中间快两端慢）+ 快扫回来 ~0.4s
+//     （网页 CSS 是"两端各停 15%"，App 不是停，是快速回扫）
+// 本版 = 周期 2.0s / 左→右 / 去 1.6s + 回 0.4s / 两端 smoothstep 缓动；
+// 带宽与峰色算法不动（App 亮带 ≈ 文字宽一半，与我们一致）。
+
 struct SweepTextShimmerModifier: ViewModifier {
     var base: Color
-    var period: Double = 3.0
+    /// 一个完整循环（去 + 回）时长 [pp 09-18 App 实测 2.0s]
+    var period: Double = 2.0
+    /// 去程（左→右）时长；回程 = period − outbound [实测 ~1.6s / ~0.4s]
+    var outbound: Double = 1.6
 
     func body(content: Content) -> some View {
         content
@@ -44,12 +58,12 @@ struct SweepTextShimmerModifier: ViewModifier {
                     let w = g.size.width
                     if w > 1 {
                         let bandW = max(w * 0.5, 28)          // 亮带渐变矩形宽（有效峰区≈其一半）
-                        let travel = w / 2 + bandW / 2 + 4    // 带子中心：右缘外 → 左缘外
-                        // [v4] 30Hz 时间驱动（与 ShimmerTextModifier 同档；周期/方向/
-                        // 峰色全部沿用 v3，只换驱动方式）。
+                        let travel = w / 2 + bandW / 2 + 4    // 带子中心：左缘外 ⇄ 右缘外
+                        // [v4] 30Hz 时间驱动（不走动画事务，见文件头 v4 判例）；
+                        // [v5] 相位改成"去程/回程分段"，其余不变。
                         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-                            let phase = timeline.date.timeIntervalSinceReferenceDate
-                                .truncatingRemainder(dividingBy: period) / period   // 0..1
+                            let phase = Self.phase(
+                                date: timeline.date, period: period, outbound: outbound)
                             content
                                 .foregroundStyle(Self.peak(base)) // 峰色文字层（被 mask 裁成移动亮带）
                                 .mask(
@@ -60,8 +74,8 @@ struct SweepTextShimmerModifier: ViewModifier {
                                             .init(color: .clear, location: 1),
                                         ], startPoint: .leading, endPoint: .trailing))
                                         .frame(width: bandW, height: 64)
-                                        // +travel（右缘外）→ -travel（左缘外），与 v3 同向
-                                        .offset(x: travel - CGFloat(phase) * (travel * 2))
+                                        // -travel（左缘外）→ +travel（右缘外）= 左→右 [v5 翻向]
+                                        .offset(x: -travel + CGFloat(phase) * (travel * 2))
                                 )
                                 .accessibilityHidden(true)
                                 .allowsHitTesting(false)
@@ -69,6 +83,22 @@ struct SweepTextShimmerModifier: ViewModifier {
                     }
                 }
             }
+    }
+
+    /// 循环内的位置 0（左缘外）→ 1（右缘外）。
+    /// 去程占 outbound 秒（左→右），回程占剩下（右→左，快）。
+    /// 独立成函数而非写进 ViewBuilder：builder 里的 if 会被当成视图分支。
+    private static func phase(date: Date, period: Double, outbound: Double) -> Double {
+        let cycle = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period)
+        let back = max(period - outbound, 0.01)
+        if cycle < outbound { return ease(cycle / outbound) }
+        return 1 - ease((cycle - outbound) / back)
+    }
+
+    /// 平滑 S 曲线（慢起-快中-慢收）[App 实测两端减速，匀速会显得"急"]
+    private static func ease(_ x: Double) -> Double {
+        let q = min(max(x, 0), 1)
+        return q * q * (3 - 2 * q)
     }
 
     /// 峰色 = color-mix(in srgb, base 30%, white)；alpha 混合同式（0.3a + 0.7）。
@@ -84,8 +114,10 @@ struct SweepTextShimmerModifier: ViewModifier {
 }
 
 extension View {
-    /// Claude 文字扫光 [cds-shimmer-text-shine]：3s 周期、右→左亮带。
-    func sweepShimmer(base: Color, period: Double = 3.0) -> some View {
+    /// Claude 文字扫光 [v5 = App 抽帧实测参数]：2s 一圈（左→右去 1.6s + 回 0.4s）。
+    /// ⚠️ 调用方都不传 period → **默认值必须与 SweepTextShimmerModifier 的一致**，
+    /// 否则改结构体的默认值不生效（v5 踩点：两处默认值都要改）。
+    func sweepShimmer(base: Color, period: Double = 2.0) -> some View {
         modifier(SweepTextShimmerModifier(base: base, period: period))
     }
 }

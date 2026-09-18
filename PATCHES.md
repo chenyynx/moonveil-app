@@ -706,3 +706,18 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 
 **回归**: classic 皮肤零影响（改动全在 New 皮肤路径 + 汇聚页 sheet）· 入口行/点阵观感（pp 点名不动）· 扫光静止态=base 灰不变 · 思考详情 push/pop 与尾巴灰渐显不变 · 代码卡 `SelectableMarkdownView` 不受影响（未动）· detent 用户拖拽吸附不变。
 **验证**: 待装机（① 扫光是否循环 ② 汇聚页弹窗高度是否与 Claude 一致 ③ 思考详情是否随流式增长 ④ 暗色下汇聚页/工具行是否可读 ⑤ Thinking 行字体颜色与入口行一致）。**装机取证建议**：录 5s 屏（聊天流 thinking + 汇聚页标题扫光同框），抽帧判定 —— 见本文档 1) 与 2) 的判例冲突尚未有帧证据。
+
+### SWEEP-PARAMS-V5 — 扫光参数改照 **iOS App 实测**（不再照网页 CSS）（CC，2026-09-18 pp：「那你改吧」）
+
+- **File**: `src/ios/Views/Chat/ToolActivity/ShimmerText.swift`（+42/−10：周期/方向/节奏 + phase 分段函数 + ease；`sweepShimmer` 扩展默认值同步）。
+- **起因**: v1~v4 的参数一直是照 **claude.ai 网页版生产 CSS**（`cds-shimmer-text-shine`），而 pp 的参照物始终是 **iOS App**。他录了一段 14s 屏幕录制（当"文件"发微信 → 桥解密落盘）→ ffmpeg 抽帧 → 逐帧量"亮带质心"。
+- **App 实测（与网页 CSS 三处不同）**：
+  - **周期 ≈ 2.0s**（120 帧 @60fps；14s 录到 7 圈，自相关峰值 0.80，谐波落 240/360 帧）。网页 CSS 是 **3s** —— App 快 1.5 倍。
+  - **方向 左→右**（亮带质心 48 → 165 单向前进）。网页 CSS 的 `background-position 83.333% → 16.667%` 按 `background-size 300%` 换算同样是左→右；**我们此前实现是右→左 = 反的**。
+  - **节奏不对称**：慢扫过去 ~1.6s（S 曲线：中间快、两端慢）+ 快扫回来 ~0.4s。网页 CSS 的"两端各停 15%"在 App 上**不存在**（不是停，是快速回扫）。
+  - 带宽（≈文字宽一半）与峰色算法（base 30% + white 70%）**一致**，不动。
+- **Fix**: `period 3.0 → 2.0` + 新增 `outbound = 1.6`；`phase(date:period:outbound:)` 分段（去程 0→1 左→右 / 回程 1→0 右→左，各套 smoothstep）；offset 由 `travel − phase·2·travel` 改为 `−travel + phase·2·travel`（翻向）。
+- **⚠️ 踩点留痕**: 调用方都不传 `period`，**扩展 `sweepShimmer(base:period:)` 的默认值也必须一起改**，否则改结构体默认值完全不生效（两处默认值 = 同一份参数，改一处等于没改）。
+- **方法学留痕**: 微信桥不支持视频（只有一行占位字、CDN 是 AES 密文且 key 不落盘）→ **录屏存「文件」App 再当"文件"发**，桥走 file 链路自动解密落盘；再用 ffmpeg crop+rawvideo 抽灰度帧 + PIL 求"亮带质心"。注意 iPhone 录屏是 **VFR**（本次 58.3fps 且开头有重复帧），按帧号算周期会有偏差，精确值需按 pts_time 重采样。
+- **回归**: 聊天流 "Thinking" 行扫光 / 汇聚页标题扫光（同一 modifier 两处调用同受益）/ 静止态 = base 灰不变 / 深浅色峰色跟随 base / classic 皮肤零影响。
+- **验证**: 待装机（对照 App：同样是 2s 一圈、左→右、慢去快回）。
