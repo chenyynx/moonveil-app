@@ -199,7 +199,7 @@ struct ToolActivityGroupView: View {
                             // ≈#87878C、暗色下跟着变）与入口行写死暖灰 #7A7974 不同色。
                             // pp 点名统一 → 跟 entryRow 用同一个 headlineGray。
                             .foregroundStyle(ThinkingRowStyle.headlineGray)
-                            .sweepShimmer(base: ThinkingRowStyle.headlineGray) // [pp 09-18] Claude 同款扫光；峰色基色随字色同步换。参数见 ShimmerText v5：照 App 实测（2s/左→右/慢去快回），不再照网页 CSS
+                            .sweepShimmer(base: ThinkingRowStyle.headlineGray) // [pp 09-18] Claude 同款扫光 [v9.1 TimelineView 驱动版:cell 宿主 disablesAnimations 吞隐式动画]；峰色基色随字色同步换。参数见 ShimmerText v9.1。
                         elapsedCounter
                     }
                     .opacity(textAppeared ? 1 : 0)

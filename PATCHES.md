@@ -809,6 +809,17 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **Fix(v8)**: GR 挪进 `.overlay { }` 内——overlay 的 proposal = content 实际尺寸,GR 填满它 = 量到真实尺寸,且 **overlay 不参与父布局、不影响 content frame**。光带高度 = 文字行高,恢复正确。机制保持 v7(稳定 bell stops + withAnimation repeatForever 驱动 offset + .clipped 裁缘外)。
 - **🔴 判例(可复用)**: **GeometryReader 直接包 content 会改变宿主布局**(GR greedy 吃满父 proposal,把自然尺寸的 content 拉伸/topLeading 放置);要「量 content 尺寸且不影响布局」,GR 必须放在 `.overlay { }`/`.background { }` 内(overlay 的 proposal = content 实际尺寸)。经典 ShimmerOverlay 的外层 GR 只对 fill 型宿主成立,不可照搬到自然尺寸文字上。
 - **死隔离申报**: 呈现层-only(扫光修饰器 body 结构);不改消息数据/SSE/聚合器;回归 = ①聊天流 "Thinking" 行扫光正常、布局不变 ②汇聚页标题扫光正常、标题居中恢复 ③思考结果 sheet 不再有大竖带 ④深浅色 peakOpacity 不变。
+- **v9.1(同日 pp:「聊天流你也要给我实现啊」)**: 聊天流 Thinking 行所在 cell 宿主挂
+  \`.transaction { \$0.disablesAnimations = true }\`(防 ViewGraph use-after-free 护栏),
+  库的隐式 .animation(_:value:) 在 cell 内被吞 → 扫光不动。新增
+  \`SweepTextShimmerTimeline\`:同几何(UnitPoint 端点 + bandSize 端点延伸 + overlay
+  .sourceAtop)、同配色(ShimmerStyle.shimmerGradient/peak 共享,bandSize 0.3→1.0 对齐
+  v5 实测亮带≈文字宽一半),驱动换 TimelineView(.animation) 相位 —— 纯时间函数,
+  无 @State 无事务,disablesAnimations 管不到(ThinkingDotIcon 同管线实证可动)。
+  ToolActivityGroupView:202 换 \`sweepShimmerTimeline\`;sheet 标题保持库版 \`sweepShimmer\`。
+  **判例**: 同一视觉同一宿主族里「隐式动画被吞」的唯一可靠解法 = 时间驱动重绘
+  (TimelineView/Canvas),不是换动画 API。
+
 - **验证**: 待装机。
 
 ### STREAM-THAW-WIRING — 贴正文根因修复:解冻挂上真实触发源(A1 applySnapshot 后 + A2 每次 flush 信号)(Doris, 2026-09-18 pp 拍板「一起做」;调查报告见会话)

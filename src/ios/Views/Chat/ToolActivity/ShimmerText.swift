@@ -7,7 +7,7 @@ import Shimmer
 // v1~v8 自研路线连续踩坑（TimelineView 每帧重建渐变 / preference 回传跳变 /
 // GeometryReader 量宽 / withAnimation repeatForever 被 cell 宿主
 // disablesAnimations 吞 / v8 最外层 GR 被 sheet 拉伸成跨屏大竖渐变带），
-// 根因都是「自己重新发明渐变扫描的几何与动画」。直接改用 markiv 的成熟实现：
+// 根因都是「自己重新发明渐变扫描的几何与动画」。改用 markiv 的成熟实现：
 //   · 渐变端点 = 依赖 @State 的 UnitPoint 计算属性,隐式 .animation(_:value:)
 //     驱动插值 —— 无 GeometryReader(不会被父容器拉伸)、无 offset 状态;
 //   · 端点延伸到视图外(min=-bandSize / max=1+bandSize),亮带从视图外扫入、
@@ -17,9 +17,43 @@ import Shimmer
 // 周期/峰色/可见度沿用我们装机实测的参数(2.8s 对齐经典版 ShimmerOverlay;
 // 峰色 = color-mix(base 30%, white); 浅 0.75 / 深 0.25)。
 //
-// ⚠️ 隐式 .animation(_:value:) 在聊天流 cell 宿主(.transaction{disablesAnimations})
-// 会被吞,与旧 withAnimation 同理 —— 本修饰器仍只用于汇聚页(sheet)标题;
-// 聊天流 Thinking 行的扫光见 ToolActivityGroupView 调用点注释。
+// [v9.1 09-18 pp:「聊天流你也要给我实现啊」]
+// 聊天流 Thinking 行所在 cell 宿主挂 `.transaction { $0.disablesAnimations = true }`
+// (CollectionViewMessageListV3 4 处,防 ViewGraph use-after-free 护栏),库的隐式
+// .animation(_:value:) 在那里被吞 → 扫光不动。故聊天流那条路用
+// SweepTextShimmerTimeline(同几何、同配色,但驱动换 TimelineView 相位 ——
+// 与同 cell 的 ThinkingDotIcon 同管线,实证可动)。两个实现共享
+// shimmerGradient/peak,参数一处调两处同效。
+
+// MARK: - 共享:峰色与渐变
+
+enum ShimmerStyle {
+    /// 峰色 = color-mix(in srgb, base 30%, white)；alpha 混合同式（0.3a + 0.7）。
+    /// 逐通道显式 Double [混合浮点判例]。
+    static func peak(_ base: Color) -> Color {
+        var r0: CGFloat = 0; var g0: CGFloat = 0; var b0: CGFloat = 0; var a0: CGFloat = 0
+        UIColor(base).getRed(&r0, green: &g0, blue: &b0, alpha: &a0)
+        return Color(red: Double(r0) * 0.3 + 0.7,
+                     green: Double(g0) * 0.3 + 0.7,
+                     blue: Double(b0) * 0.3 + 0.7,
+                     opacity: Double(a0) * 0.3 + 0.7)
+    }
+
+    /// 亮带渐变:clear → 峰色 → clear(峰色乘 peakOpacity 控制可见度)。
+    static func shimmerGradient(base: Color, peakOpacity: CGFloat) -> Gradient {
+        let peakColor = peak(base)
+        return Gradient(stops: [
+            .init(color: peakColor.opacity(0), location: 0),
+            .init(color: peakColor.opacity(Double(peakOpacity)), location: 0.5),
+            .init(color: peakColor.opacity(0), location: 1),
+        ])
+    }
+
+    /// 亮带相对宽度(单位 = 视图宽):v5 装机实测 App 亮带 ≈ 文字宽一半。
+    static let bandSize: CGFloat = 1.0
+}
+
+// MARK: - sheet 版:直接调 SwiftUI-Shimmer 包(隐式动画,sheet 宿主可用)
 
 struct SweepTextShimmerModifier: ViewModifier {
     var base: Color
@@ -30,39 +64,64 @@ struct SweepTextShimmerModifier: ViewModifier {
     private var peakOpacity: CGFloat { colorScheme == .light ? 0.75 : 0.25 }
 
     func body(content: Content) -> some View {
-        let peak = Self.peak(base)
         content.shimmering(
             active: true,
             animation: .linear(duration: period).repeatForever(autoreverses: false),
-            gradient: Gradient(stops: [
-                .init(color: peak.opacity(0), location: 0),
-                .init(color: peak.opacity(Double(peakOpacity)), location: 0.5),
-                .init(color: peak.opacity(0), location: 1),
-            ]),
-            bandSize: 0.3,
+            gradient: ShimmerStyle.shimmerGradient(base: base, peakOpacity: peakOpacity),
+            bandSize: ShimmerStyle.bandSize,
             mode: .overlay()
         )
     }
+}
 
-    /// 峰色 = color-mix(in srgb, base 30%, white)；alpha 混合同式（0.3a + 0.7）。
-    /// 逐通道显式 Double [混合浮点判例]。
-    private static func peak(_ base: Color) -> Color {
-        var r0: CGFloat = 0; var g0: CGFloat = 0; var b0: CGFloat = 0; var a0: CGFloat = 0
-        UIColor(base).getRed(&r0, green: &g0, blue: &b0, alpha: &a0)
-        return Color(red: Double(r0) * 0.3 + 0.7,
-                     green: Double(g0) * 0.3 + 0.7,
-                     blue: Double(b0) * 0.3 + 0.7,
-                     opacity: Double(a0) * 0.3 + 0.7)
+// MARK: - 聊天流 cell 版:TimelineView 驱动同一几何(cell 宿主 disablesAnimations 吞隐式动画)
+
+struct SweepTextShimmerTimeline: ViewModifier {
+    var base: Color
+    var period: Double = 2.8
+    @Environment(\.colorScheme) private var colorScheme
+    private var peakOpacity: CGFloat { colorScheme == .light ? 0.75 : 0.25 }
+
+    func body(content: Content) -> some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
+            let phase = Self.phase(timeline.date.timeIntervalSinceReferenceDate, period: period)
+            let band = ShimmerStyle.bandSize
+            // markiv 同款端点几何:渐变长度恒 = band,中心从 -band/2 扫到 1+band/2,
+            // 水平方向(y 恒 0.5,适配单行文字;markiv 原版对角扫适合方块视图)。
+            let startX = -band + phase * (1 + band)
+            content
+                .overlay {
+                    LinearGradient(
+                        gradient: ShimmerStyle.shimmerGradient(base: base, peakOpacity: peakOpacity),
+                        startPoint: UnitPoint(x: startX, y: 0.5),
+                        endPoint: UnitPoint(x: startX + band, y: 0.5)
+                    )
+                    .blendMode(.sourceAtop)
+                    .allowsHitTesting(false)
+                }
+        }
+    }
+
+    /// 相位 0→1,纯时间函数,无 @State 无事务 —— disablesAnimations 管不到。
+    private static func phase(_ t: TimeInterval, period: Double) -> Double {
+        t.truncatingRemainder(dividingBy: period) / period
     }
 }
 
 extension View {
-    /// Claude 文字扫光 [v9 = 直接引 SwiftUI-Shimmer 包，pp 09-18 拍板]：
-    /// 2.8s 一圈、左→右、可见度 0.75/0.25。
+    /// Claude 文字扫光 [v9 = 直接引 SwiftUI-Shimmer 包, pp 09-18 拍板]:
+    /// 2.8s 一圈、左→右、可见度 0.75/0.25。**仅用于 sheet 宿主**(隐式动画);
+    /// 聊天流 cell 用 sweepShimmerTimeline。
     /// ⚠️ 调用方都不传 period → **默认值必须与 SweepTextShimmerModifier 的一致**，
     /// 否则改结构体的默认值不生效（v5 踩点：两处默认值都要改）。
     func sweepShimmer(base: Color, period: Double = 2.8) -> some View {
         modifier(SweepTextShimmerModifier(base: base, period: period))
+    }
+
+    /// 聊天流 cell 版扫光:TimelineView 驱动同一几何/配色(cell 宿主 disablesAnimations
+    /// 吞隐式动画,库的 .shimmering() 在 cell 内动不了 —— ThinkingDotIcon 同管线实证)。
+    func sweepShimmerTimeline(base: Color, period: Double = 2.8) -> some View {
+        modifier(SweepTextShimmerTimeline(base: base, period: period))
     }
 }
 
