@@ -31,6 +31,10 @@ struct ToolActivityGroupView: View {
     /// 入口行统一灰（图标/文字/chevron 同色）[Claude photo_25B6FFE9 实测核心墨色]。
     private static let headlineGray = Color(red: 0.478, green: 0.475, blue: 0.455)  // #7A7974
 
+    /// [pp 09-18 Grok 轮播 1:1] 队列弹簧：0.42s 无回弹。Grok 逐帧实测（60fps）：
+    /// 位移 t=0.2→41%、0.4→83%、0.6→99%，峰值速度 t≈20%，无过冲 → smooth(bounce=0)。
+    static let carouselSpring: Animation = .smooth(duration: 0.42)
+
     /// Event window: chat shows the last three event lines [A4, pp 定 2026-09-17：最多排三个].
     private var eventBlocks: [AssistantBlock] {
         segment.toolIds.suffix(3).compactMap { id in
@@ -173,10 +177,13 @@ struct ToolActivityGroupView: View {
                         // [pp 09-18 Grok 对照] 事件行图标列与点阵同列（Grok 三行图标
                         // 中心同 x≈27pt）——删 21pt 缩进；列对齐由 ToolEventRow 内部
                         // 18pt 图标 frame + spacing 10 保证。
-                        .transition(.opacity.animation(.easeInOut(duration: 0.35))) // A4 淡入 0.3-0.4s
+                        .transition(.toolRowCarousel) // [pp 09-18 Grok 轮播 1:1] 进场=+pitch 滑入淡入由糊变锐 / 离场=-pitch 跟队上滑淡出（取代旧 opacity 淡入）
                     }
                 }
             }
+            // [pp 09-18 Grok 轮播 1:1] 队列增删一轨驱动：ids 变化时存量行自动位移
+            // 一个行距，进/离场转场同轨——单 spring 确定性动画（Grok 逐帧一致）。
+            .animation(Self.carouselSpring, value: eventBlocks.map(\.id))
             .padding(.vertical, 3)
             .contentShape(Rectangle())
         }
@@ -291,6 +298,48 @@ extension TurnActivityAggregator {
                 isActiveThinking: kind == .thinking && b.id == lastId && isActiveMessage
             )
         }
+    }
+}
+
+// MARK: - Grok 工具行轮播转场 [pp 09-18 逐帧拆解 video_CDFAF826.mov 1:1]
+//
+// 实测（60fps 3x）：行距 pitch=108px=36pt；全程 ~25 帧=0.42s 前载 ease-in-out
+// 无过冲；进场行从下方一个行距处上滑，opacity 0→1 ≈0.25s、blur ~2.7pt→0
+// ≈0.35s（清晰化比淡入晚收尾）；离场行跟队上滑一个行距同时淡出+变糊，到
+// 头部区前已近透明。单条 spring 统一驱动 = 确定性逐帧一致。
+
+/// 轮播三态：进场激活（藏在目标位下一个行距）/ 离场激活（跟队上滑一个行距）/
+/// 落定（正常渲染）。internal：被 AnyTransition 扩展跨类型引用（禁 private）。
+struct ToolRowCarouselTransition: ViewModifier {
+    enum Phase { case enteringActive, exitingActive, settled }
+    let phase: Phase
+
+    /// 行距 = 行高(~20pt) + VStack spacing(18pt) ≈ 38pt（Grok 实测 36pt，装机可调）。
+    private static let pitch: CGFloat = 38
+    /// 实测 blur ~8px@3x≈2.7pt σ；SwiftUI radius 取 4 观感对齐（装机可调）。
+    private static let blurRadius: CGFloat = 4
+
+    func body(content: Content) -> some View {
+        let y: CGFloat = phase == .enteringActive ? Self.pitch
+            : phase == .exitingActive ? -Self.pitch : 0
+        return content
+            .opacity(phase == .settled ? 1 : 0)
+            .blur(radius: phase == .settled ? 0 : Self.blurRadius)
+            .offset(y: y)
+    }
+}
+
+extension AnyTransition {
+    /// Grok 工具行轮播：insertion 从下滑入、removal 向上跟队滑出；位移/淡变/
+    /// 模糊全部由容器 `.animation(Self.carouselSpring, value: ids)` 同轨驱动。
+    static var toolRowCarousel: AnyTransition {
+        .asymmetric(
+            insertion: .modifier(
+                active: ToolRowCarouselTransition(phase: .enteringActive),
+                identity: ToolRowCarouselTransition(phase: .settled)),
+            removal: .modifier(
+                active: ToolRowCarouselTransition(phase: .exitingActive),
+                identity: ToolRowCarouselTransition(phase: .settled)))
     }
 }
 

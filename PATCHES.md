@@ -594,3 +594,11 @@ pp 拍板：完全 Grok 式（聊天内 thinking=入口行零展开）、阶段�
 - v2: 峰色文字层 + 移动窄带 mask（Rectangle fill clear/white/clear 渐变，带宽=max(0.5×文字宽,28)，PreferenceKey 量宽）+ offset 由 withAnimation(.linear 3s repeatForever) 驱动；端点停顿用带子滑出视野外空程近似；峰色 = color-mix(base 30%, white)，alpha 同式 0.3a+0.7（修 v1 丢 alpha 的偏差）。
 - 回归: 运行槽 "Thinking" 扫光（静止态 = base 灰不变）/ 汇聚页标题扫光 / 文字选中复制不受影响（峰层 allowsHitTesting(false)+a11y hidden）/ 深浅色模式（峰色跟随 base 动态取色）。
 - 死隔离: ShimmerText.swift 为自造渲染件（非上游 verbatim）；零数据/生命周期改动；旧呼吸式 ShimmerTextModifier 保留未动。
+
+### GROK-CAROUSEL — 工具行轮播 push 动画（Grok 1:1，2026-09-18 pp 拍板「开始吧」）
+- **File**: `src/ios/Views/Chat/ToolActivity/ToolActivityGroupView.swift`（+50/−1；无新文件、无 pbxproj 改动）。
+- **依据**: Grok 录屏 video_CDFAF826.mov 60fps 逐帧拆解（服务器 ffmpeg+PIL+kymograph）：垂直轮播队列——新行从视口下一个行距处上滑进场（opacity 0→1 ≈0.25s + blur ~2.7pt→0 ≈0.35s，清晰化晚于淡入收尾），存量行同曲线上移一个行距（0.42s 前载 ease-in-out 无过冲，t=0.2→41%/0.4→83%/0.6→99%），最老行跟队上滑+淡出+变糊，到头部区前近透明；两次事件轨迹逐帧一致=确定性固定参数。
+- **Fix**: ①删行级 `.transition(.opacity.animation(easeInOut 0.35))`（旧=原地淡入，无队列位移）；②新增 `ToolRowCarouselTransition`（ViewModifier 三态：enteringActive=+pitch/opacity0/blur4、exitingActive=−pitch/opacity0/blur4、settled）挂 `.transition(.toolRowCarousel)`（asymmetric）；③容器 `.animation(Self.carouselSpring, value: eventBlocks.map(\.id))` 一轨驱动——ids 增删时存量行布局位移与进/离场转场同轨同弹簧（`.smooth(duration:0.42)`=bounce 0，iOS17+，目标 26.2）。pitch=38（行高~20+spacing18，Grok 实测 36pt）/blur=4 集中一处装机可调。
+- **已知差异（留痕）**: 单事务插入≥2 行（罕见突发）进场 offset 恒 38pt 不按行数倍增（流式每事务一行，常规路径无影响）；离场行 z 序在 header 之上靠淡出规避压字（t≈60% 已 ~0.15，Grok 同为软淡出无硬裁剪）；不复制 Grok 的 1 帧插帧延迟。
+- **回归**: 事件行进场（1→2→3 成长段与 3→满轮播段）/ 离场行方向速度 / 运行槽整体点开汇聚页（外层 Button 不变）/ stop 内层按钮 / 计时+扫光不受影响（自驱 withAnimation）/ 段完成 entryRow 0.25s 交叉淡变不变 / classic 皮肤零影响（本组件仅 New 皮肤路径）。
+- **死隔离四问**: ①本机+远端共用此视图，动画变化两端同行为（预期非污染，B15-CODE2 同判例），数据/会话/工具流/聚合器签名零改动；②共享路径 gate=改动圈定 runningSlot ForEach 一处+文件内新增两个 internal 类型，未触状态机/协议字段；③官方等价物=SwiftUI 原生 transition/animation/blur/offset（Apple 原生优先，无自绘引擎）；④回归项两端一致如上。
