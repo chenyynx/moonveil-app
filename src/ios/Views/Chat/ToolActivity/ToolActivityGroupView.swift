@@ -102,7 +102,9 @@ struct ToolActivityGroupView: View {
             // [pp 09-18 根因②] cell 重建（滚动回收/高度刷新/config 替换）会重置
             // @State，而 onChange 只监听「变化」（true→true 不触发）——onAppear 必须
             // 补查当前值，否则已开始的思考永远只剩点阵（textAppeared 恒 false）。
-            markThinkingStartedIfNeeded()
+            // [pp 09-18 触感修复] 补查路径 haptic: false —— 这里只是恢复状态，
+            // 不是"思考刚开始"，发触感会让点进页面/滚动回看都震一下。
+            markThinkingStartedIfNeeded(haptic: false)
             // [pp 09-18 根因③] 首渲染历史行直接落位（无动画事务 → 无插入动画）；
             // 后续增删走 onChange 显式事务。
             carouselIds = eventBlocks.map(\.id)
@@ -110,7 +112,8 @@ struct ToolActivityGroupView: View {
         .onChange(of: thinkingHasStarted) { _ in
             // [pp 09-18] 首个思考内容到达那一刻起表 + 「Thinking」/计时出现动画
             // + 触屏反馈（与发送消息同款轻档；Claude app 无公开逆向，装机对比可调）。
-            markThinkingStartedIfNeeded()
+            // [pp 09-18 触感修复] 真事件路径 → haptic: true。
+            markThinkingStartedIfNeeded(haptic: true)
         }
         .onChange(of: eventBlocks.map(\.id)) { newIds in
             // [pp 09-18 根因③] 工具事件增删 → withAnimation 显式事务驱动 ForEach
@@ -131,7 +134,7 @@ struct ToolActivityGroupView: View {
         .overlay {
             ThinkingFlushWatcher(
                 block: message.blocks.first(where: { $0.id == segment.thinkingIds.first }),
-                onFlush: { markThinkingStartedIfNeeded() }
+                onFlush: { markThinkingStartedIfNeeded(haptic: true) } // 真事件路径（思考内容落地）
             )
         }
         // [C2] Any segment change (event rows inserted / state flipped) can
@@ -280,10 +283,16 @@ struct ToolActivityGroupView: View {
     /// ① onChange(of: thinkingHasStarted)——segment/message 变化路径；
     /// ② ThinkingFlushWatcher——thinking block flush 路径（content 落地即重估）；
     /// ③ onAppear——cell 重建后补查路径（@State 重置，onChange 不触发 true→true）。
-    private func markThinkingStartedIfNeeded() {
+    ///
+    /// [pp 09-18 装机反馈「点进聊天页就有触屏反馈」→ 修复] 触感只走**事件**路径：
+    /// ③ onAppear 是"补记已经发生的事实"（历史消息 cell 重建 / 进页面重现），
+    /// 不是思考刚开始——它跟着发触感会把每个已完成回合都震一遍，用户感知即
+    /// "点进聊天页就震"。状态置位三路照旧（断的是 @State，不是事实），
+    /// 触感收进 `haptic`，只有 ①② 传 true。
+    private func markThinkingStartedIfNeeded(haptic: Bool) {
         guard !textAppeared, thinkingHasStarted else { return }
         withAnimation(.easeOut(duration: 0.34)) { textAppeared = true }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        if haptic { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
         ensureStarted()
     }
 

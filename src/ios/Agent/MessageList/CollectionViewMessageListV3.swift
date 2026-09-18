@@ -2860,7 +2860,13 @@ extension CollectionViewMessageListV3 {
                     switch item {
                     case .assistantHeader:
                         // Header is always a fixed "sparkles Moonveil" label row (measured: 28pt)
-                        layout.setEstimatedHeight(28, at: i)
+                        //
+                        // [pp 09-18 装机日志 → 估算对齐] New 皮肤不渲染「✦ 名字」行
+                        // （BridgedAssistantHeaderV3 在 New 下是 Color.clear 0 高，
+                        // e696e77），估算必须跟着走 0 —— 否则每个回合头都白送一次
+                        // -28pt 修正：真机日志 idx=29/22/15/13/11 五处 key=h: 28→0，
+                        // 每次都触发一次全表重排。classic 保留实测的 28pt。
+                        layout.setEstimatedHeight(ToolRenderStyleStore.current == .new ? 0 : 28, at: i)
 
                     case .assistantFooter:
                         // Prominent banners (error/resume/typing) measure
@@ -2901,6 +2907,22 @@ extension CollectionViewMessageListV3 {
                         guard let msgIdx = messageIndex[msgId], msgIdx < messages.count else { continue }
                         let msg = messages[msgIdx]
                         guard let block = msg.blocks.first(where: { $0.id == blockId }) else { continue }
+
+                        // [pp 09-18 装机日志 → 估算对齐] New 皮肤走
+                        // AssistantBlockView.newStyleBody：text/info 仍按经典渲染，
+                        // thinking + 全部工具类走「活动槽」——只有段锚点渲染
+                        // ToolActivityGroupView（完成态=入口行 ~24pt），同段其余块
+                        // 渲染空视图 = 0 高。估算表却按经典皮肤给每个块 36/40pt，
+                        // 于是滚过的每一行都要被纠正一次：真机日志 idx=11..33 连纠
+                        // ~20 条 src=est（36→0 / 40→0 / 36→24），每秒 7-8 次全量重排
+                        // （[ReflowGap] coalesced re-flows=7~8），contentSize
+                        // 3874→3681→3389→3149 连塌 ——「一顿一顿 + 画面来回跳」的来源。
+                        if let slotEst = Self.newSkinActivitySlotEstimate(
+                            msg: msg, block: block,
+                            isMessageActive: (msg.id == vm.messages.last?.id) && vm.isProcessing) {
+                            layout.setEstimatedHeight(slotEst, at: i)
+                            break // 新皮肤活动槽：估算已给出，不再走经典皮肤估算
+                        }
 
                         switch block.kind {
                         case .text:
@@ -3707,6 +3729,61 @@ extension CollectionViewMessageListV3 {
             }
         }
 
+        /// 新皮肤「活动槽」块的完成态高度 = 入口行。
+        ///
+        /// 入口行 = `HStack{ ClaudeClockIcon(16) ｜ 14pt 单行文本（固定字号，行高≈16.7）
+        /// ｜ AppSymbol chevron }` + `.padding(.vertical, 3)`×2 —— 行高主项是 chevron，
+        /// 它是 `@ScaledMetric(relativeTo: .body)`，随 App 字号档位缩放（根
+        /// `.dynamicTypeSize(appBaseScale.dynamicTypeSize)`）。真机日志实测 **24.3pt**
+        /// （pp 当前档位 ≈0.88 × 20 + 6），默认档是 26 —— 所以必须跟着档位算，
+        /// 不能钉死一个常数（钉死会在非默认档稳定产生 2~9pt/行的修正）。
+        static var newSkinActivitySlotDoneHeight: CGFloat {
+            let chevron = FontSettings.shared.scaledApp(20)
+            return max(16, 17, chevron) + 6
+        }
+
+        /// [pp 09-18 装机日志 → 估算对齐] New 皮肤下 thinking / 工具块的高度估算。
+        ///
+        /// 返回 **nil** = 交回经典皮肤估算：`text`/`info`（仍走 classicBody）、整站
+        /// classic 皮肤、以及**活动状态未知时的锚点**（见下）。
+        ///
+        /// 依据是渲染事实（`AssistantBlockView.newStyleBody` 的分发）：
+        ///   - `text` / `info` → `classicBody`，高度不变
+        ///   - `thinking` + 全部工具类 → `newToolActivitySlot`：
+        ///       * 非锚点 → 0（渲染 EmptyView；与活动状态无关）
+        ///       * 段锚点 + 已完成 → 入口行
+        ///       * 段锚点 + 运行中 / 状态未知 → nil，交回经典估算
+        ///         （运行槽是 点阵行 + 事件行的 VStack ≈62~138pt，低估会把槽裁掉
+        ///          并制造 +38~114pt 的增长修正 —— 比改前更糟。所以宁可高估，不猜）
+        ///
+        /// - Parameter isMessageActive: 该消息是否正在处理中；**nil = 调用方不知道**
+        ///   （prefetch / cell 兜底没有流式上下文）。
+        static func newSkinActivitySlotEstimate(
+            msg: ChatMessage,
+            block: AssistantBlock,
+            isMessageActive: Bool?
+        ) -> CGFloat? {
+            guard ToolRenderStyleStore.current == .new else { return nil }
+            switch block.kind {
+            case .text, .info:
+                return nil // 新皮肤下仍走 classicBody
+            default:
+                break // thinking + 全部工具类 → 活动槽
+            }
+            let active = isMessageActive ?? false
+            let segments = TurnActivityAggregator.segments(
+                from: TurnActivityAggregator.adapt(msg.blocks, isActiveMessage: active),
+                isMessageActive: active)
+            guard let hit = TurnActivityAggregator.role(of: block.id, in: segments),
+                  hit.isAnchor else { return 0 } // 非锚点：空视图，与活动状态无关
+            if isMessageActive != nil {
+                // 状态已知：isDone 已把"消息是否在处理中"算进去
+                return hit.segment.isDone ? Self.newSkinActivitySlotDoneHeight : nil
+            }
+            // 状态未知：只有"正文已收口"能确定为完成态，其余交回经典估算（不猜运行槽）
+            return hit.segment.closedByContent ? Self.newSkinActivitySlotDoneHeight : nil
+        }
+
         static func estimateItemHeight(_ item: MessageListItem, messages: [ChatMessage], width: CGFloat) -> CGFloat {
             let scale = FontSettings.shared.scaledMessage(16)
             let lineHeight = scale * 1.4
@@ -3760,10 +3837,19 @@ extension CollectionViewMessageListV3 {
                 case .assistant: return 200
                 }
             case .assistantHeader:
-                return 28
+                // [pp 09-18 估算对齐] 同上：New 皮肤头行渲染 0 高，估算跟 0。
+                return ToolRenderStyleStore.current == .new ? 0 : 28
             case .assistantBlock(let msgId, let blockId):
                 guard let msg = messages.first(where: { $0.id == msgId }),
                       let block = msg.blocks.first(where: { $0.id == blockId }) else { return 44 }
+                // [pp 09-18 估算对齐] 与 seed 同源：新皮肤活动槽走专用估算，
+                // 避免 prefetch / cell 兜底把 seed 的 0 又覆盖回 36。
+                // 本路径没有流式上下文 → isMessageActive: nil（锚点交回经典估算，
+                // 绝不把运行槽低估成入口行，见 newSkinActivitySlotEstimate 注释）。
+                if let slotEst = Self.newSkinActivitySlotEstimate(
+                    msg: msg, block: block, isMessageActive: nil) {
+                    return slotEst
+                }
                 switch block.kind {
                 case .text:
                     if let attrStr = block.cachedAttributedString {

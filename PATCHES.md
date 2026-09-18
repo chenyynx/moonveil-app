@@ -655,3 +655,24 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **回归**: 入口行 16pt 时钟环完整（顶→右→底→左下 263°，圆头端点）/ 缺口左上三点位置与直径不变 / 指针折线与线宽不变 / 颜色 headlineGray 不变 / classic 皮肤同路径（无皮肤分支）。
 - **死隔离四问**: ①两端共用自造渲染件，纯几何常数，两端同行为；②改动圈定单个绘制调用，零状态/数据/协议/生命周期改动；③官方等价物=SwiftUI 原生 `Path.addArc` 方向参数（无自绘替代）；④回归项如上，两端一致。
 - **验证**: pp 复核对比图确认「现在对了」（2026-09-18）。**装机复验待出包**：出包后看入口行时钟环是否完整、缺口三点位置是否在左上。
+
+### NEWSKIN-HEIGHT-ESTIMATE — 新皮肤高度估算对齐（滚动卡顿 + 画面来回跳的根因）（CC，2026-09-18，pp 真机日志实锤）
+- **File**: `src/ios/Agent/MessageList/CollectionViewMessageListV3.swift`（+90/−2：seed 段 + `estimateItemHeight` + 新增 static helper/常量；无新文件、无 pbxproj、无数据/聚合器/协议改动）。
+- **症状**: pp 装机——聊天页「往上滑一顿一顿的、有时候画面来回跳，agent 没在回复也这样」。
+- **根因（真机日志直证）**: 新皮肤把 thinking/工具块收进「活动槽」渲染，但高度估算表还是**经典皮肤的值**：
+  - `AssistantBlockView.newStyleBody`：`text`/`info` 走 classicBody；`thinking` + 全部工具类走 `newToolActivitySlot` —— **只有段锚点渲染 `ToolActivityGroupView`（完成态 = 入口行），同段其余块渲染 EmptyView = 0 高**；而估算给每个块 36/40pt。
+  - `BridgedAssistantHeaderV3` 在 New 皮肤是 `Color.clear.frame(height: 0)`（e696e77），估算仍是 28pt。
+  - 日志：`[SettleJitter][decel-inv] idx=11..33` 连纠 ~20 条 `src=est`（`36→0 / 40→0 / 36→24 / key=h: 28→0`），**每秒 7-8 次全量重排**（`[ReflowGap] coalesced re-flows=7~8`），`contentSize` 3874→3681→3389→3149 连塌；修正绝大多数落在视口内/上方（`inside`），而 `!isTracking && !isDecelerating` 才做 offset 补偿 → 拖动/惯性中重排 = 画面位移。**一顿一顿 = 每纠一行一次全表重排；来回跳 = 同一批修正上下滑各来一遍。**
+- **Fix**: 新增 `newSkinActivitySlotEstimate(msg:block:isMessageActive:)` 按渲染事实估：非锚点 → 0；锚点完成态 → 入口行；`text`/`info`、classic 皮肤、**活动状态未知的锚点** → 返回 nil 交回经典估算（运行槽 ≈62~138pt，低估比高估糟）。入口行高度按 `FontSettings.shared.scaledApp(20)`（chevron 是 `@ScaledMetric`，随 App 字号档位缩放；真机实测 24.3pt @ pp 当前档，默认档 26 —— 不能钉死常数）。seed 的活跃判定改用 `vm.messages.last?.id`（与视图 `bridge.isActiveMessage` 同源，避免 internal-bridge 行造成的滤波数组分歧）。
+- **对抗审查（一轮，pp 批准「改完审查一次就行」）**: 二高五中低。已修 = D1（兜底路径 `isMessageActive:false` 会把运行中锚点低估成 24pt → 改 nil 不猜）、D2（24 硬编码 → 按档位算）、D5（活跃判定同源）、触感副作用分离。**登记不做** = D3（seed 内 O(N²)，改前已因 `blocks.first(where:)` 存在，量级未变）、D4（切皮肤后离屏条目仍带旧皮肤估算 —— 清了不重播种会退化成 200pt 默认值，风险大于收益；**验证时勿中途切皮肤**）、D6（`ToolRenderStyleStore.current` 每项读 UserDefaults，微秒级可忽略）。
+- **回归**: classic 皮肤逐字节不变（helper 首行 guard）/ 0 高 cell 不加 itemSpacing（同空 text 块既有形态）/ 文本块与 user 气泡估算不动 / 流式期不新增低估 / 40→24 一类思考锚点同路径。
+- **死隔离四问**: ①两端共用渲染件，估算与视图同源同行为；②改动圈定「估算表」一处，零状态机/协议/生命周期改动；③官方等价物=UIKit self-sizing + `estimatedItemHeight` 既有机制（不新增测量）；④回归项如上。
+- **装机判据**: 滚历史时日志不再成片 `[SettleJitter][decel-inv] … src=est (36→0)/(28→0)`；`[ReflowGap] coalesced re-flows` 从 7~8 掉下来。
+- **验证**: 待装机（本笔修复由 pp 真机日志驱动，改后需同场景复测）。
+
+### THINKING-HAPTIC-SCOPE — Thinking 触感误发到「进聊天页」（CC，2026-09-18，pp：「点进聊天页就有触屏反馈，那个不是只有 Thinking 才有吗」）
+- **File**: `src/ios/Views/Chat/ToolActivity/ToolActivityGroupView.swift`（+11/−3：签名 + 三个调用点）。
+- **根因**: 触感写在 `markThinkingStartedIfNeeded()` 里，而这个函数是**三路汇合的幂等置位入口**（① `onChange(thinkingHasStarted)` 真事件、② ThinkingFlushWatcher 真事件、③ `onAppear` cell 重建补查）。③ 是当天 `5f91299` 为修「cell 重建后 Thinking 文字消失」新加的**补记路径**——它补的是"已经发生过的事实"（历史消息重建 / 进页面重现），跟着发触感就把每个已完成回合都震一遍 = 用户感知「点进聊天页就震」。
+- **Fix**: 状态置位三路照旧（断的是 @State 不是事实），触感抽成 `haptic:` 参数，只有真事件路径 ①② 传 true。**判例：幂等置位入口不得携带副作用**——它被"补记/恢复"路径复用时，副作用会被无差别重放；副作用要挂在"事件"而不是"状态"上。
+- **回归**: 思考真开始仍震一次（①②）/ 进页面、滚动回看、cell 重建不震 / 状态置位与计时起点不变 / classic 皮肤同路径。
+- **验证**: 待装机（入口：点进有历史思考的会话，不应有触感；发消息等思考开始，应有一次轻震）。
