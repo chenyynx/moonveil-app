@@ -437,7 +437,9 @@ struct PendingThinkingIndicator: View {
 // 形状来源：photo_8E721157.png 像素级拟合（参数坐标下降优化，软 IoU 0.951，
 // 存档 shared/claude-clock-svg/fitted2.json）。24 画布归一（外缘=12，撑满）：
 // 环中径 10.6438 / 线宽 2.7123；缺口弧 264.7046°→527.6624°（顺时针跨 0°，圆头）；
-// 三点等大 φ2.9256 @ 190.356°/215.060°/239.836°（R 10.2809）；指针折线
+// 三点等大 @ 190.356°/215.060°/239.836°（R 10.2809）；指针折线
+// [光学代偿] 点径 φ3.67u（素材 2.93u/12.2% → 15.3% 上限）：16pt 真机下素材比例
+// 仅 5.9px 与线同粗不可辨，放大后可辨（SVG 大图与真机小图的观感差异来源）。
 // (11.2483,6.9451)→(11.4659,12.4278)→(16.0784,14.3009)。颜色/尺寸与文字同灰。
 // 覆盖 photo_25B6FFE9 初版参数（递进三点/66°缺口/线宽2.0）——以新版拟合为准 [pp 09-18 拍板]。
 
@@ -465,7 +467,7 @@ struct ClaudeClockIcon: View {
                 let rad = deg * Double.pi / 180
                 let px = c.x + CGFloat(cos(rad)) * 10.2809 * u
                 let py = c.y + CGFloat(sin(rad)) * 10.2809 * u
-                let d = CGFloat(2.9256) * u
+                let d = CGFloat(3.67) * u // [pp 09-18 光学代偿] 素材比例 12.2% 在 16pt 仅 5.9px 不可辨；放大至不粘连上限 15.3%
                 ctx.fill(Path(ellipseIn: CGRect(x: px - d / 2, y: py - d / 2, width: d, height: d)),
                          with: .color(color))
             }
