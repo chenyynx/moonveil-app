@@ -602,3 +602,32 @@ pp 拍板：完全 Grok 式（聊天内 thinking=入口行零展开）、阶段�
 - **已知差异（留痕）**: 单事务插入≥2 行（罕见突发）进场 offset 恒 38pt 不按行数倍增（流式每事务一行，常规路径无影响）；离场行 z 序在 header 之上靠淡出规避压字（t≈60% 已 ~0.15，Grok 同为软淡出无硬裁剪）；不复制 Grok 的 1 帧插帧延迟。
 - **回归**: 事件行进场（1→2→3 成长段与 3→满轮播段）/ 离场行方向速度 / 运行槽整体点开汇聚页（外层 Button 不变）/ stop 内层按钮 / 计时+扫光不受影响（自驱 withAnimation）/ 段完成 entryRow 0.25s 交叉淡变不变 / classic 皮肤零影响（本组件仅 New 皮肤路径）。
 - **死隔离四问**: ①本机+远端共用此视图，动画变化两端同行为（预期非污染，B15-CODE2 同判例），数据/会话/工具流/聚合器签名零改动；②共享路径 gate=改动圈定 runningSlot ForEach 一处+文件内新增两个 internal 类型，未触状态机/协议字段；③官方等价物=SwiftUI 原生 transition/animation/blur/offset（Apple 原生优先，无自绘引擎）；④回归项两端一致如上。
+
+### FIRE-SLIDER-SELFDRAW — Effort 滑块自绘 thumb + 帧率无关火焰（2026-09-18，pp 装机 4 bug）
+
+pp 装机 Ultracode 预览页反馈 4 个 bug：thumb 是圆球（应为圆角方块）、
+thumb 到不了最右、白色拖动球颤抖、"Ultracode" 文字截断成 "Ultraco..."。
+死隔离：全部在 Settings/ 呈现层，两端同视图同变化=预期。
+
+**根因与修法（判例可复用）**：
+1. **圆球**：UISlider 在 iOS 26 无视 setThumbImage，回退默认圆形玻璃
+   thumb（实测无平直边/超出轨道/无白渐变）。弃 UISlider → 自绘
+   EffortSlider（SwiftUI GeometryReader + DragGesture），thumb 用
+   RoundedRectangle 圆角方块。**判例：iOS 26 自定义 thumb 形状只能自绘，
+   setThumbImage 不可靠**。
+2. **到不了最右**：旧 45pt 透明画布 thumb 图把 UISlider 行程缩短，
+   球右缘悬空 8pt。自绘后 thumb 中心 = thumbSize/2 + progress*(width -
+   thumbSize)，value=100 右缘贴轨道右端。
+3. **颤抖**：弃 UISlider 后消除其坐标回写/玻璃渲染竞态；方向锁存
+   （水平拖动锁定，dy>6&&dy>dx 时留给 ScrollView）防滚页误改值；
+   minimumDistance:2 + 有位移才锁，纯点击不设值。
+4. **Ultracode 截断**：内容区 320pt 足够但文本被压 → statusText 加
+   .fixedSize() 钉固有宽度。判例：HStack 里 Text 被压出省略号先量
+   内容区宽度（够却截 = 加 fixedSize），不是字体/字号问题。
+
+**引擎 v2（pp 批准合并）**：SimUniforms 加 u_dt，decay 改 pow(0.90,u_dt*60)
+帧率无关（60fps==参考 0.90/帧）；FireRenderer 加 lastFrameTimestamp 算
+uDt（下限 1/120 防后台恢复爆 pow）+ 高刷 CAFrameRateRange(60,120,120)
++ comp 管线 bgra8Unorm_srgb（防色调发灰）；FireCanvasView 同步 sRGB。
+
+commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不受干扰。
