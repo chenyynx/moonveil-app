@@ -101,8 +101,26 @@ enum ChatColors {
     static let accent = Color(UIColor.label)
     static let sendButton = Color(UIColor.label)
     static let sendButtonDisabled = Color(UIColor.quaternaryLabel)
+    /// Claude 官方实测聊天背景(claude.ai / docs.claude.com, data-color-version v2):
+    /// 浅 #FCFCFB(微暖米白) / 深 #151515(暖黑)。pp 09-18 让加 Claude 风格聊天背景主题。
+    /// 动态 trait 感知,自动随系统深浅色。
+    static let claudeBackground = Color(UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0x15 / 255, green: 0x15 / 255, blue: 0x15 / 255, alpha: 1)
+        : UIColor(red: 0xFC / 255, green: 0xFC / 255, blue: 0xFB / 255, alpha: 1) })
 }
 
+
+/// 聊天空背景主题(pp 09-18):默认=系统背景;claude=Claude 官方背景(浅 #FCFCFB / 深 #151515)。
+enum ChatBackgroundTheme: String, CaseIterable, Identifiable {
+    case system, claude
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .system: return "默认"
+        case .claude: return "Claude"
+        }
+    }
+}
 // MARK: - System Resource Monitor
 
 class SystemResourceMonitor: ObservableObject {
@@ -193,6 +211,10 @@ struct AIChatView: View {
     /// Model group to bind when creating a new session (from long-press FAB).
     var initialGroupId: String? = nil
     @EnvironmentObject var shareCoordinator: ShareCoordinator
+    /// [pp 09-18] 聊天背景主题:system(默认=系统背景) / claude(Claude 官方暖白/暖黑)。
+    /// 与 AppearanceSettingsView 同 key 联动,切换即通知本视图重算背景。
+    @AppStorage("chatBackgroundTheme") private var chatBackgroundTheme: String = ChatBackgroundTheme.system.rawValue
+
     @StateObject private var cached: CachedViewModel
 
     /// The actual ViewModel — always derived from the @StateObject to avoid
@@ -706,7 +728,7 @@ struct AIChatView: View {
             // Full-screen kernel boot overlay
             kernelBootOverlay
         }
-        .background(ChatColors.background)
+        .background(chatBackgroundTheme == ChatBackgroundTheme.claude.rawValue ? ChatColors.claudeBackground : ChatColors.background)
         .onDrop(of: [.image, .movie, .fileURL, .data], isTargeted: $isDropTargeted) { providers in
             handleDropProviders(providers)
             return true

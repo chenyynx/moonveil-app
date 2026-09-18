@@ -7123,6 +7123,9 @@ private struct AppearanceSettingsView: View {
     /// streams. When false it stays collapsed until tapped. Read at
     /// block-mount time in ThinkingBlockView.
     @AppStorage("chat.autoExpandThinking") private var autoExpandThinking: Bool = true
+    /// [pp 09-18] 聊天背景主题(默认系统 / Claude 官方),与 AIChatView 同 key 联动。
+    @AppStorage("chatBackgroundTheme") private var chatBackgroundTheme: String = ChatBackgroundTheme.system.rawValue
+
     @ObservedObject private var fontSettings = FontSettings.shared
 
     private let iconOptions: [AppIconOption] = [
@@ -7152,6 +7155,18 @@ private struct AppearanceSettingsView: View {
                 windowScene.windows.forEach { window in
                     window.overrideUserInterfaceStyle = appearanceMode == 1 ? .light : appearanceMode == 2 ? .dark : .unspecified
                 }
+            }
+
+            Section {
+                Picker("Chat Background", selection: $chatBackgroundTheme) {
+                    ForEach(ChatBackgroundTheme.allCases) { t in
+                        Text(t.label).tag(t.rawValue)
+                    }
+                }
+            } header: {
+                Text("Chat Background")
+            } footer: {
+                Text("聊天区背景: 默认(系统) / Claude(官方实测 #FCFCFB 浅 · #151515 深)。")
             }
 
             Section {

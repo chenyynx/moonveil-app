@@ -788,3 +788,15 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **Fix**: `NSAttributedString(string: "\u{200A}\(code)\u{200A}")` → `NSAttributedString(string: Self.breakableInlineCode(code))`，去掉前后 hair space，橙色字贴合正文。
 - **回归**: ①copy 时 `plainTextWithTables` 已 strip U+200A 不受影响 ②tap-to-copy 读 `.inlineCodeText`(原始 code)不受影响 ③breakableInlineCode 的 `\u{200B}`(零宽,仅 >24 字符)保留 ④table-cell / 代码块不受影响。
 - **验证**: 待装机(正文 `next`/`.bin` 橙色字与两侧文本贴合、无多余间隙)。
+
+### CHAT-BG-THEME — 聊天背景主题切换(默认系统 / Claude 官方背景)(Doris, 2026-09-18 pp:「能不能加个聊天主题切换 就是聊天背景 加一个claude风格的 相当于两套主题风格」+「就只换背景颜色就行」)
+
+- **File**: `src/ios/Views/Chat/AIChatView.swift`(+22：`ChatBackgroundTheme` enum + `ChatColors.claudeBackground` + `@AppStorage("chatBackgroundTheme")` + 背景切换)、`src/ios/Views/ContentView.swift`(+12：`AppearanceSettingsView` 加 `Chat Background` 切换 Section)。
+- **Claude 背景色(官方实测)**: 查 claude.ai 登录页 / docs.claude.com / 深色会话页,`data-color-version="v2"`:
+  - 浅色 body/页面背景 **#FCFCFB**(微暖米白),底 surface #F9F9F7;
+  - 深色 body/页面背景 **#151515**(暖黑),底 surface #0B0B0B。
+  - ⚠️ 网上常传的 `#FAF9F5 / #262624` 是 Claude **旧版**;当前官方用 #FCFCFB / #151515(以实测为准)。
+- **实现**: `ChatBackgroundTheme`(system/claude)@AppStorage("chatBackgroundTheme") 持久化;`ChatColors.claudeBackground` 动态 trait(浅 #FCFCFB/深 #151515)。AIChatView 背景按主题选;`AppearanceSettingsView` 加 Picker 切换,同 key 联动自动刷新聊天背景(不用重启)。
+- **范围**: 只换聊天区背景色(pp 明确);气泡/文字/输入栏不动。默认 = `ChatColors.background`(systemBackground),行为零变化。
+- **死隔离申报**: 呈现层-only(背景色/设置入口),不改消息数据/SSE/聚合器/agent 链路;@AppStorage 新 key 不与现有 key 冲突;切换不影响会话/布局。
+- **验证**: 待装机(设置 → Appearance → Chat Background = Claude → 回聊天区,浅色米白 #FCFCFB / 深色 #151515;切回默认=系统背景)。
