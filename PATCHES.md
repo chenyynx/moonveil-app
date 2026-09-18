@@ -780,3 +780,11 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **🔴 判例（可复用）**: ①cell 里要动的视觉,若仓内已有**验证可靠**的同屏实现(ShimmerOverlay),**直接对齐它的机制**,不要在它之外发明;②**稳定渐变 stops + offset 动画** 是 cell 里扫光的正解,`TimelineView 每帧重建渐变` 会踩 colorspace teardown;③「disablesAnimations 吞 withAnimation」的旧判例**不成立**——经典版 ShimmerOverlay 正是 withAnimation repeatForever,在聊天 cell 里能动;v2 失败真因是 **onPreferenceChange 回传跳变**（offset 目标 0→真实宽,repeatForever 被替换）。
 - **死隔离申报**: 呈现层-only（文字扫光修饰器重写）,不改消息数据/SSE/聚合器/agent 链路;回归 = ①运行槽 "Thinking" 文字 ②汇聚页标题 ③ThinkingDetailOverlay 标题 ④深浅色 peakOpacity 自适应 ⑤VoiceOver 不受影响（光带 allowsHitTesting(false)）。
 - **验证**: 待装机（聊天流 "Thinking" 行应有左→右亮光扫过、2.8s 一圈、可见度与经典版一致;汇聚页标题同步;深色模式 0.25）。
+
+### INLINE-CODE-PAD — 行内代码灰底去掉后残留 hair space 间距（pp 09-18 装机：「之前正文的橙色文字有灰底占位 然后现在去掉了之后间距还在」）
+
+- **File**: `src/ios/Views/Chat/SelectableMarkdownView.swift`（−2/+2：body `renderInline .code` 分支去掉 `\u{200A}` hair space 包裹）。
+- **根因**: 灰底 pill 时代，行内代码用前后 `\u{200A}`(hair space) 给高亮框做视觉 padding；pp 09-17 把背景置 clear(`minisInlineCodeBackgroundColor = .clear`)后，这俩 hair space 没删 → 橙色字(`next` / `.bin`)周围残留多余间隙。table-cell 的 `renderCellInline` 本就不加 hair space，body 与之不一致。
+- **Fix**: `NSAttributedString(string: "\u{200A}\(code)\u{200A}")` → `NSAttributedString(string: Self.breakableInlineCode(code))`，去掉前后 hair space，橙色字贴合正文。
+- **回归**: ①copy 时 `plainTextWithTables` 已 strip U+200A 不受影响 ②tap-to-copy 读 `.inlineCodeText`(原始 code)不受影响 ③breakableInlineCode 的 `\u{200B}`(零宽,仅 >24 字符)保留 ④table-cell / 代码块不受影响。
+- **验证**: 待装机(正文 `next`/`.bin` 橙色字与两侧文本贴合、无多余间隙)。

@@ -1382,9 +1382,11 @@ fileprivate final class MarkdownNSRenderer {
             // Set .backgroundColor to trigger fillBackgroundRectArray in MinisLayoutManager
             // The actual color is drawn there with rounded corners; this just triggers the callback.
             codeAttrs[.backgroundColor] = theme.inlineCodeBackground
-            // Add hair spaces for visual padding inside the background highlight.
-            return NSAttributedString(string: "\u{200A}\(Self.breakableInlineCode(code))\u{200A}",
-                                      attributes: codeAttrs)
+            // [pp 09-18 装机：橙色文字灰底去掉后间距还在] 灰底 pill 时代用前后
+            // \u{200A}(hair space) 给高亮框做视觉 padding；pp 09-17 把背景置 clear 后
+            // 这俩 hair space 没删，成了橙色字周围残留的多余间隙。背景已去 → padding
+            // 不再需要，收掉。table-cell 的 renderCellInline 本就不加，保持一致。
+            return NSAttributedString(string: Self.breakableInlineCode(code), attributes: codeAttrs)
 
         case .emphasis(let children):
             var emphAttrs = attrs
