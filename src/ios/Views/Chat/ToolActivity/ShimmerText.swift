@@ -49,40 +49,44 @@ struct SweepTextShimmerModifier: ViewModifier {
     var outbound: Double = 1.6
 
     func body(content: Content) -> some View {
-        content
-            .overlay {
-                // overlay 尺寸 = content 尺寸；GeometryReader greedy 吃满提案 →
-                // g.size 同步 = 文字真实尺寸。GR 内孩子 topLeading 放置，峰色层
-                // （content 副本）理想尺寸 = 文字尺寸 = GR 尺寸 → 与底层文字完全重叠。
-                GeometryReader { g in
-                    let w = g.size.width
-                    if w > 1 {
-                        let bandW = max(w * 0.5, 28)          // 亮带渐变矩形宽（有效峰区≈其一半）
-                        let travel = w / 2 + bandW / 2 + 4    // 带子中心：左缘外 ⇄ 右缘外
-                        // [v4] 30Hz 时间驱动（不走动画事务，见文件头 v4 判例）；
-                        // [v5] 相位改成"去程/回程分段"，其余不变。
-                        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-                            let phase = Self.phase(
-                                date: timeline.date, period: period, outbound: outbound)
-                            content
-                                .foregroundStyle(Self.peak(base)) // 峰色文字层（被 mask 裁成移动亮带）
-                                .mask(
-                                    Rectangle()
-                                        .fill(LinearGradient(stops: [
-                                            .init(color: .clear, location: 0),
-                                            .init(color: .white, location: 0.5),
-                                            .init(color: .clear, location: 1),
-                                        ], startPoint: .leading, endPoint: .trailing))
-                                        .frame(width: bandW, height: 64)
-                                        // -travel（左缘外）→ +travel（右缘外）= 左→右 [v5 翻向]
-                                        .offset(x: -travel + CGFloat(phase) * (travel * 2))
-                                )
-                                .accessibilityHidden(true)
-                                .allowsHitTesting(false)
-                        }
-                    }
-                }
-            }
+        // [v6 全链路审查 09-18 pp：「扫光依旧没有，修了很多遍」] 前 5 版全部依赖
+        // mask + overlay + GeometryReader 这套系统层机制——在聊天流 cell
+        // （UIHostingConfiguration + `.transaction { $0.disablesAnimations = true }`
+        // 宿主）里不被渲染，所以真机永远看不到。同一 cell 里 ThinkingDotIcon 一直
+        // 能动，前提是 **TimelineView 每帧重算 body + Canvas 命令式重绘**（纯值更新，
+        // 不依赖系统视图层/mask）。本版借同一个可靠前提：把扫光直接做成文字的
+        // foregroundStyle 渐变色——亮色位置随 phase 移动，无 mask、无 overlay、
+        // 无 GeometryReader，必然渲染。频率 30Hz 与点阵一致。
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+            let phase = Self.phase(date: timeline.date, period: period, outbound: outbound)
+            content
+                .foregroundStyle(
+                    LinearGradient(
+                        stops: Self.shimmerStops(base: base, phase: phase),
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                )
+        }
+    }
+
+    /// 扫光渐变的 stop 集：亮带（peak）位置随 phase 在 0（左）→1（右）间移动，两端 base，
+    /// 形成"亮光扫过文字"。带宽 ≈ 文字宽 45%（App 实测亮带 ≈ 文字宽一半）。
+    /// stops locations 必须升序且 clamp 到 [0,1]——亮带贴边时 lo/hi 会重合，LinearGradient
+    /// 允许同 location 的 stop（顺序渐变）。
+    static func shimmerStops(base: Color, phase: Double) -> [Gradient.Stop] {
+        let peak = Self.peak(base)
+        let bw = 0.45
+        let center = min(max(phase, 0), 1)
+        let lo = max(0, center - bw / 2)
+        let hi = min(1, center + bw / 2)
+        let lo2 = min(lo, hi)
+        let hi2 = max(lo, hi)
+        return [
+            .init(color: base, location: 0),
+            .init(color: peak, location: lo2),
+            .init(color: peak, location: hi2),
+            .init(color: base, location: 1),
+        ]
     }
 
     /// 循环内的位置 0（左缘外）→ 1（右缘外）。

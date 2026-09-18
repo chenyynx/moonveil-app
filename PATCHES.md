@@ -756,3 +756,14 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **成本**: gate 把触发收敛到「粗估高度真的变了」（每多一行正文一次）;估算恒定的 cell（工具胶囊 36 / thinking 头 / header/footer）永不命中。reconfigure + hosting 真测是 blockContentFilledSignal / thinkingToggle 已有机制同款,频率再被 flushStreamingLayout 节流（100ms auto-scroll / 3s browsing）压一层。
 - **死隔离申报**: 聊天列表呈现层-only（布局/高度缓存域）;不改消息数据、SSE、聚合器、任何 agent 链路;无状态机/生命周期改动。回归项 = ①普通流式文本增长高度正常 ②浏览模式（browsing,3s 节流）滚动无抖动 ③工具胶囊/思考块/入口行高度不受影响 ④重进页面行为不变 ⑤流式结束 settle 不跳动。
 - **验证**: 待装机（长中文回复流式时,正文与 Thinking 槽/工具行保持正常间距;日志 `[StreamFlush] remeasure stale streaming cells` 只在真正长行时出现）。
+
+### SHIMMER-V6 — Thinking 扫光前 5 版全失败的结构性根因（弃 mask/overlay/GR，改 foregroundStyle 渐变文字）（Doris，2026-09-18 pp：「扫光依旧没有，修了很多遍」）
+
+- **File**: `src/ios/Views/Chat/ToolActivity/ShimmerText.swift`（+38/−34：body 重写 + 新增 `shimmerStops`）。
+- **全链路审查结论**: 前 5 版（b868d01 TimelineView 渐变 / f1f009e CA mask / GeometryReader+preference / v4 TimelineView+mask / v5 参数照 App 实测）全部依赖 **mask + overlay + GeometryReader** 这套系统层机制。这些在**普通 SwiftUI 视图**里能工作，但在**聊天流 cell（UIHostingConfiguration + `.transaction { $0.disablesAnimations = true }` 宿主）里不被渲染** → 真机永远看不到。同一 cell 里 ThinkingDotIcon 一直能动，前提是 **TimelineView 每帧重算 body + Canvas 命令式重绘**（纯值更新，不依赖系统视图层/mask）——这正是 5 个版本都缺失的。
+- **sweepShimmer / shimmerText 共用**: 两个调用点（运行槽 Thinking 文字 / 汇聚页标题）自动受益；API 不变（`sweepShimmer(base:period:)` 签名未动），峰色/相位/带宽逻辑保留（v5 的 2s / 左→右 / 慢去快回）。
+- **Fix**: body 改为 `TimelineView(.animation(minimumInterval: 1/30))` 内直接给 `content.foregroundStyle(LinearGradient(stops: shimmerStops(...)))`——亮色位置随 phase 在 0→1 移动（左→右），两端 base，形成"亮光扫过文字"，**无 mask、无 overlay、无 GeometryReader**，必然渲染。
+- **细节**: `shimmerStops` 的 locations 必须升序且 clamp 到 [0,1]——亮带贴边时 lo/hi 重合，LinearGradient 允许同 location 的 stop（顺序渐变）。带宽 0.45（App 实测亮带 ≈ 文字宽一半）。
+- **判例（可复用）**: ①**cell/UIHostingConfiguration 里凡是要"动"的视觉，优先走 TimelineView 每帧重算 body + 纯值更新**（foregroundStyle 渐变 / Canvas 重绘），不要走 mask/overlay/GeometryReader 这套需要系统渲染层配合的机制——后者在 disablesAnimations 宿主里不被渲染。②扫光 = 文字 foregroundStyle 渐变即可，无需 mask。
+- **死隔离申报**: 呈现层-only（文字着色），不改消息数据/SSE/聚合器/agent 链路；纯新增函数 + body 重写，无 pbxproj/资源改动；回归项 = ①运行槽 Thinking 文字 ②汇聚页标题 ③ThinkingDetailOverlay 标题 ④峰色/方向/周期参数不变 ⑤accessibilityHidden 从 content 移除（不再隐藏底层文字，VoiceOver 可读）。
+- **验证**: 待装机（聊天流 "Thinking" 行应有左→右亮光扫过；汇聚页标题同；30Hz 与点阵一致但带宽 45% 不闪烁）。
