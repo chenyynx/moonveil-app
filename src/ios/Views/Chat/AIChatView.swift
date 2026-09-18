@@ -215,6 +215,15 @@ struct AIChatView: View {
     /// 与 AppearanceSettingsView 同 key 联动,切换即通知本视图重算背景。
     @AppStorage("chatBackgroundTheme") private var chatBackgroundTheme: String = ChatBackgroundTheme.system.rawValue
 
+    /// [pp 09-18] 聊天背景(随主题)。抽成计算属性而非在 body 里写三元——AIChatView 的
+    /// body 很长,末尾三元会把这整条表达式的类型推断推到阈值之上(CI: unable to
+    /// type-check this expression in reasonable time)。
+    private var chatBackgroundColor: Color {
+        chatBackgroundTheme == ChatBackgroundTheme.claude.rawValue
+            ? ChatColors.claudeBackground
+            : ChatColors.background
+    }
+
     @StateObject private var cached: CachedViewModel
 
     /// The actual ViewModel — always derived from the @StateObject to avoid
@@ -728,7 +737,7 @@ struct AIChatView: View {
             // Full-screen kernel boot overlay
             kernelBootOverlay
         }
-        .background(chatBackgroundTheme == ChatBackgroundTheme.claude.rawValue ? ChatColors.claudeBackground : ChatColors.background)
+        .background(chatBackgroundColor)
         .onDrop(of: [.image, .movie, .fileURL, .data], isTargeted: $isDropTargeted) { providers in
             handleDropProviders(providers)
             return true
