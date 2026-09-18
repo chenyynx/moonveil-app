@@ -345,7 +345,7 @@ struct ThinkingDetailOverlay: View {
     }
 }
 
-// MARK: - 详情页共享头部 [Claude photo_805DB84A：白圆底返回钮 + 左对齐大标题]
+// MARK: - 详情页共享头部 [pp 09-18 拍板：标题整行居中，返回钮浮左（覆盖 photo_805DB84A 左对齐版）]
 //
 // 系统 navigationBar 无此形态（inline 居中 17pt / large 34pt），自绘头部；
 // push/pop 转场与返回手势语义仍走系统 NavigationStack（dismiss = pop）。
@@ -355,24 +355,26 @@ private struct SummaryDetailHeader: View {
     var onBack: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.primary)
-                    .frame(width: 44, height: 44) // 热区 [Claude 白圆钮 ≈44pt]
-                    .background(Circle().fill(Color.white))
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-
+        ZStack {
             Text(title)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(Color.primary)
                 .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity) // [pp 09-18] 整行居中（返回钮浮左不挤占标题位）
 
-            Spacer(minLength: 0)
+            HStack {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color.primary)
+                        .frame(width: 44, height: 44) // 热区 [Claude 白圆钮 ≈44pt]
+                        .background(Circle().fill(Color.white))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 0)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 10)
