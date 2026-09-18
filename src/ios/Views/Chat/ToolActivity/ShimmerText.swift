@@ -76,7 +76,7 @@ private struct CABandMaskView: UIViewRepresentable {
         band.locations = [0.425, 0.5, 0.575]
         band.startPoint = CGPoint(x: 0, y: 0.5)
         band.endPoint = CGPoint(x: 1, y: 0.5)
-        v.mask = band
+        v.layer.mask = band
         v.band = band
         return v
     }

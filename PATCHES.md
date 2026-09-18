@@ -877,3 +877,4 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **🔴 判例(可复用)**: ①SwiftUI 声明式"每帧重算"路线在同一视觉功能上连续两版证伪后,该功能降级到 UIKit/CA 层实现,不再在声明式层内变花样;②装机反馈要先做**语义甄别**再认领 bug——同一截图里"运行中的灰尾"是正确行为,不能顺着用户"还是灰的"就回去改已修对的逻辑。
 - **死隔离申报**: 呈现层-only 单文件;新增 UIViewRepresentable 属仓内既有模式(Agent 区域已有多处)。回归 = ①聊天流 Thinking 扫光 ②汇聚页标题扫光 ③文字选中复制(peak 层不吃点击) ④深浅色 ⑤VoiceOver 不双读 ⑥sheet 打开后消息完成,灰尾转黑(TAIL-GRAY-FIX 顺带验证)。
 - **验证**: 编译靠 CI;装机判据 = 同框录 5s 抽帧。**若 v11 仍不出:停止盲修,必须先拿录屏**(静态带=CA 没启动/无带=mask 通路仍断/带在动但看不见=色值),下一手改为在测试页放一个超大对比度探针(红底白字 5s 扫光)分离"机制死"与"参数弱"。
+- **CI 首红(43deaae, 8m4s)修复**: `ShimmerText.swift:79 cannot assign value of type 'CAGradientLayer' to type 'UIView'` — iOS 18 SDK 起 UIView 自带 `mask: UIView?` 属性,`v.mask = band` 解析到它而非 CALayer 的 mask。改为 `v.layer.mask = band`。**判例**: 给 UIView 挂 CALayer mask 一律写 `layer.mask`,裸 `.mask` 在新 SDK 有 UIView 重载歧义。
