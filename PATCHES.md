@@ -844,3 +844,26 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **🔴 判例(可复用)**: **同一视觉机制连续 8 版自研失败时,停止造轮子,引成熟开源包**(pp 明确拍板可引第三方)。自研渐变扫描的几何(量宽/offset/端点延伸)在 SwiftUI 各宿主(cell/sheet/ZStack)下行为差异极大,成熟库用 UnitPoint 归一化坐标一次性绕开全部尺寸问题。
 - **死隔离申报**: 呈现层-only;新增 SPM 包为纯新增依赖(不触碰任何共享件);不改消息数据/SSE/聚合器/agent 链路。回归项 = ①思考结果 sheet 标题有左→右亮带扫过、无跨屏竖带、标题居中不变 ②聊天流 Thinking 行行为不退化 ③深浅色峰色正确 ④其余 4 个 SPM 包构建不受影响。
 - **验证**: 待装机。
+
+### SHIMMER-V9.1/V10/V10.1 — 聊天流扫光三连发:v9.1 死代码 → v10 统一 Timeline → v10.1 mask 分层(Doris+Qoder, 2026-09-19 pp:「装了最新包扫光还是没显示」)
+
+- **v9.1(30f4376, Doris)**: 聊天流 Thinking 行加 TimelineView 驱动版 `sweepShimmerTimeline`。**实际失败**: 只改了注释没改调用点方法名,库版仍在跑 → 被 cell 宿主 disablesAnimations 吞 = 死代码(记账漏两笔,本次一并补)。
+- **v10(f84c513, Doris)**: 合并成单一 `sweepShimmer` modifier(TimelineView 驱动 + foregroundStyle 渐变当文字前景),亮带砍到 0.3×字宽治灰块。调用点零改动,死代码自动激活。pp 05:1x 装机(v10 CI 05:17 才出,实际装的疑为 v9.1;pp 坚称最新包,按 v10 已装处理)。
+- **v10 装机反馈**: 深浅色**完全不可见**(pp:「浅色模式我也看不到」)。排查发现两个独立缺陷:
+  1. **峰色 alpha 数学错**: 峰色 `peak(base).opacity(0.25)` 在 foregroundStyle 语义下 = 文字变透明透出页面底色,不是提亮。暗色(#151515 底)实算 0.478→0.268,对比 1.7:1 ≈ 数学上不存在。经典版 0.75/0.25 是 `.white.opacity` **叠在文字上的 overlay** 用法,搬成文字前景色后语义完全变了。
+  2. **foregroundStyle 通道可疑**: 调用点 Text 自带 `.foregroundStyle(headlineGray)`,modifier 外层再挂渐变——层级 foregroundStyle 对已自设样式的 Text 是否穿透未验证;浅色下渐变若生效应有 ±50% 亮度横扫绝不可能看不见,实测看不见 = 渐变大概率没参与渲染。**根因未闭环(缺帧证据),本版对两种死法都免疫。**
+- **v10.1(本次, Qoder)**: 改 **mask 分层** — ZStack{ base=content 原样实体色全程可见; peak=同 content 副本 `.foregroundStyle(实心峰色)` + `.mask(移动白色亮带)`},亮带是实心提亮(#7A7974→≈#D1D0CD,深 4.7:1),不再依赖 alpha 混合或前景解析路径。驱动仍 TimelineView 纯值更新(不走事务);peak 层 `allowsHitTesting(false)+accessibilityHidden`;`sweepShimmer(base:period:)` API 不变,两调用点零改动。
+- **🔴 判例(可复用)**: ①「可见度 0.75/0.25」这类参数**绑定的是渲染机制**(overlay 叠加 vs 前景 alpha vs mask 提亮),换机制必须换算,直接搬运数值得不到同样观感;②Color.opacity 用于文字前景 = 变透明不是变亮——要提亮用**实心提亮色**或白色 overlay;③连续多版失败的视觉问题,新方案必须**同时绕开所有已实锤死法**,而不是在单一疑点上再猜一轮。
+- **⚠️ 下一手(若 v10.1 仍不出)**: 不再猜第五条。按 交互与体验.md:285 判例走 CA(CABasicAnimation 位移 mask),且先向 pp 要 5s 录屏抽帧,定死失败环节(静态=驱动死/颜色对不动=渲染层/颜色不对=色值)。
+- **死隔离申报**: 呈现层-only(单文件 ShimmerText.swift + 两行注释),不改消息数据/SSE/聚合器/agent 链路;新增仅 ZStack 一层,无新依赖。回归 = ①聊天流 Thinking 行扫光 ②汇聚页标题扫光 ③ThinkingDetailOverlay 标题 ④文字选中复制(peak 层不吃点击) ⑤深浅色 ⑥VoiceOver 不双读(accessibilityHidden)。
+- **验证**: 本机无 swiftc,编译靠 CI;装机判据 = 聊天流 Thinking + 汇聚页标题同框录 5s 抽帧。
+
+### TAIL-GRAY-FIX — 汇聚页思考尾巴灰渐显完成后不转黑:segment 快照冻结(Qoder, 2026-09-19 pp 截图:「这个思考文字的尾部为什么是灰色」)
+
+- **症状**: sheet 里思考原文最后 24 字灰尾,消息早已完成(标题都显示 Thought for 30s)仍灰。
+- **根因**: `ThinkingDetailOverlay.isSegmentRunning = !segment.isDone`,而 `segment: TurnActivitySegment` 是**打开 sheet 瞬间的值类型快照**(AIChatView 667 通知携带 → 771 塞入)。运行中打开 → 快照永远 isDone=false → 灰尾永久冻结。旁证: `isActiveMessage` 参数声明后全文件零引用(死参数),消息终态压根没接进来。flushTick 流式修复只救文字不救状态。
+- **修复**: 运行态改现读三条件,语义与聚合器 isDone 逐条对齐——①段块之后出现 text/info 块(closedByContent)→ done;②段内工具 toolStatus streaming/running → 运行中;③其余看 `isActiveMessage()` 闭包现读 vm.isProcessing(调用点补末条判定,防旧消息被新消息 processing 误判)。完成瞬间 message @Published / vm 翻转 → 尾巴灰转黑。
+- **附带效果**: sheet 打开后消息才完成的场景(原冻结路径)与"运行中打开→完成"翻转均正确;ThinkingDetailPage 484 行同款尾巴经父视图传值同步受益。
+- **🔴 判例(可复用)**: 值类型快照 + "打开瞬间定死"的状态参数,凡是语义上会随时间翻转的(运行/完成),在常驻视图(sheet/详情页)里必须闭包或对象现读,不许信快照;死参数(`let x: Bool` 零引用)是接线断裂的指纹,grep 一下就知道。
+- **死隔离申报**: 呈现层-only(状态读取方式),不改消息数据/SSE/聚合器/agent 链路;ThinkingDetailOverlay 全仓唯一实例化点已同步改。回归 = ①运行中打开 sheet 尾巴灰+完成转黑 ②完成后打开 sheet 全程黑 ③标题三态(Thinking…/Thought for Ns/思考结果)翻转正常 ④工具行灰字当前项判定不受影响 ⑤多消息并发时旧 sheet 不误判。
+- **验证**: 本机无 swiftc 靠 CI;装机判据 = 运行中点开汇聚页等完成,尾巴应自动转黑。

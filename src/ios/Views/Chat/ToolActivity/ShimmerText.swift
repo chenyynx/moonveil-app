@@ -2,6 +2,21 @@ import SwiftUI
 
 // MARK: - Claude Text Sweep Shimmer
 //
+// [v10.1 09-19] mask 分层版。v10（foregroundStyle 渐变当文字前景）装机后
+//   深浅色都完全不可见（pp 实机）。根因未闭环（缺帧证据），但 v10 的可见性
+//   依赖两个未验证前提：① 渐变前景在 cell 宿主里被正确解析（调用点 Text 已
+//   自带 .foregroundStyle(headlineGray)，层级式 foregroundStyle 对已设色 Text
+//   不穿透）；② 峰色 .opacity(0.25) 半透明——实算是把文字变透明透出底色，
+//   暗色下与 base 对比仅 1.7:1 ≈ 数学上不存在。本版对两点都免疫：
+//   · 分层：底 = content 原样（实体灰，全程可见）；上 = 同一 content 的峰色
+//     副本，仅亮带处露出 → 亮带是实心提亮色，不再靠 alpha 混合底色。
+//   · mask 只决定副本可见度，与文字前景解析路径无关。
+//   驱动保持 TimelineView 纯值更新（不走事务 → cell 宿主 disablesAnimations
+//   管不到；ThinkingDotIcon 同宿主实证可动）。无 GeometryReader（v2 跳变 /
+//   v8 拉伸两坑绕开）、stops 一次构建（v6 colorspace teardown 绕开）。
+//   若本版仍不出 → 不再猜第五条，按 Bug 经验库判例走 CA
+//   （CABasicAnimation 位移 mask），并先要 5s 录屏抽帧定死失败环节。
+//
 // [v10 09-19] 一次解决两个根因：聊天流完全不显示 + 汇聚页灰块。
 //
 // 根因 1（聊天流完全不显示）：v9.1 只改了注释没改方法名，Timeline 版
@@ -11,34 +26,22 @@ import SwiftUI
 //   → 本版合并成单一 modifier，Timeline 驱动，调用点方法名 sweepShimmer 不变，
 //     死代码自动激活，两处调用点零改动。
 //
-// 根因 2（灰块）：亮带占字宽 0.7~1.0（v9 bandSize=1.0 / v9.1 渐变跨度=1.0w），
-//   大半行文字同时被点亮 → 视觉是「整行变色横移」不是「光带掠过」。经典版
-//   ShimmerOverlay 同比例几何（亮带≈0.56×载体宽）在宽胶囊上正常、在窄文字
-//   上必灰 —— 扫光的「光带感」要求亮带明显窄于载体。
-//   → 亮带砍到 0.3×字宽 + 峰值 20% 硬过渡（锐利，不软塌塌）。
-//
-// 渲染机制：foregroundStyle(LinearGradient) —— 渐变直接当文字前景色，天然
-// 只画在文字像素上，无 overlay 层、无 blendMode、无 GeometryReader。
-//   · stops 固定一次构建（v6 每帧重建 stops → colorspace teardown 崩溃，已避）；
-//   · TimelineView 每帧只移动 startPoint/endPoint 两个 UnitPoint（廉价值更新）；
-//   · 暗处 stop 用不透明 base 色（非 clear）→ 文字全程完整可见，不是「整行变淡」。
-//
-// markiv SwiftUI-Shimmer 包几何上不适合窄亮带（亮带 = 渐变全跨度 (1+2×bandSize)
-// 对角单位，bandSize 只改端点延伸、不改亮带占比，数学上压不到 0.3×字宽）→
-// 弃用于扫光；包仍挂在 pbxproj（零开销保留）。sheet 与 cell 共用同一实现。
+// 渲染机制 [v10.1]：ZStack 两层（base + masked peak），见文件头。
 
-// MARK: - 共享：峰色与渐变
+// MARK: - 共享：峰色与亮带 mask
 
 enum ShimmerStyle {
     /// 峰色 = color-mix(in srgb, base 30%, white)；alpha 混合同式（0.3a + 0.7）。
-    /// 逐通道显式 Double [混合浮点判例]。
+    /// 逐通道显式 Double [混合浮点判例]。实心不透明 [v10.1]——v10 在此再乘
+    /// peakOpacity 把"提亮"错做成"变透明"（暗色下 1.7:1 不可见，浅色系值被砍
+    /// 到 1/4），已废；提亮量由 mix 本身控制（#7A7974 → ≈#D1D0CD，深 4.7:1）。
     static func peak(_ base: Color) -> Color {
         var r0: CGFloat = 0; var g0: CGFloat = 0; var b0: CGFloat = 0; var a0: CGFloat = 0
         UIColor(base).getRed(&r0, green: &g0, blue: &b0, alpha: &a0)
         return Color(red: Double(r0) * 0.3 + 0.7,
                      green: Double(g0) * 0.3 + 0.7,
                      blue: Double(b0) * 0.3 + 0.7,
-                     opacity: Double(a0) * 0.3 + 0.7)
+                     opacity: Double(a0))
     }
 
     /// 亮带宽度（单位 = 视图宽）。0.3×字宽：经典版 0.56 在宽胶囊正常、在窄文字
@@ -47,19 +50,18 @@ enum ShimmerStyle {
     /// 渐变跨度（单位 = 视图宽）：端点延伸到视图外，亮带从左外扫到右外、两端无硬切。
     static let span: CGFloat = 1.5
 
-    /// 扫光渐变：暗处 = 不透明 base 色（文字全程完整可见），亮处 = 半透明峰色
-    /// （浅色模式文字变浅 =「亮带掠过」）。亮带只占渐变中段 bandWidth/span → 0.3×字宽。
-    static func sweepGradient(base: Color, peakOpacity: CGFloat) -> Gradient {
-        let peakColor = peak(base)
+    /// 亮带 mask（[v10.1] 只用于 peak 副本）：透明底 + 中段不明白带。
+    /// lo→0.5→hi 三角过渡，带外全透明 = base 层原样显示。
+    static func bandMask() -> Gradient {
         let bandFrac = bandWidth / span
         let lo = 0.5 - bandFrac / 2
         let hi = 0.5 + bandFrac / 2
         return Gradient(stops: [
-            .init(color: base, location: 0),
-            .init(color: base, location: lo),
-            .init(color: peakColor.opacity(Double(peakOpacity)), location: 0.5),
-            .init(color: base, location: hi),
-            .init(color: base, location: 1),
+            .init(color: .clear, location: 0),
+            .init(color: .clear, location: lo),
+            .init(color: .white, location: 0.5),
+            .init(color: .clear, location: hi),
+            .init(color: .clear, location: 1),
         ])
     }
 }
@@ -70,9 +72,6 @@ struct SweepTextShimmerModifier: ViewModifier {
     var base: Color
     /// 一个完整循环时长（对齐经典版 ShimmerOverlay 的 2.8s）。
     var period: Double = 2.8
-    /// 可见度：浅 0.75 / 深 0.25（对齐经典版 peakOpacity）。
-    @Environment(\.colorScheme) private var colorScheme
-    private var peakOpacity: CGFloat { colorScheme == .light ? 0.75 : 0.25 }
 
     func body(content: Content) -> some View {
         // TimelineView 相位驱动：纯时间函数，无 @State 无事务 —— cell 宿主的
@@ -80,16 +79,22 @@ struct SweepTextShimmerModifier: ViewModifier {
         TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
             let phase = Self.phase(timeline.date.timeIntervalSinceReferenceDate, period: period)
             let span = ShimmerStyle.span
-            // 渐变映射区间 [startX, startX+span]：phase 0→1 时从左外扫到右外。
+            // mask 映射区间 [startX, startX+span]：phase 0→1 时亮带从左外扫到右外。
             let startX = -span + phase * (1 + span)
-            content
-                .foregroundStyle(
-                    LinearGradient(
-                        gradient: ShimmerStyle.sweepGradient(base: base, peakOpacity: peakOpacity),
-                        startPoint: UnitPoint(x: startX, y: 0.5),
-                        endPoint: UnitPoint(x: startX + span, y: 0.5)
+            ZStack(alignment: .leading) {
+                content
+                content
+                    .foregroundStyle(ShimmerStyle.peak(base))
+                    .mask(
+                        LinearGradient(
+                            gradient: ShimmerStyle.bandMask(),
+                            startPoint: UnitPoint(x: startX, y: 0.5),
+                            endPoint: UnitPoint(x: startX + span, y: 0.5)
+                        )
                     )
-                )
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
         }
     }
 
@@ -100,8 +105,8 @@ struct SweepTextShimmerModifier: ViewModifier {
 }
 
 extension View {
-    /// Claude 文字扫光 [v10 统一版]：2.8s 一圈、亮带 0.3×字宽、左→右。
-    /// sheet 标题与聊天流 cell 共用同一 Timeline 驱动实现（两端都能动）。
+    /// Claude 文字扫光 [v10.1 mask 分层版]：2.8s 一圈、亮带 0.3×字宽、左→右。
+    /// sheet 标题与聊天流 cell 共用同一实现。
     /// ⚠️ 调用方都不传 period → **默认值必须与 SweepTextShimmerModifier 的一致**，
     /// 否则改结构体的默认值不生效（v5 踩点）。
     func sweepShimmer(base: Color, period: Double = 2.8) -> some View {
