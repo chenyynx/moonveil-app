@@ -576,3 +576,14 @@ pp 拍板：完全 Grok 式（聊天内 thinking=入口行零展开）、阶段�
 - **回归**: 入口行点击开浮层（列表/纯思考两形态）/ 详情 push/pop / 返回钮关闭 / 原生栏隐藏与恢复 / 聊天页滚动输入不受影响 / classic 皮肤不受影响（浮层仅 New 皮肤路径）。
 - **死隔离申报**: ①两端=AIChatView 本机+远端共用容器，只改「浮层展示宿主与顶栏可见性」，两端同行为（预期）；数据/会话/工具流/事件源零改动。②共享 gate=不触导航栈状态机（toolbar 可见性为声明式开关）；转场/内容语义未动。③官方等价物=toolbar(Visibility) 系统原生 API；宿主=既有屏幕级 ZStack 结构。④回归项=两端如上。
 - **装机重点验证**: 原生栏隐藏/恢复（本机制首次启用）；浮层顶部留白观感（59 基于 topSafeAreaInset 常态值）；翻页速度/曲线如需微调在 0.28s 一处。
+- [2026-09-18 三改] ⤴ 本方案已被 **AGG-SHEET-RETURN** 取代（pp 拍板回原生 sheet）；留档备查。
+
+
+### AGG-SHEET-RETURN — 汇聚页回归原生 sheet（Claude 1:1，2026-09-18 pp 拍板「1:1复刻修改…用原生的东西」）
+- **Files**: `src/ios/Views/Chat/AIChatView.swift`（撤回全屏 overlay → `.sheet(item:)` 原生从下弹起；删 nav 栏隐藏与 topInset 传参）+ `src/ios/Views/Chat/ToolActivity/ThinkingDetailOverlay.swift`（删 topInset；头部返回钮 → X 关闭钮；行尾 chevron 收窄；运行中图标改点）。
+- **依据**: pp 参考图 photo_32363DEB（Summary sheet：系统抓条 / 左上白圆底 X / 居中标题 / 时间线列表 / 底部 Thinking… 灰点行）+ photo_3F81BF3F（详情：白圆底 < 返回 + 左标题 + Input/Output 代码卡）+ pp 字面流程「从下弹起 → 汇聚页 → 有输出的点进去 → 切页从右滑出新页」。
+- **规格（逐像素实测）**: sheet 顶边 ≈0.69 屏高 → `presentationDetents([.fraction(0.69), .large], selection:)`（钉住防横跳）+ `.presentationDragIndicator(.visible)`（系统抓条）；头部行心 ≈38pt 距顶（44pt 白圆钮 → 上内距 16）；chevron 仅「有输出/运行中的工具行」（思考行保留可点、无箭头）；运行中当前项 = 普通灰点 7.3pt（撤 CometSpinner 展示）。
+- **supersede**: 取代 AGG-OVERLAY-HOST（ffee261：屏幕级宿主 + 全屏 move(.trailing) + nav 栏隐藏 + topInset）。详情页保留 sheet 内 ZStack 从右切页（c30c2e6）。
+- **回归**: 入口行点开（完成/运行中）/ 纯思考全文 / 详情 push/返回 / X 与下拉两种关闭 / detent 拖动防横跳 / classic 皮肤零影响。
+- **死隔离申报**: 仅 New 皮肤汇聚页路径；数据/会话/工具流零改动；自绘面缩小（回系统 sheet/grabber/detents/dimming）。
+- **待装机**: ①标题文案保留动态版（思考结果/Thought for Ns/Thinking…），参考图为固定 "Summary"——要 1:1 固定词说一声；②运行中灰点若 Claude 实为脉冲动画，可一行加。

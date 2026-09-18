@@ -622,9 +622,9 @@ struct AIChatView: View {
                         .capsuleProtectedFrame("inputBar")
                         inputPopupOverlay
                             .padding(.bottom, inputBarHeight)
-                            // 汇聚页翻页浮层原挂载点在此（弹出菜单容器，空闲时 0 尺寸，
-                            // 浮层会被压到屏幕左下）。已移至 body 根 ZStack 全屏宿主
-                            // （见 kernelBootOverlay 之后）；通知接收仍留在这里。
+                            // [pp 09-18 三改] 汇聚页回原生 sheet（从下弹起）——由本视图
+                            // 链上的原生 sheet 呈现（导航栏修饰符下方）；通知接收留
+                            // 在这里（toolActivityDetail 状态属本视图）。
                             .onReceive(
                                 NotificationCenter.default.publisher(for: .toolActivityDetailRequested)
                                     .receive(on: DispatchQueue.main)
@@ -632,7 +632,7 @@ struct AIChatView: View {
                                 guard let seg = note.userInfo?["segment"] as? TurnActivitySegment,
                                       let mid = note.userInfo?["messageId"] as? UUID,
                                       vm.messages.contains(where: { $0.id == mid }) else { return }
-                                withAnimation(.easeOut(duration: 0.28)) { // [pp 09-18] 翻页推入
+                                withAnimation(.easeOut(duration: 0.28)) { // [pp 09-18 三改] 原生 sheet 从下弹起
                                     toolActivityDetail = ToolActivityDetailContext(messageId: mid, segment: seg)
                                 }
                             }
@@ -705,27 +705,6 @@ struct AIChatView: View {
 
             // Full-screen kernel boot overlay
             kernelBootOverlay
-
-            // [pp 09-18 修复] 汇聚页翻页浮层 — 屏幕级宿主。原挂在输入框上方的
-            // 弹出菜单容器上：该容器空闲时 0 尺寸，浮层被压成一小块、滑入后
-            // 停在屏幕左下（装机截图实证）。移到这里恢复「全屏、从右推入/右滑出」。
-            if let ctx = toolActivityDetail,
-               let msg = vm.messages.first(where: { $0.id == ctx.messageId }) {
-                ThinkingDetailOverlay(
-                    message: msg,
-                    segment: ctx.segment,
-                    isActiveMessage: vm.isProcessing,
-                    topInset: topSafeAreaInset
-                ) {
-                    withAnimation(.easeOut(duration: 0.28)) {
-                        toolActivityDetail = nil
-                    }
-                }
-                .frame(width: UIScreen.main.bounds.width)
-                .ignoresSafeArea()
-                .transition(.move(edge: .trailing))
-                .zIndex(50)
-            }
         }
         .background(ChatColors.background)
         .onDrop(of: [.image, .movie, .fileURL, .data], isTargeted: $isDropTargeted) { providers in
@@ -744,9 +723,23 @@ struct AIChatView: View {
         .environment(\.chatSessionId, vm.sessionId)
         .modifier(NavBarStyleModifier(topSafeAreaInset: $topSafeAreaInset))
         .navigationBarTitleDisplayMode(.inline)
-        // [pp 09-18 修复] 浮层打开期间隐藏本页原生导航栏（浮层自带返回钮；
-        // 原生返回 = pop 会话，语义冲突）；关闭浮层后自动恢复。
-        .toolbar(toolActivityDetail == nil ? Visibility.visible : Visibility.hidden, for: .navigationBar)
+        // [pp 09-18 三改] 汇聚页 = 原生 sheet（Claude photo_32363DEB 参考：从下
+        // 弹起 + 系统抓条 + 左上白圆底 X + 居中标题）。detent 初始 0.69（参考图
+        // 顶边实测）、selection 绑定钉住高度防流式重吸附；详情页仍在 sheet 内从右
+        // 切页。原生件申报：sheet / detents / grabber / dimming / 下拉关闭全由系统提供。
+        .sheet(item: $toolActivityDetail) { ctx in
+            if let msg = vm.messages.first(where: { $0.id == ctx.messageId }) {
+                ThinkingDetailOverlay(
+                    message: msg,
+                    segment: ctx.segment,
+                    isActiveMessage: vm.isProcessing
+                ) {
+                    toolActivityDetail = nil
+                }
+                .presentationDetents([.fraction(0.69), .large], selection: $sheetDetent)
+                .presentationDragIndicator(.visible)
+            }
+        }
         // [T-ios-navbar-toolbar-host] The ENTIRE toolbar now lives inside an
         // equatable-gated host child. Root cause of the mid-streaming "..."
         // menu refresh (4th attempt, this one from instrumentation): with
@@ -2880,7 +2873,9 @@ struct AIChatView: View {
         var id: String { "\(messageId.uuidString)-\(segment.anchorId.uuidString)" }
     }
     @State private var toolActivityDetail: ToolActivityDetailContext?
-    // [pp 09-18] detent 钉住状态随汇聚页改版（sheet→翻页 overlay）一并移除。
+    /// [pp 09-18 三改] 回原生 sheet：钉住当前 detent——流式更新改变内容高度时
+    /// 系统重吸附会让顶边横跳；selection 绑定后高度只随用户拖拽变化。
+    @State private var sheetDetent: PresentationDetent = .fraction(0.69)
     /// [ICON-SKIN-A] 图标随皮肤联动 observer（命令菜单/思考等级指示等 chrome）。
     @AppStorage("toolRenderStyle") private var renderStyleStorage: Int = ToolRenderStyle.new.rawValue
 

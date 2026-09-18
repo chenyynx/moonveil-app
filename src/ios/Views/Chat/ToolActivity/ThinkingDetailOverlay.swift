@@ -28,10 +28,7 @@ struct ThinkingDetailOverlay: View {
     @ObservedObject var message: ChatMessage
     let segment: TurnActivitySegment
     let isActiveMessage: Bool
-    /// [pp 09-18] sheet 改全屏翻页 overlay 后系统不再提供下拉关闭 → 头部返回钮回调。
-    /// [pp 09-18 修复] 浮层顶部预留：整体下移一个状态栏高度（刘海/灵动岛
-    /// 机型常态 59），列表头部与详情页头部共用同一处预留。
-    var topInset: CGFloat = 59
+    /// [pp 09-18 三改] 回原生 sheet：关闭走左上 X + 系统下拉关闭 → 回调。
     var onClose: (() -> Void)? = nil
 
     // [pp 09-18 装机 #117] 嵌套 NavigationStack 打爆外壳 stackNav → 详情页改
@@ -131,9 +128,6 @@ struct ThinkingDetailOverlay: View {
                     .zIndex(10)
             }
         }
-        // [pp 09-18 修复] 全屏浮层下移一个状态栏高度（见 topInset），
-        // 内容避开状态栏 / 灵动岛；背景仍随 padding 覆盖整屏。
-        .padding(.top, topInset)
         .background(Self.sheetBg)
     }
 
@@ -165,8 +159,8 @@ struct ThinkingDetailOverlay: View {
 
     @ViewBuilder
     private var header: some View {
-        // [pp 09-18] 翻页 overlay 无系统 grabber/下拉关闭 → 头部左上白圆底返回钮
-        // （与详情页 SummaryDetailHeader 同构）；标题保持居中 [32228f2 拍板]。
+        // [pp 09-18 三改] 回原生 sheet：头部左上白圆底 X 关闭钮（Claude
+        // photo_32363DEB 同构，行心距顶边 ~38pt）；标题保持居中 [32228f2 拍板]。
         ZStack {
             Group {
                 if isPureThinking, isSegmentRunning {
@@ -185,8 +179,8 @@ struct ThinkingDetailOverlay: View {
             if let onClose {
                 HStack {
                     Button(action: onClose) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .semibold))
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Color.primary)
                             .frame(width: 44, height: 44) // 热区 [同 Claude 白圆钮]
                             .background(Circle().fill(Color.white))
@@ -198,7 +192,7 @@ struct ThinkingDetailOverlay: View {
                 .padding(.leading, 16)
             }
         }
-        .padding(.top, 12)
+        .padding(.top, 16) // [pp 09-18 三改] 行心距顶 ~38pt（参考图实测）
     }
 
     // MARK: Summary 时间线列表 [Claude photo_7D322C95 实测：
@@ -264,13 +258,11 @@ struct ThinkingDetailOverlay: View {
                 Group {
                     switch item.kind {
                     case .thinking:
-                        if isCurrent {
-                            CometSpinner(size: 12, color: Self.mutedGray)
-                        } else {
-                            Circle()
-                                .fill(Self.mutedGray)
-                                .frame(width: 7.3, height: 7.3) // [Claude 实测圆点 7.3pt]
-                        }
+                        // [pp 09-18 三改] 运行中当前项 = 同款灰点（Claude
+                        // photo_32363DEB 底部 Thinking… 行实测）；文字仍灰。
+                        Circle()
+                            .fill(Self.mutedGray)
+                            .frame(width: 7.3, height: 7.3) // [Claude 实测圆点 7.3pt]
                     case .tool:
                         toolIcon(item.block)
                     }
@@ -284,7 +276,9 @@ struct ThinkingDetailOverlay: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 6)
 
-                if route != nil {
+                // [pp 09-18 三改] chevron 仅「有输出/运行中的工具行」（参考图：
+                // 思考行无箭头）；思考行保留点开全文（无箭头 affordance）。
+                if route != nil, case .tool = item.kind {
                     AppSymbol("chevron.right", size: 16)
                         .foregroundStyle(Self.mutedGray)
                 }
