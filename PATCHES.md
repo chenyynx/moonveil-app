@@ -721,3 +721,23 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **方法学留痕**: 微信桥不支持视频（只有一行占位字、CDN 是 AES 密文且 key 不落盘）→ **录屏存「文件」App 再当"文件"发**，桥走 file 链路自动解密落盘；再用 ffmpeg crop+rawvideo 抽灰度帧 + PIL 求"亮带质心"。注意 iPhone 录屏是 **VFR**（本次 58.3fps 且开头有重复帧），按帧号算周期会有偏差，精确值需按 pts_time 重采样。
 - **回归**: 聊天流 "Thinking" 行扫光 / 汇聚页标题扫光（同一 modifier 两处调用同受益）/ 静止态 = base 灰不变 / 深浅色峰色跟随 base / classic 皮肤零影响。
 - **验证**: 待装机（对照 App：同样是 2s 一圈、左→右、慢去快回）。
+
+### THINKING-TRIGGER-TOOLPATH — 「Thinking」在无思考流的模型下永不出现（CC，2026-09-18 pp：「明明都在做任务了、都在调用工具，有时候 thinking 都不出现」）
+
+- **File**: `src/ios/Views/Chat/ToolActivity/ToolActivityGroupView.swift`（判定属性 + 7 处引用重命名）。
+- **症状**: 点阵正常转、工具行正常长，但「Thinking」文字与秒数**整轮都不出现**（pp：点阵没问题，是这个判定有问题）。
+- **根因**: **thinking 块只在收到 `.thinkingDelta` 时创建**（`AIChatViewModel+SSEStream.swift` 该分支），这是 **Anthropic 系专有**概念。而「Thinking」文字/计时的判定 `thinkingHasStarted` 只看"thinking 块有没有内容" → 接 OpenAI/Gemini 等不出思考流的模型时该条件**恒为假**，整轮只显示点阵。pp 那台会话用的正是 `Atria Dawn Preview · OpenAI 2`。
+- **Fix**: `thinkingHasStarted` → **`workHasStarted`**：`!segment.toolIds.isEmpty`（工具已在跑 = 模型在干活）**或** 思考内容到达（双读 buffer，保留原逻辑）。计时起点随之 = 该条件首次成立的时刻——**等待模型响应那段仍不计入**（保持 09-18 的选择：点阵先行、"思考"从模型开始回应起算）。
+- **回归**: 纯文本回合（无 thinking 无工具）仍不显示该行（活动槽不成立）/ 等待响应阶段仍只有点阵 / 工具的段「Thinking」+秒数出现并持续到段结束 / 完成态入口行与摘要 fallback（`thinkingHeadline ?? lastToolSummary ?? 思考结果`）不变 / classic 皮肤零影响。
+- **验证**: 待装机（用无思考流的模型发一个会调工具的任务 → 「Thinking」与秒数应随第一个工具调用出现，不再是"只有点阵"）。
+
+### TEXT-ESTIMATE-CJK — 中文段落高度估算少一半（「点阵行贴到上一条正文」的根因）（CC，2026-09-18 pp 装机两张截图）
+
+- **File**: `src/ios/Agent/MessageList/CollectionViewMessageListV3.swift`（+45/−2：`unitsPerLine` + `widthUnits` + `isFullWidth`）。
+- **症状**: 流式期间，正文段落最后一行下面**紧贴**着活动槽的点阵行（间距被吃掉），同屏工具行间距正常；**滑出聊天页再进来就恢复**（pp 12:59 / 13:00 两张截图同款）。
+- **根因**: `estimateTextBlockHeight` 的 `cpl = tw / (scale * 0.5)` 假设**平均字宽 = 0.5×字号**（拉丁字母均值），而中文/日文/韩文每字 ≈ **1×字号** → **中文段落行数被低估约一半**，高度估小约一行。实测对照（pp 截图那段中文）：实际 3 行 ≈ 71pt vs 估算 2 行 ≈ 48pt，**差 22pt = 正好一行**。下一格（活动槽的锚点格）按这个少了 22pt 的高度落位 → 压进段落溢出区 =「贴上去」。
+  - **为什么"滑出再进就正常"**：流式期间 markdown 未缓存，走的正是这条粗估；缓存之后走 `SelectableMarkdownView.ctFramesetterHeight`（±1pt）→ 高度对了、位置就对了。
+  - **旁证**：同文件 3804 行注释早已记录同款症状（user 气泡分支："a 3-line message estimated as 2 lines"），当时靠"改用精确测量"绕开、**估算函数本身没修**；assistant 文本块在流式期没有 cachedAttributedString 可测，走的还是它。
+- **Fix**: 字符按类型折算宽度（全角 1.0 / 半角 0.5），`unitsPerLine = max(1, tw / scale)`；行数 = `ceil(units / unitsPerLine)`。纯 ASCII 段落行为不变（旧式 = 全半角各半时的特例）。
+- **回归**: 表格 / 代码块 / 图片 / 引用分支不动 · 估算只作用于流式期与离屏预取，settle 后仍以实测为准 · classic 与新皮肤同用此估算（两边都受益）· 不改变任何渲染宽度或字号。
+- **验证**: 待装机（中文长段落流式回复时，段落与点阵行之间应保持正常间距，无需滑出重进）。

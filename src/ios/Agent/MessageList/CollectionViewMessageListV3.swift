@@ -3916,7 +3916,14 @@ extension CollectionViewMessageListV3 {
             guard !content.isEmpty else { return 0 }
             let hPad: CGFloat = 80
             let tw = max(width - hPad, 100)
-            let cpl = tw / (scale * 0.5)
+            // [pp 09-18 装机：点阵行贴到上一条正文] 每行能放多少个"全角宽"字符。
+            // 原实现 `tw / (scale * 0.5)` 假设平均字宽 = 0.5×字号（拉丁字母均值），
+            // 而中文/日文/韩文每字 ≈ 1×字号 → **中文段落行数被低估约一半**，高度估小
+            // 约一行（16pt 档 ≈ 22pt）→ 下一格（活动槽的点阵）按旧高度落位、压进段落
+            // 的溢出区 =「点阵贴到上一条正文」。
+            // 为什么"滑出再进就正常"：流式期间 markdown 未缓存，走的正是这条粗估；
+            // 缓存之后走 CTFramesetter 精确测量（±1pt）→ 高度对了位置就对了。
+            let unitsPerLine = max(1, tw / scale)
             var total: CGFloat = 4
 
             let lines = content.split(separator: "\n", omittingEmptySubsequences: false)
@@ -3984,8 +3991,8 @@ extension CollectionViewMessageListV3 {
                 if trimmed.isEmpty {
                     total += lineHeight * 0.5
                 } else {
-                    let charCount = CGFloat(trimmed.count)
-                    let wrappedLines = max(1, ceil(charCount / cpl))
+                    let units = Self.widthUnits(trimmed)
+                    let wrappedLines = max(1, ceil(units / unitsPerLine))
                     total += wrappedLines * lineHeight
                 }
                 i += 1
@@ -4002,6 +4009,38 @@ extension CollectionViewMessageListV3 {
             // out ~4pt short and SwiftUI clipped the bubble's .padding(.vertical, 2),
             // so the text looked glued to the bubble edges until a real measure ran.
             return max(total, lineHeight + 4) + 4
+        }
+
+        /// 文本的"宽度单位"数（单位 = 字号）：全角字符 1.0、其余 ≈ 0.5。
+        /// 配合 `unitsPerLine` 把字符数换算成"占几行"。见 estimateTextBlockHeight 顶部注释。
+        private static func widthUnits(_ text: String) -> CGFloat {
+            var units: CGFloat = 0
+            for scalar in text.unicodeScalars {
+                units += Self.isFullWidth(scalar) ? 1.0 : 0.5
+            }
+            return units
+        }
+
+        /// 全角判定（按 Unicode 区块，够用即可）：CJK 统一表意及扩展区、假名、韩文、
+        /// CJK 标点与兼容形式、全角 ASCII 变体。半角拉丁/数字/ASCII 标点 → false。
+        private static func isFullWidth(_ s: Unicode.Scalar) -> Bool {
+            switch s.value {
+            case 0x1100...0x115F,   // 韩文字母
+                 0x2E80...0x303E,   // CJK 部首 / 康熙部首 / CJK 符号与标点
+                 0x3041...0x33FF,   // 平假名 / 片假名 / 注音 / CJK 兼容
+                 0x3400...0x4DBF,   // CJK 扩展 A
+                 0x4E00...0x9FFF,   // CJK 统一表意
+                 0xA000...0xA4CF,   // 彝文
+                 0xAC00...0xD7A3,   // 韩文音节
+                 0xF900...0xFAFF,   // CJK 兼容表意
+                 0xFE30...0xFE4F,   // CJK 兼容形式
+                 0xFF00...0xFF60,   // 全角 ASCII 变体
+                 0xFFE0...0xFFE6,   // 全角符号
+                 0x20000...0x3FFFD: // CJK 扩展 B 及以上
+                return true
+            default:
+                return false
+            }
         }
 
         /// Estimate height for a Markdown image line by checking the image cache.

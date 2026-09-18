@@ -49,12 +49,18 @@ struct ToolActivityGroupView: View {
     }
 
     private var running: Bool { !segment.isDone }
-    /// 模型实际开始思考 = 该段任一 thinking 块已有流式内容 [pp 09-18：
-    /// 「Thinking」文字与计时在此刻出现/起算；此前只有点阵动画]。
+    /// 该段是否"已经在干活"——「Thinking」文字与计时出现/起算的判定 [pp 09-18 二改]。
+    /// 上游 09-18 版只看 thinking 块有没有内容；但 **thinking 块只在收到 `.thinkingDelta`
+    /// 时创建**（SSEStream.swift 该分支），那是 Anthropic 系专有——接 OpenAI/Gemini 等
+    /// 不出思考流的模型时该条件恒为假：点阵在转、工具行在长，「Thinking」与秒数却永不
+    /// 出现（pp 装机：「明明都在做任务了、都在调用工具，有时候 thinking 都不出现」）。
+    /// 故补上"工具已在跑"这一路：工具调用一出现就证明模型在干活。
+    /// 计时起点 = 本条件首次成立的时刻（等待模型响应那段仍不计入 [09-18 决定]）。
     /// [pp 09-18 根因①判定双读] 流式增量只写 thinkingContentBuffer（非 @Published），
     /// @Published content 要等节流 flush（0.3~1.5s 自适应）才落地——双读消除该滞后。
-    private var thinkingHasStarted: Bool {
-        segment.thinkingIds.contains { id in
+    private var workHasStarted: Bool {
+        if !segment.toolIds.isEmpty { return true } // 已在调工具 = 在干活（无 thinking 块的模型走这里）
+        return segment.thinkingIds.contains { id in
             guard let b = message.blocks.first(where: { $0.id == id }) else { return false }
             return !b.content.isEmpty || !b.thinkingContentBuffer.isEmpty
         }
@@ -114,7 +120,7 @@ struct ToolActivityGroupView: View {
             // 后续增删走 onChange 显式事务。
             carouselIds = eventBlocks.map(\.id)
         }
-        .onChange(of: thinkingHasStarted) { _ in
+        .onChange(of: workHasStarted) { _ in
             // [pp 09-18] 首个思考内容到达那一刻起表 + 「Thinking」/计时出现动画
             // + 触屏反馈（与发送消息同款轻档；Claude app 无公开逆向，装机对比可调）。
             // [pp 09-18 触感修复] 真事件路径 → haptic: true。
@@ -134,7 +140,7 @@ struct ToolActivityGroupView: View {
         }
         // [pp 09-18 根因①] thinking block flush 传导：flush 只发
         // AssistantBlock.objectWillChange，本视图只订阅 message（blocks 数组是引用，
-        // 引用不变 → message 不发通知）→ thinkingHasStarted 没有重估时机 → 文字
+        // 引用不变 → message 不发通知）→ workHasStarted 没有重估时机 → 文字
         // 永不出现。watcher 显式订阅段内首个 thinking block（flush 时发，0.3~1.5s）。
         .overlay {
             ThinkingFlushWatcher(
@@ -291,7 +297,7 @@ struct ToolActivityGroupView: View {
     // MARK: Helpers
 
     /// [pp 09-18] 思考开始的统一置位入口（幂等，三路汇合）：
-    /// ① onChange(of: thinkingHasStarted)——segment/message 变化路径；
+    /// ① onChange(of: workHasStarted)——segment/message 变化路径；
     /// ② ThinkingFlushWatcher——thinking block flush 路径（content 落地即重估）；
     /// ③ onAppear——cell 重建后补查路径（@State 重置，onChange 不触发 true→true）。
     ///
@@ -301,7 +307,7 @@ struct ToolActivityGroupView: View {
     /// "点进聊天页就震"。状态置位三路照旧（断的是 @State，不是事实），
     /// 触感收进 `haptic`，只有 ①② 传 true。
     private func markThinkingStartedIfNeeded(haptic: Bool) {
-        guard !textAppeared, thinkingHasStarted else { return }
+        guard !textAppeared, workHasStarted else { return }
         withAnimation(.easeOut(duration: 0.34)) { textAppeared = true }
         if haptic { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
         ensureStarted()
@@ -310,7 +316,7 @@ struct ToolActivityGroupView: View {
     private func ensureStarted() {
         // [pp 09-18] 计时起点 = 思考实际开始（首个思考内容到达），不再从发送
         // 时刻接力（启动槽已不再 seed）——等待响应不计入思考时长。
-        guard thinkingHasStarted else { return }
+        guard workHasStarted else { return }
         if startedAt == nil {
             if let cached = Self.startCache[segment.anchorId] {
                 startedAt = cached
@@ -329,7 +335,7 @@ struct ToolActivityGroupView: View {
 /// 数据流：SSE delta → thinkingContentBuffer（非 @Published，零通知）→ 节流 flush
 /// → @Published content（发 AssistantBlock.objectWillChange）。本视图只订阅
 /// message，而 blocks 数组持有的是引用、引用不变 → message 永不发通知 → 没有
-/// watcher 时 thinkingHasStarted 在纯思考阶段没有任何重估时机（「明明在写但只有
+/// watcher 时 workHasStarted 在纯思考阶段没有任何重估时机（「明明在写但只有
 /// 点阵」的根因）。block 实例稳定 → publisher 实例稳定 → onReceive 不重复订阅；
 /// flush 频率 0.3~1.5s，成本可忽略。零尺寸不参与布局。
 /// [pp 09-18] 由 ToolActivityGroupView 与 ThinkingDetailOverlay（汇聚页思考详情）
