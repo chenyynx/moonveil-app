@@ -29,6 +29,9 @@ struct ThinkingDetailOverlay: View {
     let segment: TurnActivitySegment
     let isActiveMessage: Bool
     /// [pp 09-18] sheet 改全屏翻页 overlay 后系统不再提供下拉关闭 → 头部返回钮回调。
+    /// [pp 09-18 修复] 浮层顶部预留：整体下移一个状态栏高度（刘海/灵动岛
+    /// 机型常态 59），列表头部与详情页头部共用同一处预留。
+    var topInset: CGFloat = 59
     var onClose: (() -> Void)? = nil
 
     // [pp 09-18 装机 #117] 嵌套 NavigationStack 打爆外壳 stackNav → 详情页改
@@ -128,6 +131,9 @@ struct ThinkingDetailOverlay: View {
                     .zIndex(10)
             }
         }
+        // [pp 09-18 修复] 全屏浮层下移一个状态栏高度（见 topInset），
+        // 内容避开状态栏 / 灵动岛；背景仍随 padding 覆盖整屏。
+        .padding(.top, topInset)
         .background(Self.sheetBg)
     }
 

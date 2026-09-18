@@ -622,31 +622,9 @@ struct AIChatView: View {
                         .capsuleProtectedFrame("inputBar")
                         inputPopupOverlay
                             .padding(.bottom, inputBarHeight)
-                            // [C3] New-skin 汇聚页 — single host for local +
-                            // remote sessions (AIChatView owns both) [H5].
-                            // 2026-09-18 pp 改判：弹出动画要「翻页」（Grok 详情页形态：
-                            // 全屏、从右推入/右滑出）→ 弃 sheet 上滑，改全屏 overlay +
-                            // move(edge: .trailing) 转场。原生等价物已穷尽：sheet/
-                            // fullScreenCover 无自定义转场 API；外层聊天流是 VC 列表
-                            // 非 NavigationStack 容器，迁栈 = 大手术。关闭走头部返回钮。
-                            .overlay(alignment: .trailing) {
-                                if let ctx = toolActivityDetail,
-                                   let msg = vm.messages.first(where: { $0.id == ctx.messageId }) {
-                                    ThinkingDetailOverlay(
-                                        message: msg,
-                                        segment: ctx.segment,
-                                        isActiveMessage: vm.isProcessing
-                                    ) {
-                                        withAnimation(.easeOut(duration: 0.28)) {
-                                            toolActivityDetail = nil
-                                        }
-                                    }
-                                    .frame(width: UIScreen.main.bounds.width)
-                                    .ignoresSafeArea()
-                                    .transition(.move(edge: .trailing))
-                                    .zIndex(50)
-                                }
-                            }
+                            // 汇聚页翻页浮层原挂载点在此（弹出菜单容器，空闲时 0 尺寸，
+                            // 浮层会被压到屏幕左下）。已移至 body 根 ZStack 全屏宿主
+                            // （见 kernelBootOverlay 之后）；通知接收仍留在这里。
                             .onReceive(
                                 NotificationCenter.default.publisher(for: .toolActivityDetailRequested)
                                     .receive(on: DispatchQueue.main)
@@ -727,6 +705,27 @@ struct AIChatView: View {
 
             // Full-screen kernel boot overlay
             kernelBootOverlay
+
+            // [pp 09-18 修复] 汇聚页翻页浮层 — 屏幕级宿主。原挂在输入框上方的
+            // 弹出菜单容器上：该容器空闲时 0 尺寸，浮层被压成一小块、滑入后
+            // 停在屏幕左下（装机截图实证）。移到这里恢复「全屏、从右推入/右滑出」。
+            if let ctx = toolActivityDetail,
+               let msg = vm.messages.first(where: { $0.id == ctx.messageId }) {
+                ThinkingDetailOverlay(
+                    message: msg,
+                    segment: ctx.segment,
+                    isActiveMessage: vm.isProcessing,
+                    topInset: topSafeAreaInset
+                ) {
+                    withAnimation(.easeOut(duration: 0.28)) {
+                        toolActivityDetail = nil
+                    }
+                }
+                .frame(width: UIScreen.main.bounds.width)
+                .ignoresSafeArea()
+                .transition(.move(edge: .trailing))
+                .zIndex(50)
+            }
         }
         .background(ChatColors.background)
         .onDrop(of: [.image, .movie, .fileURL, .data], isTargeted: $isDropTargeted) { providers in
@@ -745,6 +744,9 @@ struct AIChatView: View {
         .environment(\.chatSessionId, vm.sessionId)
         .modifier(NavBarStyleModifier(topSafeAreaInset: $topSafeAreaInset))
         .navigationBarTitleDisplayMode(.inline)
+        // [pp 09-18 修复] 浮层打开期间隐藏本页原生导航栏（浮层自带返回钮；
+        // 原生返回 = pop 会话，语义冲突）；关闭浮层后自动恢复。
+        .toolbar(toolActivityDetail == nil ? Visibility.visible : Visibility.hidden, for: .navigationBar)
         // [T-ios-navbar-toolbar-host] The ENTIRE toolbar now lives inside an
         // equatable-gated host child. Root cause of the mid-streaming "..."
         // menu refresh (4th attempt, this one from instrumentation): with

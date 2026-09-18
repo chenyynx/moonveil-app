@@ -568,3 +568,11 @@ pp 拍板：完全 Grok 式（聊天内 thinking=入口行零展开）、阶段�
 - 覆盖: photo_25B6FFE9 初版（252°→186° 弧 / 递进三点 2.5-1.9-1.4 / 线宽 2.0）——以新版拟合为准。
 - 颜色: 不变（调用点 headlineGray #7A7974 暖灰）。
 - 回归: 入口行时钟灰/16pt 不变；形状对照 photo_8E721157 装机并排；classic/new 皮肤同路径（无皮肤分支）。
+
+### AGG-OVERLAY-HOST — 汇聚页翻页浮层宿主修复（2026-09-18，pp 装机截图「弹出来的动画是这样的」）
+- **Files**: `src/ios/Views/Chat/AIChatView.swift`（浮层挂载点迁移 + toolbar 可见性 + topInset 传参）、`src/ios/Views/Chat/ToolActivity/ThinkingDetailOverlay.swift`（topInset 属性 + 整体下移预留）。
+- **根因**: 浮层原挂 `inputPopupOverlay.padding(.bottom, inputBarHeight)`（斜杠/提及弹出菜单容器；空闲时 0 尺寸）。`.overlay(alignment:.trailing)` 下浮层以「容器 trailing 边 = 屏幕中线、容器高 ≈ 输入栏高」落位 → 整页被压成 ≈393×147pt 板块，从右滑入后停在屏幕左下 [0..196]×[705..852]pt（与 pp 截图逐像素吻合）。`move(edge:.trailing)` 转场本身正确，**宿主尺寸错**才是病灶（#117 跳转 bug 掩盖了它，c30c2e6 修复后首次真正可见）。
+- **Fix**: ①挂载点移到 body 根 ZStack（kernelBootOverlay 同级，屏幕级宿主）→ 恢复「全屏、从右推入/右滑出」；②`topInset`（承接 `topSafeAreaInset`，刘海/灵动岛机型常态 59）整体下移，列表头部与详情页头部共用一处预留；③浮层打开期间隐藏本页原生导航栏（浮层自带返回钮；原生返回 = pop 会话，语义冲突），关闭自动恢复。
+- **回归**: 入口行点击开浮层（列表/纯思考两形态）/ 详情 push/pop / 返回钮关闭 / 原生栏隐藏与恢复 / 聊天页滚动输入不受影响 / classic 皮肤不受影响（浮层仅 New 皮肤路径）。
+- **死隔离申报**: ①两端=AIChatView 本机+远端共用容器，只改「浮层展示宿主与顶栏可见性」，两端同行为（预期）；数据/会话/工具流/事件源零改动。②共享 gate=不触导航栈状态机（toolbar 可见性为声明式开关）；转场/内容语义未动。③官方等价物=toolbar(Visibility) 系统原生 API；宿主=既有屏幕级 ZStack 结构。④回归项=两端如上。
+- **装机重点验证**: 原生栏隐藏/恢复（本机制首次启用）；浮层顶部留白观感（59 基于 topSafeAreaInset 常态值）；翻页速度/曲线如需微调在 0.28s 一处。
