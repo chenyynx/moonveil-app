@@ -52,22 +52,20 @@ struct SweepTextShimmerModifier: ViewModifier {
     private var peakOpacity: CGFloat { colorScheme == .light ? 0.75 : 0.25 }
 
     func body(content: Content) -> some View {
-        // [v7 09-18 全链路审查 · 对齐经典版卡片扫光] pp：「经典版的卡片都有扫光」——
-        // AssistantBlockView.ShimmerOverlay 在聊天流 cell 里能正常显示，它靠的是：
-        //   ① 稳定渐变 stops（一次构建，不每帧重建——注释明说每帧重建会踩
-        //      CAGradientLayer colorspace teardown race）；② withAnimation(.repeatForever)
-        //      驱动 offset（不是 TimelineView 每帧重建 body）；③ GeometryReader 同步读
-        //      尺寸（不走 onPreferenceChange 回传——那是 v2 跳变的根因）；④ .clipped()。
-        // 我此前 v3~v6 反复在「弃 withAnimation / 用 mask / TimelineView 每帧重建渐变」
-        // 之间绕，唯独没对齐这套已验证可靠的机制（v6 每帧重建渐变恰恰踩了注释警告的坑）。
-        // v7 照 ShimmerOverlay 同款：峰色光带（稳定 bell 渐变，可见度=经典版 peakOpacity）
-        // 用 withAnimation offset 扫过文字。可见度/频率也跟经典版一致（0.75/0.25、2.8s）。
-        GeometryReader { geo in
-            let w = geo.size.width
-            let bandW = max(w * 0.5, 28)              // 亮带宽（App 实测 ≈ 文字宽一半）
-            let travel = w / 2 + bandW / 2 + 4        // 带中心：左缘外 ⇄ 右缘外
-            content                                  // 底层 base 文字
-                .overlay(
+        // [v8 09-18 严重 bug 修复] v7 把 GeometryReader 放在**最外层**(直接包 content):
+        // GR 是 greedy 的,挂在标题/单行文字上会被父容器(ZStack/sheet)拉伸 →
+        // ①光带 height = 拉伸后高度 →「思考结果」sheet 出现一条跨全屏的大竖渐变带
+        // (pp 截图);②content(Text)被 GR 的 topLeading 放置,标题布局被破坏。
+        // 经典版 ShimmerOverlay 敢用最外层 GR,是因为它挂在「本来就要填满的卡片」上;
+        // sweepShimmer 挂在自然尺寸的文字上,GR 必须放进 overlay —— overlay 的
+        // proposal = content 实际尺寸,GR 填满它 = 量到真实尺寸,且不影响 content 布局。
+        // 机制保持 v7(稳定 bell stops + withAnimation repeatForever 驱动 offset + clipped)。
+        content
+            .overlay {
+                GeometryReader { geo in
+                    let w = geo.size.width
+                    let bandW = max(w * 0.5, 28)              // 亮带宽(App 实测 ≈ 文字宽一半)
+                    let travel = w / 2 + bandW / 2 + 4        // 带中心：左缘外 ⇄ 右缘外
                     LinearGradient(
                         stops: Self.shimmerStops(base: base, peakOpacity: peakOpacity),
                         startPoint: .leading, endPoint: .trailing
@@ -75,14 +73,14 @@ struct SweepTextShimmerModifier: ViewModifier {
                     .frame(width: bandW, height: geo.size.height)
                     .offset(x: (CGFloat(progress) * 2 - 1) * travel)  // 0(左缘外)→1(右缘外)
                     .allowsHitTesting(false)
-                )
-        }
-        .clipped()
-        .onAppear {
-            withAnimation(.linear(duration: period).repeatForever(autoreverses: false)) {
-                progress = 1.0
+                }
             }
-        }
+            .clipped()
+            .onAppear {
+                withAnimation(.linear(duration: period).repeatForever(autoreverses: false)) {
+                    progress = 1.0
+                }
+            }
     }
 
     /// 扫光光带的稳定 stop 集（与 progress 无关，一次构建）：峰色 bell 分布——

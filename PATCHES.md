@@ -800,3 +800,13 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **范围**: 只换聊天区背景色(pp 明确);气泡/文字/输入栏不动。默认 = `ChatColors.background`(systemBackground),行为零变化。
 - **死隔离申报**: 呈现层-only(背景色/设置入口),不改消息数据/SSE/聚合器/agent 链路;@AppStorage 新 key 不与现有 key 冲突;切换不影响会话/布局。
 - **验证**: 待装机(设置 → Appearance → Chat Background = Claude → 回聊天区,浅色米白 #FCFCFB / 深色 #151515;切回默认=系统背景)。
+
+### SHIMMER-V8 — 严重 bug:外层 GeometryReader 被拉伸 →「思考结果」sheet 大竖渐变带(修复 v7 结构)(Doris, 2026-09-18 pp 截图:「思考闪光严重bug」)
+
+- **File**: `src/ios/Views/Chat/ToolActivity/ShimmerText.swift`(+21/−23:body 结构调整,机制不变)。
+- **症状**: 「思考结果」sheet 标题下方出现一条**跨全屏的大竖直渐变带**(pp 截图 photo_879CE548),标题布局同时被破坏。
+- **根因**: v7 把 `GeometryReader` 放在 modifier **最外层**(直接包 content)。GR 是 greedy 的——挂在「本来就要填满的卡片」上无害(经典版 ShimmerOverlay 正是这种宿主),但 sweepShimmer 挂在**自然尺寸的文字**(标题 Text / 单行 "Thinking")上时,GR 被父容器(ZStack/sheet)拉伸到远大于文字的尺寸:①光带 `height = geo.size.height` = 拉伸后高度 → 跨全屏竖带;②content(Text)被 GR 的 topLeading 放置 → 标题布局破坏。
+- **Fix(v8)**: GR 挪进 `.overlay { }` 内——overlay 的 proposal = content 实际尺寸,GR 填满它 = 量到真实尺寸,且 **overlay 不参与父布局、不影响 content frame**。光带高度 = 文字行高,恢复正确。机制保持 v7(稳定 bell stops + withAnimation repeatForever 驱动 offset + .clipped 裁缘外)。
+- **🔴 判例(可复用)**: **GeometryReader 直接包 content 会改变宿主布局**(GR greedy 吃满父 proposal,把自然尺寸的 content 拉伸/topLeading 放置);要「量 content 尺寸且不影响布局」,GR 必须放在 `.overlay { }`/`.background { }` 内(overlay 的 proposal = content 实际尺寸)。经典 ShimmerOverlay 的外层 GR 只对 fill 型宿主成立,不可照搬到自然尺寸文字上。
+- **死隔离申报**: 呈现层-only(扫光修饰器 body 结构);不改消息数据/SSE/聚合器;回归 = ①聊天流 "Thinking" 行扫光正常、布局不变 ②汇聚页标题扫光正常、标题居中恢复 ③思考结果 sheet 不再有大竖带 ④深浅色 peakOpacity 不变。
+- **验证**: 待装机。
