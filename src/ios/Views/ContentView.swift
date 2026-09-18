@@ -7496,6 +7496,21 @@ struct SettingsSheet: View {
                         }
                     }
                 }
+                Section("Preview") {
+                    NavigationLink {
+                        EffortSliderPreviewView()
+                    } label: {
+                        Label {
+                            Text("Ultracode Flame")
+                        } icon: {
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.white)
+                                .frame(width: 21, height: 21)
+                                .background(.orange, in: Circle())
+                        }
+                    }
+                }
     }
 
     @ViewBuilder private var settingsListStageB: some View {

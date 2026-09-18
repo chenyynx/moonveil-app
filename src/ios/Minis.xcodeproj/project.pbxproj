@@ -329,6 +329,11 @@
 		E5LD00002 /* ToolLoopDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5LD00003 /* ToolLoopDetector.swift */; };
 		E5LOCK001 /* SessionLockStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5LOCK101 /* SessionLockStore.swift */; };
 		E5LOCK002 /* FaceIDProtectionSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5LOCK102 /* FaceIDProtectionSettingsView.swift */; };
+		E5FIRE001 /* EffortCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5FIRE101 /* EffortCardView.swift */; };
+		E5FIRE002 /* FireCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5FIRE102 /* FireCanvasView.swift */; };
+		E5FIRE003 /* FireRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5FIRE103 /* FireRenderer.swift */; };
+		E5FIRE004 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = E5FIRE104 /* Shaders.metal */; };
+		E5FIRE005 /* EffortSliderPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5FIRE105 /* EffortSliderPreviewView.swift */; };
 		E5LOCK003 /* AppLockOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5LOCK103 /* AppLockOverlay.swift */; };
 		E5M000001 /* cmark-gfm in Frameworks */ = {isa = PBXBuildFile; productRef = E5M000021 /* cmark-gfm */; };
 		E5M000002 /* cmark-gfm-extensions in Frameworks */ = {isa = PBXBuildFile; productRef = E5M000022 /* cmark-gfm-extensions */; };
@@ -1105,6 +1110,11 @@
 		E5LD00003 /* ToolLoopDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolLoopDetector.swift; sourceTree = "<group>"; };
 		E5LOCK101 /* SessionLockStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionLockStore.swift; sourceTree = "<group>"; };
 		E5LOCK102 /* FaceIDProtectionSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceIDProtectionSettingsView.swift; sourceTree = "<group>"; };
+		E5FIRE101 /* EffortCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffortCardView.swift; sourceTree = "<group>"; };
+		E5FIRE102 /* FireCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FireCanvasView.swift; sourceTree = "<group>"; };
+		E5FIRE103 /* FireRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FireRenderer.swift; sourceTree = "<group>"; };
+		E5FIRE104 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
+		E5FIRE105 /* EffortSliderPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffortSliderPreviewView.swift; sourceTree = "<group>"; };
 		E5LOCK103 /* AppLockOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockOverlay.swift; sourceTree = "<group>"; };
 		E5M000013 /* MinisMarkdownParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinisMarkdownParser.swift; sourceTree = "<group>"; };
 		E5M000017 /* MarkdownRenderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderView.swift; sourceTree = "<group>"; };
@@ -2421,6 +2431,11 @@
 				E5SOUL102 /* SoulSettingsView.swift */,
 				E5LOCK102 /* FaceIDProtectionSettingsView.swift */,
 				E5LOCK103 /* AppLockOverlay.swift */,
+				E5FIRE101 /* EffortCardView.swift */,
+				E5FIRE102 /* FireCanvasView.swift */,
+				E5FIRE103 /* FireRenderer.swift */,
+				E5FIRE104 /* Shaders.metal */,
+				E5FIRE105 /* EffortSliderPreviewView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -3438,6 +3453,11 @@
 				E5SOUL002 /* SoulSettingsView.swift in Sources */,
 				E5LOCK002 /* FaceIDProtectionSettingsView.swift in Sources */,
 				E5LOCK003 /* AppLockOverlay.swift in Sources */,
+				E5FIRE001 /* EffortCardView.swift in Sources */,
+				E5FIRE002 /* FireCanvasView.swift in Sources */,
+				E5FIRE003 /* FireRenderer.swift in Sources */,
+				E5FIRE004 /* Shaders.metal in Sources */,
+				E5FIRE005 /* EffortSliderPreviewView.swift in Sources */,
 				E5N0000042F3B941A00049557 /* MemoryManagementView.swift in Sources */,
 				E5N0000052F3B941A00049557 /* SessionMemoryView.swift in Sources */,
 				E5N0000062F3B941A00049557 /* AlarmListView.swift in Sources */,
