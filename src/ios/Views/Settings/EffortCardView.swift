@@ -331,7 +331,6 @@ private struct EffortSlider: View {
                     .position(x: thumbCenterX, y: 15)
                     .allowsHitTesting(false)  // gestures handled by the layer above
             }
-        }
         .frame(height: 30)
     }
 }
