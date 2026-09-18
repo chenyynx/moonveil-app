@@ -50,14 +50,12 @@ enum ShimmerStyle {
 
 // MARK: - 统一扫光（sheet 标题 + 聊天流 cell 共用）
 
-/// [v11 09-19 CA 驱动亮带] v10.1（TimelineView 每帧移 SwiftUI mask 渐变）装机
-/// sheet 标题与聊天流**双双不可见**（pp 06:11 实机）——连同此前 sheet 上曾出过
-/// 灰块的记录，SwiftUI 侧"每帧重算渐变/mask"路线已两次证伪，按判例走 CA：
-/// 一个 UIView，其 mask 是 CAGradientLayer（clear→白→clear，亮带 0.3×宽），
-/// CABasicAnimation 平移 mask 层，repeatForever。CA 动画挂在 render server
-/// 独立时间线上，不经 SwiftUI 事务、不要求 body 重算——cell 宿主
-/// disablesAnimations 与 TimelineView 失效两种死法都绕开。
-/// 亮带几何（0.3×宽 / 1.5×跨度 / 2.8s 周期 / 左→右）沿用 v10 标定值。
+/// [v11.1 09-19 CA 画带版] v11（band 挂 layer.mask）装机不可见 = 构造性死：
+/// layer.mask 裁剪的是宿主自绘内容，宿主全透明无内容可裁，SwiftUI .mask() 读到的
+/// alpha 恒 0。v11.1 把 band 改为宿主的 **sublayer**（把白色渐变画出来），
+/// masksToBounds 裁形。CA 动画挂在 render server 独立时间线上，不经 SwiftUI
+/// 事务、不要求 body 重算——cell 宿主 disablesAnimations 与 TimelineView
+/// 失效两种死法都绕开。亮带几何（0.3×宽 / 2.8s 周期 / 左→右）沿用标定值。
 private struct CABandMaskView: UIViewRepresentable {
     var period: Double
 
@@ -76,7 +74,13 @@ private struct CABandMaskView: UIViewRepresentable {
         band.locations = [0.425, 0.5, 0.575]
         band.startPoint = CGPoint(x: 0, y: 0.5)
         band.endPoint = CGPoint(x: 1, y: 0.5)
-        v.layer.mask = band
+        // [v11.1 根因修复] v11 写的是 `v.layer.mask = band` —— layer.mask 只
+        // 裁剪宿主自身内容，而宿主 background=.clear 什么都不画 → 渲染 alpha
+        // 处处 0 → SwiftUI .mask() 拿到全透明 → 峰色副本整体不可见，
+        // "构造性死"，与 CA 动画/事务/时间线全都无关。亮带必须是被**画出来**
+        // 的 sublayer（clear→白渐变自带 alpha），masksToBounds 负责切出视图框。
+        v.layer.masksToBounds = true
+        v.layer.addSublayer(band)
         v.band = band
         return v
     }

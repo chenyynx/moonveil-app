@@ -878,3 +878,11 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离申报**: 呈现层-only 单文件;新增 UIViewRepresentable 属仓内既有模式(Agent 区域已有多处)。回归 = ①聊天流 Thinking 扫光 ②汇聚页标题扫光 ③文字选中复制(peak 层不吃点击) ④深浅色 ⑤VoiceOver 不双读 ⑥sheet 打开后消息完成,灰尾转黑(TAIL-GRAY-FIX 顺带验证)。
 - **验证**: 编译靠 CI;装机判据 = 同框录 5s 抽帧。**若 v11 仍不出:停止盲修,必须先拿录屏**(静态带=CA 没启动/无带=mask 通路仍断/带在动但看不见=色值),下一手改为在测试页放一个超大对比度探针(红底白字 5s 扫光)分离"机制死"与"参数弱"。
 - **CI 首红(43deaae, 8m4s)修复**: `ShimmerText.swift:79 cannot assign value of type 'CAGradientLayer' to type 'UIView'` — iOS 18 SDK 起 UIView 自带 `mask: UIView?` 属性,`v.mask = band` 解析到它而非 CALayer 的 mask。改为 `v.layer.mask = band`。**判例**: 给 UIView 挂 CALayer mask 一律写 `layer.mask`,裸 `.mask` 在新 SDK 有 UIView 重载歧义。
+
+### SHIMMER-V11.1 — v11 装机仍无扫光，审出"构造性不可见"根因：mask 层根本没像素(Qoder, 2026-09-19 pp 实装后反馈)
+
+- **实机反馈**: v11(43deaae+7cff100 CI 绿)装机后依旧零扫光。
+- **根因(代码审读即判死, 无需装机)**: `v.layer.mask = band` 语义用反——layer.mask 是"用 band 的 alpha 裁剪**宿主视图自绘内容**"; 宿主 `backgroundColor=.clear` 无内容 → 裁了个空 → representable 渲染输出处处 alpha=0 → SwiftUI `.mask()` 全遮 → 峰色副本 100% 不可见。亮带要从"裁剪层"变成"被画出来的层"。
+- **修复(一行半)**: `v.layer.addSublayer(band)` + `v.layer.masksToBounds = true`。band 本身 clear→白→clear 渐变自带 alpha, 画出来即 mask 所需灰度; CA position.x 动画原样保留(render server 时间线)。几何/周期/峰色全不动。
+- **判例**: UIView 层树里"谁裁谁"方向: `layer.mask`=拿参数层裁本层内容; 要"本层内容=渐变本身"用 sublayer。SwiftUI `.mask(View)` 读参数视图的**渲染 alpha**——放进 mask 位置的 UIViewRepresentable 必须自己**画**出灰度图, 空白视图套 mask 层 = 恒全遮。
+- **止损条款(仍有效)**: 若 v11.1 仍不出 → 停止盲修, 必须拿 pp 5s 录屏抽帧, 并按计划上红底白字对比度探针。
