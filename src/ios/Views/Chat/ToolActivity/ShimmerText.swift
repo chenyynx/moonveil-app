@@ -2,31 +2,27 @@ import SwiftUI
 
 // MARK: - Claude Text Sweep Shimmer
 //
-// [v10.1 09-19] mask 分层版。v10（foregroundStyle 渐变当文字前景）装机后
-//   深浅色都完全不可见（pp 实机）。根因未闭环（缺帧证据），但 v10 的可见性
-//   依赖两个未验证前提：① 渐变前景在 cell 宿主里被正确解析（调用点 Text 已
-//   自带 .foregroundStyle(headlineGray)，层级式 foregroundStyle 对已设色 Text
-//   不穿透）；② 峰色 .opacity(0.25) 半透明——实算是把文字变透明透出底色，
-//   暗色下与 base 对比仅 1.7:1 ≈ 数学上不存在。本版对两点都免疫：
-//   · 分层：底 = content 原样（实体灰，全程可见）；上 = 同一 content 的峰色
-//     副本，仅亮带处露出 → 亮带是实心提亮色，不再靠 alpha 混合底色。
-//   · mask 只决定副本可见度，与文字前景解析路径无关。
-//   驱动保持 TimelineView 纯值更新（不走事务 → cell 宿主 disablesAnimations
-//   管不到；ThinkingDotIcon 同宿主实证可动）。无 GeometryReader（v2 跳变 /
-//   v8 拉伸两坑绕开）、stops 一次构建（v6 colorspace teardown 绕开）。
-//   若本版仍不出 → 不再猜第五条，按 Bug 经验库判例走 CA
-//   （CABasicAnimation 位移 mask），并先要 5s 录屏抽帧定死失败环节。
+// [v11 09-19] CA 驱动亮带（现行）。v10.1 的"TimelineView 每帧移 SwiftUI mask
+//   渐变"装机后 sheet 标题与聊天流双双不可见（pp 实机，SwiftUI 侧每帧重算
+//   渐变/mask 路线两次证伪）→ 按判例走最后一条路：mask 层改 CABasicAnimation
+//   自驱（render server 时间线，不经 SwiftUI 事务、不要求 body 重算）。
+//   分层结构沿用 v10.1（底=实体色 + 顶=峰色副本从移动亮带露出）。
+//   若本版仍不出 → 停止盲修，先要 5s 录屏抽帧定死失败环节。
 //
-// [v10 09-19] 一次解决两个根因：聊天流完全不显示 + 汇聚页灰块。
+// [v10.1 09-19 已被 v11 覆盖] mask 分层版。v10（foregroundStyle 渐变当文字
+//   前景）装机后深浅色都完全不可见。当时诊断出两个缺陷并一次绕开：
+//   ① 峰色 .opacity(0.25) 半透明 = 文字变透明透出底色，不是提亮，暗色下与
+//     base 对比仅 1.7:1 ≈ 数学上不存在（0.75/0.25 参数搬自经典版
+//     white-opacity overlay 用法，跨机制未换算）；② 调用点 Text 自带
+//     foregroundStyle，外层渐变是否穿透未证。→ 分层：底 = content 原样
+//     （实体灰全程可见）；上 = content 峰色副本，仅亮带处露出（实心提亮）。
 //
-// 根因 1（聊天流完全不显示）：v9.1 只改了注释没改方法名，Timeline 版
-//   (sweepShimmerTimeline) 从未被调用 = 死代码；实际跑库版（隐式动画），
-//   被 cell 宿主 .transaction { disablesAnimations = true }（防 ViewGraph
-//   use-after-free 护栏）吞到不动。git show 30f4376 实锤：两行只有注释差异。
-//   → 本版合并成单一 modifier，Timeline 驱动，调用点方法名 sweepShimmer 不变，
-//     死代码自动激活，两处调用点零改动。
+// [v10 09-19 历史] 聊天流完全不显示根因：v9.1 只改注释没改方法名，Timeline
+//   版从未被调用 = 死代码；实际跑库版（隐式动画），被 cell 宿主
+//   .transaction { disablesAnimations = true }（防 ViewGraph use-after-free
+//   护栏）吞到不动。git show 30f4376 实锤。→ 合并成单一 modifier。
 //
-// 渲染机制 [v10.1]：ZStack 两层（base + masked peak），见文件头。
+// 渲染机制 [v11]：ZStack 两层（base + CA-masked peak），见 CABandMaskView。
 
 // MARK: - 共享：峰色与亮带 mask
 
@@ -48,25 +44,79 @@ enum ShimmerStyle {
     /// 上是灰块，砍到约一半让「局部点亮」明显。[v10 治灰块]
     static let bandWidth: CGFloat = 0.3
     /// 渐变跨度（单位 = 视图宽）：端点延伸到视图外，亮带从左外扫到右外、两端无硬切。
+    /// [v11] CA mask 层宽 = span × 视图宽（CABandMaskView 内以 1.5 硬编码同源值）。
     static let span: CGFloat = 1.5
-
-    /// 亮带 mask（[v10.1] 只用于 peak 副本）：透明底 + 中段不明白带。
-    /// lo→0.5→hi 三角过渡，带外全透明 = base 层原样显示。
-    static func bandMask() -> Gradient {
-        let bandFrac = bandWidth / span
-        let lo = 0.5 - bandFrac / 2
-        let hi = 0.5 + bandFrac / 2
-        return Gradient(stops: [
-            .init(color: .clear, location: 0),
-            .init(color: .clear, location: lo),
-            .init(color: .white, location: 0.5),
-            .init(color: .clear, location: hi),
-            .init(color: .clear, location: 1),
-        ])
-    }
 }
 
 // MARK: - 统一扫光（sheet 标题 + 聊天流 cell 共用）
+
+/// [v11 09-19 CA 驱动亮带] v10.1（TimelineView 每帧移 SwiftUI mask 渐变）装机
+/// sheet 标题与聊天流**双双不可见**（pp 06:11 实机）——连同此前 sheet 上曾出过
+/// 灰块的记录，SwiftUI 侧"每帧重算渐变/mask"路线已两次证伪，按判例走 CA：
+/// 一个 UIView，其 mask 是 CAGradientLayer（clear→白→clear，亮带 0.3×宽），
+/// CABasicAnimation 平移 mask 层，repeatForever。CA 动画挂在 render server
+/// 独立时间线上，不经 SwiftUI 事务、不要求 body 重算——cell 宿主
+/// disablesAnimations 与 TimelineView 失效两种死法都绕开。
+/// 亮带几何（0.3×宽 / 1.5×跨度 / 2.8s 周期 / 左→右）沿用 v10 标定值。
+private struct CABandMaskView: UIViewRepresentable {
+    var period: Double
+
+    func makeUIView(context: Context) -> ShimmerBandHost {
+        let v = ShimmerBandHost()
+        v.backgroundColor = .clear
+        v.isUserInteractionEnabled = false
+
+        let band = CAGradientLayer()
+        band.type = .axial
+        band.colors = [UIColor.clear.cgColor,
+                       UIColor.white.cgColor,
+                       UIColor.clear.cgColor]
+        // 层宽 = 2×视图宽（restartIfNeeded 内设置），亮带中心在层 0.5 处、
+        // 占层 0.15 → 恰 0.3×视图宽（v10 标定值）。两侧全透明。
+        band.locations = [0.425, 0.5, 0.575]
+        band.startPoint = CGPoint(x: 0, y: 0.5)
+        band.endPoint = CGPoint(x: 1, y: 0.5)
+        v.mask = band
+        v.band = band
+        return v
+    }
+
+    func updateUIView(_ uiView: ShimmerBandHost, context: Context) {
+        uiView.period = CGFloat(period)
+    }
+
+    static func dismantleUIView(_ uiView: ShimmerBandHost, coordinator: ()) {
+        uiView.band?.removeAllAnimations()
+    }
+
+    /// UIView 子类承载 period + 幂等启动动画（bounds 有效后才建，layout 后帧宽正确）。
+    final class ShimmerBandHost: UIView {
+        var band: CAGradientLayer?
+        var period: CGFloat = 2.8
+        private var animating = false
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            restartIfNeeded()
+        }
+
+        private func restartIfNeeded() {
+            guard !animating, let band, bounds.width > 1, bounds.height > 1 else { return }
+            animating = true
+            band.frame = CGRect(x: 0, y: 0, width: bounds.width * 2, height: bounds.height)
+            band.position = CGPoint(x: bounds.width, y: bounds.height / 2)
+            // 亮带中心 = 层中心 = position.x。从 -0.15w（带右缘恰在视图左缘）
+            // 扫到 1.15w（带左缘恰在视图右缘）→ 全程无硬切进出。
+            let anim = CABasicAnimation(keyPath: "position.x")
+            anim.fromValue = Double(-bounds.width) * 0.15
+            anim.toValue = Double(bounds.width) * 1.15
+            anim.duration = CFTimeInterval(period)
+            anim.repeatCount = .infinity
+            anim.isRemovedOnCompletion = false
+            band.add(anim, forKey: "sweep")
+        }
+    }
+}
 
 struct SweepTextShimmerModifier: ViewModifier {
     var base: Color
@@ -74,38 +124,26 @@ struct SweepTextShimmerModifier: ViewModifier {
     var period: Double = 2.8
 
     func body(content: Content) -> some View {
-        // TimelineView 相位驱动：纯时间函数，无 @State 无事务 —— cell 宿主的
-        // disablesAnimations 管不到（ThinkingDotIcon 同管线实证可动）。
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
-            let phase = Self.phase(timeline.date.timeIntervalSinceReferenceDate, period: period)
-            let span = ShimmerStyle.span
-            // mask 映射区间 [startX, startX+span]：phase 0→1 时亮带从左外扫到右外。
-            let startX = -span + phase * (1 + span)
-            ZStack(alignment: .leading) {
-                content
-                content
-                    .foregroundStyle(ShimmerStyle.peak(base))
-                    .mask(
-                        LinearGradient(
-                            gradient: ShimmerStyle.bandMask(),
-                            startPoint: UnitPoint(x: startX, y: 0.5),
-                            endPoint: UnitPoint(x: startX + span, y: 0.5)
-                        )
-                    )
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
+        // 分层保持 v10.1（底=实体色全程可见，顶=峰色副本仅亮带处露出），
+        // 只把"带怎么动"从 SwiftUI 每帧重算换成 CA 自驱。
+        ZStack(alignment: .leading) {
+            content
+            content
+                .foregroundStyle(ShimmerStyle.peak(base))
+                .mask(
+                    CABandMaskView(period: period)
+                        .frame(height: 44)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .layoutPriority(1)
+                )
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
-    }
-
-    /// 相位 0→1，纯时间函数。
-    private static func phase(_ t: TimeInterval, period: Double) -> Double {
-        t.truncatingRemainder(dividingBy: period) / period
     }
 }
 
 extension View {
-    /// Claude 文字扫光 [v10.1 mask 分层版]：2.8s 一圈、亮带 0.3×字宽、左→右。
+    /// Claude 文字扫光 [v11 CA 驱动版]：2.8s 一圈、亮带 0.3×字宽、左→右。
     /// sheet 标题与聊天流 cell 共用同一实现。
     /// ⚠️ 调用方都不传 period → **默认值必须与 SweepTextShimmerModifier 的一致**，
     /// 否则改结构体的默认值不生效（v5 踩点）。

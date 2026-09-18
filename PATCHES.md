@@ -867,3 +867,13 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **🔴 判例(可复用)**: 值类型快照 + "打开瞬间定死"的状态参数,凡是语义上会随时间翻转的(运行/完成),在常驻视图(sheet/详情页)里必须闭包或对象现读,不许信快照;死参数(`let x: Bool` 零引用)是接线断裂的指纹,grep 一下就知道。
 - **死隔离申报**: 呈现层-only(状态读取方式),不改消息数据/SSE/聚合器/agent 链路;ThinkingDetailOverlay 全仓唯一实例化点已同步改。回归 = ①运行中打开 sheet 尾巴灰+完成转黑 ②完成后打开 sheet 全程黑 ③标题三态(Thinking…/Thought for Ns/思考结果)翻转正常 ④工具行灰字当前项判定不受影响 ⑤多消息并发时旧 sheet 不误判。
 - **验证**: 本机无 swiftc 靠 CI;装机判据 = 运行中点开汇聚页等完成,尾巴应自动转黑。
+
+### SHIMMER-V11 — 扫光 v10.1 装机仍双双不可见 → CA 驱动 mask 亮带(Qoder, 2026-09-19 pp 06:11 实机:「为什么还是没有扫光」)
+
+- **装机反馈**: v10.1(TimelineView 每帧移 SwiftUI mask 渐变 + 实心峰色分层)装后,聊天流 Thinking 行与汇聚页标题**双双无扫光**。文字显示正常、无灰块 → 峰色副本从未露出 = mask 通路整体没参与渲染。至此 SwiftUI 侧"每帧重算渐变/mask"路线两次证伪(v10 foregroundStyle 渐变 / v10.1 mask 渐变)。
+- **同帧澄清(非 bug)**: pp 截图里灰尾当时是**正确行为**——Shell command「等待 30 秒」仍在跑,段未结束,尾巴按设计应保持灰;TAIL-GRAY-FIX 的验证场景是"完成后"转黑,该截图不构成反证。
+- **v11 修复(判例兑现:不再猜第五条,走 CA)**: 分层结构不变(底=实体色全程可见 + 顶=峰色副本),只把"带怎么动"换成 `CABandMaskView`(UIViewRepresentable):UIView 的 `mask` = CAGradientLayer(clear→白→clear, 层宽 2×视图宽, locations 0.425/0.5/0.575 = 亮带恰 0.3×视图宽),`CABasicAnimation(position.x, -0.15w→1.15w, 2.8s, repeatCount=∞)` 平移。**CA 动画挂在 render server 独立时间线**:不经 SwiftUI 事务(disablesAnimations 管不着)、不要求 body 重算(TimelineView 失效与否无关)。layoutSubviews 拿到真实宽后幂等启动; dismantle 时 removeAllAnimations。
+- **亮带几何沿用 v10 标定**: 0.3×字宽 / 1.5×跨度 / 2.8s / 左→右 / 实心峰色 mix(base 30%, white)。API `sweepShimmer(base:period:)` 不变,两调用点零改动。
+- **🔴 判例(可复用)**: ①SwiftUI 声明式"每帧重算"路线在同一视觉功能上连续两版证伪后,该功能降级到 UIKit/CA 层实现,不再在声明式层内变花样;②装机反馈要先做**语义甄别**再认领 bug——同一截图里"运行中的灰尾"是正确行为,不能顺着用户"还是灰的"就回去改已修对的逻辑。
+- **死隔离申报**: 呈现层-only 单文件;新增 UIViewRepresentable 属仓内既有模式(Agent 区域已有多处)。回归 = ①聊天流 Thinking 扫光 ②汇聚页标题扫光 ③文字选中复制(peak 层不吃点击) ④深浅色 ⑤VoiceOver 不双读 ⑥sheet 打开后消息完成,灰尾转黑(TAIL-GRAY-FIX 顺带验证)。
+- **验证**: 编译靠 CI;装机判据 = 同框录 5s 抽帧。**若 v11 仍不出:停止盲修,必须先拿录屏**(静态带=CA 没启动/无带=mask 通路仍断/带在动但看不见=色值),下一手改为在测试页放一个超大对比度探针(红底白字 5s 扫光)分离"机制死"与"参数弱"。
