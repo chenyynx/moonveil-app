@@ -820,6 +820,12 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
     /// re-measures its height (UIKit doesn't always trigger preferredLayoutAttributesFitting
     /// reliably when the SwiftUI body changes inside a UIHostingConfiguration).
     let blockContentFilledSignal = PassthroughSubject<(messageId: UUID, blockId: UUID), Never>()
+    /// [pp 09-18 贴正文·A2] 每次 streaming text flush 都发(不同于 blockContentFilledSignal
+    /// 只在空→非空发一次)。正文增长只更新 block.content(只发 block 级 objectWillChange),
+    /// message/vm 级通知都不发 → 列表的 flushStreamingLayout 链路对正文增长是盲的,
+    /// b94729b 的 remeasureStaleStreamingCells 因此从未执行(解冻是死代码)。此信号给
+    /// 列表层每个 flush 节拍一个解冻流式 cell 冻结高度的机会。节流已在 SSE 层做过。
+    let streamingTextFlushSignal = PassthroughSubject<Void, Never>()
     /// Content offset Y published on each scroll event (for debug jitter monitoring).
     let contentOffsetYSignal = PassthroughSubject<CGFloat, Never>()
     /// Content size height delta signal (for debug jitter monitoring).
@@ -6344,6 +6350,8 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
             logger.info("[TextDrift] empty→filled blockIdx=\(blockIdx) prevBlockKind=\(prevBlockKind) len=\(text.count) text=\"\(prefix)\"")
             blockContentFilledSignal.send((messageId: message.id, blockId: block.id))
         }
+        // [A2] 每次 flush 都发(非 deferred 路径;deferred 合并后在 flushDeferred 时会走本函数补发)。
+        streamingTextFlushSignal.send()
     }
 
     @MainActor

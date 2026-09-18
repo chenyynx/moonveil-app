@@ -2073,6 +2073,19 @@ extension CollectionViewMessageListV3 {
                 }
                 .store(in: &subscriptions)
 
+            // 9b. [pp 09-18 贴正文·A2] 每次 streaming text flush → 解冻流式 cell 的冻结高度。
+            //     正文增长只发 block 级 objectWillChange(message/vm 均不发),flushStreamingLayout
+            //     链路对正文增长是盲的——b94729b 的 remeasureStaleStreamingCells 挂在
+            //     doFlushStreamingLayout 上,在正文增长路径上从未执行(死代码)。此订阅补触发源;
+            //     remeasure 自带 gate(cachedHeight 非空且与现估差 >10pt),无 stale 时零成本。
+            vm.streamingTextFlushSignal
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    guard let self else { return }
+                    self.remeasureStaleStreamingCells()
+                }
+                .store(in: &subscriptions)
+
             // 9. Text block filled — reconfigure the cell so UIHostingConfiguration
             //    re-measures height after transitioning from empty to non-empty.
             vm.blockContentFilledSignal
@@ -3430,6 +3443,13 @@ extension CollectionViewMessageListV3 {
                     }
                 }
                 syncScrollFlags()
+                // [pp 09-18 贴正文·A1] snapshot 落地后解冻流式 cell:新 block(anchor/工具行)
+                // 插入引发的布局 pass 里,正文 cell 常被 PLAF 以中间态真测锁死,而 seed 循环的
+                // setEstimatedHeight 又被 heightCache guard 挡住 → anchor 落在旧高度之下 =
+                // 「Thinking 槽贴正文」。async 到下一 runloop,避开本次 apply 收尾防重入。
+                DispatchQueue.main.async { [weak self] in
+                    self?.remeasureStaleStreamingCells()
+                }
             } else {
                 snapshotLayout?.suppressContentOffsetAdjustment = false
                 isFlushing = false

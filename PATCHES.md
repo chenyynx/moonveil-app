@@ -810,3 +810,14 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **🔴 判例(可复用)**: **GeometryReader 直接包 content 会改变宿主布局**(GR greedy 吃满父 proposal,把自然尺寸的 content 拉伸/topLeading 放置);要「量 content 尺寸且不影响布局」,GR 必须放在 `.overlay { }`/`.background { }` 内(overlay 的 proposal = content 实际尺寸)。经典 ShimmerOverlay 的外层 GR 只对 fill 型宿主成立,不可照搬到自然尺寸文字上。
 - **死隔离申报**: 呈现层-only(扫光修饰器 body 结构);不改消息数据/SSE/聚合器;回归 = ①聊天流 "Thinking" 行扫光正常、布局不变 ②汇聚页标题扫光正常、标题居中恢复 ③思考结果 sheet 不再有大竖带 ④深浅色 peakOpacity 不变。
 - **验证**: 待装机。
+
+### STREAM-THAW-WIRING — 贴正文根因修复:解冻挂上真实触发源(A1 applySnapshot 后 + A2 每次 flush 信号)(Doris, 2026-09-18 pp 拍板「一起做」;调查报告见会话)
+
+- **File**: `src/ios/Agent/Chat/AIChatViewModel.swift`(+8:`streamingTextFlushSignal` 定义 + 每次 flush 发送)、`src/ios/Agent/MessageList/CollectionViewMessageListV3.swift`(+20:订阅 + applySnapshot completion 后解冻)。
+- **根因回顾(调查结论,pp 已确认)**: 正文流式增长只更新 `block.content`(只发 block 级 objectWillChange;message/vm 级均不发)→ `lastMessageSub(message.objectWillChange)` 不触发 → `doFlushStreamingLayout` 不跑 → **b94729b 的 `remeasureStaleStreamingCells` 在正文增长路径上从未执行(死代码)**。三层高度冻结(PLAF 第一道缓存 / heightCache 无条件写 / set*Height guard)无人解冻 → 新 anchor 插入时落在旧高度之下 =「贴」。b94729b 挂错了事件源。
+- **A1**: applySnapshot 的 diffable-apply completion 里(syncScrollFlags 后)`async` 调 remeasure——新 block(anchor/工具行)插入引发的布局 pass 会把正文 PLAF 真测锁死在中间态,此刻正是需要解冻的时机;async 防本 apply 收尾重入。
+- **A2**: 新增 `streamingTextFlushSignal`(每次 streaming text flush 发送,节流已在 SSE 层 0.2~2.0s 做过;deferred 合并更新在 flushDeferred 补发),VC 订阅 → remeasure。覆盖「纯文本流式(全程无新 block 插入)」场景——A1 对它无效。
+- **B 说明(并入 A,不单独做)**: 「seed 循环可覆盖写入」若只写 estimated/heightCache 会被 PLAF 第一道缓存返回旧值 + `invalidate(forPreferred:)` 无条件写回**冲掉**,单独无效;它的完整形态就是 remeasure 的 `invalidateHeight + clearCachedHeight + reconfigure`(清 cell 侧缓存让 PLAF 真测拿新值),已含在 A1/A2 触发的 remeasure 里。
+- **gate 数值核对**: scale=16 / lineHeight=22.4(AIChatView.swift:3845),1 行 est≈30.4pt vs 2 行 est≈52.8pt,行差 22.4pt > 阈值 10 → gate 对整行级冻结有效;remeasure 是真测(权威),粗估只做 gate。
+- **死隔离申报**: 布局层 + 信号接线,不改消息数据/SSE 协议/聚合器/agent 链路;新 signal 为纯新增(无既有订阅者受影响);remeasure 自带 gate(无 stale 时零成本,只遍历流式 ranges 现算粗估);deferred(suspended)路径不提前发信号。回归项 = ①纯文本流式正文增长不贴 ②正文段+Thinking anchor 插入不贴 ③工具行/思考块/入口行高度正常 ④browsing 模式(3s 节流)无抖动 ⑤重进页面行为不变 ⑥流式 settle 不跳。
+- **验证**: 待装机。日志判据:流式中段应出现 `[StreamFlush] remeasure stale streaming cells idx=...`(此前为零);贴正文不再复现。
