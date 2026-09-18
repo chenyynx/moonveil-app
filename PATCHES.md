@@ -631,3 +631,17 @@ uDt（下限 1/120 防后台恢复爆 pow）+ 高刷 CAFrameRateRange(60,120,120
 + comp 管线 bgra8Unorm_srgb（防色调发灰）；FireCanvasView 同步 sRGB。
 
 commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不受干扰。
+
+### GROK-CAROUSEL-FIX + THINKING-START-FIX — 轮播不播/Thinking 消失只剩点阵/扫光不可见三连根因修复（2026-09-18 pp 装机反馈「全链路找证据链」拍板）
+
+- **File**: `ToolActivityGroupView.swift`（+81/−11）+ `ShimmerText.swift`（+42/−41）；无新文件、无 pbxproj、无数据/聚合器改动。
+- **根因链（全链路取证）**：
+  1. **轮播不播**：cell 宿主挂 `.transaction { $0.disablesAnimations = true }`（CollectionViewMessageListV3 1266/1292/1316/1332 四处，防 ViewGraph use-after-free）→ 子树内**隐式**动画（`.animation(_:value:)`/`.transition` 默认事务）全被吞 → 行插入删除瞬时完成。仓内先例自证：ToolSheetPresenter 注释「avoids the cell's disablesAnimations which would suppress the sheet's slide-up animation」。对照实证：withAnimation 显式事务（两段式 D 出现）不受影响。
+  2. **Thinking 消失只剩点阵**（双根因）：①**传播断**——流式 delta 只写 `thinkingContentBuffer`（非 @Published），`content` 节流 flush（0.3~1.5s）后发的是 **AssistantBlock**.objectWillChange；本视图只订阅 message，blocks 数组是引用、引用不变 → message 永不发通知 → `thinkingHasStarted` 在纯思考阶段零重估时机（展开的思考块能实时显示正因它订阅 block 本身）；flush 处的 publishUnlessTransitioning()（vm 级）因本视图未订阅 vm 而够不着。②**状态丢失**——cell 重建（滚动回收/config 替换）重置 @State textAppeared=false，onAppear 不补查当前值，onChange 只监听「变化」（true→true 不触发）→ 已开始的思考永远只剩点阵（startedAt 有 static cache 对付重建，textAppeared 没有——「有时候消失」的来源）。
+  3. **扫光不可见**：①被根因 2 遮蔽（挂在 Thinking 文字层，opacity 0）；②独立实现 bug——v2 用 onPreferenceChange 回传量宽，该重算不在动画事务里 → offset 目标从 ±travel(0) 跳到 ±travel(真实宽) → repeatForever 循环被替换、带子静止在左缘外永久不可见。**修正旧判例**：v1「TimelineView 在 cell 不驱动」不成立——ThinkingDotIcon 同用 TimelineView(.animation) 在同 cell 一直工作；v1 真因是峰色 alpha 计算丢 alpha（f1f009e 自己也写了「修了 v1 丢 alpha 的偏差」）。
+- **Fix**：
+  ① 轮播改**显式驱动**：`@State carouselIds` + `onChange(of: eventBlocks.map(\.id))` 里 `withAnimation(carouselSpring)` 更新，`ForEach(carouselIds)` 内现查 eventBlocks（离场行 id 出 suffix(3) 窗口 → if let 失败 → removal transition 自然触发）；删旧隐式 `.animation(value:)`。onAppear 首渲染直接落位（历史行不播插入动画）。
+  ② thinking 判定三路汇合到幂等 `markThinkingStartedIfNeeded()`：onChange(segment 变化路径) + **ThinkingFlushWatcher**（零尺寸 overlay 子视图，onReceive 段内首个 thinking block 的 objectWillChange = flush 落地时刻）+ onAppear 补查（cell 重建后 @State 重置的解药）。判定改双读 `!content.isEmpty || !thinkingContentBuffer.isEmpty` 消除 flush 滞后。
+  ③ 扫光 v3：GeometryReader 在 body 内**同步**读尺寸（不经 @State/preference 回传）+ `w>1` 启动门——循环启动时 travel 已是真实值、此后尺寸不变 → 循环永续；guard !sweeping 防重复启动。峰色/mask/API 全保持。
+- **回归**: 轮播进场/离场/存量行位移（1→2→3 成长段与 3→满轮播段）/ 运行槽点开汇聚页 / stop 内层按钮 / 计时+扫光 / 段完成 entryRow 交叉淡变 / Thinking 文字+计时在纯思考阶段出现且滚动往返后不消失 / 汇聚页标题扫光（第二调用点同受益）/ classic 皮肤零影响 / ThinkingRunClock 三态与 startCache 未动。
+- **死隔离四问**: ①两端共用渲染件，动画/判定变化两端同行为（预期非污染，B15-CODE2 同判例）；②改动圈定两文件的呈现层（@State/onChange/overlay watcher/量宽方式），零状态机/协议/数据流改动；③官方等价物=SwiftUI 原生 withAnimation 显式事务/GeometryReader/onReceive（Apple 原生优先，无自绘引擎）；④回归项如上，两端一致。

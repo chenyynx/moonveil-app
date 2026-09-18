@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 // MARK: - Tool Activity Group View (new-skin chat slot, Grok-style)
 //
@@ -45,9 +46,12 @@ struct ToolActivityGroupView: View {
     private var running: Bool { !segment.isDone }
     /// 模型实际开始思考 = 该段任一 thinking 块已有流式内容 [pp 09-18：
     /// 「Thinking」文字与计时在此刻出现/起算；此前只有点阵动画]。
+    /// [pp 09-18 根因①判定双读] 流式增量只写 thinkingContentBuffer（非 @Published），
+    /// @Published content 要等节流 flush（0.3~1.5s 自适应）才落地——双读消除该滞后。
     private var thinkingHasStarted: Bool {
         segment.thinkingIds.contains { id in
-            message.blocks.first { $0.id == id }?.content.isEmpty == false
+            guard let b = message.blocks.first(where: { $0.id == id }) else { return false }
+            return !b.content.isEmpty || !b.thinkingContentBuffer.isEmpty
         }
     }
     /// 思考要点句 [pp 09-18 Claude 对照实锤：消息流入口行句子 = Summary 弹窗最后一条
@@ -95,15 +99,40 @@ struct ToolActivityGroupView: View {
         .onAppear {
             ensureStarted()
             withAnimation(.easeOut(duration: 0.34)) { dotsAppeared = true } // [pp 09-18] 点阵出现动画
+            // [pp 09-18 根因②] cell 重建（滚动回收/高度刷新/config 替换）会重置
+            // @State，而 onChange 只监听「变化」（true→true 不触发）——onAppear 必须
+            // 补查当前值，否则已开始的思考永远只剩点阵（textAppeared 恒 false）。
+            markThinkingStartedIfNeeded()
+            // [pp 09-18 根因③] 首渲染历史行直接落位（无动画事务 → 无插入动画）；
+            // 后续增删走 onChange 显式事务。
+            carouselIds = eventBlocks.map(\.id)
         }
-        .onChange(of: thinkingHasStarted) { started in
+        .onChange(of: thinkingHasStarted) { _ in
             // [pp 09-18] 首个思考内容到达那一刻起表 + 「Thinking」/计时出现动画
             // + 触屏反馈（与发送消息同款轻档；Claude app 无公开逆向，装机对比可调）。
-            if started {
-                withAnimation(.easeOut(duration: 0.34)) { textAppeared = true }
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                ensureStarted()
+            markThinkingStartedIfNeeded()
+        }
+        .onChange(of: eventBlocks.map(\.id)) { newIds in
+            // [pp 09-18 根因③] 工具事件增删 → withAnimation 显式事务驱动 ForEach
+            // 结构变化 + 存量行布局位移。cell 宿主挂 `.transaction { disablesAnimations
+            // = true }`（CollectionViewMessageListV3 防 ViewGraph use-after-free 护栏，
+            // 4 处）会吞掉一切隐式动画（.animation(_:value:)/.transition 默认事务，
+            // 仓内 ToolSheetPresenter 注释为证）——显式事务放行（两段式 D 出现动画
+            // 同管线，装机实证可用）。
+            guard newIds != carouselIds else { return }
+            withAnimation(Self.carouselSpring) {
+                carouselIds = newIds
             }
+        }
+        // [pp 09-18 根因①] thinking block flush 传导：flush 只发
+        // AssistantBlock.objectWillChange，本视图只订阅 message（blocks 数组是引用，
+        // 引用不变 → message 不发通知）→ thinkingHasStarted 没有重估时机 → 文字
+        // 永不出现。watcher 显式订阅段内首个 thinking block（flush 时发，0.3~1.5s）。
+        .overlay {
+            ThinkingFlushWatcher(
+                block: message.blocks.first(where: { $0.id == segment.thinkingIds.first }),
+                onFlush: { markThinkingStartedIfNeeded() }
+            )
         }
         // [C2] Any segment change (event rows inserted / state flipped) can
         // change the cell height — reuse the existing thinking-toggle
@@ -167,8 +196,12 @@ struct ToolActivityGroupView: View {
                         .accessibilityLabel(AppLocalized("Stop"))
                     }
                 }
-                ForEach(eventBlocks, id: \.id) { block in
-                    if let item = ToolEventRowFactory.item(for: block) {
+                ForEach(carouselIds, id: \.self) { id in
+                    // [pp 09-18 根因③] 数据源 = carouselIds（@State，onChange 显式
+                    // 事务更新）；block 从 eventBlocks 现查——离场行 id 已出 suffix(3)
+                    // 窗口 → if let 失败 → 视图移除 → removal transition（跟队上滑）。
+                    if let block = eventBlocks.first(where: { $0.id == id }),
+                       let item = ToolEventRowFactory.item(for: block) {
                         ToolEventRow(
                             item: item,
                             accentColor: ToolActivityIcon.accentColor(for: block.kind),
@@ -181,9 +214,6 @@ struct ToolActivityGroupView: View {
                     }
                 }
             }
-            // [pp 09-18 Grok 轮播 1:1] 队列增删一轨驱动：ids 变化时存量行自动位移
-            // 一个行距，进/离场转场同轨——单 spring 确定性动画（Grok 逐帧一致）。
-            .animation(Self.carouselSpring, value: eventBlocks.map(\.id))
             .padding(.vertical, 3)
             .contentShape(Rectangle())
         }
@@ -239,7 +269,23 @@ struct ToolActivityGroupView: View {
     @State private var dotsAppeared = false
     @State private var textAppeared = false
 
+    /// [pp 09-18 根因③] 轮播显式驱动队列（id 列表）。由 onChange(of: eventBlocks ids)
+    /// 在 withAnimation(Self.carouselSpring) 事务里更新——cell 的 disablesAnimations
+    /// 只吞隐式动画，显式事务放行（两段式 D 同管线装机实证）。
+    @State private var carouselIds: [UUID] = []
+
     // MARK: Helpers
+
+    /// [pp 09-18] 思考开始的统一置位入口（幂等，三路汇合）：
+    /// ① onChange(of: thinkingHasStarted)——segment/message 变化路径；
+    /// ② ThinkingFlushWatcher——thinking block flush 路径（content 落地即重估）；
+    /// ③ onAppear——cell 重建后补查路径（@State 重置，onChange 不触发 true→true）。
+    private func markThinkingStartedIfNeeded() {
+        guard !textAppeared, thinkingHasStarted else { return }
+        withAnimation(.easeOut(duration: 0.34)) { textAppeared = true }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        ensureStarted()
+    }
 
     private func ensureStarted() {
         // [pp 09-18] 计时起点 = 思考实际开始（首个思考内容到达），不再从发送
@@ -253,6 +299,30 @@ struct ToolActivityGroupView: View {
                 Self.startCache[segment.anchorId] = start
                 startedAt = start
             }
+        }
+    }
+}
+
+// MARK: - Thinking flush watcher [pp 09-18 根因①]
+
+/// 订阅段内首个 thinking block 的 objectWillChange（= 节流 flush 落地时刻）。
+/// 数据流：SSE delta → thinkingContentBuffer（非 @Published，零通知）→ 节流 flush
+/// → @Published content（发 AssistantBlock.objectWillChange）。本视图只订阅
+/// message，而 blocks 数组持有的是引用、引用不变 → message 永不发通知 → 没有
+/// watcher 时 thinkingHasStarted 在纯思考阶段没有任何重估时机（「明明在写但只有
+/// 点阵」的根因）。block 实例稳定 → publisher 实例稳定 → onReceive 不重复订阅；
+/// flush 频率 0.3~1.5s，成本可忽略。零尺寸不参与布局。
+private struct ThinkingFlushWatcher: View {
+    let block: AssistantBlock?
+    let onFlush: () -> Void
+
+    var body: some View {
+        if let block {
+            Color.clear
+                .frame(width: 0, height: 0)
+                .onReceive(block.objectWillChange) { _ in
+                    onFlush()
+                }
         }
     }
 }
