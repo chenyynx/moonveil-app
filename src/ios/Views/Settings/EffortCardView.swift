@@ -28,6 +28,11 @@ struct EffortCardView: View {
     /// Drives the flip-up entrance of the status label when entering Ultracode.
     @State private var statusAppeared = true
 
+    /// Haptic engines: selection ticks for Low/Medium/High tier crossings and
+    /// a medium impact when the thumb lands on Ultracode (the fire ignites).
+    @State private var selectionFeedback = UISelectionFeedbackGenerator()
+    @State private var impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+
     // MARK: Derived state (mirrors useSliderState.js)
 
     private var isActive: Bool { sliderValue >= 100 }
@@ -82,6 +87,12 @@ struct EffortCardView: View {
         .onChange(of: statusLabel) { _, newValue in
             handleStatusChange(newValue)
         }
+        .onAppear {
+            // Pre-warm the Taptic Engine so the first tier crossing / Ultracode
+            // impact isn't delayed by cold-start latency.
+            selectionFeedback.prepare()
+            impactFeedback.prepare()
+        }
     }
 
     // MARK: Header
@@ -127,6 +138,15 @@ struct EffortCardView: View {
     }
 
     private func handleStatusChange(_ newValue: String) {
+        // Haptic feedback on tier crossing: Ultracode gets the strong impact
+        // (fire ignition), Low/Medium/High get a light selection tick. Fires
+        // only when the tier changes — dragging within one tier stays silent,
+        // so the haptic never stutters on continuous movement.
+        if newValue == "Ultracode" {
+            impactFeedback.impactOccurred()
+        } else {
+            selectionFeedback.selectionChanged()
+        }
         if newValue == "Ultracode" {
             // Reset to the hidden pose without animation, then animate in.
             var transaction = Transaction()
