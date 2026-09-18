@@ -59,7 +59,10 @@ private enum SummaryPalette {
 struct ThinkingDetailOverlay: View {
     @ObservedObject var message: ChatMessage
     let segment: TurnActivitySegment
-    let isActiveMessage: Bool
+    let isActiveMessage: () -> Bool
+    /// [pp 09-19 灰尾修复] 原为 `Bool` 快照且全文件零引用（死参数）。改闭包现读
+    /// vm.isProcessing —— segment 是打开瞬间的值快照，消息完成后 `!segment.isDone`
+    /// 永远停在 true → 思考尾巴灰渐显冻结（pp 截图：Thought for 30s 已完成仍灰）。
     /// [pp 09-18 三改] 回原生 sheet：关闭走左上 X + 系统下拉关闭 → 回调。
     var onClose: (() -> Void)? = nil
 
@@ -109,7 +112,33 @@ struct ThinkingDetailOverlay: View {
         segment.toolIds.compactMap { id in message.blocks.first { $0.id == id } }
     }
 
-    private var isSegmentRunning: Bool { !segment.isDone }
+    /// [pp 09-19 灰尾修复] 运行态现读，不再信打开瞬间的 segment.isDone 快照。
+    /// 语义与 TurnActivitySegment.isDone（聚合器 67-70 行）逐条对齐：
+    ///   ① closedByContent = 段块之后出现 text/info 块（正文已回复）→ done；
+    ///   ② 消息终态（!isActiveMessage()）→ done；
+    ///   ③ 段内工具仍 active（streaming/running）→ 运行中（正文未到、槽继续转）。
+    /// 现读值随 message @Published / flushTick 重估 → 完成瞬间尾巴灰转黑。
+    private var isSegmentRunning: Bool {
+        if segmentClosedByContent { return false }
+        let hasActiveTool = segment.toolIds.contains { id in
+            guard let b = message.blocks.first(where: { $0.id == id }) else { return false }
+            switch b.toolStatus {
+            case .streaming, .running: return true
+            default: return false
+            }
+        }
+        if hasActiveTool { return true }
+        return isActiveMessage()
+    }
+
+    /// 段后是否已出现正文（text/info）——正文才是分段点 [聚合器 8-11 行同一语义]。
+    private var segmentClosedByContent: Bool {
+        let segIds = Set(segment.thinkingIds).union(segment.toolIds)
+        guard let lastIdx = message.blocks.lastIndex(where: { segIds.contains($0.id) }) else { return false }
+        return message.blocks.dropFirst(lastIdx + 1).contains {
+            $0.kind == .text || $0.kind == .info
+        }
+    }
 
     /// 纯思考段 = 无任何工具调用 [pp 09-18 Claude 对照：原文直展]。
     private var isPureThinking: Bool { toolBlocks.isEmpty }

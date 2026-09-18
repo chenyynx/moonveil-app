@@ -769,7 +769,10 @@ struct AIChatView: View {
                 ThinkingDetailOverlay(
                     message: msg,
                     segment: ctx.segment,
-                    isActiveMessage: vm.isProcessing
+                    // [pp 09-19 灰尾修复] 改闭包现读：sheet 内容随本视图 body 重评，
+                    // vm.isProcessing 翻转（流式结束）即被看到；含末条判定，防旧消息
+                    // 的 sheet 被新消息的 processing 状态误判为运行中。
+                    isActiveMessage: { vm.isProcessing && vm.messages.last?.id == ctx.messageId }
                 ) {
                     toolActivityDetail = nil
                 }
