@@ -2431,6 +2431,16 @@ extension CollectionViewMessageListV3 {
         private func doFlushStreamingLayout() {
             lastStreamingLayoutTime = Date()
             guard let layout = viewController?.messageListLayout else { return }
+            // [pp 09-18 装机:Thinking 槽有时候贴正文] 流式 cell 一旦被 PLAF 真测过,
+            // cell 侧 lastComputedHeight(PLAF 第一道无条件短路)+ layout 侧 heightCache
+            // (invalidate(forPreferredLayoutAttributes:) 无条件写)就冻结在那个时刻的
+            // 内容高度;此后同 block 内容继续增长时,setEstimatedHeight/setPrecalcHeight
+            // 的 `guard heightCache[index] == nil` 把所有更新的高度源(CJK 修正后的粗估、
+            // 定稿后的 TextKit 精测)全部拒之门外,prepare() 永远用冻结高度排 frame →
+            // 正文最后一行下面紧贴活动槽(点阵行)。「有时候」= 真测恰好落在正文中间态
+            // (1 行)而正文随后长到 2 行;「滑出聊天页再进就正常」= 重进触发
+            // clearHeightCache 重新播种。这里在 invalidate 之前做一次定向解冻。
+            remeasureStaleStreamingCells()
             // Always invalidate layout — even during scrolling. The layout's
             // invalidationContext already skips contentOffsetAdjustment when
             // isTracking/isDecelerating, so this won't cause scroll jitter.
@@ -2441,6 +2451,53 @@ extension CollectionViewMessageListV3 {
             if scrollMode == .autoScrolling {
                 scheduleCoalescedScroll()
             }
+        }
+
+        /// [pp 09-18 装机:Thinking 槽有时候贴正文] 流式 cell 的高度解冻(定向 remeasure)。
+        ///
+        /// 机制:流式 cell 被 PLAF 真测一次后,三层高度(cell 侧 lastComputedHeight /
+        /// layout 侧 heightCache / estimatedHeights 的 guard)全部冻结;后续内容增长
+        /// 无法反映到 frame 上。这里对流式 ranges 内的 item 用 estimateItemHeight 现算
+        /// 一个粗估,与冻结值差超过 ~半行(10pt)的 cell 跑一次 remeasureVisibleCells
+        /// 同款的 both-sides 流程(invalidateHeight + clearCachedHeight + reconfigure +
+        /// invalidateLayout + 二次 clear),让下一次 PLAF 真测拿到当前内容的权威高度。
+        ///
+        /// 成本控制:gate 让触发条件收敛到「粗估高度真的变了」——一次流式回合通常只
+        /// 触发几次(每多一行正文一次);工具胶囊/thinking 头等估算恒定的 cell 永不命中。
+        /// reconfigure + hosting 真测是 blockContentFilledSignal / thinkingToggle 已有
+        /// 机制的同款操作,频率被 flushStreamingLayout 的节流(100ms/3s)再压一层。
+        private func remeasureStaleStreamingCells() {
+            guard let cv = viewController?.collectionView,
+                  let layout = viewController?.messageListLayout,
+                  let ds = dataSource else { return }
+            let ranges = layout.streamingCellRanges
+            guard !ranges.isEmpty else { return }
+            let items = ds.snapshot().itemIdentifiers
+            guard !items.isEmpty else { return }
+            let messages = snapshotMessages.isEmpty ? (vm?.messages ?? []) : snapshotMessages
+            let width = cv.bounds.width
+            var stale: [Int] = []
+            for range in ranges {
+                for i in range where i < items.count {
+                    guard let frozen = layout.cachedHeight(at: i) else { continue }
+                    let est = Self.estimateItemHeight(items[i], messages: messages, width: width)
+                    if abs(est - frozen) > 10 { stale.append(i) }
+                }
+            }
+            guard !stale.isEmpty else { return }
+            let ips = stale.map { IndexPath(item: $0, section: 0) }
+            let ids = stale.compactMap { $0 < items.count ? items[$0] : nil }
+            guard !ids.isEmpty else { return }
+            for i in stale { layout.invalidateHeight(at: i) }
+            for ip in ips { (cv.cellForItem(at: ip) as? SelfSizingCell)?.clearCachedHeight() }
+            var snap = ds.snapshot()
+            snap.reconfigureItems(ids)
+            ds.apply(snap, animatingDifferences: false)
+            layout.invalidateLayout()
+            // 对齐 remeasureVisibleCells 的 both-sides 模式:provider 没跑时兜底再清一次。
+            for ip in ips { (cv.cellForItem(at: ip) as? SelfSizingCell)?.clearCachedHeight() }
+            AppLogger(category: "StreamDiag").info(
+                "[StreamFlush] remeasure stale streaming cells idx=\(stale) frozen=\(stale.map { layout.cachedHeight(at: $0).map { String(format: "%.0f", $0) } ?? "-" }) ids=\(ids.count)")
         }
 
         /// Coalesce rapid scroll signals into a single scroll action.

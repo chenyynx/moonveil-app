@@ -741,3 +741,18 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **Fix**: 字符按类型折算宽度（全角 1.0 / 半角 0.5），`unitsPerLine = max(1, tw / scale)`；行数 = `ceil(units / unitsPerLine)`。纯 ASCII 段落行为不变（旧式 = 全半角各半时的特例）。
 - **回归**: 表格 / 代码块 / 图片 / 引用分支不动 · 估算只作用于流式期与离屏预取，settle 后仍以实测为准 · classic 与新皮肤同用此估算（两边都受益）· 不改变任何渲染宽度或字号。
 - **验证**: 待装机（中文长段落流式回复时，段落与点阵行之间应保持正常间距，无需滑出重进）。
+
+### STREAM-HEIGHT-THAW — 流式 cell 高度三层冻结（「Thinking 槽有时候贴正文」的完整根因，含 4009c78 修不到的部分）（Doris，2026-09-18 pp：最新包 4009c78 装机仍贴）
+
+- **File**: `src/ios/Agent/MessageList/CollectionViewMessageListV3.swift`（+57/−0，纯插入：`remeasureStaleStreamingCells()` + `doFlushStreamingLayout` 一行调用）。
+- **症状**: pp 装 4009c78 包（TEXT-ESTIMATE-CJK 已含）后仍报「tinking 有时候会贴正文」；截图正文 2 行中文段落 + Thinking 槽，间距 ≈3pt（正常 ≈18pt）。
+- **根因（三层冻结链,4009c78 只修了第三层的数据源）**: 流式 cell 一旦被 PLAF 真测过一次——
+  1. **cell 侧** `lastComputedHeight` 被 PLAF **第一道无条件短路**（MessageListInfrastructure.swift,缓存命中直接 return）锁死,失效条件只有 applyContentConfiguration / prepareForReuse / clearCachedHeight 三个;
+  2. **layout 侧** `heightCache[index]` 被 `invalidate(forPreferredLayoutAttributes:)` **无条件写**（477 行）→ 写入的就是那个中间态高度;
+  3. **数据源侧** `setEstimatedHeight` / `setPrecalcHeight` 都有 `guard heightCache[index] == nil` → 正文此后增长时,修正后的 CJK 粗估（4009c78）与定稿后的 TextKit 精测**全部被 guard 拒之门外**;
+  4. `doFlushStreamingLayout` 每 100ms 只 `invalidateLayout()`、不清任何缓存 → prepare() 永远用冻结高度排 frame → 下一格（活动槽/点阵）贴上来。
+- **「有时候」**: 只有当 PLAF 真测恰好落在正文中间态（1 行）、而正文随后长到 2 行时才锁死;真测时正文已定稿则高度正确。「滑出聊天页再进就正常」= 重进触发 clearHeightCache 重新播种。
+- **Fix**: 流式 flush 时定向解冻——对流式 ranges 内的 item 用 `estimateItemHeight` 现算粗估,与冻结的 `heightCache` 差 >10pt（约半行）的 cell 跑一次 `remeasureVisibleCells` 同款 both-sides 流程（invalidateHeight + clearCachedHeight + reconfigureItems + invalidateLayout + 二次 clear）,让下一次 PLAF 真测拿到当前内容的权威高度。remeasure 是真测（authoritative）,粗估只做 gate。
+- **成本**: gate 把触发收敛到「粗估高度真的变了」（每多一行正文一次）;估算恒定的 cell（工具胶囊 36 / thinking 头 / header/footer）永不命中。reconfigure + hosting 真测是 blockContentFilledSignal / thinkingToggle 已有机制同款,频率再被 flushStreamingLayout 节流（100ms auto-scroll / 3s browsing）压一层。
+- **死隔离申报**: 聊天列表呈现层-only（布局/高度缓存域）;不改消息数据、SSE、聚合器、任何 agent 链路;无状态机/生命周期改动。回归项 = ①普通流式文本增长高度正常 ②浏览模式（browsing,3s 节流）滚动无抖动 ③工具胶囊/思考块/入口行高度不受影响 ④重进页面行为不变 ⑤流式结束 settle 不跳动。
+- **验证**: 待装机（长中文回复流式时,正文与 Thinking 槽/工具行保持正常间距;日志 `[StreamFlush] remeasure stale streaming cells` 只在真正长行时出现）。
