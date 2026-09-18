@@ -13,6 +13,14 @@ import Combine
 // stepping at 1 Hz from the segment start. The start instant lives in a
 // view-layer cache keyed by anchor id (block model is untouched [H4]).
 
+/// 入口行 / Thinking 行统一墨色 [Claude photo_25B6FFE9 实测核心墨色]。
+/// [pp 09-18] 运行中「Thinking · N秒」与完成态入口行同色同字重 → 常量上提为
+/// 文件级（原先挂在 ToolActivityGroupView 上，同文件的 ThinkingElapsedText 拿不到，
+/// 计时那半行会留在 medium + secondary → 一行字两种粗细/冷暖）。
+private enum ThinkingRowStyle {
+    static let headlineGray = Color(red: 0.478, green: 0.475, blue: 0.455)  // #7A7974
+}
+
 struct ToolActivityGroupView: View {
     @ObservedObject var message: ChatMessage
     let segment: TurnActivitySegment
@@ -28,9 +36,6 @@ struct ToolActivityGroupView: View {
     @State private var startedAt: Date?
 
     private static var startCache: [UUID: Date] = [:]
-
-    /// 入口行统一灰（图标/文字/chevron 同色）[Claude photo_25B6FFE9 实测核心墨色]。
-    private static let headlineGray = Color(red: 0.478, green: 0.475, blue: 0.455)  // #7A7974
 
     /// [pp 09-18 Grok 轮播 1:1] 队列弹簧：0.42s 无回弹。Grok 逐帧实测（60fps）：
     /// 位移 t=0.2→41%、0.4→83%、0.6→99%，峰值速度 t≈20%，无过冲 → smooth(bounce=0)。
@@ -180,9 +185,15 @@ struct ToolActivityGroupView: View {
                     // 「Thinking」与计时；等待响应阶段只有点阵动画（启动槽同）。
                     Group {
                         Text(verbatim: "Thinking") // [pp 09-17] 固定英文（非本地化）
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(Color.secondary) // Grok 对照：灰（非黑）
-                            .sweepShimmer(base: Color.secondary) // [pp 09-18] Claude 同款扫光（cds-shimmer-text-shine 1:1）
+                            // [pp 09-18 字体对齐] 原 .medium 比完成态入口行粗一档，
+                            // pp 点名「跟灰字入口不一样」→ 去掉 weight，与 entryRow
+                            // 的 .system(size: 14) 同档（14pt regular）。
+                            .font(.system(size: 14))
+                            // [pp 09-18 颜色对齐] 原 Color.secondary（语义色：浅色下冷调
+                            // ≈#87878C、暗色下跟着变）与入口行写死暖灰 #7A7974 不同色。
+                            // pp 点名统一 → 跟 entryRow 用同一个 headlineGray。
+                            .foregroundStyle(ThinkingRowStyle.headlineGray)
+                            .sweepShimmer(base: ThinkingRowStyle.headlineGray) // [pp 09-18] Claude 同款扫光（cds-shimmer-text-shine 1:1）；峰色基色随字色同步换
                         elapsedCounter
                     }
                     .opacity(textAppeared ? 1 : 0)
@@ -251,13 +262,13 @@ struct ToolActivityGroupView: View {
             HStack(spacing: 12) {
                 // [pp 09-18 1:1 复刻 Claude photo_25B6FFE9 实测] ⏱16pt + 摘要 14pt regular
                 // #7A7974 + chevron 紧跟文字后 21pt（未满行随文字收尾，非贴右缘）。
-                ClaudeClockIcon(size: 16, color: Self.headlineGray) // [pp 09-18 二次校准] 缺口环+等大三点自绘时钟（photo_8E721157 拟合参数）
+                ClaudeClockIcon(size: 16, color: ThinkingRowStyle.headlineGray) // [pp 09-18 二次校准] 缺口环+等大三点自绘时钟（photo_8E721157 拟合参数）
                 Text(thinkingHeadline ?? lastToolSummary ?? AppLocalized("Thinking result")) // [pp 09-18] 思考要点句 → 聚合页重点（toolSummary）→ 思考结果
                     .font(.system(size: 14)) // [pp 09-18] 14pt regular（Claude 同档，轻质感；1:1 实测）
-                    .foregroundStyle(Self.headlineGray)
+                    .foregroundStyle(ThinkingRowStyle.headlineGray)
                     .lineLimit(1)
                 AppSymbol("chevron.right", size: 20) // [pp 09-17] Lucide 官方 chevron-right（视觉 ~6×11pt = Claude 同尺寸）
-                    .foregroundStyle(Self.headlineGray)
+                    .foregroundStyle(ThinkingRowStyle.headlineGray)
                     .padding(.leading, 9) // 文字→chevron 总距 21pt [Claude 实测]
             }
             .frame(maxWidth: .infinity, alignment: .leading) // 热区全宽（Spacer 推挤改随文布局）
@@ -321,7 +332,9 @@ struct ToolActivityGroupView: View {
 /// watcher 时 thinkingHasStarted 在纯思考阶段没有任何重估时机（「明明在写但只有
 /// 点阵」的根因）。block 实例稳定 → publisher 实例稳定 → onReceive 不重复订阅；
 /// flush 频率 0.3~1.5s，成本可忽略。零尺寸不参与布局。
-private struct ThinkingFlushWatcher: View {
+/// [pp 09-18] 由 ToolActivityGroupView 与 ThinkingDetailOverlay（汇聚页思考详情）
+/// 共用 → 去掉 private（汇聚页同样只订阅 message，需要它才能拿到 flush）。
+struct ThinkingFlushWatcher: View {
     let block: AssistantBlock?
     let onFlush: () -> Void
 
@@ -481,8 +494,11 @@ struct ThinkingElapsedText: View {
                     ?? timeline.date.timeIntervalSince(start)
                 if elapsed >= 0.7 {
                     Text("• \(max(1, Int(ceil(elapsed - 0.7))))秒") // [帧01] Grok 格式
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(Color.secondary)
+                        // [pp 09-18 字体/颜色对齐] 与同一行的 "Thinking" 及完成态入口行
+                        // 同档：14pt regular + headlineGray（原先 medium + secondary
+                        // 会让 "Thinking • 2秒" 半粗半细、半冷半暖）。
+                        .font(.system(size: 14))
+                        .foregroundStyle(ThinkingRowStyle.headlineGray)
                 }
             }
         }

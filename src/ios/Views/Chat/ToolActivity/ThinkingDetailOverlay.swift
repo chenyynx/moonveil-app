@@ -23,6 +23,38 @@ import SwiftUI
 //     故自绘头部；push/pop 转场仍走系统 NavigationStack（原生转场免费）
 // ToolCardView 描边卡随本改退役（唯一引用点被列表式替代，struct 已删；
 // CometSpinner 仍被运行态使用，保留在本文件）。
+//
+// 2026-09-18 pp 第五轮：① 暗色适配（原先三份写死的 #F5F5F5 等浅色，暗色下
+// 整张 sheet 仍是近白、而正文走语义色变白 → 白底白字）；② 思考详情页渲染
+// （4 处 AttributedString(markdown:) → 纯 Text）；③ 思考详情页流式（补 block 订阅）。
+
+// MARK: - 汇聚页配色（三个页面共用一份）
+//
+// [pp 09-18 暗色适配] 浅色档全部是 Claude Summary 的实测值（逐像素，勿动）；
+// 深色档按设计规范的中性暖灰（禁蓝调）。正文/标题一律用 Color.primary /
+// Color(uiColor: .label) 这类语义色（浅=黑/深=白），本表只放"语义色没有对应物"
+// 的装饰色（页底、圆点、连线、圆钮底）——语义色压在动态页底上才对。
+// 原先三个 struct 各写一份 sheetBg（同一值抄三遍），改一处要改三处 → 合并为单一来源。
+private enum SummaryPalette {
+    /// 页底 #F5F5F5（Claude 实测） / 深色 #181818
+    static let sheetBg = dynamic(light: rgb(0.961, 0.961, 0.961), dark: rgb(0.094, 0.094, 0.094))
+    /// 列表句 #1D1D1D / 深色 #EDEDED
+    static let rowInk = dynamic(light: rgb(0.114, 0.114, 0.114), dark: rgb(0.929, 0.929, 0.929))
+    /// 圆点/图标/chevron #888681 / 深色 #A0A0A0
+    static let muted = dynamic(light: rgb(0.533, 0.525, 0.506), dark: rgb(0.627, 0.627, 0.627))
+    /// 时间线短竖线 #DCDCDC / 深色 #2E2E2E
+    static let connector = dynamic(light: rgb(0.863, 0.863, 0.863), dark: rgb(0.180, 0.180, 0.180))
+    /// 左上圆钮底（X / 返回）白 / 深色 #2E2E2E（比页底亮一档 = 与浅色下"白比 #F5F5F5 亮"同关系）
+    static let circleButton = dynamic(light: rgb(1, 1, 1), dark: rgb(0.180, 0.180, 0.180))
+
+    private static func rgb(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat) -> UIColor {
+        UIColor(red: r, green: g, blue: b, alpha: 1)
+    }
+
+    private static func dynamic(light: UIColor, dark: UIColor) -> Color {
+        Color(UIColor { $0.userInterfaceStyle == .dark ? dark : light })
+    }
+}
 
 struct ThinkingDetailOverlay: View {
     @ObservedObject var message: ChatMessage
@@ -35,12 +67,16 @@ struct ThinkingDetailOverlay: View {
     // ZStack 自绘栈：page 非 nil 时从右推入，返回钮推回（转场视觉不变）。
     @State private var page: SummaryRoute?
 
-    // MARK: Colors（Claude Summary 实测 photo_7D322C95 + Grok 沿用）
+    /// [pp 09-18 流式修复] 本页只订阅了 message，而思考增量落地在 AssistantBlock
+    /// **自己的** @Published content 上：ChatMessage 不转发子对象通知，blocks 数组
+    /// 引用不变也不发通知 → 没有这个 tick 时，sheet 打开那一刻的画面就冻住，
+    /// 后面思考继续流也一个字不动（pp：「汇聚页里面的 thinking 没有流式输出」）。
+    /// tick 只用于强制重算 body，文字仍从块里现读（与聊天流同一套 flush 节奏）。
+    @State private var flushTick = 0
 
-    private static let sheetBg = Color(red: 0.961, green: 0.961, blue: 0.961)       // #F5F5F5
-    private static let rowInk = Color(red: 0.114, green: 0.114, blue: 0.114)        // #1D1D1D 列表句
-    private static let mutedGray = Color(red: 0.533, green: 0.525, blue: 0.506)     // #888681 圆点/图标/chevron
-    private static let connectorGray = Color(red: 0.863, green: 0.863, blue: 0.863) // #DCDCDC 短竖线
+    // MARK: Colors
+    // [pp 09-18 暗色适配] 原先本页四个写死浅色 → 改用文件顶部的 SummaryPalette
+    // （三个页面共用的动态色，单一来源）。
 
     // MARK: Route / Timeline model
 
@@ -128,7 +164,19 @@ struct ThinkingDetailOverlay: View {
                     .zIndex(10)
             }
         }
-        .background(Self.sheetBg)
+        .background(SummaryPalette.sheetBg)
+        // [pp 09-18 流式修复] 段内每个思考块各挂一个零尺寸 flush 订阅：任一块的
+        // @Published content 落地（0.3~1.5s 自适应节流）就 tick 一次 → 整页重算。
+        // 零尺寸、不参与布局也不吃点击。
+        .overlay {
+            ZStack {
+                let _ = flushTick // 显式建立依赖：tick 变化 → body 重算
+                ForEach(thinkingBlocks) { block in
+                    ThinkingFlushWatcher(block: block) { flushTick &+= 1 }
+                }
+            }
+            .allowsHitTesting(false)
+        }
     }
 
     private func pushPage(_ p: SummaryRoute) {
@@ -183,7 +231,7 @@ struct ThinkingDetailOverlay: View {
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Color.primary)
                             .frame(width: 44, height: 44) // 热区 [同 Claude 白圆钮]
-                            .background(Circle().fill(Color.white))
+                            .background(Circle().fill(SummaryPalette.circleButton))
                             .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
@@ -220,7 +268,7 @@ struct ThinkingDetailOverlay: View {
     private var connectorRow: some View {
         HStack(spacing: 0) {
             Capsule()
-                .fill(Self.connectorGray)
+                .fill(SummaryPalette.connector)
                 .frame(width: 1.33, height: 22)
                 .frame(width: 16, alignment: .center)
             Spacer(minLength: 0)
@@ -261,7 +309,7 @@ struct ThinkingDetailOverlay: View {
                         // [pp 09-18 三改] 运行中当前项 = 同款灰点（Claude
                         // photo_32363DEB 底部 Thinking… 行实测）；文字仍灰。
                         Circle()
-                            .fill(Self.mutedGray)
+                            .fill(SummaryPalette.muted)
                             .frame(width: 7.3, height: 7.3) // [Claude 实测圆点 7.3pt]
                     case .tool:
                         toolIcon(item.block)
@@ -271,7 +319,7 @@ struct ThinkingDetailOverlay: View {
 
                 Text(rowText(for: item, isCurrent: isCurrent))
                     .font(.system(size: 16)) // [Claude 列表句实测 ~16pt]
-                    .foregroundStyle(isCurrent ? Self.mutedGray : Self.rowInk)
+                    .foregroundStyle(isCurrent ? SummaryPalette.muted : SummaryPalette.rowInk)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 6)
@@ -280,7 +328,7 @@ struct ThinkingDetailOverlay: View {
                 // 思考行无箭头）；思考行保留点开全文（无箭头 affordance）。
                 if route != nil, case .tool = item.kind {
                     AppSymbol("chevron.right", size: 16)
-                        .foregroundStyle(Self.mutedGray)
+                        .foregroundStyle(SummaryPalette.muted)
                 }
             }
             .contentShape(Rectangle())
@@ -310,10 +358,10 @@ struct ThinkingDetailOverlay: View {
             if item.usesSFSymbol {
                 Image(systemName: item.iconName)
                     .font(.system(size: 15))
-                    .foregroundStyle(Self.mutedGray)
+                    .foregroundStyle(SummaryPalette.muted)
             } else {
                 AppSymbol(item.iconName, size: 17) // Lucide 内边距补偿：视觉 ≈16 [同 classic 行]
-                    .foregroundStyle(Self.mutedGray)
+                    .foregroundStyle(SummaryPalette.muted)
             }
         }
     }
@@ -329,15 +377,19 @@ struct ThinkingDetailOverlay: View {
             let settled = String(text.dropLast(tailCount))
             let tail = String(text.suffix(tailCount))
             let font: Font = serif ? .system(size: size, design: .serif) : .system(size: size)
-            (Text(
-                (try? AttributedString(markdown: settled)) ?? AttributedString(settled)
-            )
+            // [pp 09-18 渲染修复] 原先两半各自 `AttributedString(markdown:)`，三个害处：
+            // ① 跨 24 字边界的 markdown 结构（**粗体**/`代码`/链接）被劈开 → 两半都
+            //    解析失败 → 记号（星号/反引号）原样露在屏幕上；流式时边界每帧后移 →
+            //    记号闪现；
+            // ② 全仓只有本文件用 AttributedString(markdown:)，渲染结果与聊天流里的
+            //    思考正文（AssistantBlockView 直接 Text(displayContent)，零解析）不一致；
+            // ③ 默认 full 语法把软换行（单个 \n）当空格 → 分行丢失、整段挤成一坨。
+            // 改纯 Text：换行原样保留、零解析歧义。衬线/字号/配色全不动。
+            (Text(settled)
             .font(font)
             .foregroundStyle(Color(uiColor: .label))
             +
-            Text(
-                (try? AttributedString(markdown: tail)) ?? AttributedString(tail)
-            )
+            Text(tail)
             .font(font)
             .foregroundStyle(isSegmentRunning ? Color(uiColor: .lightGray) : Color(uiColor: .label)))
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -368,7 +420,7 @@ private struct SummaryDetailHeader: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Color.primary)
                         .frame(width: 44, height: 44) // 热区 [Claude 白圆钮 ≈44pt]
-                        .background(Circle().fill(Color.white))
+                        .background(Circle().fill(SummaryPalette.circleButton))
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -391,8 +443,6 @@ private struct ThinkingDetailPage: View {
     let settledSeconds: Int?
     var onBack: () -> Void
 
-    private static let sheetBg = Color(red: 0.961, green: 0.961, blue: 0.961)
-
     private var thinkingBlocks: [AssistantBlock] {
         segment.thinkingIds.compactMap { id in message.blocks.first { $0.id == id } }
     }
@@ -411,7 +461,7 @@ private struct ThinkingDetailPage: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Self.sheetBg)
+        .background(SummaryPalette.sheetBg)
     }
 
     @ViewBuilder
@@ -423,15 +473,13 @@ private struct ThinkingDetailPage: View {
             let settled = String(text.dropLast(tailCount))
             let tail = String(text.suffix(tailCount))
             let font = Font.system(size: 15.5, design: .serif)
-            (Text(
-                (try? AttributedString(markdown: settled)) ?? AttributedString(settled)
-            )
+            // [pp 09-18 渲染修复] 同 ThinkingDetailOverlay.thinkingMergedText：去 markdown
+            // 解析，纯 Text 直出（换行保留、记号不外露）。见该处详注。
+            (Text(settled)
             .font(font)
             .foregroundStyle(Color(uiColor: .label))
             +
-            Text(
-                (try? AttributedString(markdown: tail)) ?? AttributedString(tail)
-            )
+            Text(tail)
             .font(font)
             .foregroundStyle(isSegmentRunning ? Color(uiColor: .lightGray) : Color(uiColor: .label)))
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -445,9 +493,6 @@ private struct ToolSummaryDetailPage: View {
     @ObservedObject var message: ChatMessage
     let blockId: UUID
     var onBack: () -> Void
-
-    private static let sheetBg = Color(red: 0.961, green: 0.961, blue: 0.961)
-    private static let mutedGray = Color(red: 0.533, green: 0.525, blue: 0.506) // #888681
 
     private var block: AssistantBlock? {
         message.blocks.first { $0.id == blockId }
@@ -494,13 +539,13 @@ private struct ToolSummaryDetailPage: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Self.sheetBg)
+        .background(SummaryPalette.sheetBg)
     }
 
     private func sectionLabel(_ title: String) -> some View {
         Text(verbatim: title) // [CI #114 修复] AppLocalized 只收字面量 key，变量传参编译不过
             .font(.system(size: 15))
-            .foregroundStyle(Self.mutedGray)
+            .foregroundStyle(SummaryPalette.muted)
             .padding(.bottom, 10)
     }
 

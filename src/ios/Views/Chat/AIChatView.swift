@@ -724,9 +724,15 @@ struct AIChatView: View {
         .modifier(NavBarStyleModifier(topSafeAreaInset: $topSafeAreaInset))
         .navigationBarTitleDisplayMode(.inline)
         // [pp 09-18 三改] 汇聚页 = 原生 sheet（Claude photo_32363DEB 参考：从下
-        // 弹起 + 系统抓条 + 左上白圆底 X + 居中标题）。detent 初始 0.69（参考图
-        // 顶边实测）、selection 绑定钉住高度防流式重吸附；详情页仍在 sheet 内从右
-        // 切页。原生件申报：sheet / detents / grabber / dimming / 下拉关闭全由系统提供。
+        // 弹起 + 系统抓条 + 左上白圆底 X + 居中标题）。detent 初始 0.57、selection
+        // 绑定钉住高度防流式重吸附；详情页仍在 sheet 内从右切页。原生件申报：
+        // sheet / detents / grabber / dimming / 下拉关闭全由系统提供。
+        // [pp 09-18 高度标定 0.69 → 0.57] `.fraction(n)` 是 maximumDetentValue 的
+        // 分数、不是屏高（SwiftUI 内部 = context.maximumDetentValue * n）。实测标签：
+        // 0.69 渲染顶边 y=927px → sheet 543pt = 屏高 63.7% → maxDetent = 543/0.69
+        // = 787pt（iPhone 15 Pro，852 − 65）。Claude App 的 Summary 弹窗实测顶边
+        // y=1211px → sheet 448pt → 448/787 = 0.5697 → 取 0.57（渲染 448.6pt，
+        // 与 Claude 差 1px）。
         .sheet(item: $toolActivityDetail) { ctx in
             if let msg = vm.messages.first(where: { $0.id == ctx.messageId }) {
                 ThinkingDetailOverlay(
@@ -736,7 +742,7 @@ struct AIChatView: View {
                 ) {
                     toolActivityDetail = nil
                 }
-                .presentationDetents([.fraction(0.69), .large], selection: $sheetDetent)
+                .presentationDetents([.fraction(0.57), .large], selection: $sheetDetent)
                 .presentationDragIndicator(.visible)
             }
         }
@@ -2875,7 +2881,10 @@ struct AIChatView: View {
     @State private var toolActivityDetail: ToolActivityDetailContext?
     /// [pp 09-18 三改] 回原生 sheet：钉住当前 detent——流式更新改变内容高度时
     /// 系统重吸附会让顶边横跳；selection 绑定后高度只随用户拖拽变化。
-    @State private var sheetDetent: PresentationDetent = .fraction(0.69)
+    /// [pp 09-18 高度标定] 0.69 → 0.57（= Claude Summary 实测 448pt / 本机
+    /// maxDetent 787pt；推导见 .sheet 处注释）。初值必须与 detents 首项一致，
+    /// 否则 sheet 打开时会先落到错的高度再吸附。
+    @State private var sheetDetent: PresentationDetent = .fraction(0.57)
     /// [ICON-SKIN-A] 图标随皮肤联动 observer（命令菜单/思考等级指示等 chrome）。
     @AppStorage("toolRenderStyle") private var renderStyleStorage: Int = ToolRenderStyle.new.rawValue
 

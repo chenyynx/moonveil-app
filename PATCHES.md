@@ -676,3 +676,33 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **Fix**: 状态置位三路照旧（断的是 @State 不是事实），触感抽成 `haptic:` 参数，只有真事件路径 ①② 传 true。**判例：幂等置位入口不得携带副作用**——它被"补记/恢复"路径复用时，副作用会被无差别重放；副作用要挂在"事件"而不是"状态"上。
 - **回归**: 思考真开始仍震一次（①②）/ 进页面、滚动回看、cell 重建不震 / 状态置位与计时起点不变 / classic 皮肤同路径。
 - **验证**: 待装机（入口：点进有历史思考的会话，不应有触感；发消息等思考开始，应有一次轻震）。
+
+### SWEEP-DRIVE-V4 + SUMMARY-DARK + THINKING-DETAIL-RENDER/STREAM（CC，2026-09-18 pp 装机反馈四连：字体/颜色不一致 · 扫光不循环 · 汇聚页渲染+不流式 · 暗色未适配）
+
+**Files**: `Chat/ToolActivity/ShimmerText.swift`（驱动重写）· `Chat/ToolActivity/ThinkingDetailOverlay.swift`（色板合并 + 去 markdown + 补订阅）· `Chat/ToolActivity/ToolActivityGroupView.swift`（字体/颜色/常量上提）· `Chat/ToolActivity/ToolEventRow.swift`（两色动态化）· `Chat/AIChatView.swift`（detent 0.69→0.57）。
+
+**1) Thinking 行字体/颜色对齐**（pp：「聊天流 thinking 字体和灰字入口不一样」→「颜色也改成灰字入口一个颜色」）
+- 运行槽 "Thinking" 原 `.system(size: 14, weight: .medium)` + `Color.secondary`；完成态入口行是 `.system(size: 14)`（regular）+ 写死暖灰 `#7A7974`。**字号同、字重差一档、色冷暖不同**。
+- Fix：两处都改 14pt regular + `#7A7974`；`headlineGray` 从 `ToolActivityGroupView` 静态成员**上提为文件级 `ThinkingRowStyle.headlineGray`**（同文件 `ThinkingElapsedText` 拿不到 private 成员，否则 "· N秒" 会留在 medium+secondary → 一行两粗细）。计时文字同步对齐。
+
+**2) 扫光不循环**（pp：「聊天流中的 thinking 没有循环扫光」）
+- **根因（本笔的赌注，见下方"判例冲突"）**：`SweepTextShimmerModifier` 用 `withAnimation(.linear.repeatForever)` 驱动亮带 offset = **隐式动画**；聊天 cell 宿主挂 `.transaction { $0.disablesAnimations = true }`（`CollectionViewMessageListV3` 1266/1292/1316/1332，防 ViewGraph use-after-free），而 `.transaction` 作用于该视图内**所有**事务 → 循环被禁 → offset 直接跳终点（文字左缘外）→ 带子停在文字外面，整行不扫。
+- **Fix（v4）**：驱动换 `TimelineView(.animation(minimumInterval: 1/30))` 按绝对时间算相位（`offset = travel − phase·2·travel`）——与同 cell 一直工作的 `ThinkingDotIcon` 同款驱动、且不走动画事务。周期 3s/方向右→左/带宽/`peak()` 峰色算法（v3 修好的 alpha 语义）**全部沿用**，只换驱动；`onAppear` 启动门随 `withAnimation` 一并删除（相位取自绝对时间，无需启动时机）。
+- **⚠️ 判例冲突（留痕，勿再互相打脸）**：`PATCHES.md:593`（v2 当时）记「TimelineView 在 cell 里 display-link 不驱动」（同环境 withAnimation 系正常）；`ShimmerText.swift:15`（v3 后来）**推翻该判例**——点阵同用 TimelineView 在同 cell 一直工作，v1 真因是峰色丢 alpha。本笔采信后者并引入第三条：**两条可同时成立**（TimelineView 不归动画事务管 → 活；withAnimation 归它管 → 死），且有 `CollectionViewMessageListV3:5432` 团队记录背书（该护栏会 suppress sheet 上滑动画，故 sheet 被刻意放在 cell 树外）。**若装机仍不扫 → 换 CA 驱动（CABasicAnimation 位移 mask），不再猜第三条。**
+
+**3) 汇聚页思考详情：渲染 + 流式**
+- 渲染根因：两处 `thinkingMergedText` 把「已落定正文」与「最后 24 字流式尾」**各自**跑一次 `AttributedString(markdown:)`（全仓仅本文件用该 API）→ ① 跨 24 字边界的 markdown 结构被劈开、两半都解析失败 → `**`/反引号原样外露且随流式闪现；② 与聊天流思考正文（`AssistantBlockView:968` 纯 `Text`，零解析）渲染不一致；③ 默认 full 语法把软换行当空格 → 分行丢失挤成一坨。
+- Fix：4 处改纯 `Text`，换行原样保留；衬线/字号/配色不动。
+- 流式根因：本 sheet 只订阅 `message`（`ChatMessage` 不转发 block 通知，blocks 数组引用不变也不发通知），而增量落在 `AssistantBlock.@Published content` → 打开那一刻画面冻死。
+- Fix：段内每个思考块挂零尺寸 `ThinkingFlushWatcher`（该 watcher 由 private 提为 internal，两处共用）→ flush 落地即 tick 重算，节奏与聊天流一致（0.3~1.5s 节流，不做逐 token 重绘，避免重演 thinking 卡顿判例）。
+
+**4) 暗色适配**（pp：「新版的部分 ui 没有暗黑模式适配」→ 批量审 28 条，必修 16 条）
+- 根因面：暗色下 `sheetBg` 等仍是写死浅色，而正文/标题用 `Color.primary`/`.label`（暗色=白）→ **白底白字**；`ToolEventRow` 路径胶囊同理（`#F2F2F4` + `.label`）。
+- Fix：新增 `SummaryPalette`（文件级，三处重复的 `sheetBg` 合并为单一来源）：`sheetBg` #F5F5F5/#181818、`rowInk` #1D1D1D/#EDEDED、`muted` #888681/#A0A0A0、`connector` #DCDCDC/#2E2E2E、`circleButton` 白/#2E2E2E（浅色"白比 #F5F5F5 亮"的同关系）；`ToolEventRow`：`pathCapsuleBg` #F2F2F4/#2C2C2E、`commandGray` #7C7C81/#A0A0A0。深色档取设计规范的中性暖灰（禁蓝调）。
+- **pp 点名不改**：点阵 `ThinkingDotIcon.dimColor`、入口行 `headlineGray`（保持写死唯一值）。
+
+**5) 汇聚页初始高度 0.69 → 0.57**（pp：「第一次弹出来的高度能别这么高吗」+「你算一下」）
+- `.fraction(n)` = `context.maximumDetentValue × n`，**不是屏高**（SwiftUI 内部实现；本次实测反推）。标定：0.69 渲染顶边 y=927px → sheet 543pt = 屏高 63.7% → maxDetent = 543/0.69 = **787pt**；Claude App Summary 弹窗顶边 y=1211px → sheet 448pt → **448/787 = 0.5697 → 取 0.57**（渲染 448.6pt，与 Claude 差 1px）。两处同步改（detents 首项 + `sheetDetent` 初值，不一致会先落错高度再吸附）。标定截图：Claude `debug-1789704841591`（y=1211）与 moonveil `debug-1789704991170`（y=927）。
+
+**回归**: classic 皮肤零影响（改动全在 New 皮肤路径 + 汇聚页 sheet）· 入口行/点阵观感（pp 点名不动）· 扫光静止态=base 灰不变 · 思考详情 push/pop 与尾巴灰渐显不变 · 代码卡 `SelectableMarkdownView` 不受影响（未动）· detent 用户拖拽吸附不变。
+**验证**: 待装机（① 扫光是否循环 ② 汇聚页弹窗高度是否与 Claude 一致 ③ 思考详情是否随流式增长 ④ 暗色下汇聚页/工具行是否可读 ⑤ Thinking 行字体颜色与入口行一致）。**装机取证建议**：录 5s 屏（聊天流 thinking + 汇聚页标题扫光同框），抽帧判定 —— 见本文档 1) 与 2) 的判例冲突尚未有帧证据。

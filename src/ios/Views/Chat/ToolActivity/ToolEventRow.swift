@@ -89,6 +89,16 @@ struct ToolEventRow: View {
     let accentColor: Color
     var status: ToolBlockStatus?
 
+    /// [pp 09-18 暗色适配] 路径胶囊底：浅 #F2F2F4（原值）/ 深 #2C2C2E。
+    /// 胶囊内文字用 `.label`（暗色解析成白），写死浅底 = 白底白字、路径看不见。
+    static let pathCapsuleBg = Color(UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0x2C / 255, green: 0x2C / 255, blue: 0x2E / 255, alpha: 1)
+        : UIColor(red: 0.949, green: 0.949, blue: 0.957, alpha: 1) })
+    /// [pp 09-18 暗色适配] command 类标题/详情灰：浅 #7C7C81（原值）/ 深 #A0A0A0。
+    static let commandGray = Color(UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0xA0 / 255, green: 0xA0 / 255, blue: 0xA0 / 255, alpha: 1)
+        : UIColor(red: 0.486, green: 0.486, blue: 0.506, alpha: 1) })
+
     var body: some View {
         // [pp 09-18 真机 photo_E2402C58] .firstTextBaseline 使 Lucide 画布图标视觉中心
         // 比文字高 ~2.8pt（图标无基线概念）→ 垂直居中对齐。
@@ -117,16 +127,19 @@ struct ToolEventRow: View {
                         .truncationMode(.middle)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(Color(red: 0.949, green: 0.949, blue: 0.957))) // #F2F2F4
+                        // [pp 09-18 暗色适配] 原写死 #F2F2F4：暗色下浅底 + 上面
+                        // `.label` 文字变白 = 白底白字、路径不可见 → 改动态双档
+                        // （浅 #F2F2F4 / 深 #2C2C2E，系统 group 色同档）。
+                        .background(Capsule().fill(Self.pathCapsuleBg))
                 }
             } else {
                 Text(item.title)
                     .font(.system(size: 13))
-                    .foregroundStyle(Color(red: 0.486, green: 0.486, blue: 0.506)) // #7C7C81
+                    .foregroundStyle(Self.commandGray)
                 if !item.detail.isEmpty {
                     Text(item.detail)
                         .font(.system(size: 13))
-                        .foregroundStyle(Color(red: 0.486, green: 0.486, blue: 0.506))
+                        .foregroundStyle(Self.commandGray)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
