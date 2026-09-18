@@ -7,78 +7,78 @@ import SwiftUI
 // 打开后首扫延迟 ~3.0s。全部参数列入装机校准清单（H.264 抹平了精确曲线）。
 // 聊天内 Thinking 文字实测无扫光 —— 本修饰器仅用于汇聚页（sheet）。
 
-// MARK: - Claude Text Sweep Shimmer [pp 09-18：1:1 复刻 cds-shimmer-text-shine]
+// MARK: - Claude Text Sweep Shimmer [pp 09-18 v2：mask 位移 + repeatForever 纯 CA 驱动]
 //
-// 参数实抓自 claude.ai 生产 CSS（assets-proxy.anthropic.com c6a992d55 bundle）：
-//   @keyframes cds-shimmer-text-shine {
-//     0%,15%   { background-position: 83.333% 0; timing: cubic-bezier(.714,.121,.211,.888) }
-//     85%,100% { background-position: 16.667% 0 } }
-//   应用 = 3s linear infinite；峰色 = color-mix(in srgb, <text> 30%, white)
-// ⇒ 方向【右→左】、3s 周期、每圈前 15%/后 15% 静止、S 曲线缓动、
-//   亮带 ≈ 文字宽 16%、峰色 = 基色 ×30% + 白 ×70%。
+// 参数实抓自 claude.ai 生产 CSS（cds-shimmer-text-shine）：3s 周期、右→左亮带、
+// 峰色 = color-mix(in srgb, base 30%, white)（alpha 语义 0.3a+0.7）。
+//
+// v1（TimelineView 每帧换 foregroundStyle 渐变）在聊天流 cell（UIHostingConfiguration）
+// 里不驱动——pp 装机反馈「thinking 还是没有扫光」：文字滑入等 withAnimation 系动画
+// 均正常，唯独 TimelineView 帧驱动无效。v2 改为 [峰色文字层 + 移动窄带 mask] +
+// withAnimation(.linear.repeatForever)——与已验证工作的出现动画同一条 SwiftUI/CA
+// 动画管线，不依赖 TimelineView。「每圈端点停 15%」用带子滑出视野外的空程近似。
+
+private struct SweepWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
 
 struct SweepTextShimmerModifier: ViewModifier {
     var base: Color
     var period: Double = 3.0
 
+    @State private var textWidth: CGFloat = 0
+    @State private var sweeping = false
+
     func body(content: Content) -> some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-            let center = shimmerCenter(timeline.date.timeIntervalSinceReferenceDate)
-            content
-                .foregroundStyle(
-                    LinearGradient(stops: Self.stops(base: base, center: center),
-                                   startPoint: .leading, endPoint: .trailing)
-                )
-        }
+        let bandW = max(textWidth * 0.5, 28)          // 亮带渐变矩形宽（有效峰区≈其一半）
+        let travel = textWidth / 2 + bandW / 2 + 4    // 带子中心：右缘外 → 左缘外
+        return content
+            .background(
+                GeometryReader { g in
+                    Color.clear.preference(key: SweepWidthKey.self, value: g.size.width)
+                }
+            )
+            .onPreferenceChange(SweepWidthKey.self) { textWidth = $0 }
+            .overlay {
+                content
+                    .foregroundStyle(Self.peak(base)) // 峰色文字层（被 mask 裁成移动亮带）
+                    .mask(
+                        Rectangle()
+                            .fill(LinearGradient(stops: [
+                                .init(color: .clear, location: 0),
+                                .init(color: .white, location: 0.5),
+                                .init(color: .clear, location: 1),
+                            ], startPoint: .leading, endPoint: .trailing))
+                            .frame(width: bandW, height: 64)
+                            .offset(x: sweeping ? -travel : travel)
+                    )
+                    .accessibilityHidden(true)
+                    .allowsHitTesting(false)
+            }
+            .onAppear {
+                withAnimation(.linear(duration: period).repeatForever(autoreverses: false)) {
+                    sweeping = true
+                }
+            }
     }
 
-    /// 归一化相位 → 亮带中心（0=左 1=右；0.9 → 0.1 对应 CSS 83.333%→16.667%）。
-    private func shimmerCenter(_ t: Double) -> Double {
-        let p = t.truncatingRemainder(dividingBy: period) / period
-        // 每圈前 15% / 后 15% 停在端点 [CSS 0%,15% / 85%,100%]
-        let q = min(1.0, max(0.0, (p - 0.15) / 0.7))
-        let e = Self.cubicBezierY(q, x1: 0.714, y1: 0.121, x2: 0.211, y2: 0.888)
-        return 0.9 - 0.8 * e
-    }
-
-    /// 基色 + 窄峰带（半宽 0.08 ≈ 带宽 16%）渐变 stops；中心∈[0.1,0.9] 恒递增。
-    private static func stops(base: Color, center: Double) -> [Gradient.Stop] {
-        // 峰色 = color-mix(in srgb, base 30%, white) —— 逐通道显式 Double [混合浮点判例]
+    /// 峰色 = color-mix(in srgb, base 30%, white)；alpha 混合同式（0.3a + 0.7）。
+    /// 逐通道显式 Double [混合浮点判例]。
+    private static func peak(_ base: Color) -> Color {
         var r0: CGFloat = 0; var g0: CGFloat = 0; var b0: CGFloat = 0; var a0: CGFloat = 0
         UIColor(base).getRed(&r0, green: &g0, blue: &b0, alpha: &a0)
-        let r = Double(r0) * 0.3 + 1.0 * 0.7
-        let g = Double(g0) * 0.3 + 1.0 * 0.7
-        let b = Double(b0) * 0.3 + 1.0 * 0.7
-        let peak = Color(red: r, green: g, blue: b)
-        let w = 0.08
-        return [
-            .init(color: base, location: 0),
-            .init(color: base, location: center - w),
-            .init(color: peak, location: center),
-            .init(color: base, location: center + w),
-            .init(color: base, location: 1),
-        ]
-    }
-
-    /// 标准 cubic-bezier y(t)：x 单调，二分求参再取 y（20 轮 ≈ 1e-6 精度）。
-    private static func cubicBezierY(_ t: Double, x1: Double, y1: Double, x2: Double, y2: Double) -> Double {
-        func bez(_ a: Double, _ b: Double, _ s: Double) -> Double {
-            let u = 1 - s
-            return 3 * u * u * s * a + 3 * u * s * s * b + s * s * s
-        }
-        var lo = 0.0
-        var hi = 1.0
-        for _ in 0..<20 {
-            let mid = (lo + hi) / 2
-            if bez(x1, x2, mid) < t { lo = mid } else { hi = mid }
-        }
-        let s = (lo + hi) / 2
-        return bez(y1, y2, s)
+        return Color(red: Double(r0) * 0.3 + 0.7,
+                     green: Double(g0) * 0.3 + 0.7,
+                     blue: Double(b0) * 0.3 + 0.7,
+                     opacity: Double(a0) * 0.3 + 0.7)
     }
 }
 
 extension View {
-    /// Claude 文字扫光 [cds-shimmer-text-shine 1:1]：3s 周期、右→左亮带、端点停顿。
+    /// Claude 文字扫光 [cds-shimmer-text-shine]：3s 周期、右→左亮带。
     func sweepShimmer(base: Color, period: Double = 3.0) -> some View {
         modifier(SweepTextShimmerModifier(base: base, period: period))
     }

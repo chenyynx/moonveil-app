@@ -587,3 +587,10 @@ pp 拍板：完全 Grok 式（聊天内 thinking=入口行零展开）、阶段�
 - **回归**: 入口行点开（完成/运行中）/ 纯思考全文 / 详情 push/返回 / X 与下拉两种关闭 / detent 拖动防横跳 / classic 皮肤零影响。
 - **死隔离申报**: 仅 New 皮肤汇聚页路径；数据/会话/工具流零改动；自绘面缩小（回系统 sheet/grabber/detents/dimming）。
 - **待装机**: ①标题文案保留动态版（思考结果/Thought for Ns/Thinking…），参考图为固定 "Summary"——要 1:1 固定词说一声；②运行中灰点若 Claude 实为脉冲动画，可一行加。
+
+### SHIMMER-V2 — Thinking 扫光 v2：TimelineView 帧驱动 → mask 位移 + repeatForever（2026-09-18，pp 装机反馈「tinking 还是没有扫光」）
+- File: `src/ios/Views/Chat/ToolActivity/ShimmerText.swift`（SweepTextShimmerModifier 重写；API `sweepShimmer(base:period:)` 不变）。
+- 根因: v1 用 TimelineView(.animation) 每帧重建 foregroundStyle 渐变——聊天流 cell（UIHostingConfiguration）里 display-link 闭包不驱动（同环境 withAnimation 系动画正常，pp 实证文字滑入有、扫光无）。汇聚页标题同 modifier 一并失效。
+- v2: 峰色文字层 + 移动窄带 mask（Rectangle fill clear/white/clear 渐变，带宽=max(0.5×文字宽,28)，PreferenceKey 量宽）+ offset 由 withAnimation(.linear 3s repeatForever) 驱动；端点停顿用带子滑出视野外空程近似；峰色 = color-mix(base 30%, white)，alpha 同式 0.3a+0.7（修 v1 丢 alpha 的偏差）。
+- 回归: 运行槽 "Thinking" 扫光（静止态 = base 灰不变）/ 汇聚页标题扫光 / 文字选中复制不受影响（峰层 allowsHitTesting(false)+a11y hidden）/ 深浅色模式（峰色跟随 base 动态取色）。
+- 死隔离: ShimmerText.swift 为自造渲染件（非上游 verbatim）；零数据/生命周期改动；旧呼吸式 ShimmerTextModifier 保留未动。
