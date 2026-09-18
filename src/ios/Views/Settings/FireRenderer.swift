@@ -60,6 +60,8 @@ final class FireRenderer: NSObject, MTKViewDelegate {
     private var displayLink: CADisplayLink?
     private let bootTime = CACurrentMediaTime()
     private var activeStartTime: CFTimeInterval = 0
+    /// Timestamp of the previous tick, for frame-rate-independent simulation.
+    private var lastFrameTimestamp: CFTimeInterval = CACurrentMediaTime()
     private var idleFrameCount = 0
     private let idleFrameLimit = 180 // ~3s at 60fps after leaving Ultracode
 
@@ -105,7 +107,9 @@ final class FireRenderer: NSObject, MTKViewDelegate {
         // deliberate deviation from the "RGBA8" note in the spec.
         simPipeline = pipeline("fragment_sim", pixelFormat: .rgba16Float)
         blurPipeline = pipeline("fragment_blur", pixelFormat: .rgba16Float)
-        compPipeline = pipeline("fragment_comp", pixelFormat: .bgra8Unorm)
+        // Tone-mapped composite to the screen: write through the sRGB transfer
+        // function so the glow hue is not washed out by the linear write.
+        compPipeline = pipeline("fragment_comp", pixelFormat: .bgra8Unorm_srgb)
     }
 
     // MARK: Texture management (ResizeObserver equivalent)
@@ -153,7 +157,9 @@ final class FireRenderer: NSObject, MTKViewDelegate {
         guard displayLink == nil else { return }
         idleFrameCount = 0
         let link = CADisplayLink(target: self, selector: #selector(tick))
-        link.preferredFramesPerSecond = 60
+        // ProMotion displays can run the sim at 120Hz for a smoother flame;
+        // the decay term is dt-scaled so this stays visually identical.
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
         link.add(to: .main, forMode: .common)
         displayLink = link
     }
@@ -194,11 +200,15 @@ final class FireRenderer: NSObject, MTKViewDelegate {
         let uTime = Float(now - bootTime)
         let uSlider = Float(sliderValue / 100.0)
         let uElapsed: Float = isActive ? Float(now - activeStartTime) : -1.0
+        // Clamp dt so a long re-boot pause (e.g. app background) doesn't make
+        // the decay pow() explode; 1/120 is the max trusted refresh interval.
+        let uDt = Float(max(now - lastFrameTimestamp, 1.0 / 120.0))
+        lastFrameTimestamp = now
         let resolution = SIMD2<Float>(Float(textureSize.width), Float(textureSize.height))
 
         // Pass 1 — SIM: curSimA (previous frame) -> curSimB (this frame)
         encodeSim(commandBuffer, source: curSimA, destination: curSimB,
-                  uTime: uTime, uSlider: uSlider, uElapsed: uElapsed)
+                  uTime: uTime, uSlider: uSlider, uElapsed: uElapsed, uDt: uDt)
 
         // Pass 2 — BLUR H: curSimB -> curBlurH, culling dark pixels (bloom threshold)
         encodeBlur(commandBuffer, source: curSimB, destination: curBlurH,
@@ -227,7 +237,7 @@ final class FireRenderer: NSObject, MTKViewDelegate {
 
     private func encodeSim(_ commandBuffer: MTLCommandBuffer,
                             source: MTLTexture, destination: MTLTexture,
-                            uTime: Float, uSlider: Float, uElapsed: Float) {
+                            uTime: Float, uSlider: Float, uElapsed: Float, uDt: Float) {
         let passDesc = MTLRenderPassDescriptor()
         passDesc.colorAttachments[0].texture = destination
         passDesc.colorAttachments[0].loadAction = .dontCare
@@ -235,7 +245,7 @@ final class FireRenderer: NSObject, MTKViewDelegate {
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: passDesc) else { return }
         encoder.setRenderPipelineState(simPipeline)
         encoder.setFragmentTexture(source, index: 0)
-        var uniforms = SimUniforms(u_time: uTime, u_slider: uSlider, u_elapsed: uElapsed)
+        var uniforms = SimUniforms(u_time: uTime, u_slider: uSlider, u_elapsed: uElapsed, u_dt: uDt)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<SimUniforms>.stride, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()
@@ -264,6 +274,7 @@ private struct SimUniforms {
     var u_time: Float
     var u_slider: Float
     var u_elapsed: Float
+    var u_dt: Float
 }
 
 private struct BlurUniforms {

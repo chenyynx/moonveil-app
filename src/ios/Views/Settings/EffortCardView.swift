@@ -105,10 +105,14 @@ struct EffortCardView: View {
     /// Status label with glow + flip-up entrance on entering Ultracode.
     /// Reference: rotateX(-80°) translateY(18px) blur(4px) -> identity,
     /// 0.42s cubic-bezier(0.33, 1, 0.68, 1), transform-origin center bottom.
+    /// `.fixedSize()` pins the text to its natural width so it can never be
+    /// compressed to an ellipsis inside the `HStack` (the `Spacer` takes the
+    /// slack — there is plenty of room for "Ultracode").
     private var statusText: some View {
         Text(statusLabel)
             .font(.system(size: 16, weight: isActive ? .semibold : .medium))
             .foregroundStyle(statusColor)
+            .fixedSize()
             .shadow(color: isActive ? glowColor : .clear, radius: 6)
             .opacity(statusAppeared ? 1 : 0)
             .offset(y: statusAppeared ? 0 : 18)
@@ -160,29 +164,50 @@ struct EffortCardView: View {
     // MARK: Track
 
     private var track: some View {
-        ZStack {
-            // Background gradient: linear-gradient(135deg, #111113, #0a0a0b)
-            LinearGradient(
-                colors: [
-                    Color(red: 17 / 255, green: 17 / 255, blue: 19 / 255),
-                    Color(red: 10 / 255, green: 10 / 255, blue: 11 / 255)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+        GeometryReader { geo in
+            let tw = geo.size.width
+            // UISlider centers its thumb at:
+            //   thumbWidth/2 + progress * (trackWidth - thumbWidth)
+            let thumbX = EffortSlider.thumbSize / 2
+                + CGFloat(sliderValue / 100.0) * (tw - EffortSlider.thumbSize)
+            ZStack {
+                // Background gradient: linear-gradient(135deg, #111113, #0a0a0b)
+                LinearGradient(
+                    colors: [
+                        Color(red: 17 / 255, green: 17 / 255, blue: 19 / 255),
+                        Color(red: 10 / 255, green: 10 / 255, blue: 11 / 255)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
 
-            dotsLayer
+                dotsLayer(width: tw)
 
-            // Fire layer: screen-blended, only visible while active, and
-            // hard-masked at (sliderValue + 2)% like the reference canvas.
-            FireCanvasView(sliderValue: $sliderValue)
-                .blendMode(.screen)
-                .opacity(isActive ? 1 : 0)
-                .mask(fireMask)
-                .allowsHitTesting(false)
-                .animation(.easeInOut(duration: 0.3), value: isActive)
+                // Fire layer: screen-blended, only visible while active, and
+                // hard-masked at (sliderValue + 2)% like the reference canvas.
+                FireCanvasView(sliderValue: $sliderValue)
+                    .blendMode(.screen)
+                    .opacity(isActive ? 1 : 0)
+                    .mask(fireMask)
+                    .allowsHitTesting(false)
+                    .animation(.easeInOut(duration: 0.3), value: isActive)
 
-            EffortSlider(value: $sliderValue, glowing: isActive)
+                // Ultracode halo, drawn SwiftUI-side (under the thumb) so the
+                // thumb image itself stays small — a large canvas would leave
+                // the knob visibly short of the track's right edge and inflate
+                // its hit area past the track.
+                if isActive {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(red: 168 / 255, green: 85 / 255, blue: 247 / 255))
+                        .frame(width: 29, height: 29)
+                        .blur(radius: 14)
+                        .opacity(0.55)
+                        .position(x: thumbX, y: 15)
+                        .allowsHitTesting(false)
+                }
+
+                EffortSlider(value: $sliderValue, width: tw)
+            }
         }
         .frame(height: 30)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -192,15 +217,15 @@ struct EffortCardView: View {
         )
     }
 
-    private var dotsLayer: some View {
-        GeometryReader { geo in
+    private func dotsLayer(width: CGFloat) -> some View {
+        ZStack {
             ForEach(0..<5, id: \.self) { i in
                 Circle()
                     .fill(Color(red: 73 / 255, green: 73 / 255, blue: 80 / 255))
                     .frame(width: 5, height: 5)
                     .position(
-                        x: geo.size.width * effortDotPositions[i],
-                        y: geo.size.height / 2
+                        x: width * effortDotPositions[i],
+                        y: 15
                     )
             }
         }
@@ -225,148 +250,89 @@ struct EffortCardView: View {
     }
 }
 
-// MARK: - UISlider wrapper (custom thumb needs UIKit)
+// MARK: - Effort slider (self-drawn)
 
-/// SwiftUI's `Slider` cannot customize the thumb's appearance, so this wraps
-/// `UISlider` and supplies rendered thumb images (white rounded square with
-/// drop shadows; purple glow while in Ultracode; 0.95 scale while pressed,
-/// matching the reference `:active` state).
-private struct EffortSlider: UIViewRepresentable {
+/// SwiftUI's `Slider` cannot customize the thumb's shape, and the UIKit
+/// `UISlider` on iOS 26 draws its own round glass thumb regardless of a
+/// custom `setThumbImage` — so the thumb is drawn by hand. A `DragGesture`
+/// drives the value; horizontal drags move the thumb, vertical drags are
+/// left to the enclosing `ScrollView` so page scrolling still works.
+private struct EffortSlider: View {
+
+    /// Side length of the rounded-square thumb (corner radius 10).
+    static let thumbSize: CGFloat = 29
 
     @Binding var value: Double
-    var glowing: Bool
+    /// Track width, passed in from the parent `GeometryReader` so the thumb
+    /// centre and the SwiftUI halo are computed from the same width.
+    var width: CGFloat
+    /// Horizontal-drag latch: set once this gesture is horizontal, cleared
+    /// on release. Prevents vertical swipes (page scroll) from nudging the
+    /// value through the touch's X coordinate.
+    @State private var horizontalDrag = false
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(value: $value, glowing: glowing)
-    }
+    var body: some View {
+        let usable = width - Self.thumbSize
+        let progress = min(max(value, 0), 100) / 100
+        // Thumb centre travels from thumbSize/2 (left end) to
+        // width - thumbSize/2 (right end), so at 100 its right edge is
+        // flush with the track's right end.
+        let thumbCenterX = Self.thumbSize / 2 + CGFloat(progress) * usable
 
-    func makeUIView(context: Context) -> UISlider {
-        let slider = UISlider()
-        slider.minimumValue = 0
-        slider.maximumValue = 100
-        slider.value = Float(value)
-        // The track visuals come from the layers underneath; UIKit's own
-        // track rendering stays fully transparent.
-        slider.minimumTrackTintColor = .clear
-        slider.maximumTrackTintColor = .clear
-        EffortSlider.applyThumbImages(to: slider, glowing: glowing)
-        slider.addTarget(
-            context.coordinator,
-            action: #selector(Coordinator.changed(_:)),
-            for: .valueChanged
-        )
-        return slider
-    }
+        ZStack {
+                // Interactivity layer covering the whole track.
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 2)
+                            .onChanged { g in
+                                let dx = abs(g.translation.width)
+                                let dy = abs(g.translation.height)
+                                if !horizontalDrag {
+                                    // Vertical swipe: leave it to the enclosing
+                                    // ScrollView and never latch onto it.
+                                    if dy > 6 && dy > dx { return }
+                                    // Wait for a little travel before locking, so
+                                    // a pure tap never sets the value.
+                                    if dx < 2 && dy < 2 { return }
+                                    horizontalDrag = true
+                                }
+                                let p = (g.location.x - Self.thumbSize / 2) / usable
+                                value = Double(min(max(p, 0), 1)) * 100
+                            }
+                            .onEnded { _ in
+                                horizontalDrag = false
+                            }
+                    )
 
-    func updateUIView(_ uiView: UISlider, context: Context) {
-        let v = Float(value)
-        if abs(uiView.value - v) > 0.01 {
-            uiView.value = v
-        }
-        if context.coordinator.glowing != glowing {
-            context.coordinator.glowing = glowing
-            EffortSlider.applyThumbImages(to: uiView, glowing: glowing)
-        }
-    }
-
-    private static func applyThumbImages(to slider: UISlider, glowing: Bool) {
-        slider.setThumbImage(makeThumbImage(glowing: glowing, highlighted: false),
-                             for: .normal)
-        slider.setThumbImage(makeThumbImage(glowing: glowing, highlighted: true),
-                             for: .highlighted)
-    }
-
-    // MARK: Thumb rendering
-
-    /// Renders the 29x29 white rounded-square thumb (corner radius 10) with
-    /// the reference drop shadows. `highlighted` renders the 0.95 pressed
-    /// scale; `glowing` adds the Ultracode purple halo:
-    ///   0 0 28px rgba(168,85,247,0.5), 0 0 50px rgba(168,85,247,0.25)
-    /// The 50px layer is intentionally cropped by the canvas edge — its
-    /// visible falloff beyond 28pt is negligible, and a bigger canvas would
-    /// inflate the thumb's hit area past the track's neighbours.
-    static func makeThumbImage(glowing: Bool, highlighted: Bool) -> UIImage {
-        let scale: CGFloat = highlighted ? 0.95 : 1.0
-        let thumb: CGFloat = 29 * scale
-        let pad: CGFloat = glowing ? 36 : 8
-        let canvas = thumb + pad * 2
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: canvas, height: canvas))
-        return renderer.image { ctx in
-            let rect = CGRect(x: pad, y: pad, width: thumb, height: thumb)
-            let path = UIBezierPath(roundedRect: rect, cornerRadius: 10 * scale)
-            let c = ctx.cgContext
-
-            UIColor.white.setFill()
-
-            // Ultracode glow: 0 0 28px 50% + 0 0 50px 25%
-            if glowing {
-                c.setShadow(offset: .zero, blur: 28,
-                            color: UIColor(red: 168 / 255, green: 85 / 255,
-                                           blue: 247 / 255, alpha: 0.5).cgColor)
-                path.fill()
-                c.setShadow(offset: .zero, blur: 50,
-                            color: UIColor(red: 168 / 255, green: 85 / 255,
-                                           blue: 247 / 255, alpha: 0.25).cgColor)
-                path.fill()
+                // Thumb: white rounded square with drop shadows (reference:
+                //   0 0.5px 1px rgba(0,0,0,0.18)
+                //   0 2px 6px rgba(0,0,0,0.25)
+                //   0 6px 16px rgba(0,0,0,0.12)
+                // Body gradient 170deg #fff -> #f0f0f2 -> #e4e4e6).
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white,
+                                Color(red: 240 / 255, green: 240 / 255, blue: 242 / 255),
+                                Color(red: 228 / 255, green: 228 / 255, blue: 230 / 255)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.black.opacity(0.08), lineWidth: 0.5)
+                    )
+                    .frame(width: Self.thumbSize, height: Self.thumbSize)
+                    .shadow(color: .black.opacity(0.25), radius: 6, x: 0, y: 2)
+                    .position(x: thumbCenterX, y: 15)
+                    .allowsHitTesting(false)  // gestures handled by the layer above
             }
-
-            // Reference drop shadows:
-            //   0 0.5px 1px rgba(0,0,0,0.18)
-            //   0 2px 6px rgba(0,0,0,0.25)
-            //   0 6px 16px rgba(0,0,0,0.12)
-            c.setShadow(offset: CGSize(width: 0, height: 0.5), blur: 1,
-                        color: UIColor.black.withAlphaComponent(0.18).cgColor)
-            path.fill()
-            c.setShadow(offset: CGSize(width: 0, height: 2), blur: 6,
-                        color: UIColor.black.withAlphaComponent(0.25).cgColor)
-            path.fill()
-            c.setShadow(offset: CGSize(width: 0, height: 6), blur: 16,
-                        color: UIColor.black.withAlphaComponent(0.12).cgColor)
-            path.fill()
-
-            // Body gradient: linear-gradient(170deg, #fff 0%, #f0f0f2 40%, #e4e4e6 100%)
-            c.setShadow(offset: .zero, blur: 0, color: nil)
-            c.saveGState()
-            path.addClip()
-            let colors = [
-                UIColor(red: 1, green: 1, blue: 1, alpha: 1).cgColor,
-                UIColor(red: 240 / 255, green: 240 / 255, blue: 242 / 255, alpha: 1).cgColor,
-                UIColor(red: 228 / 255, green: 228 / 255, blue: 230 / 255, alpha: 1).cgColor
-            ] as CFArray
-            if let gradient = CGGradient(
-                colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                colors: colors,
-                locations: [0, 0.4, 1]
-            ) {
-                // 170deg is almost straight down, tilted slightly left.
-                c.drawLinearGradient(
-                    gradient,
-                    start: CGPoint(x: rect.midX + 2.6, y: rect.minY),
-                    end: CGPoint(x: rect.midX - 2.6, y: rect.maxY),
-                    options: []
-                )
-            }
-            c.restoreGState()
-
-            // Hairline border: 0.5px rgba(0,0,0,0.08)
-            UIColor.black.withAlphaComponent(0.08).setStroke()
-            path.lineWidth = 0.5
-            path.stroke()
         }
-    }
-
-    final class Coordinator: NSObject {
-        var value: Binding<Double>
-        var glowing: Bool
-
-        init(value: Binding<Double>, glowing: Bool) {
-            self.value = value
-            self.glowing = glowing
-        }
-
-        @objc func changed(_ slider: UISlider) {
-            value.wrappedValue = Double(slider.value)
-        }
+        .frame(height: 30)
     }
 }
 

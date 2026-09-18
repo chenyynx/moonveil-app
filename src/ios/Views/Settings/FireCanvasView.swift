@@ -28,8 +28,8 @@ struct FireCanvasView: UIViewRepresentable {
     func makeUIView(context: Context) -> MTKView {
         let view = MTKView(frame: .zero, device: context.coordinator.device)
         view.delegate = context.coordinator
-        // Must match the comp pipeline's pixel format (.bgra8Unorm).
-        view.colorPixelFormat = .bgra8Unorm
+        // Must match the comp pipeline's pixel format (.bgra8Unorm_srgb).
+        view.colorPixelFormat = .bgra8Unorm_srgb
         // Transparent: the track background shows through, fire adds on top.
         view.isOpaque = false
         view.backgroundColor = .clear
