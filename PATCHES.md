@@ -821,3 +821,15 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **gate 数值核对**: scale=16 / lineHeight=22.4(AIChatView.swift:3845),1 行 est≈30.4pt vs 2 行 est≈52.8pt,行差 22.4pt > 阈值 10 → gate 对整行级冻结有效;remeasure 是真测(权威),粗估只做 gate。
 - **死隔离申报**: 布局层 + 信号接线,不改消息数据/SSE 协议/聚合器/agent 链路;新 signal 为纯新增(无既有订阅者受影响);remeasure 自带 gate(无 stale 时零成本,只遍历流式 ranges 现算粗估);deferred(suspended)路径不提前发信号。回归项 = ①纯文本流式正文增长不贴 ②正文段+Thinking anchor 插入不贴 ③工具行/思考块/入口行高度正常 ④browsing 模式(3s 节流)无抖动 ⑤重进页面行为不变 ⑥流式 settle 不跳。
 - **验证**: 待装机。日志判据:流式中段应出现 `[StreamFlush] remeasure stale streaming cells idx=...`(此前为零);贴正文不再复现。
+
+### SHIMMER-V9 — 弃自研，直接引 markiv/SwiftUI-Shimmer 包(Doris, 2026-09-18 pp:「这个不是有现成的吗」)
+
+- **File**: `src/ios/Views/Chat/ToolActivity/ShimmerText.swift`(重写 SweepTextShimmerModifier,-103/+34)、`src/ios/Minis.xcodeproj/project.pbxproj`(+15:挂 SPM 包)、`THIRD_PARTY_LICENSES.md`(+1)。
+- **背景**: v1~v8 自研路线连续踩坑(TimelineView 每帧重建渐变 → preference 回传跳变 → GeometryReader 量宽 → withAnimation repeatForever 被 cell 宿主 `disablesAnimations` 吞 → v8 最外层 GR 被 sheet 拉伸成跨全屏大竖渐变带)。pp 拍板停止自研,直接用 https://github.com/markiv/SwiftUI-Shimmer(1.5.1, MIT, 零依赖, iOS13+)。
+- **机制**(为何这个包能避开我们踩的所有坑): 渐变端点 = 依赖 `@State isInitialState` 的 **UnitPoint 计算属性**,由隐式 `.animation(_:value:)` 驱动插值 → **无 GeometryReader**(不会被父容器拉伸,治 v8)、无 offset 状态(治 preference 跳变);端点延伸到视图外(`min=-bandSize`/`max=1+bandSize`),亮带从视图外扫入扫出两端无硬切。
+- **配置**: mode `.overlay(.sourceAtop)`(渐变只画在文字像素上 = 亮带横扫,非 mask 模式的整行变淡);gradient = `clear → 峰色 → clear`;`bandSize 0.3`;animation `.linear(2.8).repeatForever`。**周期 2.8s / 峰色 color-mix(base 30%,white) / 可见度 0.75·0.25 全部沿用我们装机实测值**,只换驱动机制。
+- **调用点**: `sweepShimmer(base:period:)` API 不变,ThinkingDetailOverlay(汇聚页标题)与 ToolActivityGroupView(聊天流 Thinking 行)零改动。
+- **⚠️ 已知限制**: 隐式 `.animation(_:value:)` 在聊天流 cell 宿主(`.transaction{disablesAnimations}`)同样被吞 —— 与旧 withAnimation 路线同级问题,非回归。本修饰器仍只用于汇聚页(sheet);聊天流那条路另案。
+- **🔴 判例(可复用)**: **同一视觉机制连续 8 版自研失败时,停止造轮子,引成熟开源包**(pp 明确拍板可引第三方)。自研渐变扫描的几何(量宽/offset/端点延伸)在 SwiftUI 各宿主(cell/sheet/ZStack)下行为差异极大,成熟库用 UnitPoint 归一化坐标一次性绕开全部尺寸问题。
+- **死隔离申报**: 呈现层-only;新增 SPM 包为纯新增依赖(不触碰任何共享件);不改消息数据/SSE/聚合器/agent 链路。回归项 = ①思考结果 sheet 标题有左→右亮带扫过、无跨屏竖带、标题居中不变 ②聊天流 Thinking 行行为不退化 ③深浅色峰色正确 ④其余 4 个 SPM 包构建不受影响。
+- **验证**: 待装机。

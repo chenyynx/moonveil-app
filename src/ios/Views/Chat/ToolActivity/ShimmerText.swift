@@ -1,119 +1,47 @@
 import SwiftUI
+import Shimmer
 
-// MARK: - Slow Shimmer (breathing dim)
+// MARK: - Claude Text Sweep Shimmer
 //
-// [A7/B5, 09-17 帧级实测] Grok sheet 内「思考中……」与「思考结果」标题的扫光：
-// 整行文字变浅→恢复（呼吸型，非亮带横掠）。实测：~0.5s/波、波峰周期 ~2.6s、
-// 打开后首扫延迟 ~3.0s。全部参数列入装机校准清单（H.264 抹平了精确曲线）。
-// 聊天内 Thinking 文字实测无扫光 —— 本修饰器仅用于汇聚页（sheet）。
-
-// MARK: - Claude Text Sweep Shimmer [pp 09-18 v3：GeometryReader 同步量宽 + 启动门]
+// [v9 09-18 pp 拍板「用这个」: https://github.com/markiv/SwiftUI-Shimmer]
+// v1~v8 自研路线连续踩坑（TimelineView 每帧重建渐变 / preference 回传跳变 /
+// GeometryReader 量宽 / withAnimation repeatForever 被 cell 宿主
+// disablesAnimations 吞 / v8 最外层 GR 被 sheet 拉伸成跨屏大竖渐变带），
+// 根因都是「自己重新发明渐变扫描的几何与动画」。直接改用 markiv 的成熟实现：
+//   · 渐变端点 = 依赖 @State 的 UnitPoint 计算属性,隐式 .animation(_:value:)
+//     驱动插值 —— 无 GeometryReader(不会被父容器拉伸)、无 offset 状态;
+//   · 端点延伸到视图外(min=-bandSize / max=1+bandSize),亮带从视图外扫入、
+//     扫出,两端无硬切;
+//   · mode = .overlay(.sourceAtop) 渐变只画在文字像素上 = 「文字上亮带横扫」,
+//     而非 mask 模式的「整行变淡」。
+// 周期/峰色/可见度沿用我们装机实测的参数(2.8s 对齐经典版 ShimmerOverlay;
+// 峰色 = color-mix(base 30%, white); 浅 0.75 / 深 0.25)。
 //
-// 参数实抓自 claude.ai 生产 CSS（cds-shimmer-text-shine）：3s 周期、右→左亮带、
-// 峰色 = color-mix(in srgb, base 30%, white)（alpha 语义 0.3a+0.7）。
-//
-// v1（TimelineView 每帧换渐变）失效真因是峰色 alpha 计算丢 alpha——「TimelineView
-// 在 cell 里不驱动」的旧判例不成立（ThinkingDotIcon 同用 TimelineView(.animation)
-// 在同 cell 一直工作）；v2（preference 回传量宽）失效真因：onPreferenceChange 触发
-// 的 body 重算不在动画事务里，offset 目标从 ±travel(0) 跳到 ±travel(真实宽度) →
-// repeatForever 循环被替换、带子静止在左缘外 → 永久不可见。
-// v3：GeometryReader 在 body 内同步读尺寸（不经过 @State/preference 回传）+
-// w>1 启动门——循环启动时 travel 已是真实值，此后尺寸不再变化 → 循环永续。
-//
-// v4 [pp 09-18 装机：聊天流 Thinking 没有循环扫光] v3 的结论只在汇聚页（sheet）
-// 成立，聊天流那条路没被覆盖。真因：聊天 cell 宿主挂
-// `.transaction { $0.disablesAnimations = true }`（CollectionViewMessageListV3
-// 4 处，防 ViewGraph use-after-free 的护栏），而 `.transaction` 作用于该视图内
-// **所有**事务 → 子视图里 withAnimation 建的 repeatForever 循环同样被禁用，
-// offset 一帧跳到终点（-travel，文字左缘外）→ 带子停在文字外面，整行不扫。
-// 同 cell 的 ThinkingDotIcon 一直能动，正是因为它是 TimelineView 驱动、不走动画
-// 事务 —— 故本版改用同一驱动：相位取自绝对时间，无需 onAppear 启动门，
-// GeometryReader 只负责量宽。
-
-// v5 [pp 09-18 装机：「扫光不对」→ 按 App 抽帧实测改参数]
-// 来源变了：v1~v4 一直照的是 **claude.ai 网页版生产 CSS**（cds-shimmer-text-shine:
-// 3s / 每圈两端各停 15% / 右→左）。pp 的参照物一直是 **iOS App**，用他录的 14s
-// 屏幕录制（60fps）抽帧逐帧量亮带质心，实测三处都不同：
-//   · 周期 120 帧 ≈ **2.0s**（14s 录到 7 圈，自相关 0.80；网页 CSS 是 3s）
-//   · 方向 **左→右**（网页 CSS 换算也是左→右，我们此前实现反了）
-//   · 节奏**不对称**：慢扫过去 ~1.6s（S 曲线：中间快两端慢）+ 快扫回来 ~0.4s
-//     （网页 CSS 是"两端各停 15%"，App 不是停，是快速回扫）
-// 本版 = 周期 2.0s / 左→右 / 去 1.6s + 回 0.4s / 两端 smoothstep 缓动；
-// 带宽与峰色算法不动（App 亮带 ≈ 文字宽一半，与我们一致）。
+// ⚠️ 隐式 .animation(_:value:) 在聊天流 cell 宿主(.transaction{disablesAnimations})
+// 会被吞,与旧 withAnimation 同理 —— 本修饰器仍只用于汇聚页(sheet)标题;
+// 聊天流 Thinking 行的扫光见 ToolActivityGroupView 调用点注释。
 
 struct SweepTextShimmerModifier: ViewModifier {
     var base: Color
     /// 一个完整循环时长 [pp 09-18 要求跟经典版一致：ShimmerOverlay 用 2.8s]
     var period: Double = 2.8
-    /// [v7] 光带扫过进度 0（左缘外）→ 1（右缘外），withAnimation repeatForever 驱动。
-    @State private var progress: Double = 0.0
-    /// [v7] 可见度跟经典版一致：浅 0.75 / 深 0.25（对齐 ShimmerOverlay.peakOpacity）。
+    /// 可见度跟经典版一致：浅 0.75 / 深 0.25（对齐 ShimmerOverlay.peakOpacity）。
     @Environment(\.colorScheme) private var colorScheme
     private var peakOpacity: CGFloat { colorScheme == .light ? 0.75 : 0.25 }
 
     func body(content: Content) -> some View {
-        // [v8 09-18 严重 bug 修复] v7 把 GeometryReader 放在**最外层**(直接包 content):
-        // GR 是 greedy 的,挂在标题/单行文字上会被父容器(ZStack/sheet)拉伸 →
-        // ①光带 height = 拉伸后高度 →「思考结果」sheet 出现一条跨全屏的大竖渐变带
-        // (pp 截图);②content(Text)被 GR 的 topLeading 放置,标题布局被破坏。
-        // 经典版 ShimmerOverlay 敢用最外层 GR,是因为它挂在「本来就要填满的卡片」上;
-        // sweepShimmer 挂在自然尺寸的文字上,GR 必须放进 overlay —— overlay 的
-        // proposal = content 实际尺寸,GR 填满它 = 量到真实尺寸,且不影响 content 布局。
-        // 机制保持 v7(稳定 bell stops + withAnimation repeatForever 驱动 offset + clipped)。
-        content
-            .overlay {
-                GeometryReader { geo in
-                    let w = geo.size.width
-                    let bandW = max(w * 0.5, 28)              // 亮带宽(App 实测 ≈ 文字宽一半)
-                    let travel = w / 2 + bandW / 2 + 4        // 带中心：左缘外 ⇄ 右缘外
-                    LinearGradient(
-                        stops: Self.shimmerStops(base: base, peakOpacity: peakOpacity),
-                        startPoint: .leading, endPoint: .trailing
-                    )
-                    .frame(width: bandW, height: geo.size.height)
-                    .offset(x: (CGFloat(progress) * 2 - 1) * travel)  // 0(左缘外)→1(右缘外)
-                    .allowsHitTesting(false)
-                }
-            }
-            .clipped()
-            .onAppear {
-                withAnimation(.linear(duration: period).repeatForever(autoreverses: false)) {
-                    progress = 1.0
-                }
-            }
-    }
-
-    /// 扫光光带的稳定 stop 集（与 progress 无关，一次构建）：峰色 bell 分布——
-    /// 中间峰色不透明、两端透明，透明度乘 peakOpacity（0.75 浅 / 0.25 深，跟经典版一致）。
-    /// 对齐 ShimmerOverlay.stableStops 的做法（稳定 stops 避开每帧重建的 colorspace teardown）。
-    static func shimmerStops(base: Color, peakOpacity: CGFloat) -> [Gradient.Stop] {
         let peak = Self.peak(base)
-        let bandRadius: CGFloat = 0.40
-        var stops: [Gradient.Stop] = [.init(color: peak.opacity(0), location: 0)]
-        for i in 0...12 {
-            let frac = CGFloat(i) / 12
-            let pos = 0.5 - bandRadius + frac * bandRadius * 2
-            let dist = (pos - 0.5) / bandRadius
-            stops.append(.init(color: peak.opacity(Double(exp(-4.5 * dist * dist)) * Double(peakOpacity)), location: pos))
-        }
-        stops.append(.init(color: peak.opacity(0), location: 1))
-        return stops
-    }
-
-    /// 循环内的位置 0（左缘外）→ 1（右缘外）。
-    /// 去程占 outbound 秒（左→右），回程占剩下（右→左，快）。
-    /// 独立成函数而非写进 ViewBuilder：builder 里的 if 会被当成视图分支。
-    private static func phase(date: Date, period: Double, outbound: Double) -> Double {
-        let cycle = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period)
-        let back = max(period - outbound, 0.01)
-        if cycle < outbound { return ease(cycle / outbound) }
-        return 1 - ease((cycle - outbound) / back)
-    }
-
-    /// 平滑 S 曲线（慢起-快中-慢收）[App 实测两端减速，匀速会显得"急"]
-    private static func ease(_ x: Double) -> Double {
-        let q = min(max(x, 0), 1)
-        return q * q * (3 - 2 * q)
+        content.shimmering(
+            active: true,
+            animation: .linear(duration: period).repeatForever(autoreverses: false),
+            gradient: Gradient(stops: [
+                .init(color: peak.opacity(0), location: 0),
+                .init(color: peak.opacity(Double(peakOpacity)), location: 0.5),
+                .init(color: peak.opacity(0), location: 1),
+            ]),
+            bandSize: 0.3,
+            mode: .overlay()
+        )
     }
 
     /// 峰色 = color-mix(in srgb, base 30%, white)；alpha 混合同式（0.3a + 0.7）。
@@ -129,13 +57,16 @@ struct SweepTextShimmerModifier: ViewModifier {
 }
 
 extension View {
-    /// Claude 文字扫光 [v7 = 对齐经典版 ShimmerOverlay]：2.8s 一圈、左→右、可见度 0.75/0.25。
+    /// Claude 文字扫光 [v9 = 直接引 SwiftUI-Shimmer 包，pp 09-18 拍板]：
+    /// 2.8s 一圈、左→右、可见度 0.75/0.25。
     /// ⚠️ 调用方都不传 period → **默认值必须与 SweepTextShimmerModifier 的一致**，
     /// 否则改结构体的默认值不生效（v5 踩点：两处默认值都要改）。
     func sweepShimmer(base: Color, period: Double = 2.8) -> some View {
         modifier(SweepTextShimmerModifier(base: base, period: period))
     }
 }
+
+// MARK: - Slow Shimmer (breathing dim)  [保留：Grok 呼吸式，另一条产品线]
 
 struct ShimmerTextModifier: ViewModifier {
     /// Fully-lit opacity.
