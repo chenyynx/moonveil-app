@@ -336,6 +336,7 @@ private struct BridgedAssistantBlockV3: View {
             onSpeakText: bridge.onSpeakText,
             browserPool: bridge.browserPool,
             toolSnapshots: bridge.toolSnapshots,
+            interruptedPendingResume: bridge.interruptedPendingResume,
             highlightedBlockId: .constant(nil),
             detailBlock: $bridge.detailBlock
         )
@@ -1538,6 +1539,16 @@ extension CollectionViewMessageListV3 {
                 return SessionActivityTracker.shared.isActive(sid)
             }()
             bridge.canResume = isLast ? (vm.canResume && !vm.isProcessing && !trackerActive) : false
+            // [T-ios-coldstart-interrupted-slot] "中断待恢复"= canResume 且该 true
+            // 来自 load 检测（vm.interruptedPendingResume）。进程内 Stop 只设
+            // canResume 不设该标记 → 此处恒 false → 完成态外观不变。error 非空时
+            // footer 走 inlineError 而非 resumeBanner，槽也不改判（与 banner 同闸）。
+            let interruptedPending = bridge.canResume && vm.interruptedPendingResume && message.error == nil
+            if bridge.interruptedPendingResume != interruptedPending {
+                // 临时探针（装机核验后与 [SlotMeasure] 一并评估删除）
+                AppLogger(category: "ColdStartDiag").info("[ColdStartDiag] bridge.interruptedPendingResume \(bridge.interruptedPendingResume)→\(interruptedPending) isProcessing=\(vm.isProcessing) canResume=\(bridge.canResume) vmFlag=\(vm.interruptedPendingResume) error=\(message.error == nil ? "nil" : "set")")
+                bridge.interruptedPendingResume = interruptedPending
+            }
             bridge.onResume = isLast ? { [weak self] in self?.onResume?() } : nil
             bridge.onWithdraw = message.isQueued ? { [weak self] in self?.onWithdraw?(message.id) } : nil
             // "Read from Start": replay this whole reply via TTS. Only for assistant
@@ -1665,6 +1676,10 @@ extension CollectionViewMessageListV3 {
             // turn (each tool round: waiting -> producing -> waiting), and the
             // footer's height must follow every one of those edges.
             let showsTypingIndicator: Bool
+            // [T-ios-coldstart-interrupted-slot] 字段清单刻意不含
+            // interruptedPendingResume：footer 渲染（hasFooterContent）只闸
+            // canResume/error/usage，中断标记仅改活动槽外观，不触 footer 高度。
+            // 若将来 footer 消费该标记，必须同步进本 shape，否则双层缓存会留旧高。
 
             init(bridge: CellStateBridgeV2, message: ChatMessage) {
                 isActiveMessage = bridge.isActiveMessage
@@ -1691,6 +1706,9 @@ extension CollectionViewMessageListV3 {
                 if let prevBridge = cellBridges[prev.id], prevBridge.canResume {
                     prevBridge.canResume = false
                     prevBridge.onResume = nil
+                    // [T-ios-coldstart-interrupted-slot] 此路径绕过 updateBridge，
+                    // 配套直写清零，防上一回合的中断槽残留运行态外观。
+                    prevBridge.interruptedPendingResume = false
                 }
             }
             for msg in messages.dropLast() {
@@ -2989,7 +3007,14 @@ extension CollectionViewMessageListV3 {
                         // 3874→3681→3389→3149 连塌 ——「一顿一顿 + 画面来回跳」的来源。
                         if let slotEst = Self.newSkinActivitySlotEstimate(
                             msg: msg, block: block,
-                            isMessageActive: (msg.id == vm.messages.last?.id) && vm.isProcessing) {
+                            isMessageActive: (msg.id == vm.messages.last?.id) && vm.isProcessing,
+                            // [T-ios-coldstart-interrupted-slot] 与 updateBridge 的
+                            // bridge.interruptedPendingResume 同判据（isLast + 中断标记
+                            // + 非处理中 + 无 error；trackerActive 差量在估算层不可达：
+                            // 该窗口 vm.canResume=false），保证估算跟着渲染事实走。
+                            interruptedPending: msg.id == vm.messages.last?.id
+                                && vm.canResume && !vm.isProcessing
+                                && vm.interruptedPendingResume && msg.error == nil) {
                             layout.setEstimatedHeight(slotEst, at: i)
                             break // 新皮肤活动槽：估算已给出，不再走经典皮肤估算
                         }
@@ -3835,10 +3860,16 @@ extension CollectionViewMessageListV3 {
         ///
         /// - Parameter isMessageActive: 该消息是否正在处理中；**nil = 调用方不知道**
         ///   （prefetch / cell 兜底没有流式上下文）。
+        /// - Parameter interruptedPending: [T-ios-coldstart-interrupted-slot]
+        ///   该消息是否为"中断待恢复"回合（load 检测，非进程内 Stop）。此类回合
+        ///   视图渲染运行槽（计时冻结）→ 估算必须与运行中同源：锚点返回 nil 交回
+        ///   经典估算，绝不按入口行 24.3pt 预置（否则首帧即"折叠行高 + 运行槽内容"
+        ///   的错位，正是本改动要治的观感）。
         static func newSkinActivitySlotEstimate(
             msg: ChatMessage,
             block: AssistantBlock,
-            isMessageActive: Bool?
+            isMessageActive: Bool?,
+            interruptedPending: Bool = false
         ) -> CGFloat? {
             guard ToolRenderStyleStore.current == .new else { return nil }
             switch block.kind {
@@ -3855,6 +3886,9 @@ extension CollectionViewMessageListV3 {
                   hit.isAnchor else { return 0 } // 非锚点：空视图，与活动状态无关
             if isMessageActive != nil {
                 // 状态已知：isDone 已把"消息是否在处理中"算进去
+                // [T-ios-coldstart-interrupted-slot] 中断待恢复的开放段按运行槽渲染，
+                // 估算同源交回经典；正文已收口段不受影响（与视图 running 式对齐）。
+                if interruptedPending && !hit.segment.closedByContent { return nil }
                 return hit.segment.isDone ? Self.newSkinActivitySlotDoneHeight : nil
             }
             // 状态未知：只有"正文已收口"能确定为完成态，其余交回经典估算（不猜运行槽）

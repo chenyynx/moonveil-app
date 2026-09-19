@@ -25,6 +25,10 @@ struct ToolActivityGroupView: View {
     @ObservedObject var message: ChatMessage
     let segment: TurnActivitySegment
     let isActiveMessage: Bool
+    /// [T-ios-coldstart-interrupted-slot] 「中断待恢复」回合（冷启动/重开时
+    /// load 检测到的未完成尾巴，非进程内 Stop）。true 时本段按运行槽渲染 +
+    /// 计时冻结；仅作用于未被正文收口的段（见 `running`）。
+    let interruptedPendingResume: Bool
     /// Batch C: wiring to the aggregation sheet (N6). Nil in mock contexts.
     var onOpenDetail: ((TurnActivitySegment) -> Void)?
     /// Batch C: shell in-flight stop passthrough (feature parity [H6]).
@@ -41,11 +45,13 @@ struct ToolActivityGroupView: View {
     init(message: ChatMessage,
          segment: TurnActivitySegment,
          isActiveMessage: Bool,
+         interruptedPendingResume: Bool = false,
          onOpenDetail: ((TurnActivitySegment) -> Void)? = nil,
          onStop: (() -> Void)? = nil) {
         self.message = message
         self.segment = segment
         self.isActiveMessage = isActiveMessage
+        self.interruptedPendingResume = interruptedPendingResume
         self.onOpenDetail = onOpenDetail
         self.onStop = onStop
         // [T-ios-slot-fresh-measure-2] 首帧数据可能尚未就绪（重挂载首 config 时
@@ -115,7 +121,12 @@ struct ToolActivityGroupView: View {
         return live.isEmpty ? (Self.lastRowsCache[segment.anchorId] ?? []) : live
     }
 
-    private var running: Bool { !segment.isDone }
+    /// 是否按运行槽渲染。[T-ios-coldstart-interrupted-slot] 追加一条：load 检测的
+    /// "中断待恢复"回合里未被正文收口的段 = 信息上未完成 → 保持运行槽（计时冻结）。
+    /// closedByContent 段不在列——标志是消息级，同消息内已收口的历史阶段不得复活。
+    private var running: Bool {
+        !segment.isDone || (interruptedPendingResume && !segment.closedByContent)
+    }
     /// 该段是否"已经在干活"——「Thinking」文字与计时出现/起算的判定 [pp 09-18 二改]。
     /// 上游 09-18 版只看 thinking 块有没有内容；但 **thinking 块只在收到 `.thinkingDelta`
     /// 时创建**（SSEStream.swift 该分支），那是 Anthropic 系专有——接 OpenAI/Gemini 等
@@ -176,6 +187,10 @@ struct ToolActivityGroupView: View {
         .animation(.easeInOut(duration: 0.25), value: segment.isDone) // A1 ③ 交叉淡变 ~0.25s
         .onAppear {
             ensureStarted()
+            // [T-ios-coldstart-interrupted-slot] 中断待恢复 → 计时冻结：复用既有
+            // ThinkingRunClock.pause（「错误冻结」先例同机制），续走在下方 onChange。
+            // 置于 ensureStarted 之后：startedAt 已定，冻结基准 = 首帧时刻。
+            if interruptedPendingResume { ThinkingRunClock.pause(anchorId: segment.anchorId) }
             withAnimation(.easeOut(duration: 0.34)) { dotsAppeared = true } // [pp 09-18] 点阵出现动画
             // [pp 09-18 根因②] cell 重建（滚动回收/高度刷新/config 替换）会重置
             // @State，而 onChange 只监听「变化」（true→true 不触发）——onAppear 必须
@@ -196,8 +211,11 @@ struct ToolActivityGroupView: View {
             // 防"通知 → reconfigure → 新子树 onAppear → 再通知"的无界回环；本链每
             // 收敛为单次重测。
             // [T-ios-slot-fresh-measure-probe] 顺带打点（定位后与探针一并评估删除）。
-            AppLogger(category: "SlotMeasure").info("[SlotMeasure][swift] anchor=\(segment.anchorId.uuidString.prefix(8)) carouselSeeded=\(carouselIds.count) rows=\(eventBlocks.count) cached=\(Self.lastRowsCache[segment.anchorId]?.count ?? 0) running=\(!segment.isDone)")
-            if !segment.isDone, Self.allowRemountPing(segment.anchorId) {
+            AppLogger(category: "SlotMeasure").info("[SlotMeasure][swift] anchor=\(segment.anchorId.uuidString.prefix(8)) carouselSeeded=\(carouselIds.count) rows=\(eventBlocks.count) cached=\(Self.lastRowsCache[segment.anchorId]?.count ?? 0) running=\(!segment.isDone) slotRunning=\(running) interrupted=\(interruptedPendingResume)")
+            // [T-ios-coldstart-interrupted-slot] 补发条件从 !isDone 放宽为 `running`：
+            // 中断待恢复段也按运行槽渲染、同样需要首测自愈；冷却门闩（每 anchor
+            // ≥1s 一发）原样保留，回环仍单次收敛。
+            if running, Self.allowRemountPing(segment.anchorId) {
                 let anchorId = segment.anchorId
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(name: .thinkingBlockToggled, object: anchorId)
@@ -246,6 +264,27 @@ struct ToolActivityGroupView: View {
             if err != nil {
                 ThinkingRunClock.pause(anchorId: segment.anchorId)
             } else {
+                ThinkingRunClock.resume(anchorId: segment.anchorId)
+            }
+        }
+        // [T-ios-coldstart-interrupted-slot] 中断标记双向变更的处理：
+        // → true：补冻结（覆盖"视图已挂载、bridge 晚到才置真"的时序——首帧
+        //   置真走 onAppear 那条，两者对 pause 幂等无冲突）；
+        // → false（点「继续」/新回合清除）：计时续走。error 非空时不动表，
+        //   让位给既有错误冻结链，避免两机制互相解锁。
+        .onChange(of: interruptedPendingResume) { pending in
+            if pending {
+                ThinkingRunClock.pause(anchorId: segment.anchorId)
+                // 兜底（装机日志证明正常时序是"检测早于首帧"，此路罕见）：标记
+                // 晚于挂载到达时，格高是按入口行量出来的 → 走既有重测链纠高，
+                // 复用冷却门闩防回环。
+                if Self.allowRemountPing(segment.anchorId) {
+                    let anchorId = segment.anchorId
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(name: .thinkingBlockToggled, object: anchorId)
+                    }
+                }
+            } else if message.error == nil {
                 ThinkingRunClock.resume(anchorId: segment.anchorId)
             }
         }

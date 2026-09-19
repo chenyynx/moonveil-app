@@ -887,6 +887,12 @@ extension AIChatViewModel {
                 // window and a long-stale pause flags its group forever.
                 isRedetectingInterruptedTail = true
                 defer { isRedetectingInterruptedTail = false }
+                // [T-ios-coldstart-interrupted-slot] Set BEFORE `canResume = true`
+                // so the @Published flip that drives updateLastCellBridge already
+                // reads the new value. This is the ONLY write site of the flag —
+                // in-process Stops never touch it, which is what keeps a
+                // user-stopped turn's appearance unchanged.
+                interruptedPendingResume = true
                 canResume = true
                 if let lastAssistant = messages.last, lastAssistant.role == .assistant {
                     self.committedBlockCount = lastAssistant.blocks.count

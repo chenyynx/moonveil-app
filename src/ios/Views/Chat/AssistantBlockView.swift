@@ -17,6 +17,10 @@ struct AssistantBlockView: View {
     var onSpeakText: ((String) -> Void)?
     var browserPool: BrowserTabPool?
     var toolSnapshots: [ToolSnapshotItem] = []
+    /// [T-ios-coldstart-interrupted-slot] "中断待恢复"回合（V3 bridge 写入，
+    /// 仅 load 检测路径置真）：活动槽按未完成渲染、计时冻结。默认 false =
+    /// 其余调用点（含经典皮肤/SwiftUI 列表路径）行为零变化。
+    var interruptedPendingResume: Bool = false
     @Binding var highlightedBlockId: UUID?
     @Binding var detailBlock: AssistantBlock?
     private var isHighlighted: Bool { highlightedBlockId == block.id }
@@ -187,6 +191,7 @@ struct AssistantBlockView: View {
                 message: message,
                 segment: hit.segment,
                 isActiveMessage: isActiveMessage,
+                interruptedPendingResume: interruptedPendingResume,
                 onOpenDetail: { seg in
                     NotificationCenter.default.post(
                         name: .toolActivityDetailRequested,

@@ -947,3 +947,24 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **修复**: 静态缓存"上次成功渲染的行"（引用，保持实时状态）；首帧/重建时实时为空则用缓存播种并渲染（实时非空不用缓存）；onChange 实时瞬空时不清行；FIFO 上限 64 anchor。
 - **死隔离申报**: 仅本文件（呈现层）；无新机制（静态缓存同 `startCache` 模式）。
 - **回归**: ①任务中反复退出重进 ×10：槽不再闪塌（不应再出 `40.0→24.0` 类提交）②离场行动画/轮播不受影响 ③冷启动支线观察 ④其余同 SLOT-FRESH-MEASURE。
+
+### SLOT-COLDSTART-PENDING — 冷启动"中断待恢复"回合不再渲染为完成态入口行 + 计时冻结（Qoder, 2026-09-19，pp 批准第 4 轮，Doris 主编）
+
+- **Files**（6 处，全为呈现/判定层）:
+  - `src/ios/Agent/Chat/AIChatViewModel.swift`（+18：`interruptedPendingResume` 内部纯 var（非 @Published）+ `canResume` didSet 一处随清）
+  - `src/ios/Agent/Chat/AIChatViewModel+Persistence.swift`（+6：`recheckCanResumeFromHistory` 检测分支置位，唯一写入点，先于 `canResume = true`）
+  - `src/ios/Agent/MessageList/MessageListInfrastructure.swift`（+4：bridge 新增 @Published 字段）
+  - `src/ios/Agent/MessageList/CollectionViewMessageListV3.swift`（+38：updateBridge 同闸写入 + `[ColdStartDiag]` 临时探针；updateLastCellBridge prev 清理配套；`FooterHeightShape` 加「不入列」锁死注释；新皮肤槽估算加 `interruptedPending` 参数 + seed 调用点同判据传入——isLast 与 `vm.messages.last` 同源）
+  - `src/ios/Views/Chat/AssistantBlockView.swift`（+5：消息级参数默认 false，仅透传给 ToolActivityGroupView）
+  - `src/ios/Views/Chat/ToolActivity/ToolActivityGroupView.swift`（+45：init/属性新增；`running` 式扩一条；onAppear 冻结 + 补发条件 `!isDone`→`running`；onChange 双向（→true 补冻结+纠高重测、→false 续走）；`[SlotMeasure]` 探针加 `slotRunning=`（视图渲染真值）+ `interrupted=` 字段）
+- **症状（pp 装机 10:50:53–56 日志实证，Doris 已核）**: 任务进行中冷启动 → 打开会话，未完成回合的活动槽渲染成完成态入口行（≈24.3pt、「思考结果」语义），点「继续」后才切回运行槽。`[SessionLoad] detected interrupted agent loop, canResume=true`（54.406）早于首帧绑定（54.5），但视图完成判定只读 `isMessageActive`（=isLast && isProcessing），"中断待恢复"没进判定。
+- **根因**: 同上——判定信号缺一路，非时序竞态。
+- **信号选择（反向约束的解法）**: `vm.canResume` 不可直接用——进程内 Stop（Case1 工具取消/Case2 文本取消）、断流/maxTokens/refusal/turn 上限等 12 处都置 true，会误伤"停止的回合保持现状"。改用**专用标记**：仅 `recheckCanResumeFromHistory` 的检测分支（load/缓存重开时从持久化尾巴判定）置位。穷举核验：①进程内 Stop 不走该分支 → 标记恒 false → 外观不变 ②同进程"Stop 后退出重进"命中 `else if !canResume` 门外（canResume 已 true）→ 不置位 → 外观不变 ③清除收进 `canResume` didSet 唯一汇合点（resume()/新回合/队列 drain/正常完成/尾巴不再中断，全路径覆盖，永不残留）④bridge 侧再与 `canResume && !isProcessing && !trackerActive && error==nil` 同闸（与 resumeBanner 判据对齐），非末条消息恒 false。
+- **修复形态（按任务首选）**: 中断待恢复期间活动槽渲染 `runningSlot`（信息上=未完成）+ 计时冻结——复用 `ThinkingRunClock.pause/resume`（「错误冻结」先例同机制），点「继续」→ `isProcessing` 翻转令 `isDone` 也转 false，running 全程 true → 无缝切回、秒数续走。`closedByContent` 段不受标记影响（标志是消息级，同消息内已收口历史阶段不得复活）。估算层同步改判（`interruptedPending` 开放段 → 交回经典估算，与运行中同源，不预置 24.3pt）。
+- **与前四批交互**: 不碰 `isDone` 本体（05255c0/11b7561 语义不变，扩的是视图层 `running`）；补发门闩 `allowRemountPing` 原样复用（含晚到翻转的纠高重测），冷却仍单次收敛（ce70682/84858b5/1ed5af3 不回归）；行缓存/displayRows 对中断槽照常工作（首帧播种取已加载 blocks）。
+- **🔴 临时探针（定位后删除）**: `[ColdStartDiag]`（updateBridge 值变化时单行）+ `[SlotMeasure][swift]` 的 `interrupted=` 字段。装机判据：冷启动首帧 `interrupted=true running=false→视图 running`，点继续后 `interruptedPendingResume true→false` 一行。
+- **死隔离四问**: ①另一端（远端 agent/SSE/agent 循环/桥/持久化）零触碰——只读 VM 既有状态做呈现；②共享文件（updateBridge/V3）改动全部 `interruptedPendingResume` 门控，false 路径逐字节等价现状；③无新机制（标记=pause 门闩、冻结=错误冻结、重测=thinkingBlockToggled、清除=canResume didSet 同型先例 `isRedetectingInterruptedTail`）；④回归清单见下，本地/远端会话各一遍。
+- **回归**: ①冷启动中断回合首帧即运行槽（冻结秒数）、点继续无缝续走 ②**用户停止回合外观不变**（进程内 Stop 必测；Stop→退出→重进 亦不变）③正常进行中/历史已完成回合不变 ④重进三批修复不回归（判据：不再出 `40.0→24.0` 类提交；`[SlotMeasure]` 首测 ≈125/91）⑤几天前老中断会话=运行槽冻结外观（合理，可点继续）⑥计时冻结/续走与错误冻结互不解锁（error 非空时 onChange 不动表）⑦经典皮肤零影响（估算/视图均默认 false）。
+- **验证**: 本机无 Swift 工具链——**待 CI 编译验证**（重点：6 文件作用域/memberwise init 参数顺序/调用点：ToolActivityGroupView 构造点全仓唯一 AssistantBlockView:190，AssistantBlockView 两调用点 ChatMessageViews:501 靠默认参不破坏）+ 装机按 ①–⑦ 走查 + `[ColdStartDiag]` 日志。
+- **审查记录（09-19）**: 三轮自查（正确性/影响面/一致性）+ 独立对抗审查（子代理）全过。对抗结论：无致命/重要代码缺陷；次要四项已处置——估算与 bridge 的 isLast 同源化（trackerActive 差量在估算层不可达：该窗口 vm.canResume=false，已注释锁死）、`slotRunning=` 探针字段、`FooterHeightShape` 锁死注释、晚到翻转的 onChange(true) 冻结+纠高重测兜底。攻击失败面：12 处 canResume=true 全不置标记、清标记路径穷举无残留、resume 同 tick 三翻转无可渲染中间帧、补发经门闩无风暴、pause/resume 幂等与错误冻结互不解锁。
+- **待确认项**: A)「工具执行中按 Stop → 杀进程 → 冷重启」的尾巴与 crash 在持久化层结构不可分（Case1 无停止标记；Case2 文本停止有 system-reminder 且本就不判中断）→ 该子集会按"中断待恢复"显示冻结运行槽；如需彻底区分需在 Stop 落盘时加标记（数据层，本批未动）。B) 汇聚页 `ThinkingDetailOverlay.isSegmentRunning` 未接入本标记（点中断槽进详情，面板按其自身判据显示）——任务范围外，未动。C) 中断槽秒数从"打开会话首帧"起冻结显示为 0（计时起点缓存是内存态，冷启动后原始起点不可恢复），续走后从冻结值续走。

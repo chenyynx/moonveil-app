@@ -744,8 +744,26 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
                     }
                 }
             }
+            // [T-ios-coldstart-interrupted-slot] Every exit from the interrupted
+            // state (Resume tapped, a new turn sent, queue drain, normal
+            // completion) clears canResume here — the single chokepoint — so the
+            // load-detection marker rides along and can never outlive the
+            // interrupted state it qualified.
+            if !canResume { interruptedPendingResume = false }
         }
     }
+    /// [T-ios-coldstart-interrupted-slot] "中断待恢复"标记 — set ONLY by the
+    /// interrupted-tail detection branch in `recheckCanResumeFromHistory`
+    /// (`+Persistence`), i.e. a load / cached re-enter found the persisted tail
+    /// unfinished. The in-process Stop paths (Case 1/2, stream-drop, maxTokens,
+    /// refusal, turn-limit…) set `canResume` WITHOUT this flag, so their
+    /// activity-slot keeps today's collapsed entry-row look; only a
+    /// reload-detected interrupted turn renders the slot as unfinished.
+    /// Cleared in the `canResume` didSet on any exit. Not `@Published`: flips
+    /// are always sandwiched by a `canResume` flip, which already drives
+    /// `updateLastCellBridge`. Internal because the setter lives in the
+    /// `+Persistence` extension.
+    var interruptedPendingResume = false
     @Published var isSuspended = false
     /// [T-ios-streamdiag-phantom-model] LEGACY FALLBACK DEFAULT — never
     /// written anywhere; permanently holds `.claudeHaiku45`. The real model

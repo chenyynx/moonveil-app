@@ -1152,6 +1152,10 @@ final class CellStateBridgeV2: ObservableObject {
     @Published var autoRetryAttempt: Int = 0
     @Published var autoRetryCountdown: Int = 0
     @Published var canResume: Bool = false
+    /// [T-ios-coldstart-interrupted-slot] "中断待恢复"（load 检测到的未完成回合，
+    /// 非进程内 Stop）——true 时活动槽按未完成（运行槽）外观渲染，计时冻结。
+    /// 由 updateBridge 与 canResume 同闸写入，视图侧不自行推导。
+    @Published var interruptedPendingResume: Bool = false
     @Published var onResume: (() -> Void)?
     @Published var onCompact: (() -> Void)?
     @Published var onForceSync: (() -> Void)?
