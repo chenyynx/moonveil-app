@@ -78,8 +78,21 @@ struct ToolActivityGroupView: View {
     /// （它正是被重建重置的东西），故用视图外 static 记录各 anchor 上次补发时刻：
     /// 每次重测量链最多一发，回环单次收敛。
     private static var lastRemountPing: [UUID: TimeInterval] = [:]
+    /// [T-ios-slot-loop-breaker] 修复重配抑制窗（09-19 #162 循环实证修复）。
+    /// 列表侧 `.thinkingBlockToggled` 修复会 reconfigure 本格 → 重建 → 新子树
+    /// onAppear → 若再补发 ping 即形成 [ping→reconfigure→onAppear→ping] 的
+    /// **自动循环**（pp 11:19–11:34 全量日志实证：约 1.3s/圈、后台悬挂也持续、
+    /// 每圈闪现一次 24pt 塌陷相位；原门闩只限速未截断）。修复侧调用
+    /// noteProgrammaticReconfigure 登记抑制窗，窗内 onAppear 补发直接跳过 →
+    /// 循环终止；用户真实重进在窗外观测，照常补发。
+    private static var repairSuppressUntil: [UUID: TimeInterval] = [:]
+    static func noteProgrammaticReconfigure(_ anchorId: UUID) {
+        repairSuppressUntil[anchorId] = ProcessInfo.processInfo.systemUptime + 2.5
+    }
     private static func allowRemountPing(_ anchorId: UUID) -> Bool {
         let now = ProcessInfo.processInfo.systemUptime
+        // [T-ios-slot-loop-breaker] 修复重配抑制窗（见 noteProgrammaticReconfigure）。
+        if let until = repairSuppressUntil[anchorId], now < until { return false }
         if let last = lastRemountPing[anchorId], now - last < 1.0 { return false }
         lastRemountPing[anchorId] = now
         return true
@@ -119,6 +132,20 @@ struct ToolActivityGroupView: View {
     private var displayRows: [AssistantBlock] {
         let live = eventBlocks
         return live.isEmpty ? (Self.lastRowsCache[segment.anchorId] ?? []) : live
+    }
+
+    /// [T-ios-slot-height-floor] 运行槽"高度地板"（09-19 #162 循环实证修复）。
+    /// 只要该段"已知有行"（实时或缓存），运行槽的渲染身高不得低于
+    /// 标题(24pt)+行数×行距(33.7pt)。治"重建过渡帧被自测量成 24pt → 提交错高
+    /// → 与随后渲染出的行内容错位（气泡撞行/内容溢出）"——地板挂在 displayRows
+    /// （含缓存）而非 carouselIds（@State，恰是重建时会被重置/晚到的那个），
+    /// 因此不依赖任何首帧时序：冷启动/重配/重建的任意一帧都量不到 <地板 的值。
+    /// 运行中 toolIds 单调增长（suffix(3) 窗口只换不缩）→ 地板单调不误伤收缩；
+    /// 完成态走 entryRow 分支不设地板；无行段（新段起步）照旧 24pt 合法。
+    private var slotFloor: CGFloat {
+        let n = min(displayRows.count, 3)
+        guard n > 0 else { return 0 }
+        return 24 + 33.7 * CGFloat(n)
     }
 
     /// 是否按运行槽渲染。[T-ios-coldstart-interrupted-slot] 追加一条：load 检测的
@@ -358,6 +385,9 @@ struct ToolActivityGroupView: View {
                 }
             }
             .padding(.vertical, 3)
+            // [T-ios-slot-height-floor] 高度地板：已知有行时任何测量不得低于
+            // 标题+行数×行距（见 slotFloor 注释）。
+            .frame(minHeight: slotFloor)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

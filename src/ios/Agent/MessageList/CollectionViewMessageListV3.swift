@@ -2682,6 +2682,10 @@ extension CollectionViewMessageListV3 {
                         for (i, item) in snapshot.itemIdentifiers.enumerated() {
                             if case .assistantBlock(_, let bid) = item, bid == blockId {
                                 matched = true
+                                // [T-ios-slot-loop-breaker] 本次修复将 reconfigure 本格 →
+                                // 登记抑制窗，防"重建→onAppear→再补发"的自动循环
+                                // （09-19 #162 实证约 1.3s/圈）。
+                                ToolActivityGroupView.noteProgrammaticReconfigure(blockId)
                                 let beforeLayout = layout.cachedHeight(at: i)
                                 let beforePrecalc = layout.precalcHeight(at: i)
                                 let ip = IndexPath(item: i, section: 0)

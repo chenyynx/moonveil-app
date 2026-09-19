@@ -968,3 +968,11 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **验证**: 本机无 Swift 工具链——**待 CI 编译验证**（重点：6 文件作用域/memberwise init 参数顺序/调用点：ToolActivityGroupView 构造点全仓唯一 AssistantBlockView:190，AssistantBlockView 两调用点 ChatMessageViews:501 靠默认参不破坏）+ 装机按 ①–⑦ 走查 + `[ColdStartDiag]` 日志。
 - **审查记录（09-19）**: 三轮自查（正确性/影响面/一致性）+ 独立对抗审查（子代理）全过。对抗结论：无致命/重要代码缺陷；次要四项已处置——估算与 bridge 的 isLast 同源化（trackerActive 差量在估算层不可达：该窗口 vm.canResume=false，已注释锁死）、`slotRunning=` 探针字段、`FooterHeightShape` 锁死注释、晚到翻转的 onChange(true) 冻结+纠高重测兜底。攻击失败面：12 处 canResume=true 全不置标记、清标记路径穷举无残留、resume 同 tick 三翻转无可渲染中间帧、补发经门闩无风暴、pause/resume 幂等与错误冻结互不解锁。
 - **待确认项**: A)「工具执行中按 Stop → 杀进程 → 冷重启」的尾巴与 crash 在持久化层结构不可分（Case1 无停止标记；Case2 文本停止有 system-reminder 且本就不判中断）→ 该子集会按"中断待恢复"显示冻结运行槽；如需彻底区分需在 Stop 落盘时加标记（数据层，本批未动）。B) 汇聚页 `ThinkingDetailOverlay.isSegmentRunning` 未接入本标记（点中断槽进详情，面板按其自身判据显示）——任务范围外，未动。C) 中断槽秒数从"打开会话首帧"起冻结显示为 0（计时起点缓存是内存态，冷启动后原始起点不可恢复），续走后从冻结值续走。
+
+### SLOT-LOOP-BREAKER + SLOT-HEIGHT-FLOOR — 断"修复循环" + 运行槽高度地板（Doris, 2026-09-19，#162 循环实证）
+
+- **Files**: `ToolActivityGroupView.swift`（`repairSuppressUntil`/`noteProgrammaticReconfigure`/`slotFloor`；allowRemountPing 加抑制窗；运行槽 `.frame(minHeight:)`）、`CollectionViewMessageListV3.swift`（handler 入口登记抑制）。
+- **实证（pp 11:19–11:34 #162 全量日志，Doris 核）**: ①**自动循环**：修复 reconfigure → 重建 → onAppear 补发 → reconfigure……约 **1.3s/圈**持续（app 后台悬挂也持续 45s+；门闩只限速未截断——此前两份静态审查"已截断"结论被实测推翻；11:21–11:22 段 `HIT frameH=24.0` ×45+/分钟）。②每圈首测仍 = 24.0（`carouselSeeded=3 cached=3` 也拦不住——重建过渡帧的测量时序早于 @State 就位），塌陷相位即 pp 截图来源。
+- **修复**: ①`noteProgrammaticReconfigure`：修复侧 reconfigure 前登记 2.5s 抑制窗，窗内 onAppear 补发跳过 → 循环终止（真实重进在窗外观测照常补发）。②`slotFloor`：运行槽 `.frame(minHeight: 24+33.7×min(displayRows.count,3))`——地板挂 displayRows（含缓存）不依赖 @State 时序 → 冷启动/重配/重建任意一帧都量不到 <地板，"过渡态 24pt"从根上不可提交。
+- **死隔离申报**: 呈现层两文件；零新机制（复用既有 static 缓存/门闩模式）；不碰数据/SSE/agent 循环/桥；Qoder 冷启动批（2f65c44）语义不动，其"中断待恢复"槽走 runningSlot → 地板同样生效。
+- **回归**: ①任务中退出重进 ×10 不再闪塌（日志不再出 `40.0→24.0` 类提交）②循环断（不再有 ~1.3s 周期 ThinkingCollapse HIT 流）③完成态/历史回合外观不变 ④新段起步（无行）仍 24pt 合法 ⑤高度不虚高（地板=真实高度同源常量）。
