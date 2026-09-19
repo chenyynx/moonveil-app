@@ -1118,6 +1118,8 @@ struct ContentView: View {
     /// `SessionListViewModel.searchSnippets` (commit 545d585).
     /// T-search-highlight 8edb74f2.
     @State private var searchMatchSnippets: [String: String] = [:]
+    /// [SEARCH-JUMP] sessionId → 命中的消息 id（打开会话时定位用）。
+    @State private var searchMatchMessageIds: [String: String] = [:]
     @State private var searchTask: Task<Void, Never>?
 
     /// Width threshold below which the layout collapses to single-column (iPhone-style).
@@ -2117,7 +2119,7 @@ struct ContentView: View {
                                 .id(id)
                         }
                     } else {
-                        AIChatView(sessionId: Self.isNewSessionId(id) ? nil : id, draftId: Self.isNewSessionId(id) ? id : nil, initialGroupId: Self.extractGroupId(from: id))
+                        AIChatView(sessionId: Self.isNewSessionId(id) ? nil : id, draftId: Self.isNewSessionId(id) ? id : nil, initialGroupId: Self.extractGroupId(from: id), searchAnchorMessageId: isSearching ? searchMatchMessageIds[id] : nil)
                             .id(id)
                             .onAppear {
                                 if currentStackSessionId != id {
@@ -2158,7 +2160,7 @@ struct ContentView: View {
             // on first send. The .id() ensures each draft gets its own View lifecycle.
             let isDraft = Self.isNewSessionId(id)
             let effectiveId: String? = isDraft ? nil : id
-            AIChatView(sessionId: effectiveId, draftId: isDraft ? id : nil, initialGroupId: Self.extractGroupId(from: id))
+            AIChatView(sessionId: effectiveId, draftId: isDraft ? id : nil, initialGroupId: Self.extractGroupId(from: id), searchAnchorMessageId: isSearching ? searchMatchMessageIds[id] : nil)
                 .id(id)
                 .onAppear {
                     draftLog.info("🔑DRAFT detailView APPEAR id=\(id) effectiveId=\(effectiveId ?? "nil") isDraft=\(isDraft)")
@@ -4058,6 +4060,7 @@ struct ContentView: View {
         guard !query.isEmpty else {
             searchMatchedIds = nil
             searchMatchSnippets = [:]
+            searchMatchMessageIds = [:]
             return
         }
         searchTask = Task {
@@ -4070,12 +4073,18 @@ struct ContentView: View {
                 // (title matches don't need a snippet — the highlighted
                 // title already shows the hit). T-search-highlight 8edb74f2.
                 var snippets: [String: String] = [:]
+                var messageIds: [String: String] = [:]
                 for r in results {
                     if !r.titleMatched, let snip = r.matchSnippet, !snip.isEmpty {
                         snippets[r.session.id] = snip
                     }
+                    // [SEARCH-JUMP] 记下每个命中的消息 id（title-only 命中为 nil）。
+                    if let mid = r.matchedMessageId {
+                        messageIds[r.session.id] = mid
+                    }
                 }
                 searchMatchSnippets = snippets
+                searchMatchMessageIds = messageIds
             }
         }
     }
@@ -4084,6 +4093,7 @@ struct ContentView: View {
         searchText = ""
         searchMatchedIds = nil
         searchMatchSnippets = [:]
+        searchMatchMessageIds = [:]
         searchTask?.cancel()
         searchFocused = false
     }

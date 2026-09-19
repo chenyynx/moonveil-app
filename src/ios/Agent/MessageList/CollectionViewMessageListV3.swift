@@ -39,6 +39,9 @@ extension Notification.Name {
 struct CollectionViewMessageListV3: UIViewControllerRepresentable {
     @ObservedObject var vm: AIChatViewModel
     var inputFocused: Bool
+    /// [SEARCH-JUMP] Message to land on after the first load (list-search hit).
+    /// Consumed once per value; nil = the usual scroll-to-bottom.
+    var searchAnchorId: UUID? = nil
     var onRetryMessage: ((UUID) -> Void)?
     var onRetryLast: (() -> Void)?
     /// [T-ios-assistant-header-open-soul] Tap on the assistant identity row.
@@ -81,6 +84,11 @@ struct CollectionViewMessageListV3: UIViewControllerRepresentable {
         // (device ring trace: coordinator vm read false at every sync while
         // the buttons stayed hidden at diff≈2700pt from the bottom).
         coord.rebindViewModelIfNeeded(vm)
+        // [SEARCH-JUMP] 把视图传入的定位目标交给 coordinator（每个 anchor 值只消费一次）。
+        if let anchor = searchAnchorId, coord.consumedSearchAnchor != anchor {
+            coord.consumedSearchAnchor = anchor
+            coord.pendingSearchAnchor = anchor
+        }
         coord.onRetryMessage = onRetryMessage
         coord.onOpenSoulSettings = onOpenSoulSettings
         coord.onRetryLast = onRetryLast
@@ -774,6 +782,9 @@ extension CollectionViewMessageListV3 {
         var onScreenshotImage: ((UIImage) -> Void)?
         var maxContentWidth: CGFloat = 0
         var lastInputFocused: Bool = false
+        /// [SEARCH-JUMP] 待消费的定位目标 + 已消费记录（防重复执行）。
+        var pendingSearchAnchor: UUID? = nil
+        var consumedSearchAnchor: UUID? = nil
 
         #if DEBUG
         deinit {
@@ -1971,7 +1982,15 @@ extension CollectionViewMessageListV3 {
                         self.scrollMode = .autoScrolling
                         self.clampAfterSessionLoad = true
                         self.clampDeadline = Date().addingTimeInterval(8.0)
-                        self.scrollToLastItem()
+                        // [SEARCH-JUMP] 列表搜索命中进入 → 定位到命中的消息而非贴底。
+                        // 必须关掉 8s 底钉：clamp 窗口内的高度修正 re-pin 会把视图拽回底部。
+                        if let anchor = self.pendingSearchAnchor {
+                            self.pendingSearchAnchor = nil
+                            self.clampAfterSessionLoad = false
+                            self.scrollToMessage(id: anchor, animated: false)
+                        } else {
+                            self.scrollToLastItem()
+                        }
                     }
                     // Sync reload: keep current scroll position, just update data
                 }
@@ -4298,6 +4317,41 @@ extension CollectionViewMessageListV3 {
             let topMsgIdx = topItemMsgId.flatMap { id in msgs.firstIndex(where: { $0.id == id }) } ?? 0
             let anchor = msgs[...topMsgIdx].reversed().first(where: { $0.role == .user })?.id ?? userIds.first!
             return (userIds.firstIndex(of: anchor) ?? -1, userIds.count)
+        }
+
+        /// [SEARCH-JUMP] 跳到指定消息（列表搜索命中的那条）。
+        /// 定位配方同 scrollToPreviousUserTurn（diffable snapshot → indexPath）；
+        /// 目标不在快照里（被工具组折叠 / 压缩边界丢弃）→ 降级贴底。
+        /// 首屏高度估算在快照应用后仍会修正 → 0.5s 后二次重锚（仓内 re-anchor 先例）。
+        func scrollToMessage(id: UUID, animated: Bool = false) {
+            guard let cv = viewController?.collectionView else { return }
+            guard let ip = indexPath(forMessage: id) else {
+                AppLogger(category: "ScrollDiag").info("[ScrollDiag][searchJump] target \(id.uuidString.prefix(8)) not in snapshot — fallback to bottom")
+                self.scrollMode = .autoScrolling
+                self.scrollToLastItem()
+                return
+            }
+            // 用户在阅读历史位置，不要被流式 / 布局修正拽回底部。
+            self.scrollMode = .userBrowsing
+            cv.scrollToItem(at: ip, at: .top, animated: animated)
+            let target = id
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self, let cv = self.viewController?.collectionView,
+                      let ip2 = self.indexPath(forMessage: target) else { return }
+                cv.scrollToItem(at: ip2, at: .top, animated: false)
+                self.syncScrollFlags()
+            }
+            self.syncScrollFlags()
+        }
+
+        /// snapshot 里按消息 id 找 indexPath（`.wholeMessage` 是消息级 item）。
+        private func indexPath(forMessage id: UUID) -> IndexPath? {
+            guard let ds = dataSource else { return nil }
+            guard let item = ds.snapshot().itemIdentifiers.first(where: {
+                if case .wholeMessage(let mid) = $0, mid == id { return true }
+                return false
+            }) else { return nil }
+            return ds.indexPath(for: item)
         }
 
         /// Up-button action: walk backwards through the conversation one user

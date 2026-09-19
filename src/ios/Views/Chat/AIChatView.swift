@@ -243,11 +243,13 @@ struct AIChatView: View {
         )
     }
 
-    init(sessionId: String? = nil, draftId: String? = nil, remoteDeviceId: String? = nil, initialGroupId: String? = nil) {
+    init(sessionId: String? = nil, draftId: String? = nil, remoteDeviceId: String? = nil, initialGroupId: String? = nil, searchAnchorMessageId: String? = nil) {
         self.sessionId = sessionId
         self.draftId = draftId
         self.remoteDeviceId = remoteDeviceId
         self.initialGroupId = initialGroupId
+        // [SEARCH-JUMP] 列表搜索命中进入 → 首屏定位到该消息（DB 消息 id 即 UUID 字符串）。
+        _searchJumpAnchorId = State(initialValue: searchAnchorMessageId.flatMap { UUID(uuidString: $0) })
         // [T-ios-aichatview-eager-cachedvm] Build the CachedViewModel INSIDE the
         // StateObject autoclosure so SwiftUI only constructs it the first time
         // this view's StateObject is created — NOT on every struct re-init.
@@ -280,6 +282,8 @@ struct AIChatView: View {
     @ObservedObject private var fontSettings = FontSettings.shared
     @ObservedObject private var deepLink = DeepLinkCoordinator.shared
     @Environment(\.dismiss) private var dismiss
+    /// [SEARCH-JUMP] 从列表搜索进入时要定位的消息（nil = 常规进入，贴底）。
+    @State private var searchJumpAnchorId: UUID?
     @State private var inputFocused: Bool = false
     @State private var inputHasSelection: Bool = false
     @State private var inputIsScrollable: Bool = false
@@ -2725,6 +2729,7 @@ struct AIChatView: View {
             CollectionViewMessageListV3(
                 vm: vm,
                 inputFocused: inputFocused,
+                searchAnchorId: searchJumpAnchorId,
                 onRetryMessage: { vm.retryFromMessage($0); vm.forceScrollToBottom.send() },
                 onRetryLast: { vm.retry(); vm.forceScrollToBottom.send() },
                 // [T-ios-assistant-header-open-soul] Routed through the same

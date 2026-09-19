@@ -1585,6 +1585,11 @@ actor ChatStore {
         let matchSnippet: String?
         /// Whether the title matched the query.
         let titleMatched: Bool
+        /// [SEARCH-JUMP] The id of the message the snippet was taken from (the
+        /// newest message match, same ORDER BY as the snippet subquery), so the
+        /// session can open AT that message instead of the bottom. nil = only
+        /// the title matched (nothing to jump to).
+        let matchedMessageId: String?
     }
 
     func searchSessions(query: String) -> [SearchResult] {
@@ -1594,6 +1599,9 @@ actor ChatStore {
         let sql = """
             SELECT DISTINCT s.id, s.title, s.model_id, s.created_at, s.updated_at, s.category,
                    (SELECT m2.parts_json FROM messages m2
+                    WHERE m2.session_id = s.id AND m2.parts_json LIKE ?
+                    ORDER BY m2.sort_order DESC LIMIT 1),
+                   (SELECT m2.id FROM messages m2
                     WHERE m2.session_id = s.id AND m2.parts_json LIKE ?
                     ORDER BY m2.sort_order DESC LIMIT 1)
             FROM sessions s
@@ -1609,6 +1617,7 @@ actor ChatStore {
             sqlite3_bind_text(stmt, 1, (likePattern as NSString).utf8String, -1, nil)
             sqlite3_bind_text(stmt, 2, (likePattern as NSString).utf8String, -1, nil)
             sqlite3_bind_text(stmt, 3, (likePattern as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(stmt, 4, (likePattern as NSString).utf8String, -1, nil)
 
             let lowerQuery = query.lowercased()
             while sqlite3_step(stmt) == SQLITE_ROW {
@@ -1619,6 +1628,8 @@ actor ChatStore {
                 let updatedAt = Date(timeIntervalSince1970: sqlite3_column_double(stmt, 4))
                 let category = sqlite3_column_text(stmt, 5).map { String(cString: $0) }
                 let matchedPartsJSON = sqlite3_column_text(stmt, 6).map { String(cString: $0) }
+                // [SEARCH-JUMP] Same subquery, id column — the jump target.
+                let matchedMessageId = sqlite3_column_text(stmt, 7).map { String(cString: $0) }
 
                 let titleMatched = title?.lowercased().contains(lowerQuery) == true
                 let snippet = matchedPartsJSON.flatMap { extractTextFromPartsJSON($0) }
@@ -1627,7 +1638,7 @@ actor ChatStore {
                     id: id, title: title, category: category, modelId: modelId,
                     createdAt: createdAt, updatedAt: updatedAt, lastMessage: snippet
                 )
-                results.append(SearchResult(session: session, matchSnippet: snippet, titleMatched: titleMatched))
+                results.append(SearchResult(session: session, matchSnippet: snippet, titleMatched: titleMatched, matchedMessageId: matchedMessageId))
             }
         }
         sqlite3_finalize(stmt)

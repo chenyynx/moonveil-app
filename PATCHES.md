@@ -1100,3 +1100,12 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 **追加 3（2026-09-20，pp「新会话的颜色有没有对齐图二」）**：胶囊底色实测——参照 rgb(42,42,41) vs 实机 rgb(25,25,25)（tint=纯黑渲染后偏深 17）。修：`AppGlassButton` 新增 additive `tintOverride` 参数（默认 nil=原 AppTheme 行为，两 init 对称、存量调用零影响），`newChatPill` 传 `#111111`（浅色）/ 白（深色保持原样）——按「材质偏移恒定」推算渲染 ≈42，装机后按实拍微调。文字白字两图一致（255/255），未动。
 
 **追加 4（2026-09-20，pp「搜索会话后面那三个点不要」）**：搜索占位去省略号——`"Search chats..."` key 重命名为 `"Search chats"`（9 语言值全去尾部 `...`：搜索对话 / 搜索對話 / Chats durchsuchen / Buscar chats / Rechercher des conversations / チャットを検索 / 채팅 검색 / Поиск чатов / Search chats）。两处调用点同步：底部搜索栏 `TextField`（ContentView）与聊天页 `.searchable(prompt:)`（AIChatView）。
+
+## SEARCH-JUMP — 列表搜索命中 → 进入会话自动定位到该消息（Doris, 2026-09-20，pp：「搜索会话了之后点击聊天卡片进去现在没有做自动到搜索关键词那位置 出个方案解决一下」）
+
+- **Files**：`Agent/Chat/ChatStore.swift`（SearchResult + SQL + bind）；`Views/ContentView.swift`（命中消息 id 字典 + 两处 AIChatView 构造点传参）；`Views/Chat/AIChatView.swift`（init 参数 + @State + 列表传参）；`Agent/MessageList/CollectionViewMessageListV3.swift`（anchor 参数 + 消费 + 首屏定位 + `scrollToMessage`）。
+- **方案（数据流）**：① 搜索 SQL 的 snippet 子查询旁边并列一个同条件 id 子查询 → `SearchResult.matchedMessageId`（跟随既有「取最新一条匹配」语义，与 snippet 同源）；② ContentView 搜索态存 `searchMatchMessageIds[sessionId]`；③ 打开会话的**两个构造点**（NavigationStack destination / iPad detailView）注入 `searchAnchorMessageId: isSearching ? map[id] : nil`（additive init 参数，非搜索进入恒 nil → 零回归）；④ AIChatView 转 UUID 后传给消息列表；⑤ 列表在**首次快照应用的 isFirstLoad 分支**改走「定位到该消息」而非 `scrollToLastItem()`，并**关掉 8s 底钉**（`clampAfterSessionLoad = false`——否则 clamp 窗口内的高度修正 re-pin 会把视图拽回底部）；⑥ 定位配方复用 `scrollToPreviousUserTurn` 的 diffable 查找（`.wholeMessage(id)` → indexPath → `scrollToItem(at: .top)`）+ 0.5s 二次重锚（首屏高度估算修正后校正）；⑦ 目标不在快照（工具组折叠/压缩丢弃）→ 降级贴底 + `[ScrollDiag][searchJump]` 日志。
+- **语义决策**：跟随现有 snippet 语义（`ORDER BY sort_order DESC` = 最新一条匹配）；`scrollMode = .userBrowsing`（不因后续流式生长被拽回底部）；v1 **不做消息内高亮**（列后续）。
+- **死隔离**：只加参数/状态/一条新方法 + 首屏分支的一次分流；非搜索路径（anchor == nil）行为与改前逐字节同；不碰 vm、不改既有滚动信号的任何语义。
+- **回归项**：① 搜索命中消息 → 点卡片进入即停在命中消息处（不再贴底）② 非搜索进入仍贴底（原行为）③ title-only 命中（无消息命中）不跳、贴底 ④ 搜到的是最后一条消息 → 位置自然靠近底部 ⑤ 进入后向上/向下滑正常、↑/↓ 按钮状态正常 ⑥ 后续流式/重试不会被拽回底部 ⑦ 工具组折叠场景降级贴底不崩 ⑧ iPad 宽度布局同效。
+- **验证**：静态检查（替换唯一性 + 括号平衡）；**编译与回归 ①–⑧ 需 CI + 真机**。
