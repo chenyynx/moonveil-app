@@ -1,7 +1,7 @@
 // PairDeviceSheet.swift — 添加设备（AA 视觉 1:1，数据层换 RemoteService）
 //
 // 照抄 AA 的 PairDeviceSheet 结构：NavigationStack + Step 流程
-// （connectionMethod → desktop / cliConfirm → name → pairCode / token），
+// （connectionMethod → desktop / cliConfirm → name → cliMethod → pairCode），
 // 视觉/文案/控件（AppGlassButton、命令块、SheetCloseToolbar、appSheetPresentation）
 // 全部沿用 AA；唯一替换是把 AA 的 AppState/V2DashboardRepository 数据面
 // 换成 moonveil 的 RemoteService public facade。
@@ -21,7 +21,7 @@ struct PairDeviceSheet: View {
     @State private var copied = false
 
     private enum Step: Hashable {
-        case connectionMethod, desktop, cliConfirm, name, cliMethod, pairCode, token
+        case connectionMethod, desktop, cliConfirm, name, cliMethod, pairCode
     }
 
     private var serverLabel: String {
@@ -45,6 +45,7 @@ struct PairDeviceSheet: View {
     private func page(_ step: Step) -> some View {
         Group {
             if step == .name { nameForm }
+            else if step == .pairCode { pairCodeForm }
             else { instructionsPage(step) }
         }
         .frame(maxWidth: .infinity)
@@ -229,7 +230,6 @@ struct PairDeviceSheet: View {
         case .name: "设备名称"
         case .cliMethod: "选择配对方式"
         case .pairCode: "填写配对码"
-        case .token: "连接命令"
         }
     }
 

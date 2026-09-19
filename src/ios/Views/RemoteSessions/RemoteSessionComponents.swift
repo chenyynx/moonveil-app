@@ -102,44 +102,6 @@ struct RemoteSessionContextMenu: View {
     }
 }
 
-// MARK: - AA 风格 sheet 壳（添加设备 / 创建项目 / 会话详情共用）
-
-/// AA 的 PairDeviceSheet / ProjectEditorSheet / SessionDetailsSheet 三页
-/// 统一壳：NavigationStack + inline 标题 + SheetCloseToolbar + appSheetPresentation。
-/// 内容页按 AA 原样填，数据层换 RemoteService。
-struct RemoteAASheetShell<Content: View>: View {
-    let title: String
-    let showsCreate: Bool
-    let onCreate: (() -> Void)?
-    @ViewBuilder var content: Content
-
-    @Environment(\.dismiss) private var dismiss
-
-    init(title: String, showsCreate: Bool = false, onCreate: (() -> Void)? = nil, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.showsCreate = showsCreate
-        self.onCreate = onCreate
-        self.content = content()
-    }
-
-    var body: some View {
-        NavigationStack {
-            content
-                .navigationTitle(title)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    SheetCloseToolbar { dismiss() }
-                    if showsCreate, let onCreate {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button("创建", action: onCreate)
-                        }
-                    }
-                }
-        }
-        .appSheetPresentation(.compact)
-    }
-}
-
 // MARK: - 六位配对码输入（AA OneTimeCodeField 的等价实现）
 
 /// AA 的 PairDeviceSheet 用 OneTimeCodeField 收六位配对码；moonveil 未移植该组件，
