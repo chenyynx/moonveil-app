@@ -158,9 +158,9 @@ private final class ShimmerLabelHost: UIView {
         if let cg = image.cgImage {
             let w = cg.width, h = cg.height
             let total = w * h
-            // alphaOnly + NULL colorspace 是 Quartz 标准配法（免位运算，编译面最小）
+            // alphaOnly + DeviceGray（Swift 导入的 space 非可选，C API 的 NULL 配法不可用；免位运算）
             if let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8,
-                                   bytesPerRow: w, space: nil,
+                                   bytesPerRow: w, space: CGColorSpaceCreateDeviceGray(),
                                    bitmapInfo: CGImageAlphaInfo.alphaOnly.rawValue) {
                 ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
                 if let buf = ctx.data {
