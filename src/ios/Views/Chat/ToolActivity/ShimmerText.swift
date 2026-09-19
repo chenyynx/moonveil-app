@@ -148,9 +148,14 @@ private final class ShimmerLabelHost: UIView {
                 attr.draw(in: drawRect)
             }
         }
-        // 给 UIImage 本体而非 cgImage：layer 直接持 UIImage 才认它的 scale，
-        // 裸 CGImage 在 contentsScale=1 下会按 1pt=1px 放大 N 倍（经典坑）。
-        textMask.contents = image
+        // [v12.2 09-19] 改标准姿势：CGImage + 显式 contentsScale。
+        // CALayer.contents 期望 CGImage；此前直接赋 UIImage（声称“才认 scale”）
+        // 在手动创建的 CALayer 上不可靠——若 UIImage 不被解释则 mask 全空、
+        // 亮带被 100% 裁掉（与“全场景从不显示”吻合）；且不设 contentsScale 时
+        // mask 像素↔pt 映射错误（字形被按 1x 放大/错位）。contentsScale 取图的
+        // 实际 scale（与 FBShimmeringLayer 同款处理）。
+        textMask.contentsScale = image.scale
+        textMask.contents = image.cgImage
 
         // [ShimmerDiag] 重建后：size + alphaCoverage
         let sizeDesc = "\(Int(bounds.size.width))x\(Int(bounds.size.height))"
@@ -185,7 +190,7 @@ private final class ShimmerLabelHost: UIView {
         } else {
             alphaDesc = "alphaCoverage=N/A"
         }
-        diag.info("[ShimmerDiag] rebuildMask size=\(sizeDesc) \(alphaDesc)")
+        diag.info("[ShimmerDiag] rebuildMask size=\(sizeDesc) \(alphaDesc) imgScale=\(image.scale) maskContents=\(textMask.contents != nil) maskScale=\(textMask.contentsScale)")
     }
 
     /// 平移渐变端点（frame 固定 → mask 恒对齐；对比 v11 平移整层的另一条路）。
@@ -205,7 +210,7 @@ private final class ShimmerLabelHost: UIView {
             a.isRemovedOnCompletion = false
             band.add(a, forKey: "sweep.\(key)")
         }
-        diag.info("[ShimmerDiag] startIfNeeded bounds=\(bounds.size) keys=\(band.animationKeys() ?? [])")
+        diag.info("[ShimmerDiag] startIfNeeded bounds=\(bounds.size) intrinsic=\(intrinsicContentSize) maskAttached=\(band.mask != nil) keys=\(band.animationKeys() ?? [])")
         // [ShimmerDiag] 动画存活心跳：0.7s / 1.4s 读 presentation().startPoint.x
         // 两次值不同 = 动画在推进；相同或 nil = 动画死/没加。
         let heartbeat: (Double) -> Void = { [weak self] delay in
