@@ -1060,3 +1060,19 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **已知偏离（pp 请裁）**：pp 原选"内联可缩放 `ZoomableImageView`"被替换为"已验证等比 `Image` + 点按全屏缩放"——`ZoomableImageView` 系 GeometryReader、依赖 `geo.size.height`、全项目零调用方、放进纵向 ScrollView 高度歧义（本机无法编译/预览验证），保守起见闻功能保留（缩放移入全屏）。若 pp 要内联捏合，改回并加有界高度外壳。
 - **回归项**：① 聊天流代码卡仍 400 封顶内滚（autoHeight=false）② 详情页代码卡完整撑高、整页滚、卡内不内滚 ③ memory_write 详情显正文 ④ browser 详情显 action+URL+截图+结果，捏合/保存/分享在全屏可用 ⑤ read_image 详情显路径+图+视觉文本 ⑥ 旧消息重启后图从 `imageFilePath`/mediaRef 恢复显示 ⑦ 小窗 browser/read_image 渲染不变 ⑧ 深色模式图边框/文本可读。
 - **验证**：本机（Linux）无 Swift/Xcode 工具链、无法编译；上述为静态三轮 + 对抗复核对着代码（含 renderer 缓存污染、首帧闪烁、memberwise init 参数序三处挖坑排除）；**编译与回归 ①–⑧ 需 CI + 装机验证**。
+
+## HOME-BOTTOM-CAPSULE — 聊天列表底部栏：圆形玻璃 FAB → 静态胶囊（Qoder, 2026-09-20，pp 截图 + "aa 有发起对话的胶囊 可以搬" + "文案新会话、搜索框文字不变"）
+
+- **Files**：`Views/ContentView.swift`（重写底部栏 + 删死代码 + 收敛搜索生命周期）；`Shared/Config/ConfigRegistry+Builtins.swift`（删失效设置 `chat.fabOnLeft`）；`Localizable.xcstrings`（加 key `"New chat"`）。
+- **缘起**：pp 给目标截图，要求把聊天列表底部两个可拖拽圆形玻璃 FAB（新建=品牌色气泡 / 搜索=放大镜，点搜索才展开成胶囊）改成**静态胶囊**——右上「新会话」深色胶囊 + 全宽常驻搜索胶囊。pp 点明 AA 有现成"发起对话"胶囊可搬；查证 `AppGlassButton` 早已搬进本仓库（`Views/AuthAA/`），直接复用、零新造。
+- **修复**：
+  - A 底部栏重写：`fabRow`/`fabRowContent` → `bottomBar`（`VStack{ HStack{Spacer; newChatPill}; searchBarCapsule }`）；两处调用点（compact / iPad sidebar）`else { fabRow }` → `else { bottomBar }`；删 `if !sessions.isEmpty` 外层 gate（胶囊始终显示）。
+  - B `newChatPill` = `AppGlassButton(AppLocalized("New chat"), systemImage:"square.and.pencil", style:.prominent, maxWidth:nil){...}` + 原样搬长按「New Chat with Group」分组 `.contextMenu`。`.prominent` 走 `AppTheme.primaryControl*`（dark=白底黑字/light=黑底白字）天然满足 pp"深色反相"，且 iOS<26 自动降级 `.borderedProminent`。
+  - C `searchBarCapsule`：复用展开态搜索栏内容（magnifier + `TextField("Search chats...")` + `searchClearButton`，占位文字不动）+ `SearchBarSurface` + `contentShape(.capsule)`；删 GeometryReader/barX/barWidth 避让数学 → `frame(maxWidth:.infinity).frame(height:56)`；X 改为仅有文字时显示。
+  - D 状态/生命周期收敛：删 `@AppStorage fabOnLeft`、`fabDragOffset`、`showSearchBar`、`fabDidDrag`、`searchDragOffset`、`searchDidDrag`、`@Namespace fabGlassNamespace`；`isSearching` 改纯看文字（`!trim.isEmpty`）；键盘避让两处 `edges: showSearchBar ? [] : .bottom` → `searchFocused ? [] : .bottom`；`dismissSearch`/`dismissSearchIfEmptyOnNavigate`/`focusSearch` 去掉展开态；进页面不再自动弹键盘（原 `.onAppear{searchFocused=true}` 删）。
+  - E 本地化：`Localizable.xcstrings` 加 key `"New chat"`（en="New chat"、zh-Hans="新会话"；其余 7 语言暂缺回退 en，pp 认可"可后续补"）。`"New Session"`（AIChatView:899 在用）值不动以免串改。
+- **死代码清除**（改造直接产物）：删文件级 `private struct DraggableFAB`、`private struct FABGlassMorphID`，及仅 fabRowContent 用的 4 个私有成员 `fabCircleSurface`/`newChatBrandColor`/`newChatGlassTint`/`newChatIconColor`。全库 grep 零符号引用（他处仅剩说明性注释文字提及旧名，不影响编译）。
+- **共享配置面申报**：删 `ConfigRegistry+Builtins.swift` 的 `chat.fabOnLeft` 注册块（"FAB on left" 设置项，原写 UserDefaults `fabOnLeft` 供已删的 `@AppStorage` 读；FAB 移除后成失效开关）。该键无云同步 schema、全库仅注册处引用；老用户 UserDefaults 残留 `fabOnLeft` 无人读、无害。经 pp 批准删除。
+- **死隔离**：只动底部栏 + 其搜索生命周期 + 1 本地化 key + 1 失效设置；不碰列表行 `SessionRow`、多选 `selectionToolbar`、`folderMiniBarOverlay`、`AppGlassButton`/`AppTheme` 本体（只调用不改）、AIChatView 的 "New Session"、SSE/agent/持久化、搜索后端 `ChatStore.searchSessions` + debounce。
+- **回归项**：① 底部见全宽搜索胶囊 + 右上「新会话」深色胶囊 ② 点胶囊新建会话 ③ 长按胶囊弹分组可选组新建（⚠️ contextMenu 挂在 AppGlassButton 外层，需真机确认能弹）④ 点搜索→键盘升+列表抬升+即时过滤 ⑤ X→清空+失焦、胶囊栏仍在 ⑥ ⌘F→聚焦搜索 ⑦ 深色模式胶囊反相白底黑字 ⑧ iOS<26 borderedProminent 实心胶囊 ⑨ iPad 侧栏同款 ⑩ 中文显示"新会话" ⑪ 多选态 selectionToolbar 正常、空列表不崩、搜索高亮/片段不回退。
+- **验证**：本机（Linux）无 Swift/Xcode 工具链、无法编译；已做静态三轮 + 对抗复核（AppGlassButton/AppLocalized/SearchBarSurface 签名与可见性、ForEach Identifiable、括号平衡 delta 与基线一致、全库零悬空引用）；**编译与回归 ①–⑪ 需 Mac + 真机验证**。

@@ -52988,6 +52988,22 @@
         }
       }
     },
+    "New chat": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New chat"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新会话"
+          }
+        }
+      }
+    },
     "New Chat in Group": {
       "localizations": {
         "de": {
