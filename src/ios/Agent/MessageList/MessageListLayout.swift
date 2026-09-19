@@ -348,10 +348,6 @@ final class MessageListLayout: UICollectionViewLayout {
             if heightCache[idx] == nil || abs((heightCache[idx] ?? 0) - h) > 0.5 {
                 heightCache[idx] = h
                 let delta = h - old
-                // [T-ios-slot-fresh-measure-probe] 临时探针，定位后删除（解冻应用的可疑值）
-                if abs(delta) > 50 || h < 30 {
-                    AppLogger(category: "SlotMeasure").info("[SlotMeasure][thaw] idx=\(idx) \(String(format: "%.1f", old))→\(String(format: "%.1f", h)) delta=\(String(format: "%+.1f", delta))")
-                }
                 let frame = idx < itemAttributes.count ? itemAttributes[idx].frame : .zero
                 let pos: String
                 if frame.maxY <= viewportTop { pos = "above"; aboveSum += delta }
@@ -479,13 +475,6 @@ final class MessageListLayout: UICollectionViewLayout {
 
         // Cache the new height. prepare() will use this to compute correct totalHeight.
         heightCache[index] = newHeight
-
-        // [T-ios-slot-fresh-measure-probe] 临时探针，定位后删除：只记可疑提交
-        // （塌陷/回长类：|Δ|>50 或落点<30pt）；key 前缀含 block id，便于与
-        // [SlotMeasure][swift] 播种行对时。
-        if abs(delta) > 50 || newHeight < 30 {
-            AppLogger(category: "SlotMeasure").info("[SlotMeasure][commit] idx=\(index) \(String(format: "%.1f", oldHeight))→\(String(format: "%.1f", newHeight)) delta=\(String(format: "%+.1f", delta)) key=\(contentKeyByIndex[index]?.prefix(14) ?? "?")")
-        }
 
         // [SettleJitter] Evidence log (H2): a correction passing through DURING
         // deceleration gets NO contentOffsetAdjustment (the !isDecelerating

@@ -154,6 +154,19 @@ private final class ShimmerLabelHost: UIView {
         animating = false
     }
 
+    /// [09-19] 回屏恢复：view 移出 window 时系统会清掉 layer 上的 CA 动画，
+    /// 若 animating 标志不清零，startIfNeeded 会永久短路（扫光死）。回屏时
+    /// 重置标志并触发一次布局重启动画。
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window == nil {
+            stopAnimating()
+        } else {
+            animating = false
+            setNeedsLayout()
+        }
+    }
+
     // MARK: Representable 桥
 
     struct Representable: UIViewRepresentable {

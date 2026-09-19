@@ -1545,8 +1545,6 @@ extension CollectionViewMessageListV3 {
             // footer 走 inlineError 而非 resumeBanner，槽也不改判（与 banner 同闸）。
             let interruptedPending = bridge.canResume && vm.interruptedPendingResume && message.error == nil
             if bridge.interruptedPendingResume != interruptedPending {
-                // 临时探针（装机核验后与 [SlotMeasure] 一并评估删除）
-                AppLogger(category: "ColdStartDiag").info("[ColdStartDiag] bridge.interruptedPendingResume \(bridge.interruptedPendingResume)→\(interruptedPending) isProcessing=\(vm.isProcessing) canResume=\(bridge.canResume) vmFlag=\(vm.interruptedPendingResume) error=\(message.error == nil ? "nil" : "set")")
                 bridge.interruptedPendingResume = interruptedPending
             }
             bridge.onResume = isLast ? { [weak self] in self?.onResume?() } : nil

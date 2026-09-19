@@ -284,78 +284,9 @@ struct FloatingToolBar: View {
                 onTakeoverDone: onTakeoverDone
             )
         }
-        // [T-ios-toolbar-drop-probe] 临时探针，定位后删除
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: {
-            BottomBarProbe.reportBar($0)
-        }
     }
 }
 
-// MARK: - [T-ios-toolbar-drop-probe] 临时探针（定位后整体删除本 enum + 三处调用点）
-
-/// 把「工具条容器 / 玻璃胶囊 / 输入框」三者的 global frame 合成一行打进
-/// `InputBarLayout`，用来定死症状一到底是**谁的位置真的动到了输入框下面**，还是
-/// 只是被压在输入框下面 —— pp 不方便录屏，只能靠日志判。
-///
-/// 只读不写：action 里不回写任何布局状态（`onGeometryChange` 写状态会重新驱动
-/// 布局，见 [T-ios-geometry-observer-crash]）。节流：三轴都没动就不打，且最快
-/// 250ms 一行。
-@MainActor
-enum BottomBarProbe {
-    private static let log = AppLogger(category: "InputBarLayout")
-    private static var bar: CGRect = .zero
-    private static var pill: CGRect = .zero
-    private static var input: CGRect = .zero
-    private static var lastEmit: TimeInterval = 0
-
-    // 不用 inout 取 @MainActor static 属性（编译器版本差异下有隔离推断风险），
-    // 三个槽各写各的。
-    static func reportBar(_ f: CGRect) {
-        guard changed(f, bar), allowEmit() else { return }
-        bar = f
-        emit("bar")
-    }
-    static func reportPill(_ f: CGRect) {
-        guard changed(f, pill), allowEmit() else { return }
-        pill = f
-        emit("pill")
-    }
-    static func reportInput(_ f: CGRect) {
-        guard changed(f, input), allowEmit() else { return }
-        input = f
-        emit("input")
-    }
-
-    private static func changed(_ f: CGRect, _ slot: CGRect) -> Bool {
-        abs(f.minY - slot.minY) > 0.5
-            || abs(f.maxY - slot.maxY) > 0.5
-            || abs(f.minX - slot.minX) > 0.5
-    }
-
-    /// 节流时**不写槽**：写了就把这次变化当成"已记录"吞掉，而错误状态往往是
-    /// 一次几何回调之后不再变化的稳态（工具条停在输入框下面不动了），那样这一帧
-    /// 永远打不出来。留着旧值，下一个 250ms 窗口一定还会判为 changed 并补打。
-    private static func allowEmit() -> Bool {
-        let now = ProcessInfo.processInfo.systemUptime
-        guard now - lastEmit > 0.25 else { return false }
-        lastEmit = now
-        return true
-    }
-
-    private static func emit(_ who: String) {
-        // gap* = 输入框顶 - 该元素底。**负值 = 该元素真的越到输入框下面去了**，
-        // 这是症状一的分叉点：gap 为负是布局错，gap 正常而肉眼仍觉得掉了，是层序错。
-        log.info("[BottomBarProbe] who=\(who) "
-            + "bar=[\(rect(bar))] pill=[\(rect(pill))] input=[\(rect(input))] "
-            + "gapBar=\(n(input.minY - bar.maxY)) gapPill=\(n(input.minY - pill.maxY)) "
-            + "barUnderInput=\(bar.maxY > input.minY + 0.5)")
-    }
-
-    private static func rect(_ r: CGRect) -> String {
-        "x\(n(r.minX))…\(n(r.maxX)) y\(n(r.minY))…\(n(r.maxY)) h\(n(r.height))"
-    }
-    private static func n(_ v: CGFloat) -> Int { Int(v.rounded()) }
-}
 
 /// Tappable URL capsule that copies to clipboard and shows a brief "Copied" tooltip.
 private struct CopyableURLCapsule: View {
@@ -2574,10 +2505,6 @@ private struct ToolStatusBar: View {
         .frame(minHeight: 38)
         .frame(maxWidth: .infinity)
         .modifier(ToolStatusBarSurface())
-        // [T-ios-toolbar-drop-probe] 临时探针，定位后删除
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: {
-            BottomBarProbe.reportPill($0)
-        }
     }
 
     @ViewBuilder

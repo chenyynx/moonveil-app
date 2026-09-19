@@ -237,8 +237,6 @@ struct ToolActivityGroupView: View {
             // [T-ios-slot-fresh-measure-latch] 补发前过冷却门闩（见 allowRemountPing）：
             // 防"通知 → reconfigure → 新子树 onAppear → 再通知"的无界回环；本链每
             // 收敛为单次重测。
-            // [T-ios-slot-fresh-measure-probe] 顺带打点（定位后与探针一并评估删除）。
-            AppLogger(category: "SlotMeasure").info("[SlotMeasure][swift] anchor=\(segment.anchorId.uuidString.prefix(8)) carouselSeeded=\(carouselIds.count) rows=\(eventBlocks.count) cached=\(Self.lastRowsCache[segment.anchorId]?.count ?? 0) running=\(!segment.isDone) slotRunning=\(running) interrupted=\(interruptedPendingResume)")
             // [T-ios-coldstart-interrupted-slot] 补发条件从 !isDone 放宽为 `running`：
             // 中断待恢复段也按运行槽渲染、同样需要首测自愈；冷却门闩（每 anchor
             // ≥1s 一发）原样保留，回环仍单次收敛。

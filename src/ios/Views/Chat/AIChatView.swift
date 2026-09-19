@@ -2948,7 +2948,6 @@ struct AIChatView: View {
                 }
                 .onDisappear {
                     floatingBarHeight = 0
-                    BottomBarProbe.reportBar(.zero)  // [T-ios-toolbar-drop-probe] 临时探针
                 }
         }
     }
@@ -3900,7 +3899,6 @@ struct AIChatView: View {
                 // would leave the confirm reading a stale/zero value).
                 if onscreen {
                     latestInputBarFrameH = newH
-                    BottomBarProbe.reportInput(frame)  // [T-ios-toolbar-drop-probe] 临时探针
                 }
                 // [T-voice-inputbar-collapse-selfheal] Liveness, recorded for
                 // EVERY callback — an off-screen sample is still proof the host
