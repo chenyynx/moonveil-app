@@ -4231,6 +4231,15 @@ struct ContentView: View {
         // safeAreaInset 高度与列表 inset 不变。聚焦时归零——键盘抬起后回到「栏贴键盘
         // 上沿」的原行为，避免 30pt 压进键盘。
         .offset(y: searchFocused ? 0 : 30)
+        // [BOTTOM-BAR-FENCE] 把底部栏在窗口坐标里的顶边上报给页切手势（精确排除，
+        // 不再依赖屏幕高度/安全区推算）。见 RootModeTabsView.BottomBarFence。
+        .background {
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { BottomBarFence.topY = proxy.frame(in: .global).minY }
+                    .onChange(of: proxy.frame(in: .global).minY) { _, y in BottomBarFence.topY = y }
+            }
+        }
     }
 
     /// [NEWCHAT-INK] pp 2026-09-20「新会话的颜色有没有对齐图二」：参照图胶囊底色
@@ -4243,13 +4252,20 @@ struct ContentView: View {
             : UIColor(white: 0x11 / 255, alpha: 1)
     })
 
+    /// [NEWCHAT-WIDTH] pp 2026-09-20「胶囊大小还是没跟图二一样 我要的是一样尺寸」：
+    /// 参照胶囊外壳 126pt（内容 90 + 系统内边距 ~2×19）；实机（中文「新会话」内容 73）
+    /// 只有 111.7pt。这里把 label 最小宽设为 87pt → 外壳 ≈ 87+38.7 ≈ 126pt 对齐。
+    /// minWidth（非固定宽）保证英文文案等更长内容不被压缩。
+    private static let newChatPillLabelMinWidth: CGFloat = 87
+
     private var newChatPill: some View {
         AppGlassButton(
             AppLocalized("New chat"),
             systemImage: "square.and.pencil",
             style: .prominent,
             maxWidth: nil,
-            tintOverride: Self.newChatPillTint
+            tintOverride: Self.newChatPillTint,
+            labelMinWidth: Self.newChatPillLabelMinWidth
         ) {
             openSession(Self.makeNewSessionId())
         }

@@ -9,6 +9,18 @@
 import SwiftUI
 import UIKit
 
+/// [BOTTOM-BAR-FENCE] 底部操作栏在窗口坐标里的顶边 —— 由 ContentView 的 `bottomBar`
+/// 经 GeometryReader 上报（.global）。页切手势在 global 坐标下用它精确排除「新会话
+/// 胶囊 + 搜索栏」区域：不再依赖 `UIScreen` 高度与「局部坐标 == 窗口坐标」的假设
+/// （pp 2026-09-20 反馈「拖动新会话胶囊也会切页」时条带推算即为嫌疑点）。
+///
+/// `nonisolated(unsafe)`：读写都发生在主线程 UI 路径（ContentView 布局上报 /
+/// 手势判定），与仓内既有全局共享状态（cachedLockLabel 等）同一模式；ContentView
+/// 是 nonisolated struct，这里若加 @MainActor 隔离会在其 body / 手势闭包里访问报错。
+enum BottomBarFence {
+    nonisolated(unsafe) static var topY: CGFloat = 0
+}
+
 @MainActor
 struct RootModeTabsView: View {
     @StateObject private var router = RootTabRouter.shared
@@ -119,7 +131,8 @@ struct RootModeTabsView: View {
     /// list area. B13-SWIPEFIX-5 scope stays: every start point BELOW the tab row is
     /// ours to judge (判定在 onChanged，先于任何"松手才打开"的行内逻辑).
     private var pageSwipe: some Gesture {
-        DragGesture(minimumDistance: 12)   // pp 2026-09-16: directionLockDistance = 12pt
+        // [BOTTOM-BAR-FENCE] global 坐标：起点与 BottomBarFence（窗口坐标）可直接比较。
+        DragGesture(minimumDistance: 12, coordinateSpace: .global)   // pp 2026-09-16: directionLockDistance = 12pt
             .updating($swipeInFlight) { _, state, _ in state = true }
             .onChanged { value in
                 if swipeRejected || swipeArmed { return }   // verdict is final per gesture
@@ -140,8 +153,11 @@ struct RootModeTabsView: View {
                 // 见 ContentView BOTTOM-BAR-ALIGN）整体退出切页判定——旧 bubbleZone 只盖
                 // 右下角，搜索栏左半与胶囊左缘都是「洞」。本条带完整覆盖 bubbleZone 的
                 // y 范围（后者保留：x 条件语义独立于布局）。
-                let inBottomBarZone = start.y > Self.screenHeight - Self.bottomBarZoneHeight
-                guard !inBottomBarZone else { return }
+                // 优先用底部栏实际上报的顶边（精确）；未上报时退回条带推算。
+                let fenceTop = BottomBarFence.topY > 0
+                    ? BottomBarFence.topY - Self.bottomBarFenceMargin
+                    : Self.screenHeight - Self.bottomBarZoneHeight
+                guard start.y < fenceTop else { return }
                 let inBubbleZone = start.y > Self.screenHeight - Self.bubbleZoneHeight
                     && start.x > Self.screenWidth - Self.bubbleZoneWidth
                 guard !inBubbleZone else { return }
@@ -303,11 +319,12 @@ struct RootModeTabsView: View {
     private static let topBarBottom: CGFloat = 170
     private static let bubbleZoneWidth: CGFloat = 120
     private static let bubbleZoneHeight: CGFloat = 160
-    /// [BOTTOM-BAR-FENCE] Bottom operation strip (new-chat pill + search bar within
-    /// ~150pt of the screen bottom after BOTTOM-BAR-ALIGN): swipes starting here
-    /// never judge for the page switch. 160 mirrors bubbleZoneHeight and fully
-    /// covers the bubble zone's y range.
+    /// [BOTTOM-BAR-FENCE] Bottom operation strip fallback (used only when the
+    /// bar's own frame has not been reported yet). 160 mirrors bubbleZoneHeight.
     private static let bottomBarZoneHeight: CGFloat = 160
+    /// Slack above the reported bar top so a touch on the bar's top edge still
+    /// counts as "on the bar".
+    private static let bottomBarFenceMargin: CGFloat = 20
 
     private var needsLoginGate: Binding<Bool> {
         Binding(

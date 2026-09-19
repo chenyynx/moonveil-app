@@ -16,6 +16,8 @@ struct AppGlassButton: View {
     /// [NEWCHAT-INK] Prominent-style tint override; nil = AppTheme default
     /// (additive parameter — existing call sites unchanged).
     let tintOverride: Color?
+    /// [NEWCHAT-WIDTH] Optional minimum width for the label (nil = no constraint).
+    let labelMinWidth: CGFloat?
     let action: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -29,6 +31,7 @@ struct AppGlassButton: View {
         disabled: Bool = false,
         maxWidth: CGFloat? = .infinity,
         tintOverride: Color? = nil,
+        labelMinWidth: CGFloat? = nil,
         action: @escaping () -> Void
     ) {
         self.title = title
@@ -39,6 +42,7 @@ struct AppGlassButton: View {
         self.disabled = disabled
         self.maxWidth = maxWidth
         self.tintOverride = tintOverride
+        self.labelMinWidth = labelMinWidth
         self.action = action
     }
 
@@ -50,6 +54,7 @@ struct AppGlassButton: View {
         disabled: Bool = false,
         maxWidth: CGFloat? = nil,
         tintOverride: Color? = nil,
+        labelMinWidth: CGFloat? = nil,
         action: @escaping () -> Void
     ) {
         self.title = nil
@@ -60,6 +65,7 @@ struct AppGlassButton: View {
         self.disabled = disabled
         self.maxWidth = maxWidth
         self.tintOverride = tintOverride
+        self.labelMinWidth = labelMinWidth
         self.action = action
     }
 
@@ -105,6 +111,8 @@ struct AppGlassButton: View {
                     .minimumScaleFactor(0.85)
             }
         }
+        // [NEWCHAT-WIDTH] 可选最小宽度（nil/0 = 原行为零变化）。
+        .frame(minWidth: labelMinWidth ?? 0)
     }
 
     private var progressTint: Color {
