@@ -160,6 +160,20 @@ struct ToolActivityGroupView: View {
         return 24 + 33.7 * CGFloat(n)
     }
 
+    /// [T-ios-slot-row-fallback] 渲染源 = 轮播队列 + "持续缺行"兜底（09-19 三轮，
+    /// pp 要求两全：正常动画保真 ∧ 数据行不长期缺画）。与一轮 renderIds 的
+    /// 关键区别：**不即时并入数据行**——只有复检（延迟 120ms）确认队列持续落后
+    /// 于数据时才写 fallbackRowIds。正常/丢沿帧兜底态恒空 → 本值**恒等**
+    /// carouselIds → ForEach 结构与二轮完全一致，进场动画零扰动；病态帧缺行
+    /// 补在尾部（无 withAnimation 事务 → 不播进场滑入，直接出现，可接受——
+    /// 救"高度够行数少"优先于动画）。filter 去重保证队列迟到补齐后
+    /// renderIds 自动回恒等（兜底撤销不依赖 task 再跑，状态残留也无渲染效果）。
+    private var renderIds: [UUID] {
+        let extra = fallbackRowIds.filter { !carouselIds.contains($0) }
+        guard !extra.isEmpty else { return carouselIds }
+        return carouselIds + extra
+    }
+
     /// 是否按运行槽渲染。[T-ios-coldstart-interrupted-slot] 追加一条：load 检测的
     /// "中断待恢复"回合里未被正文收口的段 = 信息上未完成 → 保持运行槽（计时冻结）。
     /// [T-ios-slot-error-pending-retry] 再追加一条（Bug A）："错误待重试"的尾部
@@ -302,12 +316,38 @@ struct ToolActivityGroupView: View {
         // 里，进场动画与既有路径同款。不用 onChange(initial:true)：初值回调在 body
         // 评估期触发，与 onAppear 无动画同步有先后竞态；task 挂载后运行，顺序确定。
         // 纯状态层，不新增通知/reconfigure，不触碰 allowRemountPing/抑制窗。
+        // [T-ios-slot-row-fallback] 三段升级（09-19 三轮，pp 要求"两全"）：自愈
+        // 为主 + 仅"持续缺行"才并集兜底。首检=同帧差量对齐（带动画，逻辑不变，
+        // 只把 guard-return 改成 if，好让复检必跑）；复检=延迟 120ms 后判"数据行
+        // 是否仍不在队列"，是则写 fallbackRowIds（渲染尾部兜底，可接受不播进场
+        // 动画），否则清空兜底恢复恒等。正常帧为什么不误触发：onChange 与本 task
+        // 首检都在**同一个更新事务**内对齐队列（最迟下一帧 ~16ms 落定），复检在
+        // +120ms（≈7 帧）之后，队列必已包含全部数据 id → missing 恒空；即便
+        // onChange 迟一拍也有首检托底，两条路都在复检前完成。120ms 取值：对 1–3
+        // 帧的正常对齐留 40 倍余量（真机抖动/主线程拥塞也覆盖），对"缺行长期
+        // 不画"的兜底延迟又低于可感知阈值（且只在自愈失效的病态帧才付出）。
+        // 不自激论证：task 的 id 是 displayRows.map(\.id)（数据侧派生），写
+        // fallbackRowIds 只触发 body 重估、不改变该取值 → task 不重跑，无循环；
+        // 数据再变化时新 task 重算 missing，旧兜底自然刷新/撤销。
+        // Task.isCancelled 守卫：延迟窗口内数据再换血 → 旧 task 被取消，过期
+        // 结论不回写；sleep 被取消时 try? 吞错继续往下，必须显式判 isCancelled。
         .task(id: displayRows.map(\.id)) {
             Self.rememberRows(eventBlocks, anchor: segment.anchorId)
             let targetIds = displayRows.map(\.id)
-            guard targetIds != carouselIds else { return }
-            withAnimation(Self.carouselSpring) {
-                carouselIds = targetIds
+            if targetIds != carouselIds {
+                withAnimation(Self.carouselSpring) {
+                    carouselIds = targetIds
+                }
+            }
+            try? await Task.sleep(for: .milliseconds(120))
+            guard !Task.isCancelled else { return }
+            // 复检读的是本次 task 启动时捕获的 id 集（数据若再变，本 task 已被
+            // 取消重启，捕获值即最新值）；carouselIds 经 @State 存储读到当下真值。
+            let missing = targetIds.filter { !carouselIds.contains($0) }
+            if missing.isEmpty {
+                if !fallbackRowIds.isEmpty { fallbackRowIds = [] }
+            } else if missing != fallbackRowIds {
+                fallbackRowIds = missing
             }
         }
         // [pp 09-18 根因①] thinking block flush 传导：flush 只发
@@ -443,11 +483,13 @@ struct ToolActivityGroupView: View {
                         .accessibilityLabel(AppLocalized("Stop"))
                     }
                 }
-                ForEach(carouselIds, id: \.self) { id in
-                    // [pp 09-18 根因③] 数据源 = carouselIds（@State，onChange 显式
-                    // 事务 + [T-ios-slot-row-resync] task(id:) 状态层兜底对齐）；
-                    // block 从 displayRows 现查——离场行 id 已出 suffix(3)
-                    // 窗口 → if let 失败 → 视图移除 → removal transition（跟队上滑）。
+                ForEach(renderIds, id: \.self) { id in
+                    // [pp 09-18 根因③] 数据源 = renderIds（[T-ios-slot-row-fallback]
+                    // 三轮：正常帧恒等 carouselIds——onChange 显式事务 + task(id:)
+                    // 首检自愈对齐，兜底态空 → 动画路径即二轮原样；仅"持续缺行"
+                    // 病态帧尾部补画缺行）；block 从 displayRows 现查——离场行 id
+                    // 已出 suffix(3) 窗口 → if let 失败 → 视图移除 → removal
+                    // transition（跟队上滑）。
                     if let block = displayRows.first(where: { $0.id == id }),
                        let item = ToolEventRowFactory.item(for: block) {
                         ToolEventRow(
@@ -524,6 +566,11 @@ struct ToolActivityGroupView: View {
     /// 在 withAnimation(Self.carouselSpring) 事务里更新——cell 的 disablesAnimations
     /// 只吞隐式动画，显式事务放行（两段式 D 同管线装机实证）。
     @State private var carouselIds: [UUID] = []
+
+    /// [T-ios-slot-row-fallback] "持续缺行"兜底态：仅由 .task(id:) 复检写入
+    /// （**禁止 body 评估期写**——写发生在延迟后的 task 里，且值幂等、可撤销），
+    /// 正常路径恒为空数组。见 renderIds 注释。
+    @State private var fallbackRowIds: [UUID] = []
 
     // MARK: Helpers
 

@@ -1038,3 +1038,12 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **保持项**: 冷启动错误尾巴→冻结运行槽（一轮 onAppear 冻结链）保留不动；§四.5 汇聚页 `isSegmentRunning` 判据不消费新标志——非局部低风险改动，仅记录不改。
 - **回归项**: ①live 新工具行进场滑入动画与改前同款（补 A 核心验收）②Bug B 不回退：3 行数据 live 全渲染，退出重进不变化 ③422 报错→重试续走后秒数继续走（不冻结）④彻底放弃（开新回合）后槽收口且聚合页「Thought for Ns」为有限值 ⑤closedByContent 正文收口 settle 路径不变 ⑥red line：轮播动画/正文语义/classic 冻结/slotFloor/冷却机制全部无回退。
 - **验证**: 本机无 Swift 工具链——括号平衡度与 HEAD 一致；①–⑥ 需 CI + 装机。
+
+## SLOT-ROW-FALLBACK — 缺行两全兜底：队列自愈为主 + 仅"持续缺行"才并集（Qoder 第三轮, 2026-09-19，pp：“一轮保渲染丢动画、二轮保动画赌自愈，要两全”）
+
+- **File**: 仅 `ToolActivityGroupView.swift`（新增 `@State fallbackRowIds` + `renderIds` computed + `.task(id:)` 二段化 + ForEach 换源 renderIds）。
+- **机制（为什么两全成立）**: 一轮渲染层并集在数据到达帧即并入 → 抢在 `withAnimation(carouselSpring)` 事务前渲染 → 进场动画被吃；二轮纯自愈动画保真，但"缺行根因不在队列落后"时治不到。三轮把并集降级为**持续缺失判据**：task 首检同帧差量对齐（带动画，原逻辑不变）→ `Task.sleep(120ms)` 复检 → 仅当数据 id 仍不在队列才写 `fallbackRowIds`（尾部补画，可接受不播动画）；正常帧 onChange/首检都在同一更新事务内对齐（≤1–3 帧），复检时刻 missing 恒空 → `renderIds ≡ carouselIds`，ForEach 结构与二轮逐帧恒等 → 动画路径零扰动。兜底态幂等可撤销（filter 去重：队列迟到补齐即回恒等，不依赖 task 再跑）。
+- **不自激论证**: task 的 id 挂在 `displayRows.map(\.id)`（数据侧派生），写 `fallbackRowIds` 不改变该取值 → task 不重跑，无循环；数据再变时新 task 重算，`Task.isCancelled` 守卫防旧复检回写过期结论。
+- **约束自查**: 兜底态只在 task 内写（非 body 评估期）；零新增通知/reconfigure；不触碰 allowRemountPing/2.5s 抑制窗/slotFloor；classic 冻结；一/二轮语义（errorPendingRetry 桥、settle 缓放/补落定）零回退。
+- **回归项**: ①live 进场滑入动画与二轮/基线同款 ②人为制造自愈失效（难）时缺行 ≤0.12s 补画 ③Bug B 3 行当帧全渲染不回退 ④快速连发工具无兜底闪烁（复检幂等）⑤报错重试秒数续走（二轮项）⑥classic 零影响。
+- **验证**: 括号平衡度与 HEAD 一致；①–⑥ 需 CI + 装机。
