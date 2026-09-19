@@ -714,6 +714,33 @@ private struct BridgedAssistantFooterV3: View {
     }
 }
 
+/// [SEARCH-JUMP-HIGHLIGHT] 命中消息的高亮脉冲：亮起 → 停留 → 淡出。
+/// 亮起瞬时生效（初始 opacity 1，不依赖动画事务，保证必然可见）；淡出走显式
+/// `withAnimation` —— cell 宿主 `.transaction(disablesAnimations: true)` 吞隐式
+/// 动画、放行显式事务（B16-PILL-FEEL 实证分界）。`active` 由 coordinator 的
+/// 2s 窗口驱动；视觉语言跟随既有「复制后高亮」（ChatColors.accent）。
+private struct SearchJumpHighlightModifier: ViewModifier {
+    let active: Bool
+    @State private var shown = true
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                if active {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(ChatColors.accent.opacity(0.12))
+                        .padding(.horizontal, -6)
+                        .opacity(shown ? 1 : 0)
+                        .onAppear {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                                withAnimation(.easeOut(duration: 0.9)) { shown = false }
+                            }
+                        }
+                }
+            }
+    }
+}
+
 /// Wraps the existing ChatMessageRow for user / compactDivider / systemInfo messages.
 /// V3: No GeometryReader.
 private struct BridgedWholeMessageV3: View {
@@ -785,6 +812,8 @@ extension CollectionViewMessageListV3 {
         /// [SEARCH-JUMP] 待消费的定位目标 + 已消费记录（防重复执行）。
         var pendingSearchAnchor: UUID? = nil
         var consumedSearchAnchor: UUID? = nil
+        /// [SEARCH-JUMP-HIGHLIGHT] 当前要高亮的命中消息（2s 窗口，由 scrollToMessage 驱动）。
+        var searchJumpHighlightId: UUID? = nil
 
         #if DEBUG
         deinit {
@@ -1276,6 +1305,9 @@ extension CollectionViewMessageListV3 {
                         bridge: bridge,
                         maxWidth: width
                     )
+                    // [SEARCH-JUMP-HIGHLIGHT] 搜索定位命中消息的高亮脉冲
+                    // （默认 false = 其余所有路径零变化）。
+                    .modifier(SearchJumpHighlightModifier(active: msgId == searchJumpHighlightId))
                     // Suppress SwiftUI async display-link geometry observation
                     // to prevent use-after-free in ViewGraphGeometryObservers
                     // when UICollectionView recycles the cell.
@@ -4333,6 +4365,10 @@ extension CollectionViewMessageListV3 {
             }
             // 用户在阅读历史位置，不要被流式 / 布局修正拽回底部。
             self.scrollMode = .userBrowsing
+            // [SEARCH-JUMP-HIGHLIGHT] 命中消息高亮脉冲：设置状态并重建该 cell（亮起）→
+            // 2s 后释放状态再重建（灭）。cell 内 0.6s 后开始 0.9s 淡出，视觉上收敛。
+            self.searchJumpHighlightId = id
+            self.reconfigureMessageItem(id)
             cv.scrollToItem(at: ip, at: .top, animated: animated)
             let target = id
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -4340,6 +4376,11 @@ extension CollectionViewMessageListV3 {
                       let ip2 = self.indexPath(forMessage: target) else { return }
                 cv.scrollToItem(at: ip2, at: .top, animated: false)
                 self.syncScrollFlags()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                guard let self, self.searchJumpHighlightId == target else { return }
+                self.searchJumpHighlightId = nil
+                self.reconfigureMessageItem(target)
             }
             self.syncScrollFlags()
         }
@@ -4352,6 +4393,17 @@ extension CollectionViewMessageListV3 {
                 return false
             }) else { return nil }
             return ds.indexPath(for: item)
+        }
+
+        /// [SEARCH-JUMP-HIGHLIGHT] 重建单条消息 cell（复用既有 reconfigure 写法；
+        /// 目标不在快照里则跳过 —— reconfigureItems 对不存在的 item 无意义）。
+        private func reconfigureMessageItem(_ id: UUID) {
+            guard let ds = dataSource else { return }
+            let item = MessageListItem.wholeMessage(id)
+            guard ds.snapshot().itemIdentifiers.contains(item) else { return }
+            var snap = ds.snapshot()
+            snap.reconfigureItems([item])
+            ds.apply(snap, animatingDifferences: false)
         }
 
         /// Up-button action: walk backwards through the conversation one user
