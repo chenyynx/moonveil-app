@@ -19,7 +19,6 @@ struct RemoteProjectEditorSheet: View {
     @State private var device = ""
     @State private var path = ""
     @State private var projectName = ""
-    @State private var saving = false
     @State private var error: String?
 
     var body: some View {
@@ -63,34 +62,21 @@ struct RemoteProjectEditorSheet: View {
                 }
             }
             .textFieldStyle(.plain)
-            .disabled(saving)
             .navigationTitle("创建项目")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                SheetCloseToolbar(disabled: saving) { dismiss() }
+                SheetCloseToolbar { dismiss() }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("创建") { save() }
-                        .disabled(!valid || saving)
+                    // 数据面（项目创建）未接通前显式禁用——同「浏览目录」的处理；
+                    // 不做「点了看着成功其实什么都没发生」的假态。
+                    Button("创建") {
+                        // RemoteService 的项目创建 public 面就绪后接这里（batch 8 R0）。
+                    }
+                    .disabled(true)
                 }
             }
         }
         .appSheetPresentation(.compact)
-        .interactiveDismissDisabled(saving)
-    }
-
-    private var valid: Bool {
-        !device.isEmpty
-            && !projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private func save() {
-        // 数据面：RemoteService 的项目创建 public 面就绪后接（batch 8 R0）。
-        saving = true
-        Task {
-            try? await Task.sleep(for: .seconds(0))
-            saving = false
-            dismiss()
-        }
     }
 }
 
@@ -154,7 +140,7 @@ struct RemoteSessionDetailSheet: View {
                 Section("会话") {
                     row("标题", RemoteSessionStore.shared.title(for: sessionId) ?? "未命名会话")
                     row("设备", serverLabel)
-                    row("Agent", "Claude Code")
+                    row("Agent", "—")
                     row("状态", "—")
                     row("工作目录", "—")
                 }
