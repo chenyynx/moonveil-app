@@ -2911,7 +2911,6 @@ struct ContentView: View {
         .opacity(didInitialLoad ? 1 : 0)
         .overlay { if didInitialLoad, filteredSessions.isEmpty, !isSearching { emptyState } }
         .overlay(alignment: .top) { folderMiniBarOverlay(scrollProxy) }
-        .overlay(alignment: .bottom) { bottomFade }
         .safeAreaInset(edge: .bottom) { if isSelecting { selectionToolbar } else { bottomBar } }
         // [T-home-fab-keyboard-inset] Mirror of the voice panel's structural
         // immunity (604a9947 / T-voice-bg-fg-gap): with the inline search bar
@@ -3100,7 +3099,6 @@ struct ContentView: View {
         .opacity(didInitialLoad ? 1 : 0)
         .overlay { if didInitialLoad, displaySessions.isEmpty, !isSearching { emptyState } }
         .overlay(alignment: .top) { folderMiniBarOverlay(scrollProxy) }
-        .overlay(alignment: .bottom) { bottomFade }
         .safeAreaInset(edge: .bottom) { if isSelecting { selectionToolbar } else { bottomBar } }
         // [T-home-fab-keyboard-inset] Same structural immunity as the compact
         // list above — see that call site for the full rationale. On iPad the
@@ -4216,26 +4214,28 @@ struct ContentView: View {
         }
     }
 
-    /// [BOTTOM-FADE-2 / FADE-POS-FIX] pp 2026-09-20「底部做渐隐」→「渐隐做反了？」
-    /// →「渐隐有问题 位置完全不对」：
-    /// 列表内容滚到底部栏区域时逐渐融入背景。做成**列表的 overlay**（`alignment:
-    /// .bottom` + 显式 `frame(height: 200)`）。
-    /// ⚠️ **不要加 `.ignoresSafeArea(edges: .bottom)`**：实机实测它会把整层上移
-    /// 一个自身高度（淡化带落在距屏底 199–399pt 处，而不是贴底）——BOTTOM-FADE-2
-    /// 的「位置完全不对」就是这个。z 序：列表内容 < 本层 < `safeAreaInset` 底部栏
-    /// （栏自身不被蒙）。曲线按参照图二校准：屏底 ~180pt 起淡、~60pt 处淡尽。
+    /// [BOTTOM-FADE-3] pp 2026-09-20「底部做渐隐」→「渐隐做反了？」→「位置完全不对」：
+    /// 列表内容滚到底部栏区域时逐渐融入背景。
+    /// **挂载点 = `bottomBar` 的 `.background(alignment: .bottom)`**（BOTTOM-FADE v1
+    /// 已实测该挂载点能盖住列表内容：bar 的 background z 序在列表之上、bar 内容之下）；
+    /// **不要用 List 的 overlay**——实机实测其淡化带落在距屏底 199–399pt（List frame
+    /// 底异常上移 199pt，根因未明），也**不要加 `.ignoresSafeArea(edges: .bottom)`**
+    /// （overlay 中它把整层再上移一个自身高度）。
+    /// 几何（全部显式）：bar frame 底 = 屏底-34（安全区底，v1 实测）；渐变 260pt、
+    /// 底对齐 bar frame 底 → 渐变 = [屏底-294, 屏底-34]；stops [透明@0.40, 全白@0.90]
+    /// → 淡化带 = 屏底-190 起淡、屏底-60 淡尽（对齐参照图二）。
     @ViewBuilder
     private var bottomFade: some View {
         LinearGradient(
             stops: [
                 .init(color: Color(.systemBackground).opacity(0), location: 0),
-                .init(color: Color(.systemBackground).opacity(0), location: 0.10),
-                .init(color: Color(.systemBackground), location: 0.70),
+                .init(color: Color(.systemBackground).opacity(0), location: 0.40),
+                .init(color: Color(.systemBackground), location: 0.90),
             ],
             startPoint: .top,
             endPoint: .bottom
         )
-        .frame(height: 200)
+        .frame(height: 260)
         .allowsHitTesting(false)
     }
 
@@ -4261,6 +4261,9 @@ struct ContentView: View {
         // [SEARCHBAR-HEIGHT] 栏矮 9pt 后补 4pt：栏底距屏底保持 ~28pt、
         // 栏内文字中心保持 ~51.5pt（参照 51.3）。
         .padding(.bottom, 24)
+        // [BOTTOM-FADE-3] 渐隐层：bar 的 background（z 序在列表之上、bar 内容之下），
+        // alignment .bottom + 高度 260pt 向上溢出覆盖栏上方的列表内容。见 bottomFade。
+        .background(alignment: .bottom) { bottomFade }
         // [BOTTOM-BAR-ALIGN] pp 2026-09-20「底部的胶囊尺寸和大小还有位置，对齐图二」。
         // 参照图（Claude 列表页底栏）逐像素实测：搜索文字中心距屏底 ~51pt、实机 ~81pt
         // → 整体下移 30pt 贴底；水平边距 16→22pt（参照 22-23pt）。胶囊↔搜索相对距
