@@ -28,6 +28,8 @@ extension Notification.Name {
     /// Posted after the tool render style changes so the message list can
     /// invalidate height caches and rebuild visible cells [H3].
     static let toolRenderStyleChanged = Notification.Name("toolRenderStyleChanged")
+    /// TOOLSPACING-1: posted when the tool row spacing setting changes.
+    static let toolRowSpacingChanged = Notification.Name("toolRowSpacingChanged")
 }
 
 /// UserDefaults bridge for `ToolRenderStyle`.

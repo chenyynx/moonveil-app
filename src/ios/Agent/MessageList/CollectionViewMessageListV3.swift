@@ -2024,6 +2024,16 @@ extension CollectionViewMessageListV3 {
                 }
                 .store(in: &subscriptions)
 
+            // 7b. Tool row spacing changes (TOOLSPACING-1) — row gap affects
+            // heights; reuse the full reflow chain (clears caches + reconfigures).
+            NotificationCenter.default.publisher(for: .toolRowSpacingChanged)
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    guard let self else { return }
+                    self.handleToolRenderStyleChanged()
+                }
+                .store(in: &subscriptions)
+
             // 8a. Background entry — snapshot content length so we can detect
             //     whether significant content accumulated while backgrounded.
             NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)

@@ -1000,3 +1000,10 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - 改动：`SelectableMarkdownView` bodyLineSpacing 按皮肤分叉；`CollectionViewMessageListV3` 估算器分叉（1.7/1.4）+ `handleToolRenderStyleChanged` 补 itemSpacing 更新与文本缓存失效；`MessageListInfrastructure` itemSpacing 初值按皮肤。
 - 隔离声明：皮肤=**显式 gate**（ToolRenderStyleStore）；切换路径沿用既有 “skin switch → full invalidation” 链 + 对称字号变化链（invalidateAttributedStringCaches）；两端模式共用=预期同步；不触碰状态机/数据流。
 - 回归项：切换皮肤后行距/间距即时正确（含历史消息）；new=0.5×+22pt，classic=0.25×+8pt；流式无塌陷；扫光/工具详情零触碰。
+
+## TOOLSPACING-1 — tool row spacing setting（2026-09-19，pp：“新版工具之间的间隔…如果是固定值就在设置加一个调节”）
+
+- 背景：新版工具活动行间距（runningSlot VStack spacing）为硬编码 18pt（固定值，不随字号动态）；现加设置可调。
+- `ToolActivityGroupView`：@AppStorage("toolRowSpacing")（默认 18）消费；`ContentView` 设置（Tool Status Bar 区）加 Slider（8–30pt，step 2）；新通知 `.toolRowSpacingChanged` → Coordinator 复用全量重排链（handleToolRenderStyleChanged）。
+- 隔离声明：新 UserDefaults key 为显式 gate；仅新版渲染消费（classic 胶囊不走该组件）；两端模式共用=预期同步；不触碰状态机/数据流。
+- 回归项：拖动滑杆行间距即时变化（含历史消息）；重启保留；默认 18pt 与改动前一致；classic 模式零影响。

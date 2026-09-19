@@ -22,6 +22,8 @@ private enum ThinkingRowStyle {
 }
 
 struct ToolActivityGroupView: View {
+    /// TOOLSPACING-1: user-adjustable gap between tool activity rows (Settings > Tool Status Bar).
+    @AppStorage("toolRowSpacing") private var toolRowSpacing: Double = 18
     @ObservedObject var message: ChatMessage
     let segment: TurnActivitySegment
     let isActiveMessage: Bool
@@ -331,7 +333,7 @@ struct ToolActivityGroupView: View {
         } label: {
             // [pp 09-18 Grok 对照 photo_CCA700E4] 行距对齐：Thinking→首事件 34.7pt /
             // 事件行间 36pt（Grok 实测）→ VStack 4→18（现值实测 19.7/22pt 偏紧）。
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: CGFloat(toolRowSpacing)) {
                 // [pp 09-18 真机] 点阵与 Thinking 间距对齐入口行 clock→摘要（spacing 10），
                 // 原 6 视觉仅 ~8.7pt 偏近。
                 HStack(spacing: 10) {
@@ -563,7 +565,7 @@ struct ToolRowCarouselTransition: ViewModifier {
     enum Phase { case enteringActive, exitingActive, settled }
     let phase: Phase
 
-    /// 行距 = 行高(~20pt) + VStack spacing(18pt) ≈ 38pt（Grok 实测 36pt，装机可调）。
+    /// 行距 = 行高(~20pt) + VStack spacing（Tool Row Spacing 设置可调，默认 18pt）≈ 38pt（Grok 实测 36pt）。
     private static let pitch: CGFloat = 38
     /// 实测 blur ~8px@3x≈2.7pt σ；SwiftUI radius 取 4 观感对齐（装机可调）。
     private static let blurRadius: CGFloat = 4
