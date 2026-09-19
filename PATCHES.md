@@ -993,3 +993,10 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - 隔离声明：layout `prepare()` 与高度累计自动跟随（单一参数）；footer-hug 策略不变；两端模式共用布局=预期同步；不触碰状态机/数据流。
 - 不动面：块内 padding（各组件自有）、消息内行距（FONTS-2）、footer 紧贴策略。
 - 回归项：块间空白≈35pt；消息间距同步拉宽（统一+可微调）；流式布局无塌陷；扫光/工具详情零触碰。
+
+## CLASSIC-FREEZE-1 — classic skin keeps pre-alignment parameters（2026-09-19，pp：“旧版能不能保持原来的参数”）
+
+- 语义：FONTS-2（行距 0.25→0.5）与 SPACING-1（itemSpacing 8→22）**仅对 new 皮肤生效**；classic 完整保持改动前参数（行距 0.25、间距 8）。
+- 改动：`SelectableMarkdownView` bodyLineSpacing 按皮肤分叉；`CollectionViewMessageListV3` 估算器分叉（1.7/1.4）+ `handleToolRenderStyleChanged` 补 itemSpacing 更新与文本缓存失效；`MessageListInfrastructure` itemSpacing 初值按皮肤。
+- 隔离声明：皮肤=**显式 gate**（ToolRenderStyleStore）；切换路径沿用既有 “skin switch → full invalidation” 链 + 对称字号变化链（invalidateAttributedStringCaches）；两端模式共用=预期同步；不触碰状态机/数据流。
+- 回归项：切换皮肤后行距/间距即时正确（含历史消息）；new=0.5×+22pt，classic=0.25×+8pt；流式无塌陷；扫光/工具详情零触碰。

@@ -1037,7 +1037,7 @@ final class MessageListViewController: UIViewController {
         view.backgroundColor = .clear
 
         messageListLayout = MessageListLayout()
-        messageListLayout.itemSpacing = 22  // SPACING-1: align inter-cell gap with Claude (~35pt total blank incl. block padding)
+        messageListLayout.itemSpacing = (ToolRenderStyleStore.current == .new ? 22 : 8)  // CLASSIC-FREEZE-1: new=22 (SPACING-1), classic=8
         let cv = NoAnimationCollectionView(frame: view.bounds, collectionViewLayout: messageListLayout)
         cv.owningViewController = self
         collectionView = cv

@@ -900,6 +900,9 @@ extension CollectionViewMessageListV3 {
                 rlog.warning("[ToolRenderStyle] infra missing")
                 return
             }
+            // CLASSIC-FREEZE-1: skin decides spacing/line metrics — apply before re-layout
+            layout.itemSpacing = ToolRenderStyleStore.current == .new ? 22 : 8
+            self.vm?.invalidateAttributedStringCaches()
             for ip in cv.indexPathsForVisibleItems {
                 (cv.cellForItem(at: ip) as? SelfSizingCell)?.clearCachedHeight()
                 layout.invalidateHeight(at: ip.item)
@@ -3899,7 +3902,7 @@ extension CollectionViewMessageListV3 {
 
         static func estimateItemHeight(_ item: MessageListItem, messages: [ChatMessage], width: CGFloat) -> CGFloat {
             let scale = FontSettings.shared.scaledMessage(16)
-            let lineHeight = scale * 1.7  // FONTS-2: sync with bodyLineSpacing 0.5 (render ratio ~1.69)
+            let lineHeight = scale * (ToolRenderStyleStore.current == .new ? 1.7 : 1.4)  // CLASSIC-FREEZE-1: new=1.7 (FONTS-2), classic=1.4
             // [T-ios-user-attach-estimate-mismatch] The former `hPad` local died
             // with the `.user` branch's coarse tile arithmetic — the attachment
             // block now comes from UserAttachmentTileMetrics, which derives its
