@@ -4267,7 +4267,7 @@ struct ContentView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(ChatColors.inputIconFg)
-            TextField("Search chats...", text: $searchText)
+            TextField("Search chats", text: $searchText)
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
                 .focused($searchFocused)

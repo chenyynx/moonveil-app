@@ -5670,7 +5670,7 @@ private struct MoveToSessionSheet: View {
                     }
                 }
             }
-            .searchable(text: $searchText, prompt: AppLocalized("Search chats..."))
+            .searchable(text: $searchText, prompt: AppLocalized("Search chats"))
             .onChange(of: searchText) { _ in scheduleSearch() }
             .navigationTitle(AppLocalized("Move to…"))
             .navigationBarTitleDisplayMode(.inline)

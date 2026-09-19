@@ -1098,3 +1098,5 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 **追加 2（2026-09-20，pp「搜索的那个图标是不是用的黑色」）**：`searchBarCapsule` 放大镜 `.secondary` → `ChatColors.inputIconFg`——输入栏三图标同一「图标黑」常数（B16-INPUTBAR：浅色纯黑 / 深色 secondaryLabel），与参照图实测（放大镜 ≈ 纯黑 rgb22-43）对齐。占位文字/清除按钮颜色不动。
 
 **追加 3（2026-09-20，pp「新会话的颜色有没有对齐图二」）**：胶囊底色实测——参照 rgb(42,42,41) vs 实机 rgb(25,25,25)（tint=纯黑渲染后偏深 17）。修：`AppGlassButton` 新增 additive `tintOverride` 参数（默认 nil=原 AppTheme 行为，两 init 对称、存量调用零影响），`newChatPill` 传 `#111111`（浅色）/ 白（深色保持原样）——按「材质偏移恒定」推算渲染 ≈42，装机后按实拍微调。文字白字两图一致（255/255），未动。
+
+**追加 4（2026-09-20，pp「搜索会话后面那三个点不要」）**：搜索占位去省略号——`"Search chats..."` key 重命名为 `"Search chats"`（9 语言值全去尾部 `...`：搜索对话 / 搜索對話 / Chats durchsuchen / Buscar chats / Rechercher des conversations / チャットを検索 / 채팅 검색 / Поиск чатов / Search chats）。两处调用点同步：底部搜索栏 `TextField`（ContentView）与聊天页 `.searchable(prompt:)`（AIChatView）。
