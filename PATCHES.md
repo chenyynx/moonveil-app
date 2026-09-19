@@ -939,3 +939,11 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **回归**: ①任务中反复「退出重进」×10 不塌不溢出 ②长工具运行期稳定 ③收尾边界不闪、入口行正常收口 ④Stop 正常 ⑤贴正文/扫光 v12/轮播/计时/汇聚页不回退 ⑥本地+远端会话各一遍。
 - **验证**: CI 编译 + 装机日志（[SlotMeasure]：首测 cellFrameH≈125；重进后不再 `frameH=24.0` 紧跟 `DISPATCH`）。
 - **补记（09-19 独立审查修正）**: onAppear 补发加**视图外冷却门闩**（`lastRemountPing` ≥1s）——config 替换会重置 @State 并重跑 onAppear（本文件 [pp 09-18 根因②] 自述），不加闩会形成"通知→reconfigure→新子树 onAppear→再通知"的运行期无界回环（hosting-graph 重入=仓内登记崩溃面）。审查代理发现（Q2 项），随下笔提交修复。
+
+### SLOT-FRESH-MEASURE-2 — 重挂载首帧"行缓存"兜底，治"退出重进闪一下"（Doris, 2026-09-19，[SlotMeasure] 实证）
+
+- **File**: `src/ios/Views/Chat/ToolActivityGroupView.swift`（+`lastRowsCache`/`rememberRows` 静态行缓存 + 统一数据源 `displayRows`（实时优先/缓存兜底）；init 播种、onAppear、onChange、ForEach 四处统一走 displayRows；探针加 `cached=` 字段）。
+- **实证（pp 10:50:54–10:51:21 完整日志）**: 每次"退出重进"（列表重挂载）活动槽格先提交错高 **24.0**（`[SlotMeasure][commit] idx=200 40.0→24.0`），~25ms 后被自愈链修回 **91.3/125.0**（`HIT frameH=24.0 → POST 91.3`），单场测试共 14 次同类 → 视觉=帧级闪塌。首挂载时 `carouselSeeded=/rows=` 均正确 → 错误发生在"首次 config 数据尚未就绪"的首帧（上一版 init 播种取到空）。冷启动另有一条支线：isProcessing 未同步时按 done 渲染（24.3），~1.4s 后修回（登记待办）。
+- **修复**: 静态缓存"上次成功渲染的行"（引用，保持实时状态）；首帧/重建时实时为空则用缓存播种并渲染（实时非空不用缓存）；onChange 实时瞬空时不清行；FIFO 上限 64 anchor。
+- **死隔离申报**: 仅本文件（呈现层）；无新机制（静态缓存同 `startCache` 模式）。
+- **回归**: ①任务中反复退出重进 ×10：槽不再闪塌（不应再出 `40.0→24.0` 类提交）②离场行动画/轮播不受影响 ③冷启动支线观察 ④其余同 SLOT-FRESH-MEASURE。

@@ -48,10 +48,14 @@ struct ToolActivityGroupView: View {
         self.isActiveMessage = isActiveMessage
         self.onOpenDetail = onOpenDetail
         self.onStop = onStop
-        let seededCarousel = segment.toolIds.suffix(3).compactMap { id in
-            message.blocks.first { $0.id == id }?.id
+        // [T-ios-slot-fresh-measure-2] 首帧数据可能尚未就绪（重挂载首 config 时
+        // segment/message 仍在换血）→ 实时为空时用"上次成功渲染的行"缓存兜底，
+        // 保证首帧带行、首测即 ≈ 真实高度（否则帧级闪塌：24 → 91）。
+        let liveRows = segment.toolIds.suffix(3).compactMap { id in
+            message.blocks.first { $0.id == id }
         }
-        _carouselIds = State(initialValue: seededCarousel)
+        let seedRows = liveRows.isEmpty ? (Self.lastRowsCache[segment.anchorId] ?? []) : liveRows
+        _carouselIds = State(initialValue: seedRows.map(\.id))
     }
 
     // MARK: State
@@ -75,6 +79,25 @@ struct ToolActivityGroupView: View {
         return true
     }
 
+    /// [T-ios-slot-fresh-measure-2] 最近一次成功渲染过的事件行（按 anchor 缓存引用）。
+    /// 重挂载/重建的首帧竞态兜底：首次 config 时 segment/message 数据可能尚未就绪，
+    /// 首帧只渲染标题行 ≈24pt 被自测量写进布局缓存，下一帧数据到达又长回 ≈91/125pt
+    /// → 帧级闪烁（pp 09-19 完整日志 [SlotMeasure] 实证：commit 40→24.0 后 ~25ms
+    /// 才被自愈链修回 91.3，共 14 次）。缓存引用保持实时状态，仅作兜底；
+    /// 实时数据非空时不使用缓存。/ 上限 64 个 anchor，FIFO 裁剪。
+    private static var lastRowsCache: [UUID: [AssistantBlock]] = [:]
+    private static var lastRowsCacheOrder: [UUID] = []
+    private static func rememberRows(_ rows: [AssistantBlock], anchor: UUID) {
+        guard !rows.isEmpty else { return }
+        lastRowsCache[anchor] = rows
+        lastRowsCacheOrder.removeAll { $0 == anchor }
+        lastRowsCacheOrder.append(anchor)
+        if lastRowsCacheOrder.count > 64, let oldest = lastRowsCacheOrder.first {
+            lastRowsCacheOrder.removeFirst()
+            lastRowsCache.removeValue(forKey: oldest)
+        }
+    }
+
     /// [pp 09-18 Grok 轮播 1:1] 队列弹簧：0.42s 无回弹。Grok 逐帧实测（60fps）：
     /// 位移 t=0.2→41%、0.4→83%、0.6→99%，峰值速度 t≈20%，无过冲 → smooth(bounce=0)。
     static let carouselSpring: Animation = .smooth(duration: 0.42)
@@ -84,6 +107,12 @@ struct ToolActivityGroupView: View {
         segment.toolIds.suffix(3).compactMap { id in
             message.blocks.first { $0.id == id }
         }
+    }
+
+    /// [T-ios-slot-fresh-measure-2] 行渲染统一数据源：实时优先、缓存兜底。
+    private var displayRows: [AssistantBlock] {
+        let live = eventBlocks
+        return live.isEmpty ? (Self.lastRowsCache[segment.anchorId] ?? []) : live
     }
 
     private var running: Bool { !segment.isDone }
@@ -156,7 +185,9 @@ struct ToolActivityGroupView: View {
             markThinkingStartedIfNeeded(haptic: false)
             // [pp 09-18 根因③] 首渲染历史行直接落位（无动画事务 → 无插入动画）；
             // 后续增删走 onChange 显式事务。
-            carouselIds = eventBlocks.map(\.id)
+            // [T-ios-slot-fresh-measure-2] 缓存实时行 + 统一数据源（缓存兜底）。
+            Self.rememberRows(eventBlocks, anchor: segment.anchorId)
+            carouselIds = displayRows.map(\.id)
             // [T-ios-slot-fresh-measure] 重进/重建自愈（保险丝）：播种后对运行中的段
             // 补发一次既有重测通道（.thinkingBlockToggled → 列表侧清双层缓存 +
             // 单格 reconfigure 重测），不再"等下一个工具事件"。仅运行中的段补发，
@@ -165,7 +196,7 @@ struct ToolActivityGroupView: View {
             // 防"通知 → reconfigure → 新子树 onAppear → 再通知"的无界回环；本链每
             // 收敛为单次重测。
             // [T-ios-slot-fresh-measure-probe] 顺带打点（定位后与探针一并评估删除）。
-            AppLogger(category: "SlotMeasure").info("[SlotMeasure][swift] anchor=\(segment.anchorId.uuidString.prefix(8)) carouselSeeded=\(carouselIds.count) rows=\(eventBlocks.count) running=\(!segment.isDone)")
+            AppLogger(category: "SlotMeasure").info("[SlotMeasure][swift] anchor=\(segment.anchorId.uuidString.prefix(8)) carouselSeeded=\(carouselIds.count) rows=\(eventBlocks.count) cached=\(Self.lastRowsCache[segment.anchorId]?.count ?? 0) running=\(!segment.isDone)")
             if !segment.isDone, Self.allowRemountPing(segment.anchorId) {
                 let anchorId = segment.anchorId
                 DispatchQueue.main.async {
@@ -179,16 +210,19 @@ struct ToolActivityGroupView: View {
             // [pp 09-18 触感修复] 真事件路径 → haptic: true。
             markThinkingStartedIfNeeded(haptic: true)
         }
-        .onChange(of: eventBlocks.map(\.id)) { newIds in
+        .onChange(of: eventBlocks.map(\.id)) { _ in
             // [pp 09-18 根因③] 工具事件增删 → withAnimation 显式事务驱动 ForEach
             // 结构变化 + 存量行布局位移。cell 宿主挂 `.transaction { disablesAnimations
             // = true }`（CollectionViewMessageListV3 防 ViewGraph use-after-free 护栏，
             // 4 处）会吞掉一切隐式动画（.animation(_:value:)/.transition 默认事务，
             // 仓内 ToolSheetPresenter 注释为证）——显式事务放行（两段式 D 出现动画
             // 同管线，装机实证可用）。
-            guard newIds != carouselIds else { return }
+            // [T-ios-slot-fresh-measure-2] 统一数据源：实时优先、缓存兜底；实时瞬空时不清行。
+            Self.rememberRows(eventBlocks, anchor: segment.anchorId)
+            let targetIds = displayRows.map(\.id)
+            guard targetIds != carouselIds else { return }
             withAnimation(Self.carouselSpring) {
-                carouselIds = newIds
+                carouselIds = targetIds
             }
         }
         // [pp 09-18 根因①] thinking block flush 传导：flush 只发
@@ -270,7 +304,7 @@ struct ToolActivityGroupView: View {
                     // [pp 09-18 根因③] 数据源 = carouselIds（@State，onChange 显式
                     // 事务更新）；block 从 eventBlocks 现查——离场行 id 已出 suffix(3)
                     // 窗口 → if let 失败 → 视图移除 → removal transition（跟队上滑）。
-                    if let block = eventBlocks.first(where: { $0.id == id }),
+                    if let block = displayRows.first(where: { $0.id == id }),
                        let item = ToolEventRowFactory.item(for: block) {
                         ToolEventRow(
                             item: item,
