@@ -1015,3 +1015,4 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - 实现：`ToolSpacingSettings`（显式默认值的 UserDefaults 读取）；`MessageListInfrastructure` 初值 + `handleToolRenderStyleChanged` 均读 helper；新通知 `.blockSpacingChanged` → 复用全量重排链。
 - 隔离声明：新 UserDefaults key 为显式 gate；classic 固定值零影响；两端模式共用=预期同步；不触碰状态机/数据流。
 - 回归项：两滑杆各自实时生效（含历史消息）；重启保留；默认值（18/22）与改动前一致；classic 零影响。
+- **2026-09-19 追加（pp拍板）**：Block Spacing 默认 22→11；滑杆 step 2→1（保证 11 可精确拖到）。

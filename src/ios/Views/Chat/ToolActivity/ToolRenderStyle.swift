@@ -75,7 +75,7 @@ enum ToolSpacingSettings {
     static let rowSpacingKey = "toolRowSpacing"
     static let blockSpacingKey = "blockSpacing"
     static let rowSpacingDefault: Double = 18
-    static let blockSpacingDefault: Double = 22
+    static let blockSpacingDefault: Double = 11
 
     static func rowSpacing() -> CGFloat {
         let d = UserDefaults.standard
