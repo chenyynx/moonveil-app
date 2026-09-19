@@ -571,21 +571,10 @@ private struct ToolSummaryDetailPage: View {
             SummaryDetailHeader(title: title, onBack: onBack)
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    // [pp 09-19] 详细内容卡优先（"之前的卡片"渲染器）；
-                    // 提取不到内容时兜底旧版 Input/Output 双卡。
-                    if let md = detailMarkdown(block) {
-                        SelectableMarkdownView(markdown: md)
-                    } else {
-                        sectionLabel(AppLocalized("Input"))
-                        codeCard(languageTag(block), inputText(block))
-
-                        let output = block.content
-                        if !output.isEmpty {
-                            sectionLabel(AppLocalized("Output"))
-                                .padding(.top, 20)
-                            codeCard(languageTag(block), output)
-                        }
-                    }
+                    // [pp 09-19 定稿] 详细内容优先：file_edit 走红绿 diff 卡（浅色
+                    // 卡片语言、非终端风）；其余走"之前的卡片"渲染器；提取不到
+                    // 内容时兜底旧版 Input/Output 双卡（分派见 detailView）。
+                    detailView(block)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 4)
@@ -597,16 +586,68 @@ private struct ToolSummaryDetailPage: View {
         .background(SummaryPalette.sheetBg)
     }
 
+    /// 详细内容分派：file_edit→红绿 diff 卡；其余→"之前的卡片"渲染器；空→旧双卡。
+    @ViewBuilder
+    private func detailView(_ block: AssistantBlock) -> some View {
+        if case .fileEditTool = block.kind,
+           let edit = extractEditStrings(block),
+           !(edit.old.isEmpty && edit.new.isEmpty) {
+            editDiffCard(old: edit.old, new: edit.new)
+        } else if let md = detailMarkdown(block) {
+            SelectableMarkdownView(markdown: md)
+        } else {
+            sectionLabel(AppLocalized("Input"))
+            codeCard(languageTag(block), inputText(block))
+
+            let output = block.content
+            if !output.isEmpty {
+                sectionLabel(AppLocalized("Output"))
+                    .padding(.top, 20)
+                codeCard(languageTag(block), output)
+            }
+        }
+    }
+
+    /// [pp 09-19 定稿] 编辑对比卡：红删/绿加（行级色标），浅色卡片语言、
+    /// 跟随主题、等宽、可选中——红绿元素保留、不是终端/黑卡风格。
+    private func editDiffCard(old: String, new: String) -> some View {
+        let oldLines = old.components(separatedBy: "\n")
+        let newLines = new.components(separatedBy: "\n")
+        return VStack(alignment: .leading, spacing: 2) {
+            ForEach(Array(oldLines.enumerated()), id: \.offset) { _, line in
+                diffLine(prefix: "-", text: line, tint: .red)
+            }
+            ForEach(Array(newLines.enumerated()), id: \.offset) { _, line in
+                diffLine(prefix: "+", text: line, tint: .green)
+            }
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(UIColor.secondarySystemBackground))
+        )
+    }
+
+    private func diffLine(prefix: String, text: String, tint: Color) -> some View {
+        Text("\(prefix) \(text)")
+            .font(.system(size: 13, design: .monospaced))
+            .foregroundStyle(tint)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 1)
+            .padding(.horizontal, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(tint.opacity(0.08))
+            )
+    }
+
     /// 详细内容 → 与旧版代码卡同款（fenced code block）；无内容返回 nil 走兜底。
+    /// （file_edit 由 detailView 走红绿 diff 卡，不经此处。）
     private func detailMarkdown(_ block: AssistantBlock) -> String? {
         switch block.kind {
-        case .fileEditTool:
-            guard let edit = extractEditStrings(block) else { return nil }
-            guard !(edit.old.isEmpty && edit.new.isEmpty) else { return nil }
-            let oldLines = edit.old.components(separatedBy: "\n").map { "- " + $0 }
-            let newLines = edit.new.components(separatedBy: "\n").map { "+ " + $0 }
-            let body = (oldLines + newLines).joined(separator: "\n")
-            return "```diff\n\(body)\n```"
         case .fileWriteTool(let p):
             guard let content = extractWriteContent(block), !content.isEmpty else { return nil }
             return "```\(Self.extLang(p))\n\(content)\n```"
