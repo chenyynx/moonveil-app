@@ -554,6 +554,11 @@
 		D05AF00E000000000000B10B /* QRCodeScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A10B /* QRCodeScannerView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B10C /* ServiceEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A10C /* ServiceEntryView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B10D /* SheetCloseButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A10D /* SheetCloseButton.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1E1 /* RemoteSessionIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E1 /* RemoteSessionIcon.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1E2 /* RemoteSessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E2 /* RemoteSessionListView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1E3 /* RemoteSessionComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E3 /* RemoteSessionComponents.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1E4 /* PairDeviceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E4 /* PairDeviceSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1E5 /* RemoteSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E5 /* RemoteSheets.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000F002 /* caveat_wght.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000F001 /* caveat_wght.ttf */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000F004 /* geistmono_medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000F003 /* geistmono_medium.ttf */; };
 		RK060DD51A5455A70639CDD7 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKE1EEAC30A841AAEFAE91D0 /* KeychainStore.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
@@ -1319,6 +1324,11 @@
 		D05AF00E000000000000A10B /* QRCodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeScannerView.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A10C /* ServiceEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceEntryView.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A10D /* SheetCloseButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetCloseButton.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1E1 /* RemoteSessionIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionIcon.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1E2 /* RemoteSessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionListView.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1E3 /* RemoteSessionComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionComponents.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1E4 /* PairDeviceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairDeviceSheet.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1E5 /* RemoteSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSheets.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000F001 /* caveat_wght.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = caveat_wght.ttf; sourceTree = "<group>"; };
 		D05AF00E000000000000F003 /* geistmono_medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = geistmono_medium.ttf; sourceTree = "<group>"; };
 		RK0119D6FFA49389FF76390F /* V2SessionAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionAPI.swift; sourceTree = "<group>"; };
@@ -1909,6 +1919,7 @@
 				D05AF00D00000000000000C1 /* ModeTabs */,
 				D05AF00F0000000000000F0 /* SettingsSkin */,
 				D05AF00E000000000000F100 /* AuthAA */,
+				D05AF00E000000000000G100 /* RemoteSessions */,
 				F1VMCPG0 /* MCP */,
 				EAB000060 /* Sync */,
 			);
@@ -2553,6 +2564,18 @@
 				D05AF00E000000000000F001 /* caveat_wght.ttf */,
 			);
 			path = AuthAA;
+			sourceTree = "<group>";
+		};
+		D05AF00E000000000000G100 /* RemoteSessions */ = {
+			isa = PBXGroup;
+			children = (
+				D05AF00E000000000000A1E1 /* RemoteSessionIcon.swift */,
+				D05AF00E000000000000A1E2 /* RemoteSessionListView.swift */,
+				D05AF00E000000000000A1E3 /* RemoteSessionComponents.swift */,
+				D05AF00E000000000000A1E4 /* PairDeviceSheet.swift */,
+				D05AF00E000000000000A1E5 /* RemoteSheets.swift */,
+			);
+			path = RemoteSessions;
 			sourceTree = "<group>";
 		};
 		RKAb0ab9b061acd3ce2fba96 /* V2 */ = {
@@ -3595,6 +3618,11 @@
 				D05AF00E000000000000B10B /* QRCodeScannerView.swift in Sources */,
 				D05AF00E000000000000B10C /* ServiceEntryView.swift in Sources */,
 				D05AF00E000000000000B10D /* SheetCloseButton.swift in Sources */,
+				D05AF00E000000000000B1E1 /* RemoteSessionIcon.swift in Sources */,
+				D05AF00E000000000000B1E2 /* RemoteSessionListView.swift in Sources */,
+				D05AF00E000000000000B1E3 /* RemoteSessionComponents.swift in Sources */,
+				D05AF00E000000000000B1E4 /* PairDeviceSheet.swift in Sources */,
+				D05AF00E000000000000B1E5 /* RemoteSheets.swift in Sources */,
 				RKA5E30D09E037A68960C9D2 /* APIClient.swift in Sources */,
 				RK841E540C6428CA784680A3 /* V2APIClient.swift in Sources */,
 				RK15D69F5654E261C0C2624A /* V2AccountAPI.swift in Sources */,
