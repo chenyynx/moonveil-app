@@ -2948,6 +2948,7 @@ struct AIChatView: View {
                 }
                 .onDisappear {
                     floatingBarHeight = 0
+                    BottomBarProbe.reportBar(.zero)  // [T-ios-toolbar-drop-probe] 临时探针
                 }
         }
     }
@@ -3897,7 +3898,10 @@ struct AIChatView: View {
                 // debounce's settle-confirm read this, so it must already reflect
                 // the current callback (writing it after the seed's `return`
                 // would leave the confirm reading a stale/zero value).
-                if onscreen { latestInputBarFrameH = newH }
+                if onscreen {
+                    latestInputBarFrameH = newH
+                    BottomBarProbe.reportInput(frame)  // [T-ios-toolbar-drop-probe] 临时探针
+                }
                 // [T-voice-inputbar-collapse-selfheal] Liveness, recorded for
                 // EVERY callback — an off-screen sample is still proof the host
                 // is laying out, which is exactly what the health probe asks.

@@ -64,7 +64,24 @@ struct TurnActivitySegment: Equatable {
 
     /// 阶段完成 = 正文已回复 / 消息整体终态（含停止）。
     /// 活跃消息里正文未到 → 仍视为运行中（槽继续转）[pp 09-17]。
+    ///
+    /// [T-ios-slot-collapse-at-turn-boundary] 补上「段内工具仍在飞 → 运行中」，
+    /// 与 `ThinkingDetailOverlay.isSegmentRunning`（该文件 115-132 行，`edfd086`
+    /// 09-19 灰尾修复时已按 ①②③ 三条实现）对齐 —— 那份注释本来就写着"语义与
+    /// 本属性逐条对齐"，但聚合器这一份漏了 ③，只有详情面板修了。**驱动布局高度
+    /// 的是这一份**，所以塌的是列表而不是面板。
+    ///
+    /// 缺 ③ 的后果：回合边界（`done(endTurn)` → 下一次 `DISPATCH`）
+    /// `isMessageActive` 瞬断 → 还在跑的活动槽被判完成 → 塌成入口行高度
+    /// （真机 24pt vs 运行槽 125pt）→ `prepare()` 按塌后高度排 frame → 点阵行顶进
+    /// 上一条消息的条带（pp 截图：用户气泡与「Thinking · 62秒」同排）。日志判据：
+    /// `[ThinkingCollapse] HIT frameH=24.0` 距 `[StreamDiag] req#N DISPATCH` 4ms/1ms。
+    ///
+    /// 不判 `isThinkingActive`：它的定义式里带了 `isActiveMessage`
+    /// （`ToolActivityGroupView.adapt` 里 `isActiveThinking` 那一行），断言它正是
+    /// 这里要防的瞬态，加进来是死条件。工具态来自 `block.toolStatus`，不受影响。
     var isDone: Bool {
+        if isToolActive { return false }
         if closedByContent { return true }
         return !isMessageActive
     }

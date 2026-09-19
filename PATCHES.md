@@ -896,3 +896,25 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **判例**: ①同一视觉功能 ≥3 版失败即停止自研变体，转开源机制比对（用项目已实锤死因清单当筛子）；②"给文字提亮"在 SwiftUI 里不可依赖外层 foregroundStyle 覆盖 Text 自带样式——要么调用点交出颜色所有权，要么走 UIKit 渲色；③mask 方向三连：v11 裁空白（死）、v11.1 画了但两层同色（死）、v12 画亮带+文字alpha裁形（FB 原样）。
 - **死隔离申报**: 呈现层 3 文件（ShimmerText/ToolActivityGroupView/ThinkingDetailOverlay），无新文件、不碰数据/SSE/聚合器；Grok 呼吸式 shimmerText 独立路径未动。回归 = ①聊天流 Thinking 扫光 ②汇聚页标题三态文案+扫光 ③深浅色 ④Thinking 行与计时器基线对齐（UILabel vs Text 度量差 ≤2pt，装机目测）⑤VoiceOver 单读 ⑥长文不抖动（elapsedCounter 每跳 updateUIView 不触发掩膜重渲=key 门控）。
 - **验证**: CI 编译 + 装机。**若 v12 仍不出**: 必须拿 pp 5s 录屏（静止亮带=CA 死/局部发白=掩膜错位/全无=组件没进视图树），且红底白字探针上包。
+
+### SLOT-DONE-TOOLGUARD — 活动槽完成态判定补「工具在飞」条，治回合边界塌成入口行（Qoder, 2026-09-19 pp：「制定解决方案」→「可以」）
+
+- **File**: `src/ios/Views/Chat/ToolActivity/TurnActivityAggregator.swift`（+17：`isDone` 加一条 guard + 判例注释）。
+- **症状（pp 截图）**：调用工具途中，用户气泡「搜索网页 30s」与上一条的「Thinking · 62秒」点阵行挤在同一条带上；退出聊天页重进又复现。
+- **根因**：`TurnActivitySegment.isDone` 原式只有 `closedByContent || !isMessageActive` 两条，**漏了「段内工具仍在飞」**。回合边界（`[StreamDiag] done(endTurn)` → 下一次 `req#N DISPATCH`）`isMessageActive` 瞬断 → 还在跑的活动槽被判完成 → 渲染塌成入口行高度（真机 24pt vs 运行槽 125pt）→ `MessageListLayout.prepare()` 按塌后高度排 frame → 点阵行顶进上一条消息的条带。
+- **实锤（pp 08:50–08:51 装机日志）**：两次 `[ThinkingCollapse] HIT frameH=24.0 → POST 125.0 delta=101.0`，时刻 `08:51:39.289` / `08:51:44.542`；对应 `req#8 DISPATCH 08:51:39.293` / `req#9 DISPATCH 08:51:44.543` —— **差 4ms 与 1ms**。24.0 恰等于 `newSkinActivitySlotDoneHeight`（`CollectionViewMessageListV3.swift:3817-3820`）。
+- **同一谓词的第二份实现早已修过、这份没跟上**：`ThinkingDetailOverlay.isSegmentRunning`（115-132 行，`edfd086` 09-19 灰尾修复）按 ①closedByContent ②消息终态 ③**段内工具 active** 三条实现，注释明写「语义与 TurnActivitySegment.isDone 逐条对齐」——但聚合器只落了 ①②。**驱动布局高度的是聚合器这一份**，所以塌的是列表而不是详情面板。本改动 = 把落后的那份对齐上去，不是新造语义。
+- **只判 `isToolActive` 不判 `isThinkingActive`**：`isActiveThinking` 的定义式里带了 `isActiveMessage`（`ToolActivityGroupView.adapt` 393 行），断言它正是本处要防的瞬态 → 死条件。`toolState == .active` 来自 `block.toolStatus`（`.streaming/.running`），不受 `isActiveMessage` 影响，故能穿越瞬断。
+- **连带效果（安全方向）**：`newSkinActivitySlotEstimate`（`CollectionViewMessageListV3.swift:3858`）在工具在飞时改判 `isDone=false` → 返回 `nil` → 交回经典估算，即注释原话「宁可高估，不猜运行槽」。
+- **死隔离申报**：纯判定函数，不改数据/SSE/agent 链路/布局记账；无新文件。回归 = ①回合结束后活动槽必须从点阵行收口成入口行（**若工具态卡在 `.running` 不退，点阵行会永转，这是本改动唯一新风险**）②`ToolActivityGroupView:166 onChange(segment.isDone)` 的收口动画与 `.thinkingBlockToggled` 广播仍触发 ③非新皮肤不受影响（`ToolRenderStyleStore.current != .new` 时估算直接 return nil）。
+- **验证**：待装机。日志判据 = `[ThinkingCollapse]` 中**不再出现** `frameH=24.0` 紧跟 `DISPATCH`；气泡与点阵行不同排；回合结束后点阵行正常收口。
+
+### TOOLBAR-DROP-PROBE — 症状一（工具条掉到输入框下面）只加探针不改逻辑（Qoder, 2026-09-19）
+
+- **File**: `src/ios/Views/Chat/ToolLiveSheet.swift`（+52：`BottomBarProbe` enum + 胶囊/容器两处 `onGeometryChange`）、`src/ios/Views/Chat/AIChatView.swift`（+6：输入框回调 + `onDisappear` 上报）。
+- **为什么不直接改**：症状一的机制已连续三次证伪，全部记档以免下轮重走 —— ①「两块玻璃经 GlassEffectContainer 合并」→ 全仓 grep `GlassEffectContainer`/`glassEffectID` 零命中；②「`.frame(minHeight:38)` 无上限 → 胶囊被 ZStack 拉到 65」→ `.frame(minHeight:)` 只 clamp 不 fill，HStack 回内容理想高 ≈28 → 结果就是 38，且 pp 目视确认缩略图/胶囊关系正常；③「`capsuleProtectedFrame("inputBar")` 把 VStack 钉成输入框高」→ 查定义（`VoiceProviderResolver.swift:326-350`）只是 `.background(GeometryReader)` 上报位置，不约束尺寸。静态读下来 `VStack { floatingToolPreview; inputBar }` 顺序写死、外层 `.overlay(.bottom)`，找不到任何能把工具条放到输入框下面的分支。
+- **探针设计**：`bar`（工具条容器）/ `pill`（玻璃胶囊）/ `input`（输入框）三者 global frame 合成一行打进 `InputBarLayout`。判据字段 `gapBar`/`gapPill` = 输入框顶 − 该元素底，**负值即"布局真的掉下去了"**；`gap` 正常而肉眼仍觉得掉了 → 是层序（被压住）问题，方向完全不同。**action 内不回写任何布局状态**（`[T-ios-geometry-observer-crash]` 同条约束）。
+- **节流的一个坑（已修）**：变化落在 250ms 窗口内时**不能先写 slot 再丢弃** —— 错误状态常是"一次几何回调之后不再变化"的稳态，先写就把那一帧永久吞掉。改为节流时保留旧值，下个窗口必补打。
+- **已排除的挂载点**：`FloatingToolBar(` 全仓两处，第二处 `ToolLiveSheet.swift:193-208 FloatingToolPreviewContainer` 是 `private` 且零调用 = 死代码；活挂载点唯一 = `AIChatView.swift:2931`。
+- **🔴 临时件，定位后整体删除**：删 `BottomBarProbe` enum + 三处 `onGeometryChange`/`reportBar(.zero)`/`reportInput` 调用点。
+- **验证**：待装机。pp 正常用一遍发日志，不需录屏。
