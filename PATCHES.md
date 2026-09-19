@@ -1076,3 +1076,19 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离**：只动底部栏 + 其搜索生命周期 + 1 本地化 key + 1 失效设置；不碰列表行 `SessionRow`、多选 `selectionToolbar`、`folderMiniBarOverlay`、`AppGlassButton`/`AppTheme` 本体（只调用不改）、AIChatView 的 "New Session"、SSE/agent/持久化、搜索后端 `ChatStore.searchSessions` + debounce。
 - **回归项**：① 底部见全宽搜索胶囊 + 右上「新会话」深色胶囊 ② 点胶囊新建会话 ③ 长按胶囊弹分组可选组新建（⚠️ contextMenu 挂在 AppGlassButton 外层，需真机确认能弹）④ 点搜索→键盘升+列表抬升+即时过滤 ⑤ X→清空+失焦、胶囊栏仍在 ⑥ ⌘F→聚焦搜索 ⑦ 深色模式胶囊反相白底黑字 ⑧ iOS<26 borderedProminent 实心胶囊 ⑨ iPad 侧栏同款 ⑩ 中文显示"新会话" ⑪ 多选态 selectionToolbar 正常、空列表不崩、搜索高亮/片段不回退。
 - **验证**：本机（Linux）无 Swift/Xcode 工具链、无法编译；已做静态三轮 + 对抗复核（AppGlassButton/AppLocalized/SearchBarSurface 签名与可见性、ForEach Identifiable、括号平衡 delta 与基线一致、全库零悬空引用）；**编译与回归 ①–⑪ 需 Mac + 真机验证**。
+
+
+## BOTTOM-BAR-ALIGN + SWIPE-BOTTOM-FENCE — 底栏对齐参照图 + 底部条带退出切页判定（Doris, 2026-09-20，pp：「底部的胶囊尺寸和大小还有位置，对齐图二」+「底部的搜索栏用液态玻璃」+「滑动这两个也会触发切页 修下bug」）
+
+- **Files**：`Views/ContentView.swift`（`bottomBar` 边距/位移）；`Views/ModeTabs/RootModeTabsView.swift`（pageSwipe 新增底部条带栅栏 + 常量）。
+- **缘起**：pp 装机（HOME-BOTTOM-CAPSULE 批次）后发两张截图——实机（新会话胶囊 + 搜索栏）与参照图（Claude 列表页底栏），要求：① 胶囊尺寸/大小/位置对齐参照；② 搜索栏用液态玻璃；③ 从胶囊/搜索栏上滑动会误触发切页，修。
+- **测量（两张 1179×2556@3x 逐像素 + Vision OCR 交叉锚定）**：
+  - 参照 vs 实机：搜索文字中心距屏底 51.3pt vs 81.2pt（Δ≈30）；胶囊文字中心距屏底 116.5 vs 146.3（Δ≈30）；胶囊→搜索文字相对距 65.2 vs 65.2（**已一致**）；胶囊右缘距边 23 vs 16.3pt；胶囊高 44.7 vs 47.0pt（Δ2.3 容差内）。
+  - 结论：（a）整体下移 30pt 贴底；（b）水平边距 16→22pt；（c）spacing 12pt、搜索栏高 56pt、字号均**保持**（相对关系已一致 / 差在容差内）。
+- **改动**：
+  - A `bottomBar`：`.padding(.horizontal, 16)` → `22`；追加 `.offset(y: searchFocused ? 0 : 30)`（聚焦归零——键盘抬起后维持原「栏贴键盘上沿」行为，避免 30pt 压入键盘；offset 只动视觉，safeAreaInset 高度与列表 inset 不变）。
+  - B `pageSwipe` 栅栏：`listAreaTop` 顶部栅栏之后新增底部条带判定 `start.y > screenHeight - bottomBarZoneHeight`（160pt）→ 直接退出。修「从胶囊/搜索栏起手横滑切页」——旧 bubbleZone 仅盖右下角（x>W-120 且 y>H-160），搜索栏左半（x<W-120）与胶囊左缘是「洞」。bubbleZone 保留（x 条件语义独立）。
+  - C 材质：搜索栏维持 `SearchBarSurface`（iOS 26 `.glassEffect(.regular, in: .capsule)` 液态玻璃）——要求②现状即满足，无改动（含命中区 `contentShape(.capsule)` 不变）。
+- **死隔离**：只动 bottomBar 布局常量 + pageSwipe 栅栏 + 1 新常量；不碰搜索逻辑/列表行/selectionToolbar/AppGlassButton 本体/Remote 侧。
+- **回归项**：① 底栏视觉贴底（与参照一致），compact / iPad sidebar 两处调用点同步 ② 点胶囊新建/长按分组不回归 ③ 搜索栏玻璃与键盘避让正常（bar 不压键盘）④ 从底栏区域起手横滑**不再切页** ⑤ 从列表其他区域横滑切页仍正常（本机↔Remote 双向）⑥ 竖直滚动不受影响 ⑦ 多选 selectionToolbar 不受影响 ⑧ 深色模式。
+- **验证**：静态检查（替换唯一性 + 括号平衡）通过；**编译与回归 ①–⑧ 需 CI + 真机**。

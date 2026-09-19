@@ -135,6 +135,13 @@ struct RootModeTabsView: View {
                 // 同规则适用(仍走这一个栅栏位)。
                 guard router.localAtRoot else { return }
                 guard start.y > Self.listAreaTop else { return }
+                // [BOTTOM-BAR-FENCE] pp 2026-09-20「滑动底部胶囊/搜索栏也会触发切页」：
+                // 底部操作栏（新会话胶囊 + 全宽搜索栏，safeAreaInset 位于屏底 ~150pt 内，
+                // 见 ContentView BOTTOM-BAR-ALIGN）整体退出切页判定——旧 bubbleZone 只盖
+                // 右下角，搜索栏左半与胶囊左缘都是「洞」。本条带完整覆盖 bubbleZone 的
+                // y 范围（后者保留：x 条件语义独立于布局）。
+                let inBottomBarZone = start.y > Self.screenHeight - Self.bottomBarZoneHeight
+                guard !inBottomBarZone else { return }
                 let inBubbleZone = start.y > Self.screenHeight - Self.bubbleZoneHeight
                     && start.x > Self.screenWidth - Self.bubbleZoneWidth
                 guard !inBubbleZone else { return }
@@ -296,6 +303,11 @@ struct RootModeTabsView: View {
     private static let topBarBottom: CGFloat = 170
     private static let bubbleZoneWidth: CGFloat = 120
     private static let bubbleZoneHeight: CGFloat = 160
+    /// [BOTTOM-BAR-FENCE] Bottom operation strip (new-chat pill + search bar within
+    /// ~150pt of the screen bottom after BOTTOM-BAR-ALIGN): swipes starting here
+    /// never judge for the page switch. 160 mirrors bubbleZoneHeight and fully
+    /// covers the bubble zone's y range.
+    private static let bottomBarZoneHeight: CGFloat = 160
 
     private var needsLoginGate: Binding<Bool> {
         Binding(

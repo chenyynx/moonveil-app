@@ -4207,9 +4207,16 @@ struct ContentView: View {
             }
             searchBarCapsule
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 22)
         .padding(.top, 8)
         .padding(.bottom, 20)
+        // [BOTTOM-BAR-ALIGN] pp 2026-09-20「底部的胶囊尺寸和大小还有位置，对齐图二」。
+        // 参照图（Claude 列表页底栏）逐像素实测：搜索文字中心距屏底 ~51pt、实机 ~81pt
+        // → 整体下移 30pt 贴底；水平边距 16→22pt（参照 22-23pt）。胶囊↔搜索相对距
+        // 已一致（65.2pt），spacing/高度/字号均保持。offset 只移动视觉、不改布局：
+        // safeAreaInset 高度与列表 inset 不变。聚焦时归零——键盘抬起后回到「栏贴键盘
+        // 上沿」的原行为，避免 30pt 压进键盘。
+        .offset(y: searchFocused ? 0 : 30)
     }
 
     private var newChatPill: some View {
