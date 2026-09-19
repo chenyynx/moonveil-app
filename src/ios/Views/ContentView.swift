@@ -219,7 +219,11 @@ private struct SearchBarSurface: ViewModifier {
         if #available(iOS 26.0, *) {
             // No .clipShape needed — glassEffect(in:) already clips to the
             // capsule, and no .shadow: the material carries its own.
-            content.glassEffect(.regular, in: .capsule)
+            // [SEARCH-BAR-INTERACTIVE] pp 2026-09-20「搜索栏为什么点不发光回弹？」：
+            // `.regular` → `.regular.interactive()`——按压/聚焦时系统放大 + 提亮
+            // （AA ChatComposer 同款配方，同 B16-INPUTBAR「改成 claudio 那样放大和
+            // 发亮」；真控件挂 interactive 的齿轮/滚动钮先例）。材质本体不变。
+            content.glassEffect(.regular.interactive(), in: .capsule)
         } else {
             content
                 .background(Color(UIColor.secondarySystemBackground))

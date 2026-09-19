@@ -1092,3 +1092,5 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离**：只动 bottomBar 布局常量 + pageSwipe 栅栏 + 1 新常量；不碰搜索逻辑/列表行/selectionToolbar/AppGlassButton 本体/Remote 侧。
 - **回归项**：① 底栏视觉贴底（与参照一致），compact / iPad sidebar 两处调用点同步 ② 点胶囊新建/长按分组不回归 ③ 搜索栏玻璃与键盘避让正常（bar 不压键盘）④ 从底栏区域起手横滑**不再切页** ⑤ 从列表其他区域横滑切页仍正常（本机↔Remote 双向）⑥ 竖直滚动不受影响 ⑦ 多选 selectionToolbar 不受影响 ⑧ 深色模式。
 - **验证**：静态检查（替换唯一性 + 括号平衡）通过；**编译与回归 ①–⑧ 需 CI + 真机**。
+
+**追加（2026-09-20，pp「搜索栏为什么点不发光回弹？」）**：`SearchBarSurface` 的 iOS 26 分支 `.regular` → `.regular.interactive()`——液态玻璃的按压/聚焦反馈（系统放大 + 提亮）由 `Glass.interactive()` 提供；同 AA ChatComposer 配方（B16-INPUTBAR，pp「改成 claudio 那样放大和发亮」）与齿轮/滚动钮「真控件挂 interactive」先例。修正原条目 C 的「材质无改动」表述：材质本体（glassEffect in capsule）不变，交互层此前缺失、本次补上。
