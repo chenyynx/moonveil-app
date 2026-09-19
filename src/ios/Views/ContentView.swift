@@ -2911,6 +2911,7 @@ struct ContentView: View {
         .opacity(didInitialLoad ? 1 : 0)
         .overlay { if didInitialLoad, filteredSessions.isEmpty, !isSearching { emptyState } }
         .overlay(alignment: .top) { folderMiniBarOverlay(scrollProxy) }
+        .overlay(alignment: .bottom) { bottomFade }
         .safeAreaInset(edge: .bottom) { if isSelecting { selectionToolbar } else { bottomBar } }
         // [T-home-fab-keyboard-inset] Mirror of the voice panel's structural
         // immunity (604a9947 / T-voice-bg-fg-gap): with the inline search bar
@@ -3099,6 +3100,7 @@ struct ContentView: View {
         .opacity(didInitialLoad ? 1 : 0)
         .overlay { if didInitialLoad, displaySessions.isEmpty, !isSearching { emptyState } }
         .overlay(alignment: .top) { folderMiniBarOverlay(scrollProxy) }
+        .overlay(alignment: .bottom) { bottomFade }
         .safeAreaInset(edge: .bottom) { if isSelecting { selectionToolbar } else { bottomBar } }
         // [T-home-fab-keyboard-inset] Same structural immunity as the compact
         // list above — see that call site for the full rationale. On iPad the
@@ -4214,6 +4216,29 @@ struct ContentView: View {
         }
     }
 
+    /// [BOTTOM-FADE-2] pp 2026-09-20「底部做渐隐」→「渐隐做反了？」：
+    /// 列表内容滚到底部栏区域时逐渐融入背景。做成**列表的 overlay**（对齐底部、
+    /// 显式高度 200pt、`.ignoresSafeArea(edges: .bottom)` 覆盖到屏幕底）——
+    /// 位置/范围完全由这里定，不随底部栏的布局盒子漂移（首版挂在 bottomBar 的
+    /// 背景上，实测淡化只挤在最底部约 20pt 内完成，观感像被切掉而非渐隐）。
+    /// z 序：本层在列表内容之上、`safeAreaInset` 的底部栏之下（栏自身不被蒙）。
+    /// 曲线按参照图二校准：屏底 ~180pt 起淡，~60pt 处淡尽（过渡带 ~120pt）。
+    @ViewBuilder
+    private var bottomFade: some View {
+        LinearGradient(
+            stops: [
+                .init(color: Color(.systemBackground).opacity(0), location: 0),
+                .init(color: Color(.systemBackground).opacity(0), location: 0.10),
+                .init(color: Color(.systemBackground), location: 0.70),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 200)
+        .ignoresSafeArea(edges: .bottom)
+        .allowsHitTesting(false)
+    }
+
     // MARK: - Bottom Bar (static capsules)
     //
     // Replaced the two draggable circular glass FABs (new-chat + search, the
@@ -4241,22 +4266,6 @@ struct ContentView: View {
         // safeAreaInset 高度与列表 inset 不变。聚焦时归零——键盘抬起后回到「栏贴键盘
         // 上沿」的原行为，避免 30pt 压进键盘。
         .offset(y: searchFocused ? 0 : 30)
-        // [BOTTOM-FADE] pp 2026-09-20「底部做渐隐」：列表内容滚到底部栏区域时逐渐融入
-        // 背景（对齐参照图二），而不是硬切 / 从栏后透出。同聊天页输入栏的既有做法
-        // （AIChatView composer 的背景渐变）；0.6 位置起全实心 —— 对应参照里内容在
-        // 搜索栏顶部（距屏底 ~60pt）恰好淡尽。allowsHitTesting(false)：背景不吞触摸，
-        // 栏间隙拖动列表的行为不变。
-        .background(
-            LinearGradient(
-                stops: [
-                    .init(color: Color(.systemBackground).opacity(0), location: 0),
-                    .init(color: Color(.systemBackground), location: 0.6),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .allowsHitTesting(false)
-        )
         // [BOTTOM-BAR-FENCE] 把底部栏在窗口坐标里的顶边上报给页切手势（精确排除，
         // 不再依赖屏幕高度/安全区推算）。见 RootModeTabsView.BottomBarFence。
         .background {

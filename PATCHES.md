@@ -1118,4 +1118,6 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 
 **追加 3（2026-09-20，pp「只要弹出来输入搜索了 就弹不回去了」）**：搜索键盘**收起出口补齐**——现状聚焦后无任何出口（清除 X 仅在有文字时显示；SwiftUI 列表的 `scrollDismissesKeyboard` 默认 `.automatic` 在非 `searchable` 场景等于 `.never`，滚动不收）。加三条：① 列表 `.scrollDismissesKeyboard(.immediately)`（滚动即收，compact / iPad 两处）② 列表 `.simultaneousGesture(TapGesture())` 点任意处收起（不拦截行点击/导航）③ 搜索 TextField `.submitLabel(.search)` + `.onSubmit { searchFocused = false }`（键盘右下角「搜索」键即收）。点搜索栏自身不受影响（栏在列表之上）。回归项追加：⑫ 未输入文字时：滚列表 / 点列表 / 按键盘搜索键都能收起键盘 ⑬ 点行仍正常进入会话 ⑭ 有文字时 X 仍可用。
 
+**BOTTOM-FADE-2（2026-09-20，pp「你渐隐做反了？」+ 实机图）**：首版把渐变挂在 `bottomBar` 的背景上，实机实测**淡化只挤在最底部约 20pt 内完成**（截图像素对比：屏底 179pt 处淡化 54%、159pt 处已全无；参照是 180→60pt 平缓过渡）——观感像被切掉而非渐隐。重做为**列表的 `overlay`**（对齐底部 + 显式 `frame(height: 200)` + `ignoresSafeArea(edges: .bottom)`），位置/范围完全显式，不再随底部栏布局盒子漂移；曲线 `[透明@0, 透明@0.10, 实心@0.70]`（屏底 ~180pt 起淡、~60pt 淡尽，过渡带 ~120pt，对齐参照）。z 序：列表内容 < 本层 < `safeAreaInset` 底部栏（栏不被蒙）。
+
 **补充（2026-09-20，pp「要高亮 你做吧」）**：命中消息**高亮脉冲**——`SearchJumpHighlightModifier`（`ChatColors.accent` 12% 圆角背景，跟随既有「复制后高亮」视觉语言）挂在 `BridgedWholeMessageV3` 上；coordinator 在定位成功后设 `searchJumpHighlightId` 并重建该 cell（亮起），2s 后释放并重建（灭）；cell 内 0.6s 后开始 0.9s 淡出（显式 `withAnimation` —— cell 宿主吞隐式动画/B16 判例）。找不到目标时不设高亮。回归项追加：⑨ 跳转后命中消息亮起并在约 1.5s 内淡出 ⑩ 非搜索路径消息无高亮。
