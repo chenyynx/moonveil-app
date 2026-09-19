@@ -234,24 +234,29 @@ struct ThinkingDetailOverlay: View {
 
     // MARK: Header（列表页标题，17pt 黑 semibold）
 
+    /// 三态标题文案 [v12]：原先是 header 里 Group 的三个 Text 分支，
+    /// ShimmerLabel 只收 String，分支上移到这里。
+    private var headerTitle: String {
+        if isPureThinking, isSegmentRunning { return AppLocalized("Thinking…") }
+        if isPureThinking, let secs = settledSeconds { return "Thought for \(secs)s" }
+        return AppLocalized("Thinking result")
+    }
+
     @ViewBuilder
     private var header: some View {
         // [pp 09-18 三改] 回原生 sheet：头部左上白圆底 X 关闭钮（Claude
         // photo_32363DEB 同构，行心距顶边 ~38pt）；标题保持居中 [32228f2 拍板]。
         ZStack {
-            Group {
-                if isPureThinking, isSegmentRunning {
-                    Text(AppLocalized("Thinking…"))
-                } else if isPureThinking, let secs = settledSeconds {
-                    Text(verbatim: "Thought for \(secs)s") // [pp 09-18] Claude 式
-                } else {
-                    Text(AppLocalized("Thinking result")) // 思考结果
-                }
-            }
-            .font(.system(size: 17, weight: .semibold)) // [pp 09-18 Claude Summary 实测：~17.5pt 近黑，与正文同级]
-            .foregroundStyle(Color.primary)
-            .frame(maxWidth: .infinity)
-            .sweepShimmer(base: .primary) // [pp 09-18] 呼吸式换 Claude 扫光
+            // [v12 09-19] 扫光改 FB 机制 ShimmerLabel：三态标题文案上移为
+            // headerTitle；17pt semibold 近黑 [pp 09-18 Claude Summary 实测]，
+            // .primary 随深浅色。fixedSize 保证亮带以字宽为基准（防 representable
+            // 被父布局拉宽 → 0.3×行宽 的带失去"局部点亮"观感）。
+            ShimmerLabel(text: headerTitle,
+                         uiFont: .systemFont(ofSize: 17, weight: .semibold),
+                         baseColor: .primary,
+                         textAlignment: .center)
+                .fixedSize()
+                .frame(maxWidth: .infinity)
 
             if let onClose {
                 HStack {

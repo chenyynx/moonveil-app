@@ -886,3 +886,13 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **修复(一行半)**: `v.layer.addSublayer(band)` + `v.layer.masksToBounds = true`。band 本身 clear→白→clear 渐变自带 alpha, 画出来即 mask 所需灰度; CA position.x 动画原样保留(render server 时间线)。几何/周期/峰色全不动。
 - **判例**: UIView 层树里"谁裁谁"方向: `layer.mask`=拿参数层裁本层内容; 要"本层内容=渐变本身"用 sublayer。SwiftUI `.mask(View)` 读参数视图的**渲染 alpha**——放进 mask 位置的 UIViewRepresentable 必须自己**画**出灰度图, 空白视图套 mask 层 = 恒全遮。
 - **止损条款(仍有效)**: 若 v11.1 仍不出 → 停止盲修, 必须拿 pp 5s 录屏抽帧, 并按计划上红底白字对比度探针。
+
+### SHIMMER-V12 — 放弃自研，移植 Facebook Shimmer 机制（UILabel + 文字渲染 alpha 掩膜亮带）(Qoder, 2026-09-19 pp：「你能不能去找开源项目？」)
+
+- **装机反馈**: v11.1（CI 517de51 绿）装后依旧零可见。按止损条款停止自研路线盲修，转开源调研。
+- **调研结论**: SwiftUI 系 shimmer 库（Exyte/SwiftUI-Shimmer 等）全部用 `withAnimation(.linear.repeatForever)` 驱动渐变端点——正中本项目已实锤死因①（cell 宿主 disablesAnimations 事务吞动画），整体排除。唯一与两大死因同时免疫的是 **FBShimmeringLayer 机制**（facebook/shimmer-ios，十年验证）：**不给文字重上色**，UILabel 照常渲染底色，其上盖一条白色渐变亮带，亮带 `mask` = 文字自身渲染副本的 alpha → 亮带只在字形像素上显形。
+- **v10 根因② 从此消失**: 颜色直接写进 UILabel（attributedText 级），不经过 SwiftUI foregroundStyle 穿透链路——v10.1/v11/v11.1 三代分层结构其实全压在"外层 foregroundStyle 能穿透自带样式的 Text"这条未证假设上（Text 自带前景色时外层样式**不生效**是文档化行为 → 峰色副本与底色副本同色 → mask 动了也看不见）。v12 不再需要这条假设成立。
+- **实现**（ShimmerText.swift 全重写 + 2 调用点换 `ShimmerLabel`）: ①host UIView 内 UILabel(14pt/17pt 沿用标定字体色)；②band=CAGradientLayer(clear→白→clear, locations .35/.5/.65, opacity 0.62≈峰色标定值) `addSublayer` 盖在 label 之上；③`band.mask = textMask`，textMask.contents = `UIGraphicsImageRenderer` 渲染的 label 图像（**UIImage 本体非 cgImage**，防 contentsScale 放大 N 倍坑）；④动画 = 两条 CABasicAnimation 同 duration 平移 `startPoint/endPoint`（span 恒 1.0 纯平移；frame 恒等文字矩形 → mask 全程对齐，无需 v11 式整层位移）；⑤文本/字体/色/traits 变化经 key 门控重渲掩膜，颜色比较用 `!=`（`!==` 会被 UIColor(Color) 动态包装每次误判，自审抓出）。API 换形：`sweepShimmer` modifier 退役（仓内仅 2 调用点），新增 `ShimmerLabel(text:uiFont:baseColor:textAlignment:)`，两处补 `.fixedSize()` 防 representable 被拉宽（否则 0.3×行宽的带失去"局部点亮"观感）。
+- **判例**: ①同一视觉功能 ≥3 版失败即停止自研变体，转开源机制比对（用项目已实锤死因清单当筛子）；②"给文字提亮"在 SwiftUI 里不可依赖外层 foregroundStyle 覆盖 Text 自带样式——要么调用点交出颜色所有权，要么走 UIKit 渲色；③mask 方向三连：v11 裁空白（死）、v11.1 画了但两层同色（死）、v12 画亮带+文字alpha裁形（FB 原样）。
+- **死隔离申报**: 呈现层 3 文件（ShimmerText/ToolActivityGroupView/ThinkingDetailOverlay），无新文件、不碰数据/SSE/聚合器；Grok 呼吸式 shimmerText 独立路径未动。回归 = ①聊天流 Thinking 扫光 ②汇聚页标题三态文案+扫光 ③深浅色 ④Thinking 行与计时器基线对齐（UILabel vs Text 度量差 ≤2pt，装机目测）⑤VoiceOver 单读 ⑥长文不抖动（elapsedCounter 每跳 updateUIView 不触发掩膜重渲=key 门控）。
+- **验证**: CI 编译 + 装机。**若 v12 仍不出**: 必须拿 pp 5s 录屏（静止亮带=CA 死/局部发白=掩膜错位/全无=组件没进视图树），且红底白字探针上包。

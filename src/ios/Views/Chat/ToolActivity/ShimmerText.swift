@@ -1,158 +1,183 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Claude Text Sweep Shimmer
 //
-// [v11 09-19] CA 驱动亮带（现行）。v10.1 的"TimelineView 每帧移 SwiftUI mask
-//   渐变"装机后 sheet 标题与聊天流双双不可见（pp 实机，SwiftUI 侧每帧重算
-//   渐变/mask 路线两次证伪）→ 按判例走最后一条路：mask 层改 CABasicAnimation
-//   自驱（render server 时间线，不经 SwiftUI 事务、不要求 body 重算）。
-//   分层结构沿用 v10.1（底=实体色 + 顶=峰色副本从移动亮带露出）。
-//   若本版仍不出 → 停止盲修，先要 5s 录屏抽帧定死失败环节。
+// [v12 09-19 现行] 移植 Facebook Shimmer（FBShimmeringLayer）十年验证的机制：
+//   **不给文字重新上色**——UILabel 用底色正常渲染，其上盖一条白色渐变亮带，
+//   亮带的 mask = 文字自身的渲染副本 alpha。亮带只在字的像素上显形，
+//   CABasicAnimation 平移 startPoint/endPoint（frame 恒等于文字矩形，mask
+//   全程对齐），动画挂在 render server 独立时间线。
+//   对照两大已实锤死法：①不依赖 SwiftUI 事务/每帧重算（cell 宿主
+//   disablesAnimations 管不着 CA）；②不依赖 foregroundStyle 穿透（颜色直接
+//   写进 UILabel，v10 根因②从此与本实现无关）。SwiftUI 系开源库（Exyte 等）
+//   全部用 withAnimation(.repeatForever) 驱动，死法①必踩，已考察淘汰。
 //
-// [v10.1 09-19 已被 v11 覆盖] mask 分层版。v10（foregroundStyle 渐变当文字
-//   前景）装机后深浅色都完全不可见。当时诊断出两个缺陷并一次绕开：
-//   ① 峰色 .opacity(0.25) 半透明 = 文字变透明透出底色，不是提亮，暗色下与
-//     base 对比仅 1.7:1 ≈ 数学上不存在（0.75/0.25 参数搬自经典版
-//     white-opacity overlay 用法，跨机制未换算）；② 调用点 Text 自带
-//     foregroundStyle，外层渐变是否穿透未证。→ 分层：底 = content 原样
-//     （实体灰全程可见）；上 = content 峰色副本，仅亮带处露出（实心提亮）。
-//
-// [v10 09-19 历史] 聊天流完全不显示根因：v9.1 只改注释没改方法名，Timeline
-//   版从未被调用 = 死代码；实际跑库版（隐式动画），被 cell 宿主
-//   .transaction { disablesAnimations = true }（防 ViewGraph use-after-free
-//   护栏）吞到不动。git show 30f4376 实锤。→ 合并成单一 modifier。
-//
-// 渲染机制 [v11]：ZStack 两层（base + CA-masked peak），见 CABandMaskView。
+// [v11.1 09-19 已废] band 挂宿主 layer.mask→addSublayer 修了"构造性不可见"
+//   第一层（band 画不画得出），但仍压着第二层：峰色副本的 .foregroundStyle
+//   被调用点 Text 自带样式挡住 → 两层同色 → mask 动了也看不见。装机复现。
+// [v11 09-19 已废] layer.mask 裁空白宿主 = 恒全遮（构造性死因一）。
+// [v10.1/v10/v9.1…v1 历史见 PATCHES.md SHIMMER-* 各条目。]
 
-// MARK: - 共享：峰色与亮带 mask
+// MARK: - v12: ShimmerLabel（UILabel + 文字 alpha 掩膜亮带，FB 机制）
 
-enum ShimmerStyle {
-    /// 峰色 = color-mix(in srgb, base 30%, white)；alpha 混合同式（0.3a + 0.7）。
-    /// 逐通道显式 Double [混合浮点判例]。实心不透明 [v10.1]——v10 在此再乘
-    /// peakOpacity 把"提亮"错做成"变透明"（暗色下 1.7:1 不可见，浅色系值被砍
-    /// 到 1/4），已废；提亮量由 mix 本身控制（#7A7974 → ≈#D1D0CD，深 4.7:1）。
-    static func peak(_ base: Color) -> Color {
-        var r0: CGFloat = 0; var g0: CGFloat = 0; var b0: CGFloat = 0; var a0: CGFloat = 0
-        UIColor(base).getRed(&r0, green: &g0, blue: &b0, alpha: &a0)
-        return Color(red: Double(r0) * 0.3 + 0.7,
-                     green: Double(g0) * 0.3 + 0.7,
-                     blue: Double(b0) * 0.3 + 0.7,
-                     opacity: Double(a0))
+/// 扫光文字（替代 SwiftUI Text + sweepShimmer 组合）。
+/// 视觉参数与标定一致：亮带 0.3×字宽、2.8s 一圈、左→右、白色峰值盖色。
+struct ShimmerLabel: View {
+    var text: String
+    var uiFont: UIFont
+    var baseColor: Color
+    var textAlignment: NSTextAlignment = .left
+    /// 一个完整循环时长。
+    var period: Double = 2.8
+
+    var body: some View {
+        ShimmerLabelHost.Representable(uiFont: uiFont, baseColor: UIColor(baseColor),
+                                       textAlignment: textAlignment, period: period,
+                                       text: text)
     }
-
-    /// 亮带宽度（单位 = 视图宽）。0.3×字宽：经典版 0.56 在宽胶囊正常、在窄文字
-    /// 上是灰块，砍到约一半让「局部点亮」明显。[v10 治灰块]
-    static let bandWidth: CGFloat = 0.3
-    /// 渐变跨度（单位 = 视图宽）：端点延伸到视图外，亮带从左外扫到右外、两端无硬切。
-    /// [v11] CA mask 层宽 = span × 视图宽（CABandMaskView 内以 1.5 硬编码同源值）。
-    static let span: CGFloat = 1.5
 }
 
-// MARK: - 统一扫光（sheet 标题 + 聊天流 cell 共用）
+private final class ShimmerLabelHost: UIView {
+    private let label = UILabel()
+    private let band = CAGradientLayer()
+    private let textMask = CALayer()
+    /// 亮带峰值盖色透明度：mix(#7A7974, white, 0.62) ≈ #CDCDCB，
+    /// 对齐 v10 标定的峰色 ≈#D1D0CD。
+    private let bandOpacity: Float = 0.62
+    private var maskKey = ""
+    private var animating = false
+    var period: Double = 2.8
 
-/// [v11.1 09-19 CA 画带版] v11（band 挂 layer.mask）装机不可见 = 构造性死：
-/// layer.mask 裁剪的是宿主自绘内容，宿主全透明无内容可裁，SwiftUI .mask() 读到的
-/// alpha 恒 0。v11.1 把 band 改为宿主的 **sublayer**（把白色渐变画出来），
-/// masksToBounds 裁形。CA 动画挂在 render server 独立时间线上，不经 SwiftUI
-/// 事务、不要求 body 重算——cell 宿主 disablesAnimations 与 TimelineView
-/// 失效两种死法都绕开。亮带几何（0.3×宽 / 2.8s 周期 / 左→右）沿用标定值。
-private struct CABandMaskView: UIViewRepresentable {
-    var period: Double
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isUserInteractionEnabled = false
 
-    func makeUIView(context: Context) -> ShimmerBandHost {
-        let v = ShimmerBandHost()
-        v.backgroundColor = .clear
-        v.isUserInteractionEnabled = false
+        label.backgroundColor = .clear
+        label.numberOfLines = 1
+        label.lineBreakMode = .byTruncatingTail
+        addSubview(label)
 
-        let band = CAGradientLayer()
         band.type = .axial
         band.colors = [UIColor.clear.cgColor,
                        UIColor.white.cgColor,
                        UIColor.clear.cgColor]
-        // 层宽 = 2×视图宽（restartIfNeeded 内设置），亮带中心在层 0.5 处、
-        // 占层 0.15 → 恰 0.3×视图宽（v10 标定值）。两侧全透明。
-        band.locations = [0.425, 0.5, 0.575]
-        band.startPoint = CGPoint(x: 0, y: 0.5)
-        band.endPoint = CGPoint(x: 1, y: 0.5)
-        // [v11.1 根因修复] v11 写的是 `v.layer.mask = band` —— layer.mask 只
-        // 裁剪宿主自身内容，而宿主 background=.clear 什么都不画 → 渲染 alpha
-        // 处处 0 → SwiftUI .mask() 拿到全透明 → 峰色副本整体不可见，
-        // "构造性死"，与 CA 动画/事务/时间线全都无关。亮带必须是被**画出来**
-        // 的 sublayer（clear→白渐变自带 alpha），masksToBounds 负责切出视图框。
-        v.layer.masksToBounds = true
-        v.layer.addSublayer(band)
-        v.band = band
-        return v
+        // 亮带占字宽 0.3：白峰居中 0.5，非零 alpha 只在 [0.35, 0.65]。
+        band.locations = [0.35, 0.5, 0.65]
+        band.opacity = bandOpacity
+        // span 恒 1.0（起终点距离不变，整体平移）：初始 s=-0.65/e=0.35
+        // 时亮带 [-0.30, 0] 恰在框外左侧 → 未动画时不可见，无跳变。
+        band.startPoint = CGPoint(x: -0.65, y: 0.5)
+        band.endPoint = CGPoint(x: 0.35, y: 0.5)
+        band.mask = textMask          // 用"字的渲染 alpha"裁亮带 = 亮带只显字形
+        textMask.contentsGravity = .center
+        layer.addSublayer(band)       // 在 label.layer 之上（label 已先挂载）
     }
 
-    func updateUIView(_ uiView: ShimmerBandHost, context: Context) {
-        uiView.period = CGFloat(period)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 
-    static func dismantleUIView(_ uiView: ShimmerBandHost, coordinator: ()) {
-        uiView.band?.removeAllAnimations()
-    }
+    override var intrinsicContentSize: CGSize { label.intrinsicContentSize }
 
-    /// UIView 子类承载 period + 幂等启动动画（bounds 有效后才建，layout 后帧宽正确）。
-    final class ShimmerBandHost: UIView {
-        var band: CAGradientLayer?
-        var period: CGFloat = 2.8
-        private var animating = false
-
-        override func layoutSubviews() {
-            super.layoutSubviews()
-            restartIfNeeded()
-        }
-
-        private func restartIfNeeded() {
-            guard !animating, let band, bounds.width > 1, bounds.height > 1 else { return }
-            animating = true
-            band.frame = CGRect(x: 0, y: 0, width: bounds.width * 2, height: bounds.height)
-            band.position = CGPoint(x: bounds.width, y: bounds.height / 2)
-            // 亮带中心 = 层中心 = position.x。从 -0.15w（带右缘恰在视图左缘）
-            // 扫到 1.15w（带左缘恰在视图右缘）→ 全程无硬切进出。
-            let anim = CABasicAnimation(keyPath: "position.x")
-            anim.fromValue = Double(-bounds.width) * 0.15
-            anim.toValue = Double(bounds.width) * 1.15
-            anim.duration = CFTimeInterval(period)
-            anim.repeatCount = .infinity
-            anim.isRemovedOnCompletion = false
-            band.add(anim, forKey: "sweep")
+    func configure(text: String, font: UIFont, color: UIColor,
+                   alignment: NSTextAlignment, period: Double) {
+        let dirty = label.text != text || label.font != font
+            || label.textColor != color || label.textAlignment != alignment
+        label.text = text
+        label.font = font
+        label.textColor = color
+        label.textAlignment = alignment
+        self.period = period
+        if dirty {
+            invalidateIntrinsicContentSize()
+            maskKey = ""        // 强制 layoutSubviews 重建掩膜
         }
     }
-}
 
-struct SweepTextShimmerModifier: ViewModifier {
-    var base: Color
-    /// 一个完整循环时长（对齐经典版 ShimmerOverlay 的 2.8s）。
-    var period: Double = 2.8
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        label.frame = bounds
+        band.frame = bounds
+        textMask.frame = CGRect(origin: .zero, size: bounds.size)
+        rebuildMaskIfNeeded()
+        startIfNeeded()
+    }
 
-    func body(content: Content) -> some View {
-        // 分层保持 v10.1（底=实体色全程可见，顶=峰色副本仅亮带处露出），
-        // 只把"带怎么动"从 SwiftUI 每帧重算换成 CA 自驱。
-        ZStack(alignment: .leading) {
-            content
-            content
-                .foregroundStyle(ShimmerStyle.peak(base))
-                .mask(
-                    CABandMaskView(period: period)
-                        .frame(height: 44)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .layoutPriority(1)
-                )
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        maskKey = ""            // 深浅色切换 → 字色变了，掩膜重渲
+        setNeedsLayout()
+    }
+
+    /// 把 label 当前渲染画成图片，喂给 band.mask（FB 的 content-layer-copy 思路）。
+    private func rebuildMaskIfNeeded() {
+        guard bounds.width > 1, bounds.height > 1 else { return }
+        let key = "\(label.text ?? "")|\(label.font)|\(bounds.size)"
+            + "|\(traitCollection.userInterfaceStyle.rawValue)"
+        if key == maskKey { return }
+        maskKey = key
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 0        // 跟随屏幕 scale
+        let image = UIGraphicsImageRenderer(size: bounds.size, format: format).image { ctx in
+            traitCollection.performAsCurrent {
+                label.layer.render(in: ctx.cgContext)
+            }
+        }
+        // 给 UIImage 本体而非 cgImage：layer 直接持 UIImage 才认它的 scale，
+        // 裸 CGImage 在 contentsScale=1 下会按 1pt=1px 放大 N 倍（经典坑）。
+        textMask.contents = image
+    }
+
+    /// 平移渐变端点（frame 固定 → mask 恒对齐；对比 v11 平移整层的另一条路）。
+    private func startIfNeeded() {
+        guard !animating, bounds.width > 1 else { return }
+        animating = true
+        let sweeps: [(String, CGPoint, CGPoint)] = [
+            ("startPoint", CGPoint(x: -0.65, y: 0.5), CGPoint(x: 0.65, y: 0.5)),
+            ("endPoint", CGPoint(x: 0.35, y: 0.5), CGPoint(x: 1.65, y: 0.5))
+        ]
+        for (key, from, to) in sweeps {
+            let a = CABasicAnimation(keyPath: key)
+            a.fromValue = from
+            a.toValue = to
+            a.duration = CFTimeInterval(period)
+            a.repeatCount = .infinity
+            a.isRemovedOnCompletion = false
+            band.add(a, forKey: "sweep.\(key)")
         }
     }
-}
 
-extension View {
-    /// Claude 文字扫光 [v11 CA 驱动版]：2.8s 一圈、亮带 0.3×字宽、左→右。
-    /// sheet 标题与聊天流 cell 共用同一实现。
-    /// ⚠️ 调用方都不传 period → **默认值必须与 SweepTextShimmerModifier 的一致**，
-    /// 否则改结构体的默认值不生效（v5 踩点）。
-    func sweepShimmer(base: Color, period: Double = 2.8) -> some View {
-        modifier(SweepTextShimmerModifier(base: base, period: period))
+    func stopAnimating() {
+        band.removeAllAnimations()
+        animating = false
+    }
+
+    // MARK: Representable 桥
+
+    struct Representable: UIViewRepresentable {
+        var uiFont: UIFont
+        var baseColor: UIColor
+        var textAlignment: NSTextAlignment
+        var period: Double
+        var text: String
+
+        func makeUIView(context: Context) -> ShimmerLabelHost {
+            let v = ShimmerLabelHost()
+            v.configure(text: text, font: uiFont, color: baseColor,
+                        alignment: textAlignment, period: period)
+            return v
+        }
+
+        func updateUIView(_ uiView: ShimmerLabelHost, context: Context) {
+            uiView.configure(text: text, font: uiFont, color: baseColor,
+                             alignment: textAlignment, period: period)
+        }
+
+        static func dismantleUIView(_ uiView: ShimmerLabelHost, coordinator: ()) {
+            uiView.stopAnimating()
+        }
     }
 }
 

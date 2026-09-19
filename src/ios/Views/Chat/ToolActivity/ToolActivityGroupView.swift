@@ -190,16 +190,13 @@ struct ToolActivityGroupView: View {
                     // [pp 09-18 真机] 模型实际开始思考（首个思考内容到达）才出现
                     // 「Thinking」与计时；等待响应阶段只有点阵动画（启动槽同）。
                     Group {
-                        Text(verbatim: "Thinking") // [pp 09-17] 固定英文（非本地化）
-                            // [pp 09-18 字体对齐] 原 .medium 比完成态入口行粗一档，
-                            // pp 点名「跟灰字入口不一样」→ 去掉 weight，与 entryRow
-                            // 的 .system(size: 14) 同档（14pt regular）。
-                            .font(.system(size: 14))
-                            // [pp 09-18 颜色对齐] 原 Color.secondary（语义色：浅色下冷调
-                            // ≈#87878C、暗色下跟着变）与入口行写死暖灰 #7A7974 不同色。
-                            // pp 点名统一 → 跟 entryRow 用同一个 headlineGray。
-                            .foregroundStyle(ThinkingRowStyle.headlineGray)
-                            .sweepShimmer(base: ThinkingRowStyle.headlineGray) // [pp 09-18] Claude 同款扫光 [v10.1 mask 分层版：底=本行实体灰 + 峰色副本仅亮带处露出；TimelineView 驱动不走事务]。参数见 ShimmerText v10.1。
+                        // [v12 09-19] 扫光改 FB 机制 ShimmerLabel（UILabel 自持颜色 +
+                        // 白亮带文字 alpha 掩膜，见 ShimmerText.swift）。字体/颜色沿用
+                        // pp 09-18 两轮点名：14pt regular + 与 entryRow 同色 headlineGray。
+                        ShimmerLabel(text: "Thinking", // [pp 09-17] 固定英文（非本地化）
+                                     uiFont: .systemFont(ofSize: 14),
+                                     baseColor: ThinkingRowStyle.headlineGray)
+                            .fixedSize()
                         elapsedCounter
                     }
                     .opacity(textAppeared ? 1 : 0)
