@@ -207,6 +207,25 @@ private let folderEdgeHighlight = Color(UIColor { traits in
         : UIColor(white: 0, alpha: 0.08)
 })
 
+/// Shared bottom-bar recipe (pill tint / label min width / height tightening /
+/// fade geometry). Internal so RemoteSessionListView renders the identical bar
+/// instead of a hand-built variant (pp 2026-09-20「远端底栏与本机同一套配方」).
+/// Values are pixel-measured against the reference screenshot — see the
+/// NEWCHAT-* / BOTTOM-FADE-* / FADE-GAP-FIX notes on each batch in PATCHES.md.
+enum BottomBarRecipe {
+    /// [NEWCHAT-INK] 浅色 prominent tint 抬到 #111111 补偿材质偏移（渲染 ≈ 参照 42）；
+    /// 深色维持白底（黑字必需）。
+    static let newChatTint = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? .white
+            : UIColor(white: 0x11 / 255, alpha: 1)
+    })
+    /// [NEWCHAT-WIDTH] label 最小宽 87pt → 胶囊外壳 ≈ 87+38.7 ≈ 126pt 对齐参照。
+    static let newChatLabelMinWidth: CGFloat = 87
+    /// [NEWCHAT-HEIGHT] label 每边收 1.15pt → 高度 ≈ 44.7pt（宽高比 2.82 对齐参照）。
+    static let newChatHeightTightening: CGFloat = 1.15
+}
+
 /// Background for the expanded FAB search bar. Liquid Glass capsule on iOS 26+,
 /// the original opaque capsule + hand-rolled shadow below it.
 ///
@@ -214,7 +233,7 @@ private let folderEdgeHighlight = Color(UIColor { traits in
 /// INSIDE the glass: `.glassEffect` styles the view it is applied to, so the
 /// text field and its icons ride within the material instead of being composited
 /// over a separately-drawn shape.
-private struct SearchBarSurface: ViewModifier {
+struct SearchBarSurface: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             // No .clipShape needed — glassEffect(in:) already clips to the
@@ -230,6 +249,40 @@ private struct SearchBarSurface: ViewModifier {
                 .clipShape(Capsule())
                 .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
         }
+    }
+}
+
+/// [BOTTOM-FADE-3] pp 2026-09-20「底部做渐隐」→「渐隐做反了？」→「位置完全不对」→
+/// 「注意位置。上一版的这个底部有缺口」：列表内容滚到底部栏区域时逐渐融入背景。
+/// 从 ContentView 的 bottomFade 提取为共享视图（同 BottomBarRecipe 的理由——
+/// 远端列表底栏复用同一渐隐，不再手搓变体）。
+/// **挂载点 = 底栏的 `.background(alignment: .bottom)`**（v1 实测该挂载点能盖住列表
+/// 内容：bar 的 background z 序在列表之上、bar 内容之下）；**不要用 List 的 overlay**
+/// （实机淡化带落在距屏底 199–399pt，根因未明），也**不要加
+/// `.ignoresSafeArea(edges: .bottom)`**（overlay 中它把整层再上移一个自身高度）。
+/// 几何（全部显式）：bar frame 底 = 屏底-34（安全区底，v1 实测）；
+/// height 294（260+34）+ offset(y: 34) → 渐变 = [屏底-294, 屏底]（覆盖到屏幕物理底，
+/// FADE-GAP-FIX 堵安全区缺口）；stops [透明@0, 透明@0.35, 实心@0.80] → 淡化带 =
+/// 屏底-190 起淡、屏底-60 淡尽（对齐参照图二）。材质：`.ultraThinMaterial` 毛玻璃 +
+/// mask 渐隐（pp「渐隐用顶部的那种模糊效果吧」→ 同 folderMiniBar 材质语言）。
+struct BottomBarFadeView: View {
+    var body: some View {
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .black.opacity(0), location: 0),
+                        .init(color: .black.opacity(0), location: 0.35),
+                        .init(color: .black, location: 0.80),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .frame(height: 294)
+            .offset(y: 34)
+            .allowsHitTesting(false)
     }
 }
 
@@ -4213,43 +4266,6 @@ struct ContentView: View {
         }
     }
 
-    /// [BOTTOM-FADE-3] pp 2026-09-20「底部做渐隐」→「渐隐做反了？」→「位置完全不对」：
-    /// 列表内容滚到底部栏区域时逐渐融入背景。
-    /// **挂载点 = `bottomBar` 的 `.background(alignment: .bottom)`**（BOTTOM-FADE v1
-    /// 已实测该挂载点能盖住列表内容：bar 的 background z 序在列表之上、bar 内容之下）；
-    /// **不要用 List 的 overlay**——实机实测其淡化带落在距屏底 199–399pt（List frame
-    /// 底异常上移 199pt，根因未明），也**不要加 `.ignoresSafeArea(edges: .bottom)`**
-    /// （overlay 中它把整层再上移一个自身高度）。
-    /// 几何（全部显式）：bar frame 底 = 屏底-34（安全区底，v1 实测）；渐变 260pt、
-    /// 底对齐 bar frame 底 → 渐变 = [屏底-294, 屏底-34]；stops [透明@0.40, 全白@0.90]
-    /// → 淡化带 = 屏底-190 起淡、屏底-60 淡尽（对齐参照图二）。
-    @ViewBuilder
-    private var bottomFade: some View {
-        // pp 2026-09-20「渐隐用顶部的那种模糊效果吧」→ 同 folderMiniBar 的材质语言：
-        // `.ultraThinMaterial` 毛玻璃 + mask 渐隐。
-        // [FADE-GAP-FIX] pp 2026-09-20「注意位置。上一版的这个底部有缺口」：
-        // bar frame 底 = 屏底-34（安全区底），v3 的渐隐只盖到那里 → 屏幕最底一截
-        // （安全区内）的内容会露出 = 缺口。几何：height 294（260+34）+ offset(y: 34)
-        // → 渐变 = [屏底-294, 屏底]（覆盖到屏幕物理底）；stops 重算 [0.35, 0.80]
-        // → 淡出带仍 = 屏底-190 起淡、屏底-60 淡尽（位置不变）。
-        Rectangle()
-            .fill(.ultraThinMaterial)
-            .mask(
-                LinearGradient(
-                    stops: [
-                        .init(color: .black.opacity(0), location: 0),
-                        .init(color: .black.opacity(0), location: 0.35),
-                        .init(color: .black, location: 0.80),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            .frame(height: 294)
-            .offset(y: 34)
-            .allowsHitTesting(false)
-    }
-
     // MARK: - Bottom Bar (static capsules)
     //
     // Replaced the two draggable circular glass FABs (new-chat + search, the
@@ -4273,8 +4289,8 @@ struct ContentView: View {
         // 栏内文字中心保持 ~51.5pt（参照 51.3）。
         .padding(.bottom, 24)
         // [BOTTOM-FADE-3] 渐隐层：bar 的 background（z 序在列表之上、bar 内容之下），
-        // alignment .bottom + 高度 260pt 向上溢出覆盖栏上方的列表内容。见 bottomFade。
-        .background(alignment: .bottom) { bottomFade }
+        // alignment .bottom + 高度显式几何向上溢出覆盖栏上方的列表内容。见 BottomBarFadeView。
+        .background(alignment: .bottom) { BottomBarFadeView() }
         // [BOTTOM-BAR-ALIGN] pp 2026-09-20「底部的胶囊尺寸和大小还有位置，对齐图二」。
         // 参照图（Claude 列表页底栏）逐像素实测：搜索文字中心距屏底 ~51pt、实机 ~81pt
         // → 整体下移 30pt 贴底；水平边距 16→22pt（参照 22-23pt）。胶囊↔搜索相对距
@@ -4293,27 +4309,11 @@ struct ContentView: View {
         }
     }
 
-    /// [NEWCHAT-INK] pp 2026-09-20「新会话的颜色有没有对齐图二」：参照图胶囊底色
-    /// 实测 rgb(42,42,41)、实机渲染 rgb(25,25,25)——浅色下把 prominent tint 由纯黑
-    /// 抬到 #111111 补偿（材质偏移 +25 的恒定近似下 17+25≈42）；深色模式维持原
-    /// 白底（黑字必需）。装机后按实拍微调。
-    private static let newChatPillTint = Color(UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? .white
-            : UIColor(white: 0x11 / 255, alpha: 1)
-    })
-
-    /// [NEWCHAT-WIDTH] pp 2026-09-20「胶囊大小还是没跟图二一样 我要的是一样尺寸」：
-    /// 参照胶囊外壳 126pt（内容 90 + 系统内边距 ~2×19）；实机（中文「新会话」内容 73）
-    /// 只有 111.7pt。这里把 label 最小宽设为 87pt → 外壳 ≈ 87+38.7 ≈ 126pt 对齐。
-    /// minWidth（非固定宽）保证英文文案等更长内容不被压缩。
-    private static let newChatPillLabelMinWidth: CGFloat = 87
-
-    /// [NEWCHAT-HEIGHT] pp 2026-09-20「为什么我这个胶囊看着那么胖呢 / 你看别人的」：
-    /// 逐像素实测——实机 **125.7×47.0pt**（宽高比 2.67）vs 参照 **126.0×44.7pt**（2.82），
-    /// 宽度已对齐，多出来的就是高度 2.3pt（显得厚/胖）。label 每边收 1.15pt →
-    /// 系统胶囊高度 ≈ 44.7pt，宽高比 2.82 与参照一致。
-    private static let newChatPillHeightTightening: CGFloat = 1.15
+    // [NEWCHAT-INK]/[NEWCHAT-WIDTH]/[NEWCHAT-HEIGHT] 值已上移至 BottomBarRecipe
+    // （远端列表同款底栏复用）；此处保留别名，本机调用点不动。
+    private static let newChatPillTint = BottomBarRecipe.newChatTint
+    private static let newChatPillLabelMinWidth = BottomBarRecipe.newChatLabelMinWidth
+    private static let newChatPillHeightTightening = BottomBarRecipe.newChatHeightTightening
 
     private var newChatPill: some View {
         AppGlassButton(

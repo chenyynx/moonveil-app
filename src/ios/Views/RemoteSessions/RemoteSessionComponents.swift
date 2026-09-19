@@ -2,7 +2,8 @@
 //
 // 复用仓内已有的 AA 视觉资产（AppGlassButton / AppTheme / SheetCloseToolbar /
 // appSheetPresentation），不新造设计语言。状态指示器四态照抄 AA 的
-// ChatSidebarSessionIndicator，卡片背景照抄 moonveil 本机列表的 SessionRowCardBackground。
+// ChatSidebarSessionIndicator。（列表行/底栏的本机同款件走 ContentView 的
+// 共享配方：BottomBarRecipe / SearchBarSurface / BottomBarFadeView）
 
 import SwiftUI
 
@@ -43,36 +44,6 @@ struct RemoteStatusIndicator: View {
         case .none:
             EmptyView()
         }
-    }
-}
-
-// MARK: - 会话行卡片背景（moonveil 本机列表同款取样平色 + 发丝描边）
-
-struct RemoteRowCardBackground: View {
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        Group {
-            if colorScheme == .dark {
-                RemoteCardSurface.dark
-            } else {
-                RemoteCardSurface.light
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-    }
-}
-
-enum RemoteCardSurface {
-    static var light: some View {
-        Color.white
-            .overlay(alignment: .top) { Color.white.opacity(0.9).frame(height: 0.75) }
-            .overlay(alignment: .bottom) { Color.black.opacity(0.07).frame(height: 0.75) }
-    }
-    static var dark: some View {
-        Color(white: 0.07)
-            .overlay(alignment: .top) { Color.white.opacity(0.10).frame(height: 0.75) }
-            .overlay(alignment: .bottom) { Color.black.opacity(0.35).frame(height: 0.75) }
     }
 }
 

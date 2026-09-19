@@ -1,6 +1,7 @@
 // RemoteSessionListView.swift — 远端会话列表（R0，batch 8）
 //
-// 形态：moonveil 本机列表的壳（List + 卡片化 + 底部搜索框/新会话胶囊，视觉/手势/交互一致），
+// 形态：moonveil 本机列表的壳（List 平色行 + 底部搜索框/新会话胶囊——与本机共用
+// ContentView 暴露的同一套底栏配方 BottomBarRecipe/SearchBarSurface/BottomBarFadeView），
 // 数据源只走 RemoteKit 的 public facade（RemoteService / RemotePairingPayload），
 // 不读 ChatStore、不碰 ContentView 的 stackList（死隔离：远端列表与本机列表文件级零交集）。
 //
@@ -40,6 +41,13 @@ struct RemoteSessionListView: View {
         RemoteSessionStore.shared.items
     }
 
+    /// 搜索过滤：标题本地过滤（本机搜索走 ChatStore 后端，远端数据面接通后再对齐）
+    private var filteredSessions: [RemoteSessionItem] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return sessions }
+        return sessions.filter { $0.title.localizedCaseInsensitiveContains(query) }
+    }
+
     // 预览用假数据（数据面接通后删除）
     static let previewItems: [RemoteSessionItem] = [
         .init(id: "s1", title: "首页改版 · 数据看板", projectId: "p1", indicator: .waitingApproval, updatedAtText: "10:24"),
@@ -53,9 +61,11 @@ struct RemoteSessionListView: View {
     @State private var showsArchives = false
     @State private var showsPairSheet = false
     @State private var showsProjectEditor = false
-    @State private var showsListOptions = false
     @State private var showsSessionDetail = false
     @State private var selectedSessionId: String?
+    // 底栏搜索（与本机同款交互：即时过滤标题、键盘收起三出口）
+    @State private var searchText = ""
+    @FocusState private var searchFocused: Bool
 
     // 导航容器与 ModeTabPicker 顶栏由 RemoteRootView 的 NavigationStack 提供
     // （pp 定稿：胶囊切换位置不动）；本视图只挂自己的右上角菜单。
@@ -100,6 +110,7 @@ struct RemoteSessionListView: View {
             // 连接器区（AA 的 Devices section：在线/离线点 + 等宽设备名）
             Section {
                 connectorRow
+                previewBanner
                 if pendingNotices > 0 {
                     Label("需要你处理 ×\(pendingNotices)", systemImage: "bell.badge")
                         .font(.callout)
@@ -121,14 +132,13 @@ struct RemoteSessionListView: View {
                 }
             }
 
-            // 项目分组（折叠头 + 缩进会话）
+            // 项目分组（projectHeader 行自带「项目」标题 + 创建按钮；
+            // 不再套 Section header 重复一遍——pp 2026-09-20 排版修复）
             Section {
                 projectHeader
                 ForEach(projectItems) { item in
                     sessionRow(item, inset: true)
                 }
-            } header: {
-                sectionLabel("项目")
             }
 
             // 全部会话
@@ -141,7 +151,8 @@ struct RemoteSessionListView: View {
             }
         }
         .listStyle(.plain)
-        .scrollContentBackground(.hidden)
+        // 不藏列表滚动背景：与本机列表同款平色 systemBackground（本机也不 hide，
+        // 渐隐层由底栏的 background 挂载负责，见 BottomBarFadeView）
         .scrollDismissesKeyboard(.immediately)
         .safeAreaInset(edge: .bottom) { bottomBar }
         .refreshable { await refresh() }
@@ -165,18 +176,17 @@ struct RemoteSessionListView: View {
                     .foregroundStyle(.secondary)
                 RemoteStatusIndicator(indicator: item.indicator)
             }
-            .padding(.leading, inset ? 36 : 12)
+            .padding(.leading, inset ? 36 : 16)
+            .padding(.trailing, 16)
             .frame(minHeight: 56)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
-        .listRowBackground(
-            Group {
-                if inset { Color.clear } else { RemoteRowCardBackground() }
-            }
-        )
+        // 行背景对齐本机：平色 systemBackground（原圆角卡片描边版视觉与本机不一致，
+        // pp 2026-09-20 排版修复；RemoteRowCardBackground 已随之删除）
+        .listRowBackground(inset ? Color.clear : Color(.systemBackground))
         .contextMenu {
             RemoteSessionContextMenu(item: item) { action in
                 handleMenuAction(action, for: item)
@@ -215,7 +225,8 @@ struct RemoteSessionListView: View {
         .safeAreaInset(edge: .bottom) { bottomBar }
     }
 
-    // MARK: - 底部栏（moonveil 已有的搜索框 + 新会话胶囊，视觉/布局照抄 bottomBar）
+    // MARK: - 底部栏（与本机同一套配方：BottomBarRecipe + SearchBarSurface +
+    // BottomBarFadeView，值全部来自 ContentView 的逐像素实测批次，不再手搓）
 
     private var bottomBar: some View {
         VStack(spacing: 12) {
@@ -223,36 +234,58 @@ struct RemoteSessionListView: View {
                 Spacer()
                 newChatPill
             }
-            searchBar
+            searchBarCapsule
         }
         .padding(.horizontal, 22)
         .padding(.top, 8)
         .padding(.bottom, 24)
-        .background(.regularMaterial)
+        .background(alignment: .bottom) { BottomBarFadeView() }
+        .offset(y: searchFocused ? 0 : 30)
     }
 
     private var newChatPill: some View {
         AppGlassButton(
-            "新会话",
+            AppLocalized("New chat"),
             systemImage: "plus",
             style: .prominent,
             maxWidth: nil,
+            tintOverride: BottomBarRecipe.newChatTint,
+            labelMinWidth: BottomBarRecipe.newChatLabelMinWidth,
+            heightTightening: BottomBarRecipe.newChatHeightTightening,
             action: startNewSession
         )
     }
 
-    private var searchBar: some View {
+    private var searchBarCapsule: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            Text("搜索对话")
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 0)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(ChatColors.inputIconFg)
+            TextField("Search chats", text: $searchText)
+                .textFieldStyle(.plain)
+                .autocorrectionDisabled()
+                .focused($searchFocused)
+                .submitLabel(.search)
+                .onSubmit { searchFocused = false }
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 32, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .font(.system(size: 16))
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, minHeight: 50)
-        .background(Color(.secondarySystemBackground), in: Capsule())
+        .padding(.leading, 18)
+        .padding(.trailing, 8)
+        .frame(maxWidth: .infinity)
+        .frame(height: 47)
+        .modifier(SearchBarSurface())
+        .contentShape(.capsule)
     }
 
     // MARK: - 连接器区
@@ -277,9 +310,30 @@ struct RemoteSessionListView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 10)
-        .frame(minHeight: 42)
+        .padding(.horizontal, 16)
+        .frame(minHeight: 56)
         .contentShape(Rectangle())
+        .listRowInsets(EdgeInsets())
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color(.systemBackground))
+    }
+
+    /// 诚实标识（pp 2026-09-20：假数据不许静默装真）——数据面接通后删除。
+    private var previewBanner: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 11))
+            Text("预览数据 · 真实会话接通中")
+                .font(.system(size: 12))
+        }
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .listRowInsets(EdgeInsets())
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color(.systemBackground))
     }
 
     // MARK: - 项目头
@@ -290,16 +344,10 @@ struct RemoteSessionListView: View {
                 .font(.system(size: 18))
                 .foregroundStyle(.secondary)
             Text("项目")
-                .font(.body)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
             Spacer(minLength: 0)
-            Button {
-                showsListOptions = true
-            } label: {
-                Image(systemName: "ellipsis")
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+            // … 按钮删除（其开关 showsListOptions 是死状态；列表选项菜单在右上角）
             Button {
                 showsProjectEditor = true
             } label: {
@@ -309,16 +357,18 @@ struct RemoteSessionListView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 16)
+        .frame(minHeight: 48)
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
+        .listRowBackground(Color(.systemBackground))
     }
 
     private func sectionLabel(_ title: String) -> some View {
         Text(title)
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
+            .textCase(nil)
     }
 
     // MARK: - 操作
@@ -361,9 +411,9 @@ struct RemoteSessionListView: View {
 
     // MARK: - 派生
 
-    private var pinnedItems: [RemoteSessionItem] { sessions.filter(\.isPinned) }
-    private var projectItems: [RemoteSessionItem] { sessions.filter { $0.projectId != nil && !$0.isPinned } }
-    private var recentItems: [RemoteSessionItem] { sessions.filter { $0.projectId == nil && !$0.isPinned } }
+    private var pinnedItems: [RemoteSessionItem] { filteredSessions.filter(\.isPinned) }
+    private var projectItems: [RemoteSessionItem] { filteredSessions.filter { $0.projectId != nil && !$0.isPinned } }
+    private var recentItems: [RemoteSessionItem] { filteredSessions.filter { $0.projectId == nil && !$0.isPinned } }
 
     private var listOptionsButton: some View {
         Menu {
