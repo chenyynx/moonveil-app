@@ -48,6 +48,9 @@ private final class ShimmerLabelHost: UIView {
     private var maskKey = ""
     private var animating = false
     var period: Double = 2.8
+    private let diag = AppLogger(category: "ShimmerDiag")
+    private var didMoveToWindowProbeCount = 0
+    private var layoutFirstBoundsProbeDone = false
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -91,6 +94,8 @@ private final class ShimmerLabelHost: UIView {
         label.textAlignment = alignment
         self.period = period
         if dirty {
+            let prefix = String(text.prefix(24)).replacingOccurrences(of: "\n", with: "↵")
+            diag.info("[ShimmerDiag] configure dirty text=\"\(prefix)…\" font=\(font) color=\(color)")
             invalidateIntrinsicContentSize()
             maskKey = ""        // 强制 layoutSubviews 重建掩膜
         }
@@ -98,6 +103,10 @@ private final class ShimmerLabelHost: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        if !layoutFirstBoundsProbeDone, bounds.width > 1 {
+            layoutFirstBoundsProbeDone = true
+            diag.info("[ShimmerDiag] layoutSubviews first bounds=\(bounds.size)")
+        }
         label.frame = bounds
         band.frame = bounds
         textMask.frame = CGRect(origin: .zero, size: bounds.size)
@@ -112,6 +121,10 @@ private final class ShimmerLabelHost: UIView {
     }
 
     /// 把 label 当前渲染画成图片，喂给 band.mask（FB 的 content-layer-copy 思路）。
+    /// [v12.1 09-19] 弃 label.layer.render(in:) —— 该 API 依赖 label 已上屏渲染状态，
+    /// 首帧/重建时可能输出全透明 → mask 全空 → 亮带被全裁 → 全场景不显示。
+    /// 改用 textRect(forBounds:) 取 UILabel 自身排版矩形（含垂直居中/截断），
+    /// 再以 NSAttributedString 直绘；不依赖渲染状态，字形与 label 一致。
     private func rebuildMaskIfNeeded() {
         guard bounds.width > 1, bounds.height > 1 else { return }
         let key = "\(label.text ?? "")|\(label.font)|\(bounds.size)"
@@ -120,14 +133,59 @@ private final class ShimmerLabelHost: UIView {
         maskKey = key
         let format = UIGraphicsImageRendererFormat()
         format.scale = 0        // 跟随屏幕 scale
-        let image = UIGraphicsImageRenderer(size: bounds.size, format: format).image { ctx in
+        let bounds = self.bounds
+        let drawRect = label.textRect(forBounds: bounds, limitedToNumberOfLines: 1)
+        let ps = NSMutableParagraphStyle()
+        ps.alignment = label.textAlignment
+        ps.lineBreakMode = label.lineBreakMode
+        let attr = NSAttributedString(string: label.text ?? "", attributes: [
+            .font: label.font as Any,
+            .foregroundColor: label.textColor ?? UIColor.black,
+            .paragraphStyle: ps
+        ])
+        let image = UIGraphicsImageRenderer(size: bounds.size, format: format).image { _ in
             traitCollection.performAsCurrent {
-                label.layer.render(in: ctx.cgContext)
+                attr.draw(in: drawRect)
             }
         }
         // 给 UIImage 本体而非 cgImage：layer 直接持 UIImage 才认它的 scale，
         // 裸 CGImage 在 contentsScale=1 下会按 1pt=1px 放大 N 倍（经典坑）。
         textMask.contents = image
+
+        // [ShimmerDiag] 重建后：size + alphaCoverage
+        let sizeDesc = "\(Int(bounds.size.width))x\(Int(bounds.size.height))"
+        let alphaDesc: String
+        if let cg = image.cgImage {
+            let w = cg.width, h = cg.height
+            let total = w * h
+            // alphaOnly + NULL colorspace 是 Quartz 标准配法（免位运算，编译面最小）
+            if let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8,
+                                   bytesPerRow: w, space: nil,
+                                   bitmapInfo: CGImageAlphaInfo.alphaOnly.rawValue) {
+                ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+                if let buf = ctx.data {
+                    let ptr = buf.bindMemory(to: UInt8.self, capacity: total)
+                    var hit = 0
+                    let step = 16
+                    var sampled = 0
+                    var i = 0
+                    while i < total {
+                        if ptr[i] > 8 { hit += 1 }
+                        sampled += 1
+                        i += step
+                    }
+                    let pct = sampled > 0 ? Double(hit) / Double(sampled) * 100.0 : 0.0
+                    alphaDesc = String(format: "alphaCoverage=%.1f%%", pct)
+                } else {
+                    alphaDesc = "alphaCoverage=NO_BUF"
+                }
+            } else {
+                alphaDesc = "alphaCoverage=NO_CTX"
+            }
+        } else {
+            alphaDesc = "alphaCoverage=N/A"
+        }
+        diag.info("[ShimmerDiag] rebuildMask size=\(sizeDesc) \(alphaDesc)")
     }
 
     /// 平移渐变端点（frame 固定 → mask 恒对齐；对比 v11 平移整层的另一条路）。
@@ -147,6 +205,24 @@ private final class ShimmerLabelHost: UIView {
             a.isRemovedOnCompletion = false
             band.add(a, forKey: "sweep.\(key)")
         }
+        diag.info("[ShimmerDiag] startIfNeeded bounds=\(bounds.size) keys=\(band.animationKeys() ?? [])")
+        // [ShimmerDiag] 动画存活心跳：0.7s / 1.4s 读 presentation().startPoint.x
+        // 两次值不同 = 动画在推进；相同或 nil = 动画死/没加。
+        let heartbeat: (Double) -> Void = { [weak self] delay in
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard let self = self, self.window != nil else { return }
+                let v = self.band.presentation()?.value(forKey: "startPoint")
+                let desc: String
+                if let p = v as? NSValue {
+                    desc = "\(p.cgPointValue.x)"
+                } else {
+                    desc = "nil"
+                }
+                self.diag.info("[ShimmerDiag] heartbeat@\(String(format: "%.1f", delay))s startPoint.x=\(desc)")
+            }
+        }
+        heartbeat(0.7)
+        heartbeat(1.4)
     }
 
     func stopAnimating() {
@@ -159,6 +235,10 @@ private final class ShimmerLabelHost: UIView {
     /// 重置标志并触发一次布局重启动画。
     override func didMoveToWindow() {
         super.didMoveToWindow()
+        if didMoveToWindowProbeCount < 10 {
+            didMoveToWindowProbeCount += 1
+            diag.info("[ShimmerDiag] didMoveToWindow window=\(window == nil ? "nil" : "non-nil") animating=\(animating)")
+        }
         if window == nil {
             stopAnimating()
         } else {
