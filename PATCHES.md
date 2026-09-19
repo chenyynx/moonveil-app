@@ -908,6 +908,7 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **连带效果（安全方向）**：`newSkinActivitySlotEstimate`（`CollectionViewMessageListV3.swift:3858`）在工具在飞时改判 `isDone=false` → 返回 `nil` → 交回经典估算，即注释原话「宁可高估，不猜运行槽」。
 - **死隔离申报**：纯判定函数，不改数据/SSE/agent 链路/布局记账；无新文件。回归 = ①回合结束后活动槽必须从点阵行收口成入口行（**若工具态卡在 `.running` 不退，点阵行会永转，这是本改动唯一新风险**）②`ToolActivityGroupView:166 onChange(segment.isDone)` 的收口动画与 `.thinkingBlockToggled` 广播仍触发 ③非新皮肤不受影响（`ToolRenderStyleStore.current != .new` 时估算直接 return nil）。
 - **验证**：待装机。日志判据 = `[ThinkingCollapse]` 中**不再出现** `frameH=24.0` 紧跟 `DISPATCH`；气泡与点阵行不同排；回合结束后点阵行正常收口。
+- **[doris 09-19 补注] 「逐条对齐」有实现顺序偏差**：本实现把「工具在飞」排在「正文已收口」之前，与基准（closedByContent 优先）相反——「正文已回 + 工具仍在飞」交叉态会继续转槽而非收口。已由下节 `SLOT-DONE-TOOLGUARD-ORDER` 修正顺序；工具守卫增量本身保留。
 
 ### TOOLBAR-DROP-PROBE — 症状一（工具条掉到输入框下面）只加探针不改逻辑（Qoder, 2026-09-19）
 
@@ -918,3 +919,11 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **已排除的挂载点**：`FloatingToolBar(` 全仓两处，第二处 `ToolLiveSheet.swift:193-208 FloatingToolPreviewContainer` 是 `private` 且零调用 = 死代码；活挂载点唯一 = `AIChatView.swift:2931`。
 - **🔴 临时件，定位后整体删除**：删 `BottomBarProbe` enum + 三处 `onGeometryChange`/`reportBar(.zero)`/`reportInput` 调用点。
 - **验证**：待装机。pp 正常用一遍发日志，不需录屏。
+
+### SLOT-DONE-TOOLGUARD-ORDER — isDone 守卫顺序改回基准（closedByContent 优先）·11b7561 follow-up（Doris, 2026-09-19，pp：「交给你处理」）
+
+- **File**: `src/ios/Views/Chat/ToolActivity/TurnActivityAggregator.swift`（isDone 两行顺序对调 + 注释）。
+- **Why**: 11b7561 把「工具在飞」提到「正文已收口」之前 → 与 `ThinkingDetailOverlay.isSegmentRunning`（基准顺序：①closedByContent ②工具 active ③消息态）相反，属新语义而非对齐，且与 pp 09-17「回复了正文=阶段完成」相悖。本提交恢复基准顺序；两份实现重新逐条一致。
+- **覆盖不变**: 纯「工具在飞」窗口（closedByContent=false）仍不判完成，11b7561 的有效增量保留。
+- **死隔离申报**: 纯判定函数两行顺序；无新文件、不碰数据/SSE/链路。
+- **回归**: ①「正文已回+工具在飞」交叉态收口为入口行（与基准一致）②纯工具在飞窗口槽继续转 ③同 11b7561 其余回归项。

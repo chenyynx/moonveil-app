@@ -80,9 +80,15 @@ struct TurnActivitySegment: Equatable {
     /// 不判 `isThinkingActive`：它的定义式里带了 `isActiveMessage`
     /// （`ToolActivityGroupView.adapt` 里 `isActiveThinking` 那一行），断言它正是
     /// 这里要防的瞬态，加进来是死条件。工具态来自 `block.toolStatus`，不受影响。
+    /// [doris 2026-09-19 顺序修正·PATCHES.md SLOT-DONE-TOOLGUARD-ORDER] 守卫顺序与
+    /// 基准 `ThinkingDetailOverlay.isSegmentRunning`（115-132 行）**逐条**对齐 =
+    /// ① closedByContent → done；② 段内工具 active → 运行中；③ 否则看消息态。
+    /// 11b7561 原把 ② 排到 ① 之前，令「正文已回 + 工具仍在飞」交叉态与基准/旧行为
+    /// 相反（基准=收口入口行；原实现=继续转槽）——本提交把顺序改回基准；②③ 的
+    /// 用途不变（工具在飞期间的误判窗口仍然不塌）。
     var isDone: Bool {
-        if isToolActive { return false }
         if closedByContent { return true }
+        if isToolActive { return false }
         return !isMessageActive
     }
 }
