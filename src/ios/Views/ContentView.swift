@@ -2920,6 +2920,13 @@ struct ContentView: View {
         // the search bar open its TextField legitimately rises with the
         // keyboard, so normal avoidance is restored.
         .ignoresSafeArea(.keyboard, edges: searchFocused ? [] : .bottom)
+        // [SEARCH-DISMISS] pp 2026-09-20「只要弹出来输入搜索了 就弹不回去了」：
+        // 聚焦后此前没有任何收起出口（清除 X 仅在有文字时显示；SwiftUI 列表的
+        // scrollDismissesKeyboard 默认 .automatic 在非 searchable 场景等于 .never，
+        // 滚动不收键盘）。① 滚动列表即收（.immediately）② 点列表任意处也收
+        // （simultaneous 不拦截行点击/导航）。点搜索栏自身不受影响（栏在列表之上）。
+        .scrollDismissesKeyboard(.immediately)
+        .simultaneousGesture(TapGesture().onEnded { if searchFocused { searchFocused = false } })
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
         }
@@ -3098,6 +3105,9 @@ struct ContentView: View {
         // sidebar column never hosts a keyboard unless the inline search bar
         // is open (the chat column's composer avoidance is its own subtree).
         .ignoresSafeArea(.keyboard, edges: searchFocused ? [] : .bottom)
+        // [SEARCH-DISMISS] 同 compact 列表：滚动 / 点击收起搜索键盘。
+        .scrollDismissesKeyboard(.immediately)
+        .simultaneousGesture(TapGesture().onEnded { if searchFocused { searchFocused = false } })
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
         }
@@ -4313,6 +4323,9 @@ struct ContentView: View {
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
                 .focused($searchFocused)
+                // [SEARCH-DISMISS] 键盘右下角键显示「搜索」，按下即收起。
+                .submitLabel(.search)
+                .onSubmit { searchFocused = false }
                 .onChange(of: searchText) { _ in scheduleSearch() }
             if !searchText.isEmpty {
                 searchClearButton
