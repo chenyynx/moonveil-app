@@ -23,7 +23,9 @@ import SwiftUI
 
 struct RemoteSessionListView: View {
     @ObservedObject var service: RemoteService
-    @ObservedObject private var tabRouter = RootTabRouter.shared
+    /// 审批计数与断开动作由 RemoteRootView 透传（本视图不持有连接生命周期）。
+    var pendingNotices: Int = 0
+    var onDisconnect: () -> Void = {}
 
     // MARK: - 服务器地址（RemoteService 只写不读；读官方持久化键 agentsAnywhere.serverURL，
     // 与 RemoteRootView 同一来源）
@@ -55,40 +57,32 @@ struct RemoteSessionListView: View {
     @State private var showsSessionDetail = false
     @State private var selectedSessionId: String?
 
+    // 导航容器与 ModeTabPicker 顶栏由 RemoteRootView 的 NavigationStack 提供
+    // （pp 定稿：胶囊切换位置不动）；本视图只挂自己的右上角菜单。
     var body: some View {
-        NavigationStack {
-            content
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .principal) {
-                        ModeTabPicker(selection: $tabRouter.mode, localLabel: soulName)
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        listOptionsButton
-                    }
+        content
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    listOptionsButton
                 }
-                .sheet(isPresented: $showsPairSheet) {
-                    PairDeviceSheet(service: service)
+            }
+            .sheet(isPresented: $showsPairSheet) {
+                PairDeviceSheet(service: service)
+            }
+            .sheet(isPresented: $showsProjectEditor) {
+                // 项目编辑（AA 的 ProjectEditorSheet 视觉；数据面就绪前弹联动占位）
+                RemoteProjectEditorSheet(service: service)
+            }
+            .sheet(isPresented: $showsArchives) {
+                RemoteArchivedSessionsSheet(service: service)
+            }
+            .sheet(isPresented: $showsSessionDetail) {
+                if let id = selectedSessionId {
+                    RemoteSessionDetailSheet(service: service, sessionId: id)
                 }
-                .sheet(isPresented: $showsProjectEditor) {
-                    // 项目编辑（AA 的 ProjectEditorSheet 视觉；数据面就绪前弹联动占位）
-                    RemoteProjectEditorSheet(service: service)
-                }
-                .sheet(isPresented: $showsArchives) {
-                    RemoteArchivedSessionsSheet(service: service)
-                }
-                .sheet(isPresented: $showsSessionDetail) {
-                    if let id = selectedSessionId {
-                        RemoteSessionDetailSheet(service: service, sessionId: id)
-                    }
-                }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
-            soulName = currentSoulName()
-        }
+            }
     }
-
-    @State private var soulName: String = currentSoulName()
 
     @ViewBuilder
     private var content: some View {
@@ -106,6 +100,12 @@ struct RemoteSessionListView: View {
             // 连接器区（AA 的 Devices section：在线/离线点 + 等宽设备名）
             Section {
                 connectorRow
+                if pendingNotices > 0 {
+                    Label("需要你处理 ×\(pendingNotices)", systemImage: "bell.badge")
+                        .font(.callout)
+                        .foregroundStyle(.red)
+                        .padding(.horizontal, 10)
+                }
             } header: {
                 sectionLabel("连接器")
             }
@@ -373,6 +373,9 @@ struct RemoteSessionListView: View {
             }
             Divider()
             Button("归档会话", systemImage: "archivebox") { showsArchives = true }
+            Divider()
+            // 断开连接入口从 RemoteRootView 的状态卡迁移至此（接线时不丢）
+            Button("断开连接", role: .destructive, action: onDisconnect)
         } label: {
             Image(systemName: "ellipsis")
                 .frame(width: 44, height: 44)
@@ -410,9 +413,4 @@ final class RemoteSessionStore: ObservableObject {
 
 enum RemoteSessionMenuAction {
     case open, rename, togglePin, archive, copyId
-}
-
-private func currentSoulName() -> String {
-    let n = SoulStore.cachedMetadata.name
-    return n.isEmpty ? "Moonveil" : n
 }

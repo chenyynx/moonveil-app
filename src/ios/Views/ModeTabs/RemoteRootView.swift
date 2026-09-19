@@ -4,8 +4,8 @@
 // Consumes ONLY RemoteKit's public facade (RemoteService / RemoteServiceState).
 // Staged with deadlines (完整性铁律 — 明示不藏):
 //   • QR camera pairing → batch 8（manual bootstrap(url, token) 现在就是活路）
-//   • R0 会话列表       → batch 8（timeline/snapshot public 面）
-//   • notice 交互 UI    → batch 8（数据面 noticeSnapshot 已 public）
+//   • R0 会话列表骨架   → 已接线（connected 态渲染列表；会话行数据仍为预览占位）
+//   • 会话消息面 / notice 交互 UI → batch 8（timeline/snapshot/noticeSnapshot public 面）
 // 不装成功态：没连上就显示没连上。
 
 import SwiftUI
@@ -86,30 +86,15 @@ struct RemoteRootView: View {
         }
     }
 
-    // MARK: State 3 — 已连接（列表=批8；本批=真实状态+审批计数+断开）
+    // MARK: State 3 — 已连接（R0 列表已接线：RemoteSessionListView 挂进本 NavigationStack，
+    // 顶栏 ModeTabPicker 由此处提供，列表不再自建导航栈；断开入口在列表右上角菜单）
 
     private var connected: some View {
-        VStack(spacing: 14) {
-            Label("已连接", systemImage: "checkmark.circle.fill")
-                .font(.title3.bold())
-                .foregroundStyle(.green)
-            Text(UserDefaults.standard.string(forKey: "remote.serverURL") ?? "—")
-                .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-
-            if pendingNotices > 0 {
-                Label("需要你处理 ×\(pendingNotices)", systemImage: "bell.badge")
-                    .font(.callout).foregroundStyle(.red)
-            }
-
-            Text("会话列表与消息将在下一批上线")
-                .font(.footnote).foregroundStyle(.tertiary)
-
-            Button("断开连接", role: .destructive) {
-                service.reset()
-                pendingNotices = 0
-            }
-            .font(.callout)
-        }
-        .padding(20)
+        RemoteSessionListView(service: service,
+                              pendingNotices: pendingNotices,
+                              onDisconnect: {
+                                  service.reset()
+                                  pendingNotices = 0
+                              })
     }
 }
