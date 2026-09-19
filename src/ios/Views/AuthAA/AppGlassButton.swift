@@ -18,6 +18,10 @@ struct AppGlassButton: View {
     let tintOverride: Color?
     /// [NEWCHAT-WIDTH] Optional minimum width for the label (nil = no constraint).
     let labelMinWidth: CGFloat?
+    /// [NEWCHAT-HEIGHT] Optional per-edge vertical tightening (pt; 0 = untouched).
+    /// The glass capsule follows the label's measured height, so a small negative
+    /// padding here trims the system button height to a measured target.
+    let heightTightening: CGFloat
     let action: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -32,6 +36,7 @@ struct AppGlassButton: View {
         maxWidth: CGFloat? = .infinity,
         tintOverride: Color? = nil,
         labelMinWidth: CGFloat? = nil,
+        heightTightening: CGFloat = 0,
         action: @escaping () -> Void
     ) {
         self.title = title
@@ -43,6 +48,7 @@ struct AppGlassButton: View {
         self.maxWidth = maxWidth
         self.tintOverride = tintOverride
         self.labelMinWidth = labelMinWidth
+        self.heightTightening = heightTightening
         self.action = action
     }
 
@@ -55,6 +61,7 @@ struct AppGlassButton: View {
         maxWidth: CGFloat? = nil,
         tintOverride: Color? = nil,
         labelMinWidth: CGFloat? = nil,
+        heightTightening: CGFloat = 0,
         action: @escaping () -> Void
     ) {
         self.title = nil
@@ -66,6 +73,7 @@ struct AppGlassButton: View {
         self.maxWidth = maxWidth
         self.tintOverride = tintOverride
         self.labelMinWidth = labelMinWidth
+        self.heightTightening = heightTightening
         self.action = action
     }
 
@@ -113,6 +121,8 @@ struct AppGlassButton: View {
         }
         // [NEWCHAT-WIDTH] 可选最小宽度（nil/0 = 原行为零变化）。
         .frame(minWidth: labelMinWidth ?? 0)
+        // [NEWCHAT-HEIGHT] 可选高度收缩（每边，0 = 原行为零变化）。
+        .padding(.vertical, -heightTightening)
     }
 
     private var progressTint: Color {

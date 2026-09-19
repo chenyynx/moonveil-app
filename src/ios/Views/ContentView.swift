@@ -4293,6 +4293,12 @@ struct ContentView: View {
     /// minWidth（非固定宽）保证英文文案等更长内容不被压缩。
     private static let newChatPillLabelMinWidth: CGFloat = 87
 
+    /// [NEWCHAT-HEIGHT] pp 2026-09-20「为什么我这个胶囊看着那么胖呢 / 你看别人的」：
+    /// 逐像素实测——实机 **125.7×47.0pt**（宽高比 2.67）vs 参照 **126.0×44.7pt**（2.82），
+    /// 宽度已对齐，多出来的就是高度 2.3pt（显得厚/胖）。label 每边收 1.15pt →
+    /// 系统胶囊高度 ≈ 44.7pt，宽高比 2.82 与参照一致。
+    private static let newChatPillHeightTightening: CGFloat = 1.15
+
     private var newChatPill: some View {
         AppGlassButton(
             AppLocalized("New chat"),
@@ -4300,7 +4306,8 @@ struct ContentView: View {
             style: .prominent,
             maxWidth: nil,
             tintOverride: Self.newChatPillTint,
-            labelMinWidth: Self.newChatPillLabelMinWidth
+            labelMinWidth: Self.newChatPillLabelMinWidth,
+            heightTightening: Self.newChatPillHeightTightening
         ) {
             openSession(Self.makeNewSessionId())
         }
