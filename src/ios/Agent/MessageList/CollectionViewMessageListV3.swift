@@ -3899,7 +3899,7 @@ extension CollectionViewMessageListV3 {
 
         static func estimateItemHeight(_ item: MessageListItem, messages: [ChatMessage], width: CGFloat) -> CGFloat {
             let scale = FontSettings.shared.scaledMessage(16)
-            let lineHeight = scale * 1.4
+            let lineHeight = scale * 1.7  // FONTS-2: sync with bodyLineSpacing 0.5 (render ratio ~1.69)
             // [T-ios-user-attach-estimate-mismatch] The former `hPad` local died
             // with the `.user` branch's coarse tile arithmetic — the attachment
             // block now comes from UserAttachmentTileMetrics, which derives its

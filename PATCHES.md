@@ -976,3 +976,12 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **修复**: ①`noteProgrammaticReconfigure`：修复侧 reconfigure 前登记 2.5s 抑制窗，窗内 onAppear 补发跳过 → 循环终止（真实重进在窗外观测照常补发）。②`slotFloor`：运行槽 `.frame(minHeight: 24+33.7×min(displayRows.count,3))`——地板挂 displayRows（含缓存）不依赖 @State 时序 → 冷启动/重配/重建任意一帧都量不到 <地板，"过渡态 24pt"从根上不可提交。
 - **死隔离申报**: 呈现层两文件；零新机制（复用既有 static 缓存/门闩模式）；不碰数据/SSE/agent 循环/桥；Qoder 冷启动批（2f65c44）语义不动，其"中断待恢复"槽走 runningSlot → 地板同样生效。
 - **回归**: ①任务中退出重进 ×10 不再闪塌（日志不再出 `40.0→24.0` 类提交）②循环断（不再有 ~1.3s 周期 ThinkingCollapse HIT 流）③完成态/历史回合外观不变 ④新段起步（无行）仍 24pt 合法 ⑤高度不虚高（地板=真实高度同源常量）。
+
+## FONTS-2 — body line spacing coefficient ×0.25 → ×0.5（2026-09-19，pp 拍板：“行”）
+
+- 背景：与 Claude 逐像素对账——moonveil 行距/字号 1.44× vs Claude 1.73×（紧 24%）；公开资料舒适区：中文 1.5–1.8×、Web 1.5–1.6×。
+- `SelectableMarkdownView.swift`：`bodyLineSpacing` 系数 0.25→0.5（行距比 1.44→1.69，对齐 Claude 1.73 且保留微调余量；系数制——字号档位变化时行距等比跟随，比例恒定）。
+- `CollectionViewMessageListV3.swift`：列表高度估算 `lineHeight` 1.4→1.7（同步渲染比例，宁高勿低）。
+- 影响面（隔离声明）：正文/列表/引用行内行距同步变宽；块级公式上下留白随变（罕见场景，暂观察）；两端模式（本地/Remote）共用渲染层=预期同步；不触碰状态机/数据流/缓存（内存缓存，app 重启重建，无需版本 bump）。
+- 不动面：段落边距（0/12 固定值）、列表项间距（listItemTopMargin ×0.25 按原样，属另一视觉参数）、标题/表格边距、代码块行距（固定 4）、字号体系（档位不变，FONTS-1 保持）。
+- 回归项：正文行距≈24.5pt（XS 档）、估算与渲染同源、扫光/工具详情/塌陷机制零触碰（未涉及文件）。

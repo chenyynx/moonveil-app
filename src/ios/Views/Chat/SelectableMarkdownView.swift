@@ -555,7 +555,7 @@ fileprivate final class MarkdownNSRenderer {
     func updateFontSize(_ size: CGFloat) {
         theme = SelectableMarkdownTheme(baseFontSize: size)
     }
-    private var bodyLineSpacing: CGFloat { theme.baseFontSize * 0.25 }
+    private var bodyLineSpacing: CGFloat { theme.baseFontSize * 0.5 }
     /// minisChat list item: .em(0.25) top margin
     private var listItemTopMargin: CGFloat { theme.baseFontSize * 0.25 }
     /// minisChat headings: .em(1) top and bottom
