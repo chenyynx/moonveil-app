@@ -1,18 +1,17 @@
 // RemoteSessionListView.swift — 远端会话列表（R0，batch 8）
 //
-// 形态：moonveil 本机列表的壳（List 平色行 + 底部搜索框/新会话胶囊——与本机共用
-// ContentView 暴露的同一套底栏配方 BottomBarRecipe/SearchBarSurface/BottomBarFadeView），
+// 形态（pp 2026-09-20 定稿）：板块切分照官方两大模块——「设备」+「项目」；
+// 列表视觉全部复用本机列表 UI（平色行/sectionLabel/底栏配方），不另造一套；
+// AA 视觉只出现在点进去的弹窗页（PairDeviceSheet / ProjectEditor / 详情 / 归档）。
 // 数据源只走 RemoteKit 的 public facade（RemoteService / RemotePairingPayload），
 // 不读 ChatStore、不碰 ContentView 的 stackList（死隔离：远端列表与本机列表文件级零交集）。
 //
 // 功能面（AA 官方移动端会话列表全量，不阉割）：
+//   • 设备板块：在线/离线点 + 等宽设备名 + 「配对设备」整行入口 → PairDeviceSheet
+//   • 项目板块：折叠头（项目 ▾ + … + 新建）+ 项目内会话缩进 → ProjectEditorSheet
 //   • 会话行：标题/时间/状态指示（等待批准 / 运行中 / 未读）
-//   • 设备（连接器）区：在线/离线点 + 等宽设备名 + 选中高亮
-//   • 配对设备入口 → PairDeviceSheet（直接复用 AA 视觉）
-//   • 项目分组（折叠头 + 创建项目 + 项目内会话缩进）→ ProjectEditorSheet
 //   • 长按菜单：Open / Rename / Pin·Unpin / Archive·Restore / Copy Session ID
 //   • 左滑动作：置顶 / 归档 / 删除
-//   • 列表选项菜单：按项目 / 全部会话 / 筛选 / 归档会话
 //   • 归档页（ArchivedSessionsSheet）+ 下拉刷新 + 空态诚实
 //
 // Staged with deadlines（完整性铁律 — 明示不藏）：
@@ -66,17 +65,15 @@ struct RemoteSessionListView: View {
     // 底栏搜索（与本机同款交互：即时过滤标题、键盘收起三出口）
     @State private var searchText = ""
     @FocusState private var searchFocused: Bool
+    // 项目板块折叠（官方「项目 ▾」）
+    @State private var projectsCollapsed = false
 
     // 导航容器与 ModeTabPicker 顶栏由 RemoteRootView 的 NavigationStack 提供
-    // （pp 定稿：胶囊切换位置不动）；本视图只挂自己的右上角菜单。
+    // （pp 定稿：胶囊切换位置不动）；列表选项菜单在板块结构的项目头 …，
+    // 本视图不再另挂右上角菜单。
     var body: some View {
         content
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    listOptionsButton
-                }
-            }
             .sheet(isPresented: $showsPairSheet) {
                 PairDeviceSheet(service: service)
             }
@@ -103,51 +100,52 @@ struct RemoteSessionListView: View {
         }
     }
 
-    // MARK: - 列表（moonveil 卡片化壳）
+    // MARK: - 列表（官方两大板块：设备 / 项目；行视觉全部复用本机列表 UI）
 
     private var sessionList: some View {
         List {
-            // 连接器区（AA 的 Devices section：在线/离线点 + 等宽设备名）
+            // —— 设备板块 ——
             Section {
-                connectorRow
-                previewBanner
+                deviceRow
                 if pendingNotices > 0 {
                     Label("需要你处理 ×\(pendingNotices)", systemImage: "bell.badge")
                         .font(.callout)
                         .foregroundStyle(.red)
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, 16)
+                        .frame(minHeight: 48)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color(.systemBackground))
                 }
+                pairDeviceRow
             } header: {
-                sectionLabel("连接器")
+                sectionLabel("设备")
             }
 
-            // 置顶会话
-            if !pinnedItems.isEmpty {
-                Section {
-                    ForEach(pinnedItems) { item in
-                        sessionRow(item)
-                    }
-                } header: {
-                    sectionLabel("置顶")
-                }
-            }
-
-            // 项目分组（projectHeader 行自带「项目」标题 + 创建按钮；
-            // 不再套 Section header 重复一遍——pp 2026-09-20 排版修复）
+            // —— 项目板块（projectHeader 行自带标题 + 折叠 + 菜单 + 新建；
+            // 不套 Section header 重复一遍） ——
             Section {
                 projectHeader
-                ForEach(projectItems) { item in
-                    sessionRow(item, inset: true)
+                previewBanner
+                if !projectsCollapsed {
+                    ForEach(projectItems) { item in
+                        sessionRow(item, inset: true)
+                    }
+                    if projectItems.isEmpty {
+                        // 搜索无结果 ≠ 没有项目——文案分开，保持诚实
+                        Text(searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                             ? "还没有项目。"
+                             : "没有匹配的会话。")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 16)
+                            .frame(minHeight: 48)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color(.systemBackground))
+                    }
                 }
-            }
-
-            // 全部会话
-            Section {
-                ForEach(recentItems) { item in
-                    sessionRow(item)
-                }
-            } header: {
-                sectionLabel("全部会话")
             }
         }
         .listStyle(.plain)
@@ -158,7 +156,7 @@ struct RemoteSessionListView: View {
         .refreshable { await refresh() }
     }
 
-    // MARK: - 会话行（moonveil 卡片 + AA 状态指示器四态）
+    // MARK: - 会话行（本机平色行视觉 + AA 状态指示器四态）
 
     private func sessionRow(_ item: RemoteSessionItem, inset: Bool = false) -> some View {
         Button {
@@ -288,31 +286,47 @@ struct RemoteSessionListView: View {
         .contentShape(.capsule)
     }
 
-    // MARK: - 连接器区
+    // MARK: - 设备板块
 
-    private var connectorRow: some View {
-        HStack(spacing: 10) {
+    private var deviceRow: some View {
+        HStack(spacing: 12) {
             Circle()
                 .fill(service.state == .ready ? Color.green : Color.secondary.opacity(0.45))
                 .frame(width: 7, height: 7)
             Text(serverLabel)
-                .font(.system(.subheadline, design: .monospaced))
+                .font(.system(.body, design: .monospaced))
                 .foregroundStyle(service.state == .ready ? .primary : .secondary)
                 .lineLimit(1)
             Spacer(minLength: 0)
-            Button {
-                showsPairSheet = true
-            } label: {
-                Label("配对设备", systemImage: "plus")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
         .frame(minHeight: 56)
         .contentShape(Rectangle())
+        .listRowInsets(EdgeInsets())
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color(.systemBackground))
+    }
+
+    /// 「+ 配对设备」整行（官方板块结构；行视觉 = 本机列表行同款）。
+    /// 弹窗内容 PairDeviceSheet 保持 AA 视觉——pp 定稿：进按钮的 UI 才完全用 AA。
+    private var pairDeviceRow: some View {
+        Button {
+            showsPairSheet = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .medium))
+                    .frame(width: 20)
+                Text("配对设备")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 56)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
         .listRowBackground(Color(.systemBackground))
@@ -336,28 +350,47 @@ struct RemoteSessionListView: View {
         .listRowBackground(Color(.systemBackground))
     }
 
-    // MARK: - 项目头
+    // MARK: - 项目头（官方：「项目 ▾ … +」；折叠/菜单/新建都接真行为）
 
     private var projectHeader: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "folder")
-                .font(.system(size: 18))
-                .foregroundStyle(.secondary)
-            Text("项目")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+        HStack(spacing: 4) {
+            Button {
+                withAnimation(.snappy) { projectsCollapsed.toggle() }
+            } label: {
+                HStack(spacing: 4) {
+                    Text("项目")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Image(systemName: projectsCollapsed ? "chevron.right" : "chevron.down")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             Spacer(minLength: 0)
-            // … 按钮删除（其开关 showsListOptions 是死状态；列表选项菜单在右上角）
+            Menu {
+                listOptionsMenuContent
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             Button {
                 showsProjectEditor = true
             } label: {
                 Image(systemName: "plus")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.secondary)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 16)
+        .padding(.leading, 16)
         .frame(minHeight: 48)
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
@@ -411,26 +444,20 @@ struct RemoteSessionListView: View {
 
     // MARK: - 派生
 
-    private var pinnedItems: [RemoteSessionItem] { filteredSessions.filter(\.isPinned) }
-    private var projectItems: [RemoteSessionItem] { filteredSessions.filter { $0.projectId != nil && !$0.isPinned } }
-    private var recentItems: [RemoteSessionItem] { filteredSessions.filter { $0.projectId == nil && !$0.isPinned } }
+    /// 项目板块的会话 = 搜索过滤后的全部会话（两大板块结构下不再有独立「置顶/全部」段；
+    /// 置顶项排前。按项目分组折叠的条目级呈现随数据面接通再对齐官方项目抽屉。）
+    private var projectItems: [RemoteSessionItem] {
+        filteredSessions.sorted { ($0.isPinned ? 0 : 1) < ($1.isPinned ? 0 : 1) }
+    }
 
-    private var listOptionsButton: some View {
-        Menu {
-            Picker("列表显示", selection: .constant(true)) {
-                Text("按项目").tag(false)
-                Text("全部会话").tag(true)
-            }
-            Divider()
-            Button("归档会话", systemImage: "archivebox") { showsArchives = true }
-            Divider()
-            // 断开连接入口从 RemoteRootView 的状态卡迁移至此（接线时不丢）
-            Button("断开连接", role: .destructive, action: onDisconnect)
-        } label: {
-            Image(systemName: "ellipsis")
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
-        }
+    // 列表选项（归档/断开）挂在项目头的 …（官方位置）；右上角不再另放菜单。
+    // 导航容器与 ModeTabPicker 顶栏仍由 RemoteRootView 提供。
+    @ViewBuilder
+    private var listOptionsMenuContent: some View {
+        Button("归档会话", systemImage: "archivebox") { showsArchives = true }
+        Divider()
+        // 断开连接入口从 RemoteRootView 的状态卡迁移至此（接线时不丢）
+        Button("断开连接", role: .destructive, action: onDisconnect)
     }
 }
 

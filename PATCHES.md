@@ -1151,3 +1151,16 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离**：ContentView 侧全部为行为不变的可见性提取（private→internal + 值上移别名，本机渲染路径逐位同：同 tint/同 87/同 1.15/同 294+34 渐隐几何/同挂载点）；远端侧不新增文件（零 pbxproj 改动）；远端不读 ChatStore、不碰本机列表逻辑，只消费本机主动暴露的共享配方（方向合法：本机暴露→远端消费）。注释新增不含 RemoteKit 符号名（import-scan 门禁约束）。
 - **回归项**：① 本机列表底栏与改前逐像素一致（胶囊/搜索栏/渐隐/键盘避让）② 远端行贴边平色、与本机同款密度 ③ 远端"项目"只出现一次、… 按钮消失、右上角菜单归档/断开可用 ④ 远端搜索可输入、即时过滤标题、X/回车/滚动三出口收起 ⑤ 远端胶囊 126×44.7 外观（浅色 #111 tint）⑥ 远端渐隐位置同本机（屏底-190 起淡）⑦ 预览横幅显示、深色模式可读 ⑧ 空态（真数据为空）仍显配对引导 + 底栏。
 - **验证**：本机（Linux）无 Swift/Xcode 工具链、无法编译；静态三轮（括号/花脚平衡=0、删侧 diff 审计、全库 grep 零悬空引用：showsListOptions/RemoteRowCardBackground/RemoteCardSurface/bottomFade 仅剩说明性注释）+ 对抗复核（AppGlassButton 新参数签名逐位核对、AppLocalized/ChatColors/SearchBarSurface 可见性与签名、Section 无 header 合法性）；**编译与回归 ①–⑧ 需 CI + 装机验证**。
+
+## REMOTE-LIST-TWOMODULE — 远端列表板块重构：照官方两大模块（设备/项目）+ 列表 UI 全复用本机（Qoder, 2026-09-20，pp 官方侧栏截图「排版是不是按照两大板块做的」→ 定稿「列表排版就复用本地的列表ui，不要再另外造一套；按官方分两个模块，点击按钮进入的 ui 才完全用 aa」）
+
+- **Files**: 仅 `Views/RemoteSessions/RemoteSessionListView.swift`（板块重构 + 文件头定稿注释）。
+- **缘起**：pp 对照官方 AA 侧栏截图确认板块语义——官方 = 设备板块（设备行 + 「+ 配对设备」整行）+ 项目板块（「项目 ▾ … +」头 + 空态「还没有项目。」）。原实现为四段（连接器/置顶/项目/全部会话）且配对入口是行尾小按钮、项目头无折叠无菜单。
+- **修复**：
+  - A 设备板块：Section 标题「连接器」→「设备」；connectorRow → deviceRow（去行尾配对小按钮，等宽字体 subheadline→body）；新增 `pairDeviceRow`「+ 配对设备」整行（本机行同款 minHeight 56 / padding 16 / 平色背景）→ 弹 PairDeviceSheet（AA 视觉不动，符合「进按钮的 UI 才用 AA」）。
+  - B 项目板块：projectHeader 升级官方三件套——标题+`chevron` 折叠（`projectsCollapsed`，`withAnimation(.snappy)`）、`…` Menu（复用 `listOptionsMenuContent`：归档会话/断开连接）、`+` 新建；空态行「还没有项目。」，搜索无结果时分文案「没有匹配的会话。」（诚实区分）。
+  - C 删多余板块与右上角菜单：置顶/全部会话 Section 删除（`pinnedItems`/`recentItems` 派生删除；`projectItems` = 过滤后全部、置顶排前）；toolbar `listOptionsButton` 删除（含死 Picker「列表显示」constant 开关），选项入口移至项目头 …（官方位置）。
+  - D previewBanner 挪入项目板块（projectHeader 之下、会话行之上）——它标的是会话数据，不占设备板块。
+- **死隔离**：只动远端列表文件；本机 ContentView / RemoteKit / AA 弹窗（PairDeviceSheet/ProjectEditor/详情/归档）零改动；不新增文件（零 pbxproj）。
+- **回归项**：① 列表只剩设备/项目两大板块，行视觉与本机一致 ② 「+ 配对设备」整行弹 AA 配对页 ③ 项目头 ▾ 折叠/展开会话区 ④ 项目头 … 弹归档/断开菜单、+ 弹项目编辑 ⑤ 搜索过滤与两态空文案 ⑥ 置顶左滑仍生效（排序置顶项在前）⑦ 长按菜单/左滑动作不回归 ⑧ 深色模式。
+- **验证**：本机无 Swift 工具链；静态三轮（括号平衡 0、grep 零悬空：connectorRow/listOptionsButton/pinnedItems/recentItems 全库无引用）；**编译与回归 ①–⑧ 需 CI + 装机**。
