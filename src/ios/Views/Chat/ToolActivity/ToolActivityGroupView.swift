@@ -61,6 +61,20 @@ struct ToolActivityGroupView: View {
 
     private static var startCache: [UUID: Date] = [:]
 
+    /// [T-ios-slot-fresh-measure-latch] 重测量补发冷却门闩（09-19 审查修正）。
+    /// config 替换会重置 @State 并重跑 onAppear（本文件 [pp 09-18 根因②] 自述），
+    /// 若 onAppear 无条件补发即形成"通知 → reconfigure → 新子树 onAppear → 再通知"
+    /// 的**无界回环**（hosting-graph 重入 = 仓内登记崩溃面）。@State 不能当门闩
+    /// （它正是被重建重置的东西），故用视图外 static 记录各 anchor 上次补发时刻：
+    /// 每次重测量链最多一发，回环单次收敛。
+    private static var lastRemountPing: [UUID: TimeInterval] = [:]
+    private static func allowRemountPing(_ anchorId: UUID) -> Bool {
+        let now = ProcessInfo.processInfo.systemUptime
+        if let last = lastRemountPing[anchorId], now - last < 1.0 { return false }
+        lastRemountPing[anchorId] = now
+        return true
+    }
+
     /// [pp 09-18 Grok 轮播 1:1] 队列弹簧：0.42s 无回弹。Grok 逐帧实测（60fps）：
     /// 位移 t=0.2→41%、0.4→83%、0.6→99%，峰值速度 t≈20%，无过冲 → smooth(bounce=0)。
     static let carouselSpring: Animation = .smooth(duration: 0.42)
@@ -145,12 +159,14 @@ struct ToolActivityGroupView: View {
             carouselIds = eventBlocks.map(\.id)
             // [T-ios-slot-fresh-measure] 重进/重建自愈（保险丝）：播种后对运行中的段
             // 补发一次既有重测通道（.thinkingBlockToggled → 列表侧清双层缓存 +
-            // 单格 reconfigure 重测）。即使 init 预置之外仍有边角竞态，也会在
-            // 1-2 帧内修回，不再"等下一个工具事件"。仅运行中的段补发，历史格（done）
-            // 与滚动回看不打扰布局。
+            // 单格 reconfigure 重测），不再"等下一个工具事件"。仅运行中的段补发，
+            // 历史格（done）与滚动回看不打扰布局。
+            // [T-ios-slot-fresh-measure-latch] 补发前过冷却门闩（见 allowRemountPing）：
+            // 防"通知 → reconfigure → 新子树 onAppear → 再通知"的无界回环；本链每
+            // 收敛为单次重测。
             // [T-ios-slot-fresh-measure-probe] 顺带打点（定位后与探针一并评估删除）。
             AppLogger(category: "SlotMeasure").info("[SlotMeasure][swift] anchor=\(segment.anchorId.uuidString.prefix(8)) carouselSeeded=\(carouselIds.count) rows=\(eventBlocks.count) running=\(!segment.isDone)")
-            if !segment.isDone {
+            if !segment.isDone, Self.allowRemountPing(segment.anchorId) {
                 let anchorId = segment.anchorId
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(name: .thinkingBlockToggled, object: anchorId)

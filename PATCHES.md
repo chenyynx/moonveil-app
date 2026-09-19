@@ -938,3 +938,4 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离申报**: 呈现层两文件；不碰数据/SSE/agent 链路/桥；无新机制（全部复用既有通知链与测量流程）；`ToolActivityGroupView(` 全仓构造点唯一（AssistantBlockView:186），新 init 带默认参不破坏调用；`AppLogger` 为同 target 既有设施。
 - **回归**: ①任务中反复「退出重进」×10 不塌不溢出 ②长工具运行期稳定 ③收尾边界不闪、入口行正常收口 ④Stop 正常 ⑤贴正文/扫光 v12/轮播/计时/汇聚页不回退 ⑥本地+远端会话各一遍。
 - **验证**: CI 编译 + 装机日志（[SlotMeasure]：首测 cellFrameH≈125；重进后不再 `frameH=24.0` 紧跟 `DISPATCH`）。
+- **补记（09-19 独立审查修正）**: onAppear 补发加**视图外冷却门闩**（`lastRemountPing` ≥1s）——config 替换会重置 @State 并重跑 onAppear（本文件 [pp 09-18 根因②] 自述），不加闩会形成"通知→reconfigure→新子树 onAppear→再通知"的运行期无界回环（hosting-graph 重入=仓内登记崩溃面）。审查代理发现（Q2 项），随下笔提交修复。
