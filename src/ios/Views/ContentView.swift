@@ -4302,7 +4302,9 @@ struct ContentView: View {
     private var newChatPill: some View {
         AppGlassButton(
             AppLocalized("New chat"),
-            systemImage: "square.and.pencil",
+            // [NEWCHAT-ICON] pp 2026-09-20「把图标换成➕号吧」：与参照图（+ New chat）
+            // 一致。只动底部胶囊这一处；菜单/聊天页的 square.and.pencil 各处不动。
+            systemImage: "plus",
             style: .prominent,
             maxWidth: nil,
             tintOverride: Self.newChatPillTint,
