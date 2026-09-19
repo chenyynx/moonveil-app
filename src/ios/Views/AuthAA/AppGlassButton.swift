@@ -13,6 +13,9 @@ struct AppGlassButton: View {
     let isLoading: Bool
     let disabled: Bool
     let maxWidth: CGFloat?
+    /// [NEWCHAT-INK] Prominent-style tint override; nil = AppTheme default
+    /// (additive parameter — existing call sites unchanged).
+    let tintOverride: Color?
     let action: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -25,6 +28,7 @@ struct AppGlassButton: View {
         isLoading: Bool = false,
         disabled: Bool = false,
         maxWidth: CGFloat? = .infinity,
+        tintOverride: Color? = nil,
         action: @escaping () -> Void
     ) {
         self.title = title
@@ -34,6 +38,7 @@ struct AppGlassButton: View {
         self.isLoading = isLoading
         self.disabled = disabled
         self.maxWidth = maxWidth
+        self.tintOverride = tintOverride
         self.action = action
     }
 
@@ -44,6 +49,7 @@ struct AppGlassButton: View {
         isLoading: Bool = false,
         disabled: Bool = false,
         maxWidth: CGFloat? = nil,
+        tintOverride: Color? = nil,
         action: @escaping () -> Void
     ) {
         self.title = nil
@@ -53,6 +59,7 @@ struct AppGlassButton: View {
         self.isLoading = isLoading
         self.disabled = disabled
         self.maxWidth = maxWidth
+        self.tintOverride = tintOverride
         self.action = action
     }
 
@@ -60,7 +67,7 @@ struct AppGlassButton: View {
         if style == .prominent {
             button
                 .modifier(PrimaryButtonStyleIfAvailable())
-                .tint(AppTheme.primaryControlBackground(colorScheme))
+                .tint(tintOverride ?? AppTheme.primaryControlBackground(colorScheme))
                 .foregroundStyle(AppTheme.primaryControlForeground(colorScheme))
         } else {
             button

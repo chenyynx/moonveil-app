@@ -4223,12 +4223,23 @@ struct ContentView: View {
         .offset(y: searchFocused ? 0 : 30)
     }
 
+    /// [NEWCHAT-INK] pp 2026-09-20「新会话的颜色有没有对齐图二」：参照图胶囊底色
+    /// 实测 rgb(42,42,41)、实机渲染 rgb(25,25,25)——浅色下把 prominent tint 由纯黑
+    /// 抬到 #111111 补偿（材质偏移 +25 的恒定近似下 17+25≈42）；深色模式维持原
+    /// 白底（黑字必需）。装机后按实拍微调。
+    private static let newChatPillTint = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? .white
+            : UIColor(white: 0x11 / 255, alpha: 1)
+    })
+
     private var newChatPill: some View {
         AppGlassButton(
             AppLocalized("New chat"),
             systemImage: "square.and.pencil",
             style: .prominent,
-            maxWidth: nil
+            maxWidth: nil,
+            tintOverride: Self.newChatPillTint
         ) {
             openSession(Self.makeNewSessionId())
         }
