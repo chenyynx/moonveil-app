@@ -525,12 +525,15 @@ private struct ThinkingDetailPage: View {
     }
 }
 
-// MARK: - 工具详情页（push：复用 ToolBlockContentView 渲染）[pp 09-19 汇聚页对齐]
+// MARK: - 工具详情页（push：详细内容 + 之前的卡片渲染器）
 //
-// 原先是通用 Input JSON / Output 文本两张卡；现改为与小窗（ToolLiveSheet）
-// 同一套内容渲染（ToolBlockContentView）：file_edit→diff 卡、file_write/
-// file_read→内容卡、shell→输出、browser→快照/文本、memory→memory 渲染、
-// 其它→textContent fallback。SummaryDetailHeader 外壳不变。
+// [pp 09-19 定稿] "只取内容、不取 UI"：详细内容（读到的/写入的/删减添加）
+// 全部保留，以之前的代码卡（SelectableMarkdownView fenced block，跟随主题）
+// 呈现；小窗（ToolLiveSheet）的新版渲染风格留在小窗自己，不进汇聚页。
+// 提取不到内容时兜底回旧版 Input/Output 双卡。
+//
+// 内容映射：file_edit→-/+ 对比文本；file_write→写入全文；file_read→读取全文；
+// shell→命令+输出；其它→输出文本。
 
 private struct ToolSummaryDetailPage: View {
     @ObservedObject var message: ChatMessage
@@ -542,18 +545,6 @@ private struct ToolSummaryDetailPage: View {
 
     private var block: AssistantBlock? {
         message.blocks.first { $0.id == blockId }
-    }
-
-    /// The snapshot corresponding to this block (matched by toolUseId).
-    private var currentSnapshot: ToolSnapshotItem? {
-        guard let block, let blockId = block.toolUseId else { return nil }
-        return toolSnapshots.first(where: { $0.id == blockId })
-    }
-
-    /// Index of this block in the segment's tool blocks (for browser URL inheritance).
-    private var blockIndex: Int {
-        guard let block else { return 0 }
-        return toolBlocks.firstIndex(where: { $0.id == block.id }) ?? 0
     }
 
     var body: some View {
@@ -578,19 +569,135 @@ private struct ToolSummaryDetailPage: View {
 
         VStack(spacing: 0) {
             SummaryDetailHeader(title: title, onBack: onBack)
-            // [pp 09-19 汇聚页对齐] 内容区复用 ToolBlockContentView，与小窗同款渲染。
-            // isLive = false（汇聚页只看已完成内容）；snapshot 从 toolSnapshots 匹配。
-            ToolBlockContentView(
-                block: block,
-                isLive: false,
-                snapshot: currentSnapshot,
-                browserPool: browserPool,
-                toolBlocks: toolBlocks,
-                blockIndex: blockIndex
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    // [pp 09-19] 详细内容卡优先（"之前的卡片"渲染器）；
+                    // 提取不到内容时兜底旧版 Input/Output 双卡。
+                    if let md = detailMarkdown(block) {
+                        SelectableMarkdownView(markdown: md)
+                    } else {
+                        sectionLabel(AppLocalized("Input"))
+                        codeCard(languageTag(block), inputText(block))
+
+                        let output = block.content
+                        if !output.isEmpty {
+                            sectionLabel(AppLocalized("Output"))
+                                .padding(.top, 20)
+                            codeCard(languageTag(block), output)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .padding(.bottom, 30)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(SummaryPalette.sheetBg)
+    }
+
+    /// 详细内容 → 与旧版代码卡同款（fenced code block）；无内容返回 nil 走兜底。
+    private func detailMarkdown(_ block: AssistantBlock) -> String? {
+        switch block.kind {
+        case .fileEditTool:
+            guard let edit = extractEditStrings(block) else { return nil }
+            guard !(edit.old.isEmpty && edit.new.isEmpty) else { return nil }
+            let oldLines = edit.old.components(separatedBy: "\n").map { "- " + $0 }
+            let newLines = edit.new.components(separatedBy: "\n").map { "+ " + $0 }
+            let body = (oldLines + newLines).joined(separator: "\n")
+            return "```diff\n\(body)\n```"
+        case .fileWriteTool(let p):
+            guard let content = extractWriteContent(block), !content.isEmpty else { return nil }
+            return "```\(Self.extLang(p))\n\(content)\n```"
+        case .fileReadTool(let p):
+            let text = block.content
+            guard !text.isEmpty else { return nil }
+            return "```\(Self.extLang(p))\n\(text)\n```"
+        case .shellTool(let cmd):
+            let text = block.content
+            let prefix = "$ \(cmd)\n"
+            let body = text.isEmpty ? prefix : (text.hasPrefix(prefix) ? text : prefix + text)
+            guard !body.isEmpty else { return nil }
+            return "```shell\n\(body)\n```"
+        default:
+            let text = block.content
+            guard !text.isEmpty else { return nil }
+            return "```text\n\(text)\n```"
+        }
+    }
+
+    /// file_edit 的 old_string / new_string（toolInputArgs JSON 提取）。
+    private func extractEditStrings(_ block: AssistantBlock) -> (old: String, new: String)? {
+        guard let json = block.toolInputArgs,
+              let data = json.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let old = dict["old_string"] as? String,
+              let new = dict["new_string"] as? String else { return nil }
+        return (old, new)
+    }
+
+    /// file_write 的 content（toolInputArgs JSON 提取）。
+    private func extractWriteContent(_ block: AssistantBlock) -> String? {
+        guard let json = block.toolInputArgs,
+              let data = json.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let content = dict["content"] as? String else { return nil }
+        return content
+    }
+
+    private func sectionLabel(_ title: String) -> some View {
+        Text(verbatim: title) // [CI #114 修复] AppLocalized 只收字面量 key，变量传参编译不过
+            .font(.system(size: 15))
+            .foregroundStyle(SummaryPalette.muted)
+            .padding(.bottom, 10)
+    }
+
+    /// 代码卡 = SelectableMarkdownView fenced block（语言标签 + 语法高亮 + 圆角卡）。
+    private func codeCard(_ lang: String, _ text: String) -> some View {
+        SelectableMarkdownView(markdown: "```\(lang)\n\(text)\n```")
+    }
+
+    /// Input：完整参数 JSON（pretty）优先，factory 输入摘要兜底。
+    private func inputText(_ block: AssistantBlock) -> String {
+        if let raw = block.toolInputArgs, !raw.isEmpty,
+           let data = raw.data(using: .utf8),
+           let obj = try? JSONSerialization.jsonObject(with: data),
+           let pretty = try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]),
+           let s = String(data: pretty, encoding: .utf8), !s.isEmpty {
+            return s
+        }
+        if let item = ToolEventRowFactory.item(for: block), !item.detail.isEmpty {
+            return item.detail
+        }
+        return block.toolDescription
+    }
+
+    private func languageTag(_ block: AssistantBlock) -> String {
+        switch block.kind {
+        case .shellTool: return "shell"
+        case .browserTool: return "browser"
+        case .memoryTool: return "text"
+        case .fileReadTool(let p), .fileWriteTool(let p), .fileEditTool(let p), .readImageTool(let p):
+            return Self.extLang(p)
+        case .text, .thinking, .info: return "text"
+        }
+    }
+
+    private static func extLang(_ path: String) -> String {
+        let ext = (path as NSString).pathExtension.lowercased()
+        switch ext {
+        case "ts": return "typescript"
+        case "js", "mjs", "cjs": return "javascript"
+        case "py": return "python"
+        case "rb": return "ruby"
+        case "sh", "bash", "zsh": return "shell"
+        case "yml": return "yaml"
+        case "md": return "markdown"
+        case "swift", "json", "html", "css", "go", "rs", "java", "c", "cpp", "xml":
+            return ext
+        default:
+            return ext.isEmpty ? "text" : ext
+        }
     }
 }
