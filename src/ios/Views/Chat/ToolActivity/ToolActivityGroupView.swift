@@ -30,6 +30,30 @@ struct ToolActivityGroupView: View {
     /// Batch C: shell in-flight stop passthrough (feature parity [H6]).
     var onStop: (() -> Void)?
 
+    /// [T-ios-slot-fresh-measure] 首帧即带事件行：`carouselIds` 原先从空数组启动，
+    /// 单元格"首次自测量"若发生在 onAppear 播种之前，只量到标题行（≈24pt）并被写
+    /// 进布局高度缓存（heightCache 只接受真实测量值）；此后工具运行期间既无
+    /// segment 变化、也无流式 flush → 补测通道全静默 → 错误高度一直挂到下一次
+    /// 工具事件（pp 09-19 装机实锤：退出聊天页重进必现；
+    /// [ThinkingCollapse] HIT frameH=24.0 → POST 125.0 delta=+101.0，距
+    /// req#8/#9 DISPATCH 4ms/1ms；气泡与「Thinking」同行、工具行探进玻璃工具条）。
+    /// init 预置 = 首帧内容即完整运行槽（≈125pt），首测不再可能量到空槽。
+    init(message: ChatMessage,
+         segment: TurnActivitySegment,
+         isActiveMessage: Bool,
+         onOpenDetail: ((TurnActivitySegment) -> Void)? = nil,
+         onStop: (() -> Void)? = nil) {
+        self.message = message
+        self.segment = segment
+        self.isActiveMessage = isActiveMessage
+        self.onOpenDetail = onOpenDetail
+        self.onStop = onStop
+        let seededCarousel = segment.toolIds.suffix(3).compactMap { id in
+            message.blocks.first { $0.id == id }?.id
+        }
+        _carouselIds = State(initialValue: seededCarousel)
+    }
+
     // MARK: State
 
     /// Segment start instant (view-layer cache survives cell rebuilds).
@@ -119,6 +143,19 @@ struct ToolActivityGroupView: View {
             // [pp 09-18 根因③] 首渲染历史行直接落位（无动画事务 → 无插入动画）；
             // 后续增删走 onChange 显式事务。
             carouselIds = eventBlocks.map(\.id)
+            // [T-ios-slot-fresh-measure] 重进/重建自愈（保险丝）：播种后对运行中的段
+            // 补发一次既有重测通道（.thinkingBlockToggled → 列表侧清双层缓存 +
+            // 单格 reconfigure 重测）。即使 init 预置之外仍有边角竞态，也会在
+            // 1-2 帧内修回，不再"等下一个工具事件"。仅运行中的段补发，历史格（done）
+            // 与滚动回看不打扰布局。
+            // [T-ios-slot-fresh-measure-probe] 顺带打点（定位后与探针一并评估删除）。
+            AppLogger(category: "SlotMeasure").info("[SlotMeasure][swift] anchor=\(segment.anchorId.uuidString.prefix(8)) carouselSeeded=\(carouselIds.count) rows=\(eventBlocks.count) running=\(!segment.isDone)")
+            if !segment.isDone {
+                let anchorId = segment.anchorId
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .thinkingBlockToggled, object: anchorId)
+                }
+            }
         }
         .onChange(of: workHasStarted) { _ in
             // [pp 09-18] 首个思考内容到达那一刻起表 + 「Thinking」/计时出现动画
