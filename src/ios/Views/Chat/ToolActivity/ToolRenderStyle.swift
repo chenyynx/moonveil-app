@@ -30,6 +30,8 @@ extension Notification.Name {
     static let toolRenderStyleChanged = Notification.Name("toolRenderStyleChanged")
     /// TOOLSPACING-1: posted when the tool row spacing setting changes.
     static let toolRowSpacingChanged = Notification.Name("toolRowSpacingChanged")
+    /// TOOLSPACING-2: posted when the block spacing setting changes.
+    static let blockSpacingChanged = Notification.Name("blockSpacingChanged")
 }
 
 /// UserDefaults bridge for `ToolRenderStyle`.
@@ -61,5 +63,27 @@ enum GlassToolBarStore {
     static var isEnabled: Bool {
         let raw = UserDefaults.standard.object(forKey: userDefaultsKey) as? Bool
         return raw ?? defaultEnabled
+    }
+}
+
+// MARK: - TOOLSPACING-2
+
+/// User-adjustable tool-related spacing (new skin only; classic keeps its frozen values).
+/// Reads @AppStorage-backed keys with explicit defaults (key-absent check so the
+/// default is authoritative until the user first moves a slider).
+enum ToolSpacingSettings {
+    static let rowSpacingKey = "toolRowSpacing"
+    static let blockSpacingKey = "blockSpacing"
+    static let rowSpacingDefault: Double = 18
+    static let blockSpacingDefault: Double = 22
+
+    static func rowSpacing() -> CGFloat {
+        let d = UserDefaults.standard
+        return CGFloat(d.object(forKey: rowSpacingKey) != nil ? d.double(forKey: rowSpacingKey) : rowSpacingDefault)
+    }
+
+    static func blockSpacing() -> CGFloat {
+        let d = UserDefaults.standard
+        return CGFloat(d.object(forKey: blockSpacingKey) != nil ? d.double(forKey: blockSpacingKey) : blockSpacingDefault)
     }
 }

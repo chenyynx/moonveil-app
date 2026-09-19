@@ -7107,6 +7107,7 @@ private struct AppearanceSettingsView: View {
     /// [H7] Master switch for the floating glass toolbar (two-version universal).
     @AppStorage("floatingToolBarEnabled") private var floatingToolBarEnabled: Bool = true
     @AppStorage("toolRowSpacing") private var toolRowSpacing: Double = 18
+    @AppStorage("blockSpacing") private var blockSpacing: Double = 22
     /// 0 = Return inserts a newline (default), 1 = Return sends the message.
     @AppStorage("returnKeyBehavior") private var returnKeyBehavior: Int = 0
     /// When true, holds `UIApplication.isIdleTimerDisabled` while any session
@@ -7246,6 +7247,18 @@ private struct AppearanceSettingsView: View {
                 }
                 .onChange(of: toolRowSpacing) {
                     NotificationCenter.default.post(name: .toolRowSpacingChanged, object: nil)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(AppLocalized("Block Spacing"))
+                        Spacer()
+                        Text("\(Int(blockSpacing)) pt")
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $blockSpacing, in: 8...40, step: 2)
+                }
+                .onChange(of: blockSpacing) {
+                    NotificationCenter.default.post(name: .blockSpacingChanged, object: nil)
                 }
             } header: {
                 Text("Tool Status Bar")

@@ -1007,3 +1007,11 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - `ToolActivityGroupView`：@AppStorage("toolRowSpacing")（默认 18）消费；`ContentView` 设置（Tool Status Bar 区）加 Slider（8–30pt，step 2）；新通知 `.toolRowSpacingChanged` → Coordinator 复用全量重排链（handleToolRenderStyleChanged）。
 - 隔离声明：新 UserDefaults key 为显式 gate；仅新版渲染消费（classic 胶囊不走该组件）；两端模式共用=预期同步；不触碰状态机/数据流。
 - 回归项：拖动滑杆行间距即时变化（含历史消息）；重启保留；默认 18pt 与改动前一致；classic 模式零影响。
+
+## TOOLSPACING-2 — block spacing setting, both sliders new-skin-only（2026-09-19，pp：“两个都做可调节，只针对于新版”）
+
+- A（已有 TOOLSPACING-1）：工具行间距滑杆（Tool Row Spacing，8–30pt，默认 18）——天然仅新版（classic 胶囊不走该组件）。
+- B（本批）：块间距滑杆（Block Spacing，8–40pt，默认 22）——仅 new 皮肤取可调值，classic 固定 8（CLASSIC-FREEZE-1 保持）。
+- 实现：`ToolSpacingSettings`（显式默认值的 UserDefaults 读取）；`MessageListInfrastructure` 初值 + `handleToolRenderStyleChanged` 均读 helper；新通知 `.blockSpacingChanged` → 复用全量重排链。
+- 隔离声明：新 UserDefaults key 为显式 gate；classic 固定值零影响；两端模式共用=预期同步；不触碰状态机/数据流。
+- 回归项：两滑杆各自实时生效（含历史消息）；重启保留；默认值（18/22）与改动前一致；classic 零影响。

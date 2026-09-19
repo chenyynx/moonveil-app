@@ -901,7 +901,7 @@ extension CollectionViewMessageListV3 {
                 return
             }
             // CLASSIC-FREEZE-1: skin decides spacing/line metrics — apply before re-layout
-            layout.itemSpacing = ToolRenderStyleStore.current == .new ? 22 : 8
+            layout.itemSpacing = ToolRenderStyleStore.current == .new ? ToolSpacingSettings.blockSpacing() : 8
             self.vm?.invalidateAttributedStringCaches()
             for ip in cv.indexPathsForVisibleItems {
                 (cv.cellForItem(at: ip) as? SelfSizingCell)?.clearCachedHeight()
@@ -2027,6 +2027,15 @@ extension CollectionViewMessageListV3 {
             // 7b. Tool row spacing changes (TOOLSPACING-1) — row gap affects
             // heights; reuse the full reflow chain (clears caches + reconfigures).
             NotificationCenter.default.publisher(for: .toolRowSpacingChanged)
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    guard let self else { return }
+                    self.handleToolRenderStyleChanged()
+                }
+                .store(in: &subscriptions)
+
+            // 7c. Block spacing changes (TOOLSPACING-2) — same full reflow chain.
+            NotificationCenter.default.publisher(for: .blockSpacingChanged)
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     guard let self else { return }
