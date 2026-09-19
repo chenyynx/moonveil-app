@@ -1130,4 +1130,8 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 
 **BOTTOM-FADE-3（2026-09-20，pp「渐隐位置还是有问题啊」+ 04:43 实机图）**：FADE-POS-FIX（去 ignoresSafeArea）后症状不变——淡化带仍固定在距屏底 199–299pt（两图同滚动位置、同位置）。**反推**：v1（bar 的 background）的淡化带位置与 bar frame（[屏底-180, 屏底-34]）完全吻合 = **该挂载点位置是准的**；v2 的 List-overlay 淡化带底边恒在距屏底 ~199pt = List frame 底异常上移 199pt（根因未明，本地无法复现）。**决策：弃用 List-overlay，改回已验证可靠的 bar-background 挂载点**，并给渐变**显式高度 260pt**（v1 无显式高度只填了 bar 自身 143pt，所以只盖到栏区）+ `alignment: .bottom` 向上溢出；stops 重算（相对渐变层）：[透明@0.40, 全白@0.90] → 淡化带 = 屏底-190 起淡、屏底-60 淡尽（对齐参照）。z 序不变（列表 < 渐变 < bar 内容）。
 
+**CLICKFIX + FADE-MATERIAL（2026-09-20，pp「列表会话点不进去了 点了没反应」+「渐隐用顶部的那种模糊效果吧」）**：
+1. **点击回归修复**：SEARCH-DISMISS 批次的列表 `.simultaneousGesture(TapGesture())`（点列表收键盘）实测**干扰行点击** → 移除（两处）。收起出口保留：滚动（`scrollDismissesKeyboard`）/ 键盘「搜索」键 / 有文字时 X。
+2. **渐隐材质化**：`bottomFade` 从纯色 `LinearGradient` 改为 **`.ultraThinMaterial` + mask 渐隐**——同 `folderMiniBar` 的材质语言（pp：「用顶部的那种模糊效果」）；位置/曲线参数不变（0.40 前不模糊、0.90 后全模糊，260pt、底对齐 bar frame 底）。
+
 **补充（2026-09-20，pp「要高亮 你做吧」）**：命中消息**高亮脉冲**——`SearchJumpHighlightModifier`（`ChatColors.accent` 12% 圆角背景，跟随既有「复制后高亮」视觉语言）挂在 `BridgedWholeMessageV3` 上；coordinator 在定位成功后设 `searchJumpHighlightId` 并重建该 cell（亮起），2s 后释放并重建（灭）；cell 内 0.6s 后开始 0.9s 淡出（显式 `withAnimation` —— cell 宿主吞隐式动画/B16 判例）。找不到目标时不设高亮。回归项追加：⑨ 跳转后命中消息亮起并在约 1.5s 内淡出 ⑩ 非搜索路径消息无高亮。

@@ -2924,9 +2924,9 @@ struct ContentView: View {
         // 聚焦后此前没有任何收起出口（清除 X 仅在有文字时显示；SwiftUI 列表的
         // scrollDismissesKeyboard 默认 .automatic 在非 searchable 场景等于 .never，
         // 滚动不收键盘）。① 滚动列表即收（.immediately）② 点列表任意处也收
-        // （simultaneous 不拦截行点击/导航）。点搜索栏自身不受影响（栏在列表之上）。
+        // （点列表收键盘的 TapGesture 曾在此，实测干扰行点击，已移除；
+        // 收起出口保留：滚动 / 键盘「搜索」键 / 有文字时的 X）。
         .scrollDismissesKeyboard(.immediately)
-        .simultaneousGesture(TapGesture().onEnded { if searchFocused { searchFocused = false } })
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
         }
@@ -3105,9 +3105,8 @@ struct ContentView: View {
         // sidebar column never hosts a keyboard unless the inline search bar
         // is open (the chat column's composer avoidance is its own subtree).
         .ignoresSafeArea(.keyboard, edges: searchFocused ? [] : .bottom)
-        // [SEARCH-DISMISS] 同 compact 列表：滚动 / 点击收起搜索键盘。
+        // [SEARCH-DISMISS] 同 compact 列表：滚动收起搜索键盘。
         .scrollDismissesKeyboard(.immediately)
-        .simultaneousGesture(TapGesture().onEnded { if searchFocused { searchFocused = false } })
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
         }
@@ -4226,17 +4225,23 @@ struct ContentView: View {
     /// → 淡化带 = 屏底-190 起淡、屏底-60 淡尽（对齐参照图二）。
     @ViewBuilder
     private var bottomFade: some View {
-        LinearGradient(
-            stops: [
-                .init(color: Color(.systemBackground).opacity(0), location: 0),
-                .init(color: Color(.systemBackground).opacity(0), location: 0.40),
-                .init(color: Color(.systemBackground), location: 0.90),
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .frame(height: 260)
-        .allowsHitTesting(false)
+        // pp 2026-09-20「渐隐用顶部的那种模糊效果吧」→ 同 folderMiniBar 的材质语言：
+        // `.ultraThinMaterial` 毛玻璃 + mask 渐隐（0.40 前不模糊、0.90 后全模糊）。
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .black.opacity(0), location: 0),
+                        .init(color: .black.opacity(0), location: 0.40),
+                        .init(color: .black, location: 0.90),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .frame(height: 260)
+            .allowsHitTesting(false)
     }
 
     // MARK: - Bottom Bar (static capsules)
