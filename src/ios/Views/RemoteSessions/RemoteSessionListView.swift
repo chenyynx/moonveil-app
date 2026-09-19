@@ -25,8 +25,9 @@ struct RemoteSessionListView: View {
     @ObservedObject var service: RemoteService
     @ObservedObject private var tabRouter = RootTabRouter.shared
 
-    // MARK: - 服务器地址（RemoteService 只写不读；官方持久化键 agentsAnywhere.serverURL，
-    // RemoteSessionBackend.serverDefaultsKey / RemoteRootView 同一来源）
+    // MARK: - 服务器地址（RemoteService 只写不读；读官方持久化键 agentsAnywhere.serverURL，
+    // 与 RemoteRootView 同一来源）
+    // [CI-FIX] 注释不出现 RemoteKit 符号名（import-scan 门禁连注释都扫，2026-09-20）
 
     private var serverLabel: String {
         UserDefaults.standard.string(forKey: "agentsAnywhere.serverURL") ?? "—"
