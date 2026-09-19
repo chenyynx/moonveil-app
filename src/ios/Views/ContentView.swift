@@ -4226,21 +4226,27 @@ struct ContentView: View {
     @ViewBuilder
     private var bottomFade: some View {
         // pp 2026-09-20「渐隐用顶部的那种模糊效果吧」→ 同 folderMiniBar 的材质语言：
-        // `.ultraThinMaterial` 毛玻璃 + mask 渐隐（0.40 前不模糊、0.90 后全模糊）。
+        // `.ultraThinMaterial` 毛玻璃 + mask 渐隐。
+        // [FADE-GAP-FIX] pp 2026-09-20「注意位置。上一版的这个底部有缺口」：
+        // bar frame 底 = 屏底-34（安全区底），v3 的渐隐只盖到那里 → 屏幕最底一截
+        // （安全区内）的内容会露出 = 缺口。几何：height 294（260+34）+ offset(y: 34)
+        // → 渐变 = [屏底-294, 屏底]（覆盖到屏幕物理底）；stops 重算 [0.35, 0.80]
+        // → 淡出带仍 = 屏底-190 起淡、屏底-60 淡尽（位置不变）。
         Rectangle()
             .fill(.ultraThinMaterial)
             .mask(
                 LinearGradient(
                     stops: [
                         .init(color: .black.opacity(0), location: 0),
-                        .init(color: .black.opacity(0), location: 0.40),
-                        .init(color: .black, location: 0.90),
+                        .init(color: .black.opacity(0), location: 0.35),
+                        .init(color: .black, location: 0.80),
                     ],
                     startPoint: .top,
                     endPoint: .bottom
                 )
             )
-            .frame(height: 260)
+            .frame(height: 294)
+            .offset(y: 34)
             .allowsHitTesting(false)
     }
 

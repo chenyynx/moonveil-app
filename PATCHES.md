@@ -1134,4 +1134,6 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 1. **点击回归修复**：SEARCH-DISMISS 批次的列表 `.simultaneousGesture(TapGesture())`（点列表收键盘）实测**干扰行点击** → 移除（两处）。收起出口保留：滚动（`scrollDismissesKeyboard`）/ 键盘「搜索」键 / 有文字时 X。
 2. **渐隐材质化**：`bottomFade` 从纯色 `LinearGradient` 改为 **`.ultraThinMaterial` + mask 渐隐**——同 `folderMiniBar` 的材质语言（pp：「用顶部的那种模糊效果」）；位置/曲线参数不变（0.40 前不模糊、0.90 后全模糊，260pt、底对齐 bar frame 底）。
 
+**FADE-GAP-FIX（2026-09-20，pp「注意位置。上一版的这个底部有缺口」）**：bar frame 底 = 屏底-34（安全区底），渐隐只盖到那里 → 屏幕最底一截（安全区内）内容露出 = 缺口。修：`height 294`（260+34）+ `offset(y: 34)` → 渐变 = [屏底-294, 屏底] 覆盖到屏幕物理底；stops 重算 `[0.35, 0.80]` 保持淡出带原位（屏底-190 起淡、屏底-60 淡尽）。
+
 **补充（2026-09-20，pp「要高亮 你做吧」）**：命中消息**高亮脉冲**——`SearchJumpHighlightModifier`（`ChatColors.accent` 12% 圆角背景，跟随既有「复制后高亮」视觉语言）挂在 `BridgedWholeMessageV3` 上；coordinator 在定位成功后设 `searchJumpHighlightId` 并重建该 cell（亮起），2s 后释放并重建（灭）；cell 内 0.6s 后开始 0.9s 淡出（显式 `withAnimation` —— cell 宿主吞隐式动画/B16 判例）。找不到目标时不设高亮。回归项追加：⑨ 跳转后命中消息亮起并在约 1.5s 内淡出 ⑩ 非搜索路径消息无高亮。
