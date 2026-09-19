@@ -6,7 +6,7 @@ import UIKit
 // [v12 09-19 现行] 移植 Facebook Shimmer（FBShimmeringLayer）十年验证的机制：
 //   **不给文字重新上色**——UILabel 用底色正常渲染，其上盖一条白色渐变亮带，
 //   亮带的 mask = 文字自身的渲染副本 alpha。亮带只在字的像素上显形，
-//   CABasicAnimation 平移 startPoint/endPoint（frame 恒等于文字矩形，mask
+//   CAKeyframeAnimation 平移 startPoint/endPoint（frame 恒等于文字矩形，mask
 //   全程对齐），动画挂在 render server 独立时间线。
 //   对照两大已实锤死法：①不依赖 SwiftUI 事务/每帧重算（cell 宿主
 //   disablesAnimations 管不着 CA）；②不依赖 foregroundStyle 穿透（颜色直接
@@ -22,14 +22,16 @@ import UIKit
 // MARK: - v12: ShimmerLabel（UILabel + 文字 alpha 掩膜亮带，FB 机制）
 
 /// 扫光文字（替代 SwiftUI Text + sweepShimmer 组合）。
-/// 视觉参数与标定一致：亮带 0.3×字宽、2.8s 一圈、左→右、白色峰值盖色。
+/// [v12.4 09-19] 视觉参数对齐 Claude 官方 CSS（claude.ai 生产 bundle 实抓）：
+/// 亮带 25%（37.5%→50%→62.5%）、3s 一圈、峰色 = 文字×30% + 白×70%、
+/// S 曲线缓动 + 每圈两端各停 15%（cds-shimmer-text-shine / _band）。
 struct ShimmerLabel: View {
     var text: String
     var uiFont: UIFont
     var baseColor: Color
     var textAlignment: NSTextAlignment = .left
     /// 一个完整循环时长。
-    var period: Double = 2.8
+    var period: Double = 3.0
 
     var body: some View {
         ShimmerLabelHost.Representable(uiFont: uiFont, baseColor: UIColor(baseColor),
@@ -42,12 +44,14 @@ private final class ShimmerLabelHost: UIView {
     private let label = UILabel()
     private let band = CAGradientLayer()
     private let textMask = CALayer()
-    /// 亮带峰值盖色透明度：mix(#7A7974, white, 0.62) ≈ #CDCDCB，
-    /// 对齐 v10 标定的峰色 ≈#D1D0CD。
-    private let bandOpacity: Float = 0.62
+    /// [v12.4 09-19] 峰值对齐 Claude 官方（cds-shimmer-text-peak =
+    /// color-mix(in srgb, <text> 30%, white)）：white 叠加 α=0.70 与
+    /// "text×0.30 + white×0.70" 像素等效（alpha 合成）。原 0.62（v10 标定）
+    /// 偏暗，是"不太明显"的次要原因。
+    private let bandOpacity: Float = 0.70
     private var maskKey = ""
     private var animating = false
-    var period: Double = 2.8
+    var period: Double = 3.0
     private let diag = AppLogger(category: "ShimmerDiag")
     private var didMoveToWindowProbeCount = 0
     private var layoutFirstBoundsProbeDone = false
@@ -66,8 +70,8 @@ private final class ShimmerLabelHost: UIView {
         band.colors = [UIColor.clear.cgColor,
                        UIColor.white.cgColor,
                        UIColor.clear.cgColor]
-        // 亮带占字宽 0.3：白峰居中 0.5，非零 alpha 只在 [0.35, 0.65]。
-        band.locations = [0.35, 0.5, 0.65]
+        // [v12.4] 带宽 25%（Claude cds-shimmer-text-band 实抓：37.5%→50%→62.5%），原 30%。
+        band.locations = [0.375, 0.5, 0.625]
         band.opacity = bandOpacity
         // span 恒 1.0（起终点距离不变，整体平移）：初始 s=-0.65/e=0.35
         // 时亮带 [-0.30, 0] 恰在框外左侧 → 未动画时不可见，无跳变。
@@ -206,10 +210,19 @@ private final class ShimmerLabelHost: UIView {
             ("startPoint", CGPoint(x: -0.65, y: 0.5), CGPoint(x: 0.65, y: 0.5)),
             ("endPoint", CGPoint(x: 0.35, y: 0.5), CGPoint(x: 1.65, y: 0.5))
         ]
+        // [v12.4 09-19] 节奏对齐 Claude 官方 CSS（cds-shimmer-text-shine 实抓）：
+        // S 曲线缓动 cubic-bezier(.714,.121,.211,.888) + 每圈两端各停 15%
+        // （keyTimes 0-15% / 85-100% 静止在端点）——匀速"一闪而过"改为有节奏
+        // 地扫过（pp 反馈"不太明显"的主因即是节奏）。
+        let sCurve = CAMediaTimingFunction(controlPoints: 0.714, 0.121, 0.211, 0.888)
+        let linear = CAMediaTimingFunction(name: .linear)
         for (key, from, to) in sweeps {
-            let a = CABasicAnimation(keyPath: key)
-            a.fromValue = from
-            a.toValue = to
+            let a = CAKeyframeAnimation(keyPath: key)
+            let fromV = NSValue(cgPoint: from)
+            let toV = NSValue(cgPoint: to)
+            a.values = [fromV, fromV, toV, toV]              // 停-动-停
+            a.keyTimes = [0, 0.15, 0.85, 1.0]
+            a.timingFunctions = [linear, sCurve, linear]
             a.duration = CFTimeInterval(period)
             a.repeatCount = .infinity
             a.isRemovedOnCompletion = false
