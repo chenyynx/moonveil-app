@@ -65,6 +65,10 @@ struct ThinkingDetailOverlay: View {
     /// 永远停在 true → 思考尾巴灰渐显冻结（pp 截图：Thought for 30s 已完成仍灰）。
     /// [pp 09-18 三改] 回原生 sheet：关闭走左上 X + 系统下拉关闭 → 回调。
     var onClose: (() -> Void)? = nil
+    /// [pp 09-19 汇聚页对齐] 工具快照 + 浏览器池，传给 ToolSummaryDetailPage
+    /// 使其能复用 ToolBlockContentView 的完整渲染（快照截图、browser URL 继承等）。
+    var toolSnapshots: [ToolSnapshotItem] = []
+    var browserPool: BrowserTabPool? = nil
 
     // [pp 09-18 装机 #117] 嵌套 NavigationStack 打爆外壳 stackNav → 详情页改
     // ZStack 自绘栈：page 非 nil 时从右推入，返回钮推回（转场视觉不变）。
@@ -228,7 +232,7 @@ struct ThinkingDetailOverlay: View {
                 onBack: popPage
             )
         case .tool(let blockId):
-            ToolSummaryDetailPage(message: message, blockId: blockId, onBack: popPage)
+            ToolSummaryDetailPage(message: message, blockId: blockId, toolSnapshots: toolSnapshots, browserPool: browserPool, toolBlocks: toolBlocks, onBack: popPage)
         }
     }
 
@@ -521,15 +525,35 @@ private struct ThinkingDetailPage: View {
     }
 }
 
-// MARK: - 工具详情页（push：Input / Output 代码卡）[Claude photo_805DB84A]
+// MARK: - 工具详情页（push：复用 ToolBlockContentView 渲染）[pp 09-19 汇聚页对齐]
+//
+// 原先是通用 Input JSON / Output 文本两张卡；现改为与小窗（ToolLiveSheet）
+// 同一套内容渲染（ToolBlockContentView）：file_edit→diff 卡、file_write/
+// file_read→内容卡、shell→输出、browser→快照/文本、memory→memory 渲染、
+// 其它→textContent fallback。SummaryDetailHeader 外壳不变。
 
 private struct ToolSummaryDetailPage: View {
     @ObservedObject var message: ChatMessage
     let blockId: UUID
+    var toolSnapshots: [ToolSnapshotItem] = []
+    var browserPool: BrowserTabPool? = nil
+    var toolBlocks: [AssistantBlock] = []
     var onBack: () -> Void
 
     private var block: AssistantBlock? {
         message.blocks.first { $0.id == blockId }
+    }
+
+    /// The snapshot corresponding to this block (matched by toolUseId).
+    private var currentSnapshot: ToolSnapshotItem? {
+        guard let block, let blockId = block.toolUseId else { return nil }
+        return toolSnapshots.first(where: { $0.id == blockId })
+    }
+
+    /// Index of this block in the segment's tool blocks (for browser URL inheritance).
+    private var blockIndex: Int {
+        guard let block else { return 0 }
+        return toolBlocks.firstIndex(where: { $0.id == block.id }) ?? 0
     }
 
     var body: some View {
@@ -554,80 +578,19 @@ private struct ToolSummaryDetailPage: View {
 
         VStack(spacing: 0) {
             SummaryDetailHeader(title: title, onBack: onBack)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    sectionLabel(AppLocalized("Input"))
-                    codeCard(languageTag(block), inputText(block))
-
-                    let output = block.content
-                    if !output.isEmpty {
-                        sectionLabel(AppLocalized("Output"))
-                            .padding(.top, 20)
-                        codeCard(languageTag(block), output)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 4)
-                .padding(.bottom, 30)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            // [pp 09-19 汇聚页对齐] 内容区复用 ToolBlockContentView，与小窗同款渲染。
+            // isLive = false（汇聚页只看已完成内容）；snapshot 从 toolSnapshots 匹配。
+            ToolBlockContentView(
+                block: block,
+                isLive: false,
+                snapshot: currentSnapshot,
+                browserPool: browserPool,
+                toolBlocks: toolBlocks,
+                blockIndex: blockIndex
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(SummaryPalette.sheetBg)
-    }
-
-    private func sectionLabel(_ title: String) -> some View {
-        Text(verbatim: title) // [CI #114 修复] AppLocalized 只收字面量 key，变量传参编译不过
-            .font(.system(size: 15))
-            .foregroundStyle(SummaryPalette.muted)
-            .padding(.bottom, 10)
-    }
-
-    /// 代码卡 = SelectableMarkdownView fenced block（语言标签 + 语法高亮 + 圆角卡）。
-    private func codeCard(_ lang: String, _ text: String) -> some View {
-        SelectableMarkdownView(markdown: "```\(lang)\n\(text)\n```")
-    }
-
-    /// Input：完整参数 JSON（pretty）优先，factory 输入摘要兜底。
-    private func inputText(_ block: AssistantBlock) -> String {
-        if let raw = block.toolInputArgs, !raw.isEmpty,
-           let data = raw.data(using: .utf8),
-           let obj = try? JSONSerialization.jsonObject(with: data),
-           let pretty = try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]),
-           let s = String(data: pretty, encoding: .utf8), !s.isEmpty {
-            return s
-        }
-        if let item = ToolEventRowFactory.item(for: block), !item.detail.isEmpty {
-            return item.detail
-        }
-        return block.toolDescription
-    }
-
-    private func languageTag(_ block: AssistantBlock) -> String {
-        switch block.kind {
-        case .shellTool: return "shell"
-        case .browserTool: return "browser"
-        case .memoryTool: return "text"
-        case .fileReadTool(let p), .fileWriteTool(let p), .fileEditTool(let p), .readImageTool(let p):
-            return Self.extLang(p)
-        case .text, .thinking, .info: return "text"
-        }
-    }
-
-    private static func extLang(_ path: String) -> String {
-        let ext = (path as NSString).pathExtension.lowercased()
-        switch ext {
-        case "ts": return "typescript"
-        case "js", "mjs", "cjs": return "javascript"
-        case "py": return "python"
-        case "rb": return "ruby"
-        case "sh", "bash", "zsh": return "shell"
-        case "yml": return "yaml"
-        case "md": return "markdown"
-        case "swift", "json", "html", "css", "go", "rs", "java", "c", "cpp", "xml":
-            return ext
-        default:
-            return ext.isEmpty ? "text" : ext
-        }
     }
 }
