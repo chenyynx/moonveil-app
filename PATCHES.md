@@ -1124,4 +1124,8 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 
 **NEWCHAT-ICON（2026-09-20，pp「把图标换成➕号吧」）**：底部「新会话」胶囊图标 `square.and.pencil` → `plus`（与参照 `+ New chat` 一致）。只动 `newChatPill` 一处；菜单项（Rename Group / Edit Title）与聊天页同名图标各处不动。
 
+**FADE-POS-FIX（2026-09-20，pp「渐隐有问题 位置完全不对」）**：实机逐像素定位——淡化带落在**距屏底 199–399pt**（列表中部），正好比"贴底"高出一个自身高度（200pt）。根因：`bottomFade` 的 `.ignoresSafeArea(edges: .bottom)` 在 overlay 中把整层上移了一个高度。**移除该 modifier**（底部安全区若露出 ~34pt 空白区，该区无列表内容，可接受）。
+
+**SEARCHBAR-HEIGHT（2026-09-20，pp「搜索栏也太肥了啊 你只调了开启会话胶囊？」——确实漏了）**：逐像素对照——实机栏高 **56pt** vs 参照 **46.7pt**（栏顶 74.7 / 栏底 28 / 文字中心 51.3pt 均已对齐）。改 `.frame(height: 56)` → **47**；同时 `bottomBar` 的 `.padding(.bottom, 20)` → **24** 补回 4pt，使栏底距屏底保持 ~28pt、栏内文字中心保持 ~51.5pt（参照 51.3）。
+
 **补充（2026-09-20，pp「要高亮 你做吧」）**：命中消息**高亮脉冲**——`SearchJumpHighlightModifier`（`ChatColors.accent` 12% 圆角背景，跟随既有「复制后高亮」视觉语言）挂在 `BridgedWholeMessageV3` 上；coordinator 在定位成功后设 `searchJumpHighlightId` 并重建该 cell（亮起），2s 后释放并重建（灭）；cell 内 0.6s 后开始 0.9s 淡出（显式 `withAnimation` —— cell 宿主吞隐式动画/B16 判例）。找不到目标时不设高亮。回归项追加：⑨ 跳转后命中消息亮起并在约 1.5s 内淡出 ⑩ 非搜索路径消息无高亮。

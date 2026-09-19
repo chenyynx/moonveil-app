@@ -4216,13 +4216,14 @@ struct ContentView: View {
         }
     }
 
-    /// [BOTTOM-FADE-2] pp 2026-09-20「底部做渐隐」→「渐隐做反了？」：
-    /// 列表内容滚到底部栏区域时逐渐融入背景。做成**列表的 overlay**（对齐底部、
-    /// 显式高度 200pt、`.ignoresSafeArea(edges: .bottom)` 覆盖到屏幕底）——
-    /// 位置/范围完全由这里定，不随底部栏的布局盒子漂移（首版挂在 bottomBar 的
-    /// 背景上，实测淡化只挤在最底部约 20pt 内完成，观感像被切掉而非渐隐）。
-    /// z 序：本层在列表内容之上、`safeAreaInset` 的底部栏之下（栏自身不被蒙）。
-    /// 曲线按参照图二校准：屏底 ~180pt 起淡，~60pt 处淡尽（过渡带 ~120pt）。
+    /// [BOTTOM-FADE-2 / FADE-POS-FIX] pp 2026-09-20「底部做渐隐」→「渐隐做反了？」
+    /// →「渐隐有问题 位置完全不对」：
+    /// 列表内容滚到底部栏区域时逐渐融入背景。做成**列表的 overlay**（`alignment:
+    /// .bottom` + 显式 `frame(height: 200)`）。
+    /// ⚠️ **不要加 `.ignoresSafeArea(edges: .bottom)`**：实机实测它会把整层上移
+    /// 一个自身高度（淡化带落在距屏底 199–399pt 处，而不是贴底）——BOTTOM-FADE-2
+    /// 的「位置完全不对」就是这个。z 序：列表内容 < 本层 < `safeAreaInset` 底部栏
+    /// （栏自身不被蒙）。曲线按参照图二校准：屏底 ~180pt 起淡、~60pt 处淡尽。
     @ViewBuilder
     private var bottomFade: some View {
         LinearGradient(
@@ -4235,7 +4236,6 @@ struct ContentView: View {
             endPoint: .bottom
         )
         .frame(height: 200)
-        .ignoresSafeArea(edges: .bottom)
         .allowsHitTesting(false)
     }
 
@@ -4258,7 +4258,9 @@ struct ContentView: View {
         }
         .padding(.horizontal, 22)
         .padding(.top, 8)
-        .padding(.bottom, 20)
+        // [SEARCHBAR-HEIGHT] 栏矮 9pt 后补 4pt：栏底距屏底保持 ~28pt、
+        // 栏内文字中心保持 ~51.5pt（参照 51.3）。
+        .padding(.bottom, 24)
         // [BOTTOM-BAR-ALIGN] pp 2026-09-20「底部的胶囊尺寸和大小还有位置，对齐图二」。
         // 参照图（Claude 列表页底栏）逐像素实测：搜索文字中心距屏底 ~51pt、实机 ~81pt
         // → 整体下移 30pt 贴底；水平边距 16→22pt（参照 22-23pt）。胶囊↔搜索相对距
@@ -4354,8 +4356,11 @@ struct ContentView: View {
         // stays 18 for the magnifier inset.
         .padding(.leading, 18)
         .padding(.trailing, 8)
+        // [SEARCHBAR-HEIGHT] pp 2026-09-20「搜索栏也太肥了啊 你只调了开启会话胶囊？」：
+        // 逐像素实测——实机栏高 56pt、参照 46.7pt（栏顶 74.7 / 栏底 28 / 文字中心
+        // 51.3pt 均已对齐）。56 → 47 对齐参照高度。
         .frame(maxWidth: .infinity)
-        .frame(height: 56)
+        .frame(height: 47)
         .modifier(SearchBarSurface())
         // [T-ios-search-bar-glass-hit-hole] `glassEffect(in:)` renders a capsule
         // but contributes no hit region of its own; this row sits in a
