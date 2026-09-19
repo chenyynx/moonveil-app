@@ -337,6 +337,7 @@ private struct BridgedAssistantBlockV3: View {
             browserPool: bridge.browserPool,
             toolSnapshots: bridge.toolSnapshots,
             interruptedPendingResume: bridge.interruptedPendingResume,
+            errorPendingRetry: bridge.errorPendingRetry,
             highlightedBlockId: .constant(nil),
             detailBlock: $bridge.detailBlock
         )
@@ -1550,6 +1551,17 @@ extension CollectionViewMessageListV3 {
             if bridge.interruptedPendingResume != interruptedPending {
                 bridge.interruptedPendingResume = interruptedPending
             }
+            // [T-ios-slot-error-pending-retry] "错误待重试"= 尾部消息带错误且循环
+            // 已停（422 报错走 send() 的 catch：写 last.error、不置 canResume、
+            // epilogue 置 isProcessing=false → 回合随时可能被自动/手动重试续走）。
+            // 该窗口内活动槽按运行形态渲染（计时冻结），防"报错→重试"整槽
+            // 125pt↔24pt 瞬翻（真机 session F67FB197 16:49:56–58 实证）。
+            // 撤销路径：重试续走（error 清 / isProcessing 真 → 段本就活跃）或用户
+            // 开新回合（本消息不再是尾部 → updateLastCellBridge 直写清零）→ 收口。
+            let errorPending = isLast && message.error != nil && !vm.isProcessing
+            if bridge.errorPendingRetry != errorPending {
+                bridge.errorPendingRetry = errorPending
+            }
             bridge.onResume = isLast ? { [weak self] in self?.onResume?() } : nil
             bridge.onWithdraw = message.isQueued ? { [weak self] in self?.onWithdraw?(message.id) } : nil
             // "Read from Start": replay this whole reply via TTS. Only for assistant
@@ -1713,8 +1725,13 @@ extension CollectionViewMessageListV3 {
                 }
             }
             for msg in messages.dropLast() {
-                if msg.role == .assistant, let b = cellBridges[msg.id], b.isActiveMessage {
-                    b.isActiveMessage = false
+                if msg.role == .assistant, let b = cellBridges[msg.id] {
+                    if b.isActiveMessage { b.isActiveMessage = false }
+                    // [T-ios-slot-error-pending-retry] 此路径绕过 updateBridge：
+                    // 新回合开启后本条不再是尾部消息，「错误待重试」标志必须
+                    // 直写清零，防旧槽残留运行态外观（与 interruptedPendingResume
+                    // 的清零同纪律）。
+                    if b.errorPendingRetry { b.errorPendingRetry = false }
                 }
             }
             for msg in messages where msg.role == .user {

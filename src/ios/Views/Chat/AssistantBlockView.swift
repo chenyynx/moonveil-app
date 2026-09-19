@@ -21,6 +21,10 @@ struct AssistantBlockView: View {
     /// 仅 load 检测路径置真）：活动槽按未完成渲染、计时冻结。默认 false =
     /// 其余调用点（含经典皮肤/SwiftUI 列表路径）行为零变化。
     var interruptedPendingResume: Bool = false
+    /// [T-ios-slot-error-pending-retry] "错误待重试"（V3 bridge 写入，仅尾部
+    /// 报错消息置真）：活动槽保持运行形态、计时冻结，防报错→重试整槽塌缩弹跳。
+    /// 默认 false = 其余调用点（含经典皮肤/SwiftUI 列表路径）行为零变化。
+    var errorPendingRetry: Bool = false
     @Binding var highlightedBlockId: UUID?
     @Binding var detailBlock: AssistantBlock?
     private var isHighlighted: Bool { highlightedBlockId == block.id }
@@ -192,6 +196,7 @@ struct AssistantBlockView: View {
                 segment: hit.segment,
                 isActiveMessage: isActiveMessage,
                 interruptedPendingResume: interruptedPendingResume,
+                errorPendingRetry: errorPendingRetry,
                 onOpenDetail: { seg in
                     NotificationCenter.default.post(
                         name: .toolActivityDetailRequested,

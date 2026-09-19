@@ -1156,6 +1156,11 @@ final class CellStateBridgeV2: ObservableObject {
     /// 非进程内 Stop）——true 时活动槽按未完成（运行槽）外观渲染，计时冻结。
     /// 由 updateBridge 与 canResume 同闸写入，视图侧不自行推导。
     @Published var interruptedPendingResume: Bool = false
+    /// [T-ios-slot-error-pending-retry] "错误待重试"（尾部消息报错、循环已停、
+    /// 回合可能被自动/手动重试续走）——true 时活动槽保持运行槽外观，计时冻结。
+    /// 与 interruptedPendingResume 互补（那条要求 error == nil）。由 updateBridge
+    /// 写入，视图侧不自行推导。
+    @Published var errorPendingRetry: Bool = false
     @Published var onResume: (() -> Void)?
     @Published var onCompact: (() -> Void)?
     @Published var onForceSync: (() -> Void)?

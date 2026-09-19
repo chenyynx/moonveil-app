@@ -31,6 +31,14 @@ struct ToolActivityGroupView: View {
     /// load 检测到的未完成尾巴，非进程内 Stop）。true 时本段按运行槽渲染 +
     /// 计时冻结；仅作用于未被正文收口的段（见 `running`）。
     let interruptedPendingResume: Bool
+    /// [T-ios-slot-error-pending-retry] 「错误待重试」（Bug A）：尾部消息报错、
+    /// 循环已停、回合可能被自动/手动重试续走。true 时本段保持运行槽（计时已由
+    /// 既有 `message.error` 冻结链停住），防"报错→重试"整槽塌成入口行又弹回
+    /// （真机 session F67FB197 16:49:56–58 实测 ±101pt 来回翻）。与
+    /// `interruptedPendingResume` 互补：那条管"中断无错误"，这条管"错误待重试"；
+    /// 新回合开启（本消息不再是尾部）时标志撤销 → 槽收口，不会永久卡运行态。
+    /// 视图侧不自行推导，由列表侧 updateBridge 写入（同 interruptedPendingResume 纪律）。
+    let errorPendingRetry: Bool
     /// Batch C: wiring to the aggregation sheet (N6). Nil in mock contexts.
     var onOpenDetail: ((TurnActivitySegment) -> Void)?
     /// Batch C: shell in-flight stop passthrough (feature parity [H6]).
@@ -48,12 +56,14 @@ struct ToolActivityGroupView: View {
          segment: TurnActivitySegment,
          isActiveMessage: Bool,
          interruptedPendingResume: Bool = false,
+         errorPendingRetry: Bool = false,
          onOpenDetail: ((TurnActivitySegment) -> Void)? = nil,
          onStop: (() -> Void)? = nil) {
         self.message = message
         self.segment = segment
         self.isActiveMessage = isActiveMessage
         self.interruptedPendingResume = interruptedPendingResume
+        self.errorPendingRetry = errorPendingRetry
         self.onOpenDetail = onOpenDetail
         self.onStop = onStop
         // [T-ios-slot-fresh-measure-2] 首帧数据可能尚未就绪（重挂载首 config 时
@@ -150,11 +160,38 @@ struct ToolActivityGroupView: View {
         return 24 + 33.7 * CGFloat(n)
     }
 
+    /// [T-ios-slot-row-union] 缺行自愈（Bug B，09-19）：`carouselIds` 的三个赋值
+    /// 时机（init 播种 / onAppear 同步 / onChange(of: eventBlocks)）都存在同一个
+    /// 结构性窗口——结构体在"init 取数"与"首帧 body 评估"之间数据换血时，
+    /// onChange 只比较相邻两次 body 评估、初评即新值则**变化沿丢失**，队列停在
+    /// 旧 id 集；`ForEach(carouselIds)` 又是"查不到即静默不渲染"，于是数据有 3 行、
+    /// 屏幕只有 2 行（slotFloor 挂 displayRows → 高度却够 3 行），退出重进（真
+    /// 重建）才补齐——pp 真机原话「进行工具调用的时候只有两排…返回才出现三排」。
+    /// 修法 = 渲染 id 用 `displayRows ∪ carouselIds` 并集纠偏：数据行当帧必渲染
+    /// （有几行数据渲染几行），队列多出的 id 留在尾部（离场动画机制依赖它们
+    /// 短暂存在，行为不变）。稳态 queue ≡ data 时并集恒等 carouselIds → 轮播
+    /// 动画路径零扰动；纯渲染层计算，不新增任何通知/reconfigure。
+    private var renderIds: [UUID] {
+        let dataIds = displayRows.map(\.id)
+        let missing = dataIds.filter { !carouselIds.contains($0) }
+        guard missing.isEmpty else {
+            // 队列漏了数据行：以数据顺序为骨架，队列中未入数据的 id（离场中）追加尾部。
+            let leaving = carouselIds.filter { !dataIds.contains($0) }
+            return dataIds + leaving
+        }
+        return carouselIds
+    }
+
     /// 是否按运行槽渲染。[T-ios-coldstart-interrupted-slot] 追加一条：load 检测的
     /// "中断待恢复"回合里未被正文收口的段 = 信息上未完成 → 保持运行槽（计时冻结）。
-    /// closedByContent 段不在列——标志是消息级，同消息内已收口的历史阶段不得复活。
+    /// [T-ios-slot-error-pending-retry] 再追加一条（Bug A）："错误待重试"的尾部
+    /// 回合同理——回合没有彻底结束（还可能被自动/手动重试续走），槽不收口；
+    /// 计时冻结由既有 `message.error` 冻结链（onChange pause）保证。彻底放弃 =
+    /// 用户开新回合 → 本消息不再是尾部 → 标志撤销 → 正常收口，不会永久卡运行态。
+    /// closedByContent 段两条新规则都不适用——标志是消息级，同消息内已收口的
+    /// 历史阶段不得复活。
     private var running: Bool {
-        !segment.isDone || (interruptedPendingResume && !segment.closedByContent)
+        !segment.isDone || ((interruptedPendingResume || errorPendingRetry) && !segment.closedByContent)
     }
     /// 该段是否"已经在干活"——「Thinking」文字与计时出现/起算的判定 [pp 09-18 二改]。
     /// 上游 09-18 版只看 thinking 块有没有内容；但 **thinking 块只在收到 `.thinkingDelta`
@@ -219,7 +256,11 @@ struct ToolActivityGroupView: View {
             // [T-ios-coldstart-interrupted-slot] 中断待恢复 → 计时冻结：复用既有
             // ThinkingRunClock.pause（「错误冻结」先例同机制），续走在下方 onChange。
             // 置于 ensureStarted 之后：startedAt 已定，冻结基准 = 首帧时刻。
-            if interruptedPendingResume { ThinkingRunClock.pause(anchorId: segment.anchorId) }
+            // [T-ios-slot-error-pending-retry] 错误待重试同理：挂载时已带标志
+            // （冷启动读到错误尾巴回合 / 重配重建）→ 首帧即冻结，不许秒数虚走。
+            if interruptedPendingResume || errorPendingRetry {
+                ThinkingRunClock.pause(anchorId: segment.anchorId)
+            }
             withAnimation(.easeOut(duration: 0.34)) { dotsAppeared = true } // [pp 09-18] 点阵出现动画
             // [pp 09-18 根因②] cell 重建（滚动回收/高度刷新/config 替换）会重置
             // @State，而 onChange 只监听「变化」（true→true 不触发）——onAppear 必须
@@ -315,6 +356,25 @@ struct ToolActivityGroupView: View {
                 ThinkingRunClock.resume(anchorId: segment.anchorId)
             }
         }
+        // [T-ios-slot-error-pending-retry] 「错误待重试」标志双向变更：
+        // → true：补冻结（覆盖"视图已挂载、bridge 晚到才置真"的时序；error 事件
+        //   路径的 onChange(of: message.error) 已先行 pause，两者对 pause 幂等）；
+        // → false（重试续走清 error / 新回合开启致本消息不再是尾部）：error 已清
+        //   则续走计时（既有 error 链负责），形态翻转（运行↔入口行）可能改格高
+        //   → 走既有重测通道纠高，冷却门闩（每 anchor ≥1s + 2.5s 修复抑制窗）防回环。
+        .onChange(of: errorPendingRetry) { pending in
+            if pending {
+                ThinkingRunClock.pause(anchorId: segment.anchorId)
+            } else if message.error == nil {
+                ThinkingRunClock.resume(anchorId: segment.anchorId)
+            }
+            if Self.allowRemountPing(segment.anchorId) {
+                let anchorId = segment.anchorId
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .thinkingBlockToggled, object: anchorId)
+                }
+            }
+        }
         // [pp 09-18] 阶段完成 → 落定时长（供汇聚页「Thought for Ns」）。
         .onChange(of: segment.isDone) { done in
             if done {
@@ -366,9 +426,10 @@ struct ToolActivityGroupView: View {
                         .accessibilityLabel(AppLocalized("Stop"))
                     }
                 }
-                ForEach(carouselIds, id: \.self) { id in
-                    // [pp 09-18 根因③] 数据源 = carouselIds（@State，onChange 显式
-                    // 事务更新）；block 从 eventBlocks 现查——离场行 id 已出 suffix(3)
+                ForEach(renderIds, id: \.self) { id in
+                    // [pp 09-18 根因③] 数据源 = 轮播队列 + 自愈并集（renderIds，
+                    // [T-ios-slot-row-union]：数据行当帧必渲染，队列 id 保持动画
+                    // 驱动）；block 从 displayRows 现查——离场行 id 已出 suffix(3)
                     // 窗口 → if let 失败 → 视图移除 → removal transition（跟队上滑）。
                     if let block = displayRows.first(where: { $0.id == id }),
                        let item = ToolEventRowFactory.item(for: block) {

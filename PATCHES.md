@@ -1016,3 +1016,16 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - 隔离声明：新 UserDefaults key 为显式 gate；classic 固定值零影响；两端模式共用=预期同步；不触碰状态机/数据流。
 - 回归项：两滑杆各自实时生效（含历史消息）；重启保留；默认值（18/22）与改动前一致；classic 零影响。
 - **2026-09-19 追加（pp拍板）**：Block Spacing 默认最终定 8（恢复历史值；途中曾定 22→ 11）；滑杆 step 2→1。
+
+## SLOT-ERROR-RETRY + SLOT-ROW-UNION — 报错待重试不收口 + 工具行并集自愈（Qoder, 2026-09-19，pp 真机双 bug 报告，session F67FB197）
+
+- **Files**: `ToolActivityGroupView.swift`（init/属性新增 `errorPendingRetry`；`running` 式扩一条；onAppear 冻结扩分支；新 `onChange(of: errorPendingRetry)`；`renderIds` 并集纠偏 + ForEach 数据源替换）、`AssistantBlockView.swift`（透传参数，默认 false）、`MessageListInfrastructure.swift`（bridge 新 @Published 位）、`CollectionViewMessageListV3.swift`（updateBridge 写入 + updateLastCellBridge 清零 + cell 透传）。
+- **Bug A 症状（pp 装机 16:49:56–59 日志实证）**: 上游 422 报错 → 整槽 125.3pt↔24.3pt 来回翻两轮（报错塌、重试弹回、正文收口），"thinking 也随着工具一起跳动"。
+- **Bug A 根因**: 422 走 send() 的 catch（AIChatViewModel:2704–2733）——写 `last.error`、**不置 canResume**、epilogue 置 `isProcessing=false` → `isActiveMessage=false` → `segment.isDone=true` → 视图塌 entryRow；`retry()` 清 error 重转 → 弹回。视图层无"错误待重试"信号可用（`isActiveMessage = isLast && isProcessing`，报错瞬间即 false）。
+- **Bug A 修复（任务选项 1）**: 新增消息级标志 `errorPendingRetry = isLast && message.error != nil && !vm.isProcessing`（updateBridge 与 isActiveMessage 同一次调用写入 → 同帧生效、无中间塌缩帧；与 interruptedPendingResume 互补，那条要求 error==nil）。`running` 消费该标志：未 closedByContent 的段在"错误待重试"期间保持运行槽；计时冻结=既有 `message.error` onChange pause 链 + onAppear/标志双向 onChange 补冻结（冷启动读到错误尾巴也首帧冻结）。撤销：重试续走（段本就活跃）或用户开新回合（不再是尾部 → updateLastCellBridge 直写清零）→ 正常收口，不永久卡运行态。
+- **Bug B 症状**: 工具运行中 live 只渲染 2 行（高度够 3 行），退出聊天页重进才 3 行齐全。
+- **Bug B 根因**: `carouselIds` 三个赋值时机（init 播种/onAppear 同步/`onChange(of: eventBlocks.map(\.id))`）共享同一结构性窗口——结构体在 init 取数与首帧 body 评估之间数据换血时，onChange 只比较相邻两次评估、初评即新值 → 变化沿丢失，队列停在旧 id 集；`ForEach(carouselIds)` 查不到即静默不渲染（无 else/占位），而 slotFloor 挂 displayRows 按数据行数撑高 → 恰好表现为"高度够、行数少"；只有真重建（重进）重新播种才补齐。
+- **Bug B 修复**: 渲染层 `renderIds = displayRows ∪ carouselIds` 纠偏——数据行当帧必渲染（有几行数据渲染几行），队列多出的 id 留尾部（离场动画依赖其短暂存在，行为不变）；稳态 queue ≡ data 时并集恒等 carouselIds → 轮播动画路径零扰动。纯 computed、零新增通知/reconfigure，不触碰 allowRemountPing/noteProgrammaticReconfigure 冷却机制。
+- **死隔离申报**: 仅新版渲染路径（classic 不走 ToolActivityGroupView；`ToolRenderStyle` 分叉不动）；新参数全部默认 false（SwiftUI 列表路径 ChatMessageViews:501 行为零变化）；不碰 `TurnActivityAggregator.isDone` 三条件语义；不碰数据/SSE/agent 循环/持久化；正文=阶段完成语义保留（两条 pending 分支均要求 `!closedByContent`）。
+- **回归项**: ①422 报错→重试期间槽保持 125pt 不再瞬翻（日志判据：不再出现同 cell `125.3→24.3→125.3` 1.5s 内往返）②重试成功后秒数续走外观无缝（注意：settle 先于 resume 落终值是**既有行为**，本批未改，见自审报告"已知风险"）③用户开新回合后旧槽正常收口成 entryRow ④正文到达收口路径不变（16:49:59 那条语义保留）⑤工具行 3/2/1 任意数据量当帧全渲染，退出重进不再变化 ⑥轮播进/退场动画不变 ⑦重进自愈/高度地板/2.5s 抑制窗零回退 ⑧classic 皮肤零影响。
+- **验证**: 本机无 Swift 工具链——括号/方括号平衡度与 HEAD 逐文件一致 + 调用点参数序核对；**编译与上述 ①–⑧ 需 CI + 装机验证**。
