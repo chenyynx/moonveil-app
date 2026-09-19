@@ -543,6 +543,10 @@ private struct ToolSummaryDetailPage: View {
     var toolBlocks: [AssistantBlock] = []
     var onBack: () -> Void
 
+    // [汇聚页详情页补全] browser/read_image 内联图点按 → 全屏（ImagePreviewView）。
+    @State private var showFullscreen: Bool = false
+    @State private var fullScreenImage: UIImage? = nil
+
     private var block: AssistantBlock? {
         message.blocks.first { $0.id == blockId }
     }
@@ -584,17 +588,25 @@ private struct ToolSummaryDetailPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(SummaryPalette.sheetBg)
+        .fullScreenCover(isPresented: $showFullscreen) {
+            if let img = fullScreenImage {
+                ImagePreviewView(image: img)
+            }
+        }
     }
 
-    /// 详细内容分派：file_edit→红绿 diff 卡；其余→"之前的卡片"渲染器；空→旧双卡。
+    /// 详细内容分派：file_edit→红绿 diff 卡；browser/read_image→图片卡（目标+图+结果）；
+    /// 其余→"之前的卡片"渲染器；空→旧双卡。
     @ViewBuilder
     private func detailView(_ block: AssistantBlock) -> some View {
         if case .fileEditTool = block.kind,
            let edit = extractEditStrings(block),
            !(edit.old.isEmpty && edit.new.isEmpty) {
             editDiffCard(old: edit.old, new: edit.new)
+        } else if isImageTool(block), imageToolHasContent(block) {
+            imageToolCard(block)
         } else if let md = detailMarkdown(block) {
-            SelectableMarkdownView(markdown: md)
+            SelectableMarkdownView(markdown: md, codeBlockAutoHeight: true)
         } else {
             sectionLabel(AppLocalized("Input"))
             codeCard(languageTag(block), inputText(block))
@@ -661,6 +673,16 @@ private struct ToolSummaryDetailPage: View {
             let body = text.isEmpty ? prefix : (text.hasPrefix(prefix) ? text : prefix + text)
             guard !body.isEmpty else { return nil }
             return "```shell\n\(body)\n```"
+        case .memoryTool(let action):
+            // memory_write 的正文在输入 args["content"]，output 只是 "Memory saved
+            // to X (N chars)" 确认串 → 取输入正文（与 file_write 同用 "content" 键，
+            // 复用 extractWriteContent）。memory_get 的 output 本身就是召回内容 → 用 output。
+            if action == "memory_write", let content = extractWriteContent(block), !content.isEmpty {
+                return "```markdown\n\(content)\n```"
+            }
+            let text = block.content
+            guard !text.isEmpty else { return nil }
+            return "```text\n\(text)\n```"
         default:
             let text = block.content
             guard !text.isEmpty else { return nil }
@@ -687,6 +709,90 @@ private struct ToolSummaryDetailPage: View {
         return content
     }
 
+    // MARK: - 详情页图片工具（browser_use / read_image）
+
+    /// 带图片的工具：browser 截图与 read_image 图共用 block.imageFilePath。
+    private func isImageTool(_ block: AssistantBlock) -> Bool {
+        switch block.kind {
+        case .browserTool, .readImageTool: return true
+        default: return false
+        }
+    }
+
+    /// 是否有可展示内容（图/目标/结果任一）；全空则回退旧 Input/Output 双卡。
+    private func imageToolHasContent(_ block: AssistantBlock) -> Bool {
+        if block.imageFilePath.flatMap({ UIImage(contentsOfFile: $0) }) != nil { return true }
+        if operationTargetText(block) != nil { return true }
+        return detailMarkdown(block) != nil
+    }
+
+    /// browser 目标 URL：优先 block.browserURL，回退 args["url"]。
+    private func browserTargetURL(_ block: AssistantBlock) -> String? {
+        if let url = block.browserURL, !url.isEmpty { return url }
+        guard let json = block.toolInputArgs,
+              let data = json.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let url = dict["url"] as? String, !url.isEmpty else { return nil }
+        return url
+    }
+
+    /// 操作目标：browser → "action  url"；read_image → 路径；空返回 nil。
+    private func operationTargetText(_ block: AssistantBlock) -> String? {
+        switch block.kind {
+        case .browserTool(let action):
+            let url = browserTargetURL(block) ?? ""
+            let line = [action, url].filter { !$0.isEmpty }.joined(separator: "  ")
+            return line.isEmpty ? nil : line
+        case .readImageTool(let path):
+            return path.isEmpty ? nil : path
+        default:
+            return nil
+        }
+    }
+
+    /// [汇聚页详情页补全] browser/read_image 详情卡：操作目标一行 + 内联图（点按全屏）
+    /// + 结果文本。图用已验证的等比缩放 Image（同小窗 browserResultContent），缩放走全屏
+    /// ImagePreviewView——避开 ZoomableImageView 的 GeometryReader 在 ScrollView 内高度歧义。
+    @ViewBuilder
+    private func imageToolCard(_ block: AssistantBlock) -> some View {
+        let image = block.imageFilePath.flatMap { UIImage(contentsOfFile: $0) }
+        let target = operationTargetText(block)
+        let md = detailMarkdown(block)
+
+        VStack(alignment: .leading, spacing: 12) {
+            if let target {
+                Text(verbatim: target)
+                    .font(.system(size: 13, design: .monospaced))
+                    .foregroundStyle(SummaryPalette.muted)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color(UIColor.separator).opacity(0.5), lineWidth: 0.5))
+                    .onTapGesture {
+                        fullScreenImage = image
+                        showFullscreen = true
+                    }
+                    .contextMenu {
+                        Button { UIPasteboard.general.image = image } label: {
+                            Label("Copy Image", systemImage: "doc.on.doc")
+                        }
+                    }
+            }
+
+            if let md {
+                SelectableMarkdownView(markdown: md, codeBlockAutoHeight: true)
+            }
+        }
+    }
+
     private func sectionLabel(_ title: String) -> some View {
         Text(verbatim: title) // [CI #114 修复] AppLocalized 只收字面量 key，变量传参编译不过
             .font(.system(size: 15))
@@ -695,8 +801,9 @@ private struct ToolSummaryDetailPage: View {
     }
 
     /// 代码卡 = SelectableMarkdownView fenced block（语言标签 + 语法高亮 + 圆角卡）。
+    /// 详情页专属：codeBlockAutoHeight 让卡片按内容完整撑高、整页滚动，不再卡内内滚。
     private func codeCard(_ lang: String, _ text: String) -> some View {
-        SelectableMarkdownView(markdown: "```\(lang)\n\(text)\n```")
+        SelectableMarkdownView(markdown: "```\(lang)\n\(text)\n```", codeBlockAutoHeight: true)
     }
 
     /// Input：完整参数 JSON（pretty）优先，factory 输入摘要兜底。

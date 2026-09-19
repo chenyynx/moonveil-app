@@ -1047,3 +1047,16 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **约束自查**: 兜底态只在 task 内写（非 body 评估期）；零新增通知/reconfigure；不触碰 allowRemountPing/2.5s 抑制窗/slotFloor；classic 冻结；一/二轮语义（errorPendingRetry 桥、settle 缓放/补落定）零回退。
 - **回归项**: ①live 进场滑入动画与二轮/基线同款 ②人为制造自愈失效（难）时缺行 ≤0.12s 补画 ③Bug B 3 行当帧全渲染不回退 ④快速连发工具无兜底闪烁（复检幂等）⑤报错重试秒数续走（二轮项）⑥classic 零影响。
 - **验证**: 括号平衡度与 HEAD 一致；①–⑥ 需 CI + 装机。
+
+## DETAIL-COMPLETION — 汇聚页工具详情页补全：代码卡平铺 + memory_write 正文 + browser/read_image 图片卡（Qoder, 2026-09-20，pp：“代码卡片平铺、自适应高度”/“全部都要修”+“第二条那个要显示操作目标”）
+
+- **Files**: `SelectableMarkdownView.swift`（新增 `codeBlockAutoHeight` 开关：struct/renderer/`attachmentBounds`/`makeView`/`updateView` 共 5 处透传）；`ThinkingDetailOverlay.swift`（详情页 `ToolSummaryDetailPage`：`detailMarkdown` 的 `SelectableMarkdownView` + `codeCard` 平铺、新增 `case .memoryTool`、新增 `isImageTool`/`imageToolHasContent`/`browserTargetURL`/`operationTargetText`/`imageToolCard`、`detailView` 分派插图片卡分支、根视图挂 `.fullScreenCover`）。
+- **缘起（pp 三条）**：① 详情页代码卡固定 400pt 需卡内手动滚，不合理 → 平铺 + 自适应高度、整页滚；② memory_write 详情只显 "Memory saved to X (N chars)" 确认串、无正文；③ browser/read_image 详情缺截图与操作目标（根因：旧 `detailMarkdown` 只特判 file_write/file_read/shell/memory，其余落 default 只读 `block.content`、从不读输入参数也不渲染图）。
+- **修复**：
+  - A 代码卡平铺：三处高度点（`attachmentBounds:1685`/`makeView:1791`/`updateView:1969`）统一 `autoHeight ? .greatestFiniteMagnitude : (400-offset)`；∞ 被 `min(contentHeight,∞)` 钳成有限值、不溢出；`makeView` 的 `alwaysBounceVertical = !autoHeight` 避免满高滚动区与外层页面 ScrollView 抢手势（横向长行滚动保留）。
+  - B memory_write 正文：`detailMarkdown` 加 `case .memoryTool(action)`——write 取输入 `args["content"]`（复用 `extractWriteContent`，与 file_write 同键）；get 保持 output（output 本身即召回正文）。
+  - C browser/read_image 图片卡：`detailView` 在 fileEdit 分支后、`detailMarkdown` 分支前截走；卡 = 操作目标一行（browser→`action  URL` 取 `block.browserURL ?? args["url"]`；read_image→path；等宽 muted 可长按选择，不搬小窗蓝胶囊）+ 等比缩放内联图（小窗 `browserResultContent` 同款 `Image.scaledToFit().frame(maxWidth:.infinity)`，点按 → 全屏 `ImagePreviewView` 缩放/保存/分享，长按复制图）+ 结果文本（同款平铺卡）；图/目标/结果三者全空 → 回退旧 Input/Output 双卡。
+- **死隔离申报**：聊天流 `SelectableMarkdownView` 默认 `autoHeight=false`、`alwaysBounceVertical=!false=true` 与改前逐位一致；全项目 7 处 `SelectableMarkdownView(` 调用均带标签传参、新属性中插不错位；**详情页不传 `messageId`** → `makeCoordinator` 缓存分支跳过 → 每次拿新 renderer + 空附件缓存，`autoHeight=true` 恒生效，绝不复用聊天流按 `messageId` 缓存的 false 附件（亦不反向污染）；不碰 `ToolBlockContentView`（小窗）、聊天 `AssistantBlockView`、SSE/agent 循环/持久化。
+- **已知偏离（pp 请裁）**：pp 原选"内联可缩放 `ZoomableImageView`"被替换为"已验证等比 `Image` + 点按全屏缩放"——`ZoomableImageView` 系 GeometryReader、依赖 `geo.size.height`、全项目零调用方、放进纵向 ScrollView 高度歧义（本机无法编译/预览验证），保守起见闻功能保留（缩放移入全屏）。若 pp 要内联捏合，改回并加有界高度外壳。
+- **回归项**：① 聊天流代码卡仍 400 封顶内滚（autoHeight=false）② 详情页代码卡完整撑高、整页滚、卡内不内滚 ③ memory_write 详情显正文 ④ browser 详情显 action+URL+截图+结果，捏合/保存/分享在全屏可用 ⑤ read_image 详情显路径+图+视觉文本 ⑥ 旧消息重启后图从 `imageFilePath`/mediaRef 恢复显示 ⑦ 小窗 browser/read_image 渲染不变 ⑧ 深色模式图边框/文本可读。
+- **验证**：本机（Linux）无 Swift/Xcode 工具链、无法编译；上述为静态三轮 + 对抗复核对着代码（含 renderer 缓存污染、首帧闪烁、memberwise init 参数序三处挖坑排除）；**编译与回归 ①–⑧ 需 CI + 装机验证**。

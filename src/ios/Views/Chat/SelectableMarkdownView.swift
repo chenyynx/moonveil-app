@@ -538,6 +538,11 @@ func renderMarkdownBlocks(_ blocks: [BlockNode]) -> NSAttributedString {
 fileprivate final class MarkdownNSRenderer {
     private(set) var theme: SelectableMarkdownTheme
 
+    /// [汇聚页详情页平铺] 由 `SelectableMarkdownView` 在每次 render 前写入，
+    /// 透传给 `CodeBlockAttachment`。true = 代码卡完整撑高（详情页）；
+    /// false = 400pt 封顶内滚（聊天流默认）。standalone 渲染器每次新建，不跨消息缓存。
+    var codeBlockAutoHeight: Bool = false
+
     /// Assistant message this renderer belongs to. Set by `SelectableMarkdownView`
     /// before each `render(blocks:)` call so inline image attachments can route
     /// tap gestures back to a paged gallery of all sibling images in the message.
@@ -817,7 +822,7 @@ fileprivate final class MarkdownNSRenderer {
         } else {
             // Content changed or first time — create fresh object so TextKit recalculates bounds.
             // The previous view will be updated in-place by updateAttachmentViews via codeBlockViewCache.
-            attachment = CodeBlockAttachment(code: trimmed, language: language, theme: theme, quoteDepth: quoteDepth, contentFingerprint: contentHash)
+            attachment = CodeBlockAttachment(code: trimmed, language: language, theme: theme, quoteDepth: quoteDepth, contentFingerprint: contentHash, autoHeight: codeBlockAutoHeight)
             attachment.blockIndex = idx
             codeBlockAttachmentCache[idx] = attachment
             codeBlockContentHashes[idx] = contentHash
@@ -1559,6 +1564,10 @@ final class CodeBlockAttachment: NSTextAttachment {
     let language: String?
     let theme: SelectableMarkdownTheme
     let quoteDepth: Int
+    /// [汇聚页详情页平铺] true = 代码卡按内容完整撑高、卡片内部不纵向滚动
+    /// （交给外层页面 ScrollView），去掉 400pt 封顶。仅汇聚页详情页传，
+    /// 聊天流保持 false（代码块仍 400 封顶内滚，Claude/Grok 常规设计）。
+    let autoHeight: Bool
     /// Sequential index for view reuse across re-renders (set by MarkdownNSRenderer).
     var blockIndex: Int = 0
     /// [CodeGenDedup] Hash of (code, language), computed once by the renderer
@@ -1579,12 +1588,13 @@ final class CodeBlockAttachment: NSTextAttachment {
     /// Left inset for blockquote nesting (matches text indent).
     var leftInset: CGFloat { CGFloat(quoteDepth) * 13 }
 
-    init(code: String, language: String?, theme: SelectableMarkdownTheme, quoteDepth: Int = 0, contentFingerprint: Int = 0) {
+    init(code: String, language: String?, theme: SelectableMarkdownTheme, quoteDepth: Int = 0, contentFingerprint: Int = 0, autoHeight: Bool = false) {
         self.code = code
         self.language = language
         self.theme = theme
         self.quoteDepth = quoteDepth
         self.contentFingerprint = contentFingerprint
+        self.autoHeight = autoHeight
         super.init(data: nil, ofType: nil)
         // Provide a transparent image so UIKit doesn't draw a default placeholder
         self.image = Self.transparentImage
@@ -1675,7 +1685,7 @@ final class CodeBlockAttachment: NSTextAttachment {
         let topOffset: CGFloat = 36   // [B16-CODE-CARD] fixed header (Code label + 1px divider); language no longer changes it
         let contentHeight = measureCodeHeight()
         let bottomPadding: CGFloat = 12
-        let maxCodeHeight: CGFloat = 400 - topOffset - bottomPadding
+        let maxCodeHeight: CGFloat = autoHeight ? .greatestFiniteMagnitude : (400 - topOffset - bottomPadding)
         let scrollHeight = min(contentHeight, maxCodeHeight)
         let totalHeight = topOffset + scrollHeight + bottomPadding
         let height = totalHeight + Self.topMargin + Self.bottomMargin
@@ -1737,7 +1747,9 @@ final class CodeBlockAttachment: NSTextAttachment {
         scrollView.showsHorizontalScrollIndicator = false
         scrollView.showsVerticalScrollIndicator = false
         scrollView.alwaysBounceHorizontal = true
-        scrollView.alwaysBounceVertical = true
+        // [汇聚页详情页平铺] autoHeight 时纵向内容已完整展开，关掉纵向回弹，
+        // 避免满高滚动区与外层页面 ScrollView 抢手势；横向长行滚动保留。
+        scrollView.alwaysBounceVertical = !autoHeight
         scrollView.clipsToBounds = true
 
         let codeTextView = UITextView()
@@ -1779,7 +1791,7 @@ final class CodeBlockAttachment: NSTextAttachment {
         let fittingWidth = fitting.width
         codeTextView.frame = CGRect(x: 0, y: 0, width: fittingWidth, height: contentHeight)
 
-        let maxCodeHeight: CGFloat = 400 - topOffset - 12
+        let maxCodeHeight: CGFloat = autoHeight ? .greatestFiniteMagnitude : (400 - topOffset - 12)
         let scrollHeight = min(contentHeight, maxCodeHeight)
         let bottomPadding: CGFloat = 12
         scrollView.frame = CGRect(x: 0, y: topOffset, width: contentWidth, height: scrollHeight + bottomPadding)
@@ -1957,7 +1969,7 @@ final class CodeBlockAttachment: NSTextAttachment {
 
         // Recalculate heights to match attachmentBounds logic
         let topOffset: CGFloat = 36   // [B16-CODE-CARD] fixed header (Code label + 1px divider); language no longer changes it
-        let maxCodeHeight: CGFloat = 400 - topOffset - 12
+        let maxCodeHeight: CGFloat = autoHeight ? .greatestFiniteMagnitude : (400 - topOffset - 12)
         let scrollHeight = min(fitting.height, maxCodeHeight)
         let bottomPadding: CGFloat = 12
         let newScrollFrame = CGRect(x: 0, y: topOffset, width: container.frame.width, height: scrollHeight + bottomPadding)
@@ -7907,6 +7919,9 @@ struct SelectableMarkdownView: UIViewRepresentable {
     /// the slot key guarantees uniqueness even when two tables in the same
     /// message have identical content.
     var blockId: UUID?
+    /// [汇聚页详情页平铺] true = 内部代码卡按内容完整撑高、不纵向内滚（外层页面
+    /// ScrollView 负责滚动）。默认 false 保持聊天流 400pt 封顶内滚行为不变。
+    var codeBlockAutoHeight: Bool = false
     /// Called when the user taps a blank (non-link, non-code) area of the text view.
     /// The CGPoint is the tap location in **window coordinates**.
     var onTapBlank: ((CGPoint) -> Void)?
@@ -7983,6 +7998,7 @@ struct SelectableMarkdownView: UIViewRepresentable {
     func updateUIView(_ textView: SelectableMarkdownTextView, context: Context) {
         let updateStart = CFAbsoluteTimeGetCurrent()
         context.coordinator.openURL = openURL
+        context.coordinator.renderer.codeBlockAutoHeight = codeBlockAutoHeight
         textView.onTapBlank = onTapBlank
         textView.onCopyScreenshot = onCopyScreenshot
         textView.onReadAloud = onReadAloud
