@@ -160,28 +160,6 @@ struct ToolActivityGroupView: View {
         return 24 + 33.7 * CGFloat(n)
     }
 
-    /// [T-ios-slot-row-union] 缺行自愈（Bug B，09-19）：`carouselIds` 的三个赋值
-    /// 时机（init 播种 / onAppear 同步 / onChange(of: eventBlocks)）都存在同一个
-    /// 结构性窗口——结构体在"init 取数"与"首帧 body 评估"之间数据换血时，
-    /// onChange 只比较相邻两次 body 评估、初评即新值则**变化沿丢失**，队列停在
-    /// 旧 id 集；`ForEach(carouselIds)` 又是"查不到即静默不渲染"，于是数据有 3 行、
-    /// 屏幕只有 2 行（slotFloor 挂 displayRows → 高度却够 3 行），退出重进（真
-    /// 重建）才补齐——pp 真机原话「进行工具调用的时候只有两排…返回才出现三排」。
-    /// 修法 = 渲染 id 用 `displayRows ∪ carouselIds` 并集纠偏：数据行当帧必渲染
-    /// （有几行数据渲染几行），队列多出的 id 留在尾部（离场动画机制依赖它们
-    /// 短暂存在，行为不变）。稳态 queue ≡ data 时并集恒等 carouselIds → 轮播
-    /// 动画路径零扰动；纯渲染层计算，不新增任何通知/reconfigure。
-    private var renderIds: [UUID] {
-        let dataIds = displayRows.map(\.id)
-        let missing = dataIds.filter { !carouselIds.contains($0) }
-        guard missing.isEmpty else {
-            // 队列漏了数据行：以数据顺序为骨架，队列中未入数据的 id（离场中）追加尾部。
-            let leaving = carouselIds.filter { !dataIds.contains($0) }
-            return dataIds + leaving
-        }
-        return carouselIds
-    }
-
     /// 是否按运行槽渲染。[T-ios-coldstart-interrupted-slot] 追加一条：load 检测的
     /// "中断待恢复"回合里未被正文收口的段 = 信息上未完成 → 保持运行槽（计时冻结）。
     /// [T-ios-slot-error-pending-retry] 再追加一条（Bug A）："错误待重试"的尾部
@@ -311,6 +289,27 @@ struct ToolActivityGroupView: View {
                 carouselIds = targetIds
             }
         }
+        // [T-ios-slot-row-resync] 缺行自愈（Bug B，09-19 二轮·状态层版）：
+        // `carouselIds` 的三个赋值时机（init 播种/onAppear 同步/本 onChange）共享
+        // 同一结构性窗口——结构体在"init 取数"与"首帧 body 评估"之间数据换血时，
+        // onChange 只比较相邻两次评估、初评即新值 → 变化沿丢失，队列停在旧 id 集，
+        // ForEach 静默缺行（slotFloor 挂 displayRows → 高度却够全行）。一轮曾用
+        // 渲染层并集纠偏，二轮复核（Doris）指出并集在数据到达帧即渲染、早于
+        // onChange 的 withAnimation 事务 → 新行进场滑入被吃掉（红线②）。改状态层
+        // 对齐：task(id:) **按取值而非变化沿触发**（每次取值变化必跑，含丢沿场景），
+        // 运行时数据已落定，与 onChange 共用同一段差量事务 → 正常帧 onChange 先
+        // 对齐、task 复跑恒 no-op；丢沿帧差额插入仍包在 withAnimation(carouselSpring)
+        // 里，进场动画与既有路径同款。不用 onChange(initial:true)：初值回调在 body
+        // 评估期触发，与 onAppear 无动画同步有先后竞态；task 挂载后运行，顺序确定。
+        // 纯状态层，不新增通知/reconfigure，不触碰 allowRemountPing/抑制窗。
+        .task(id: displayRows.map(\.id)) {
+            Self.rememberRows(eventBlocks, anchor: segment.anchorId)
+            let targetIds = displayRows.map(\.id)
+            guard targetIds != carouselIds else { return }
+            withAnimation(Self.carouselSpring) {
+                carouselIds = targetIds
+            }
+        }
         // [pp 09-18 根因①] thinking block flush 传导：flush 只发
         // AssistantBlock.objectWillChange，本视图只订阅 message（blocks 数组是引用，
         // 引用不变 → message 不发通知）→ workHasStarted 没有重估时机 → 文字
@@ -367,6 +366,14 @@ struct ToolActivityGroupView: View {
                 ThinkingRunClock.pause(anchorId: segment.anchorId)
             } else if message.error == nil {
                 ThinkingRunClock.resume(anchorId: segment.anchorId)
+            } else {
+                // [T-ios-slot-clock-rearm] 撤销沿且错误未清 = 用户开新回合、该
+                // 回合彻底结束（真收口）：isDone 早已为 true、无变化沿触发落定，
+                // 这里补上 settle（settle 自带 `frozen == nil` 幂等守卫，重试
+                // 续走路径 isDone=false 时不落入此分支，不会误钉）。
+                if segment.isDone && !segment.closedByContent {
+                    ThinkingRunClock.settle(anchorId: segment.anchorId, start: startedAt)
+                }
             }
             if Self.allowRemountPing(segment.anchorId) {
                 let anchorId = segment.anchorId
@@ -375,9 +382,19 @@ struct ToolActivityGroupView: View {
                 }
             }
         }
-        // [pp 09-18] 阶段完成 → 落定时长（供汇聚页「Thought for Ns」）。
+        // [T-ios-slot-clock-rearm] 报错待重试 ≠ 真收口：缓 settle。
+        // 报错沿 isDone false→true 只是消息态瞬断（回合还可能重试续走），若此刻
+        // settle 会把 frozen 钉死，重试成功后 resume 被 `frozen != nil` 守卫挡掉
+        // → 秒数停在报错前读数不再涨（一轮 §四.1 既有缺陷，Doris 复核点名必修）。
+        // 缓落定期间：error 链 pause 已把显示冻在报错时刻（既有机制，非新计时器）；
+        // 重试续走 → 下方 error 清沿 resume 正常放行（frozen 尚 nil），从原起点
+        // 续走（pausedOffset 折入报错等待，不重数/不跳回/不虚走）。
+        // 真收口不受影响：closedByContent 沿照 settle（任务书语义）；"回合彻底
+        // 结束"（新回合开启致 pending 标志撤销、isDone 恒 true 无变化沿）由上方
+        // onChange(of: errorPendingRetry) 的撤销沿补落定。
         .onChange(of: segment.isDone) { done in
             if done {
+                if errorPendingRetry && !segment.closedByContent { return }
                 ThinkingRunClock.settle(anchorId: segment.anchorId, start: startedAt)
             }
         }
@@ -426,10 +443,10 @@ struct ToolActivityGroupView: View {
                         .accessibilityLabel(AppLocalized("Stop"))
                     }
                 }
-                ForEach(renderIds, id: \.self) { id in
-                    // [pp 09-18 根因③] 数据源 = 轮播队列 + 自愈并集（renderIds，
-                    // [T-ios-slot-row-union]：数据行当帧必渲染，队列 id 保持动画
-                    // 驱动）；block 从 displayRows 现查——离场行 id 已出 suffix(3)
+                ForEach(carouselIds, id: \.self) { id in
+                    // [pp 09-18 根因③] 数据源 = carouselIds（@State，onChange 显式
+                    // 事务 + [T-ios-slot-row-resync] task(id:) 状态层兜底对齐）；
+                    // block 从 displayRows 现查——离场行 id 已出 suffix(3)
                     // 窗口 → if let 失败 → 视图移除 → removal transition（跟队上滑）。
                     if let block = displayRows.first(where: { $0.id == id }),
                        let item = ToolEventRowFactory.item(for: block) {

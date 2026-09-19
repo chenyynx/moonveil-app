@@ -1029,3 +1029,12 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离申报**: 仅新版渲染路径（classic 不走 ToolActivityGroupView；`ToolRenderStyle` 分叉不动）；新参数全部默认 false（SwiftUI 列表路径 ChatMessageViews:501 行为零变化）；不碰 `TurnActivityAggregator.isDone` 三条件语义；不碰数据/SSE/agent 循环/持久化；正文=阶段完成语义保留（两条 pending 分支均要求 `!closedByContent`）。
 - **回归项**: ①422 报错→重试期间槽保持 125pt 不再瞬翻（日志判据：不再出现同 cell `125.3→24.3→125.3` 1.5s 内往返）②重试成功后秒数续走外观无缝（注意：settle 先于 resume 落终值是**既有行为**，本批未改，见自审报告"已知风险"）③用户开新回合后旧槽正常收口成 entryRow ④正文到达收口路径不变（16:49:59 那条语义保留）⑤工具行 3/2/1 任意数据量当帧全渲染，退出重进不再变化 ⑥轮播进/退场动画不变 ⑦重进自愈/高度地板/2.5s 抑制窗零回退 ⑧classic 皮肤零影响。
 - **验证**: 本机无 Swift 工具链——括号/方括号平衡度与 HEAD 逐文件一致 + 调用点参数序核对；**编译与上述 ①–⑧ 需 CI + 装机验证**。
+
+## SLOT-ROW-RESYNC + SLOT-CLOCK-REARM — 轮播动画保真 + 报错重试秒数续走（Qoder 第二轮, 2026-09-19，Doris 复核 + 自审 §四.1）
+
+- **File**: 仅 `ToolActivityGroupView.swift`（上一批 SLOT-ERROR-RETRY + SLOT-ROW-UNION 的语义修正，其余文件不变）。
+- **补 A（renderIds 并集→状态层 task 兜底）**: 一轮的 `renderIds = displayRows ∪ carouselIds` 在"数据到达帧"即渲染新行，早于 `onChange` 的 `withAnimation(carouselSpring)` 事务 → 结构 diff 被吃掉，新行进场滑入动画丢失（红线条②）。改为状态层对齐：删掉 renderIds，`ForEach` 回退 `carouselIds`，新增 `.task(id: displayRows.map(\.id))` 兜底——task 按**取值**而非变化沿触发（覆盖"初评即新值"丢沿场景），运行时数据已落定，差额插入包在与 onChange 同款 `withAnimation(carouselSpring)` 里；正常帧 onChange 先对齐、task 复跑恒为 no-op（`guard targetIds != carouselIds`）。不用 `onChange(initial:true)`：初值回调在 body 评估期触发，与 onAppear 无动画同步有先后竞态；task 挂载后运行、顺序确定。Bug B 自愈能力保留（有数据必对齐、当帧必渲染）。零新增通知/reconfigure，不触碰 allowRemountPing/noteProgrammaticReconfigure。
+- **补 B（计时器报错重试续走）**: 一轮遗留 §四.1——报错沿 `isDone false→true` 触发 settle 钉死 `frozen`，重试成功后 resume 被 `frozen != nil` 守卫挡掉 → 秒数永久冻结。修复：`.onChange(of: segment.isDone)` 在 `errorPendingRetry && !closedByContent` 时**推迟 settle**（错误待重试=假收口，不落终值）；`.onChange(of: errorPendingRetry)` 撤销沿且 `message.error != nil`（真收口=用户开新回合放弃）时补 settle。重试续走路径：`retry()` 先清 error 再转 isProcessing → resume 时 frozen 为 nil → 从原 startedAt + pausedOffset（冻结等待已折叠）续走，不重数/不跳回。ThinkingRunClock API 零改动（共享组件，消费点见自审报告第二轮章节：写仅本视图，读 ThinkingElapsedText.elapsed / ThinkingDetailOverlay.frozenValue）。
+- **保持项**: 冷启动错误尾巴→冻结运行槽（一轮 onAppear 冻结链）保留不动；§四.5 汇聚页 `isSegmentRunning` 判据不消费新标志——非局部低风险改动，仅记录不改。
+- **回归项**: ①live 新工具行进场滑入动画与改前同款（补 A 核心验收）②Bug B 不回退：3 行数据 live 全渲染，退出重进不变化 ③422 报错→重试续走后秒数继续走（不冻结）④彻底放弃（开新回合）后槽收口且聚合页「Thought for Ns」为有限值 ⑤closedByContent 正文收口 settle 路径不变 ⑥red line：轮播动画/正文语义/classic 冻结/slotFloor/冷却机制全部无回退。
+- **验证**: 本机无 Swift 工具链——括号平衡度与 HEAD 一致；①–⑥ 需 CI + 装机。
