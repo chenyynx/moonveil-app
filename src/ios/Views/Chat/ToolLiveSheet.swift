@@ -325,6 +325,8 @@ struct ToolLiveSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.chatSessionId) private var sessionId
 
+    @State private var browserSnapshot: UIImage?
+    @State private var snapshotTimer: Timer?
     @State private var showTerminal = false
     @State private var navCopyDone = false
     /// Incremented when the current block publishes changes, forcing SwiftUI to re-render.
@@ -349,6 +351,32 @@ struct ToolLiveSheet: View {
             }
         }
     }
+    @StateObject private var resourceMonitor = SystemResourceMonitor()
+
+    /// [T-ios-tool-result-lazy-render] Number of 40-line chunks currently
+    /// revealed in the non-live (detail) text view. Large tool results
+    /// (e.g. a big memory_get / file read) used to render every chunk eagerly
+    /// inside a plain VStack+ForEach — a ScrollView does NOT virtualize a
+    /// VStack, so all N Text views laid out at once and the sheet janked on
+    /// open. We now reveal an initial batch (~200 lines / 10KB, whichever is
+    /// fewer) and append `lazyRenderBatchChunks` more each time the user
+    /// reaches the bottom or taps "Load more". Reset to the initial batch
+    /// whenever the displayed block changes. Live streaming output is
+    /// unaffected (it already caps via liveChunkedLines).
+    @State private var revealedChunkCount: Int = 0
+    /// The block id `revealedChunkCount` was last initialized for, so switching
+    /// blocks (next/prev tool) re-collapses to the initial batch.
+    @State private var revealedForBlockId: UUID?
+
+    /// Lines per chunk — must match chunkedLines' default.
+    private static let lazyRenderChunkLines = 40
+    /// Initial reveal: ~200 lines = 5 chunks.
+    private static let lazyRenderInitialChunks = 5
+    /// Each subsequent batch: 200 more lines = 5 chunks.
+    private static let lazyRenderBatchChunks = 5
+    /// Byte cap for the initial reveal — clamp the initial chunk count so a
+    /// few very long lines (< 200 lines but > 10KB) still load incrementally.
+    private static let lazyRenderInitialByteCap = 10 * 1024
 
     init(toolBlocks: [AssistantBlock], initialIdx: Int, toolSnapshots: [ToolSnapshotItem] = [], browserPool: BrowserTabPool?,
          onBrowserTakeover: (() -> Void)? = nil, onTakeoverDone: (() -> Void)? = nil) {
@@ -426,9 +454,13 @@ struct ToolLiveSheet: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(UIColor.systemGroupedBackground))
         .onAppear {
+            startBrowserTimer()
+            if isLive && isCurrentShell { resourceMonitor.start() }
             MinisOpenURLBroker.shared.toolSheetVisible = true
         }
         .onDisappear {
+            stopBrowserTimer()
+            resourceMonitor.stop()
             MinisOpenURLBroker.shared.toolSheetVisible = false
         }
         // Auto-present an in-app browser preview when a shell tool emits an
@@ -446,6 +478,9 @@ struct ToolLiveSheet: View {
             guard MinisOpenURLBroker.isWebScheme(url.scheme) else { return }
             activeSheet = .linkPreview(url)
             MinisOpenURLBroker.shared.consume()
+        }
+        .onChange(of: isLive) { live in
+            if live && isCurrentShell { resourceMonitor.start() } else { resourceMonitor.stop() }
         }
         .onReceive(block.objectWillChange) { _ in
             blockUpdateTick += 1
@@ -480,6 +515,11 @@ struct ToolLiveSheet: View {
                 MinisLinkPreviewView(url: url, browserPool: browserPool)
             }
         }
+    }
+
+    private var isCurrentShell: Bool {
+        if case .shellTool = block.kind { return true }
+        return false
     }
 
     // MARK: - Top nav bar: X + title + device icon
@@ -538,7 +578,7 @@ struct ToolLiveSheet: View {
                 } else if case .fileWriteTool = block.kind {
                     Button {
                         let text = block.streamingFileContent
-                            ?? ToolBlockContentView.extractWriteContent(from: block)
+                            ?? extractWriteContent()
                             ?? block.content
                         UIPasteboard.general.string = text
                         navCopyDone = true
@@ -566,7 +606,7 @@ struct ToolLiveSheet: View {
                     }
                 } else if case .fileEditTool = block.kind {
                     Button {
-                        let editStrings = ToolBlockContentView.extractEditStrings(from: block)
+                        let editStrings = extractEditStrings()
                         let text = editStrings.map { "OLD:\n\($0.oldString)\n\nNEW:\n\($0.newString)" } ?? block.content
                         UIPasteboard.general.string = text
                         navCopyDone = true
@@ -596,7 +636,7 @@ struct ToolLiveSheet: View {
                     }
                 } else if case .memoryTool = block.kind {
                     Button {
-                        let text = ToolBlockContentView.memoryWriteContentFromArgs(from: block) ?? block.content
+                        let text = memoryWriteContentFromArgs() ?? block.content
                         UIPasteboard.general.string = text
                         navCopyDone = true
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { navCopyDone = false }
@@ -715,16 +755,1137 @@ struct ToolLiveSheet: View {
 
     @ViewBuilder
     private var liveContent: some View {
-        ToolBlockContentView(
-            block: block,
-            isLive: isLive,
-            snapshot: currentSnapshot,
-            browserPool: browserPool,
-            toolBlocks: toolBlocks,
-            blockIndex: currentIdx
-        )
+        if isLive {
+            // Currently executing — show live content
+            switch block.kind {
+            case .browserTool: browserContent
+            case .fileWriteTool:
+                let liveText = block.streamingFileContent.flatMap { $0.isEmpty ? nil : $0 } ?? block.content
+                fileEditorContent(liveText, isStreaming: true)
+            case .fileEditTool:
+                fileDiffContent(isStreaming: true)
+            case .fileReadTool: fileEditorContent(block.content)
+            case .memoryTool:
+                let content = memoryWriteContentFromArgs() ?? block.content
+                memoryEditorContent(content, action: memoryActionName(), isStreaming: true)
+            default: textContent
+            }
+        } else if let snap = currentSnapshot {
+            // Completed with a persisted snapshot — render it
+            snapshotContent(snap)
+        } else {
+            // Fallback to block content
+            switch block.kind {
+            case .browserTool:
+                if let img = block.imageFilePath.flatMap({ UIImage(contentsOfFile: $0) }) {
+                    browserResultContent(image: img, text: block.content)
+                } else {
+                    browserTextResultContent(block.content)
+                }
+            case .readImageTool:
+                if let img = block.imageFilePath.flatMap({ UIImage(contentsOfFile: $0) }) {
+                    browserResultContent(image: img, text: block.content)
+                } else {
+                    textContent
+                }
+            case .fileEditTool:
+                fileDiffContent()
+            case .fileWriteTool(let path), .fileReadTool(let path):
+                // Try reading actual file content from disk
+                let hostURL = RootfsManager.shared.dataPath.appendingPathComponent(String(path.dropFirst()))
+                let diskContent = (try? String(contentsOf: hostURL, encoding: .utf8)) ?? ""
+                if !diskContent.isEmpty {
+                    fileEditorContent(diskContent, toolResult: block.content)
+                } else {
+                    fileEditorContent(block.content)
+                }
+            case .memoryTool:
+                let content = memoryWriteContentFromArgs() ?? block.content
+                memoryEditorContent(content, action: memoryActionName(), resultText: block.content)
+            default:
+                textContent
+            }
+        }
     }
 
+    /// Render a persisted snapshot (image or text).
+    @ViewBuilder
+    private func snapshotContent(_ item: ToolSnapshotItem) -> some View {
+        switch item.snapshot.type {
+        case .image:
+            if let ref = item.snapshot.mediaRef {
+                let url = item.mediaResolver(ref)
+                if let img = UIImage(contentsOfFile: url.path) {
+                    browserResultContent(image: img, text: block.content)
+                } else {
+                    textContent
+                }
+            } else {
+                textContent
+            }
+        case .text:
+            if case .fileWriteTool = block.kind, let text = item.snapshot.text, !text.isEmpty {
+                fileEditorContent(text, toolResult: block.content)
+            } else if case .fileEditTool = block.kind {
+                fileDiffContent()
+            } else if case .fileReadTool = block.kind, let text = item.snapshot.text, !text.isEmpty {
+                fileEditorContent(text)
+            } else if case .memoryTool = block.kind {
+                let content = memoryWriteContentFromArgs() ?? item.snapshot.text ?? block.content
+                memoryEditorContent(content, action: memoryActionName(), resultText: block.content)
+            } else if case .browserTool = block.kind, let text = item.snapshot.text, !text.isEmpty {
+                browserTextResultContent(text)
+            } else if let text = item.snapshot.text, !text.isEmpty {
+                snapshotTextContent(text)
+            } else {
+                textContent
+            }
+        }
+    }
+
+    /// Combined browser result: action capsules + screenshot image + result text card.
+    private func browserResultContent(image: UIImage, text: String) -> some View {
+        let action: String = {
+            if case .browserTool(let a) = block.kind { return a }
+            return ""
+        }()
+        let url: String = resolvedBrowserURL
+        let script: String? = browserScriptFromArgs()
+
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                // Action + URL capsules
+                if !action.isEmpty || !url.isEmpty {
+                    HStack(spacing: 8) {
+                        if !action.isEmpty {
+                            Text(action)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.blue)
+                                .clipShape(Capsule())
+                        }
+                        if !url.isEmpty {
+                            CopyableURLCapsule(url: url)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 12)
+                }
+
+                // JS script card for execute_js
+                if let script {
+                    jsScriptCard(script)
+                }
+
+                // Screenshot — shadowed card matching read_image style.
+                // Use .scaledToFit + frame(maxWidth:.infinity) so the image
+                // shrinks to the container width regardless of its intrinsic
+                // pixel size; previously a GeometryReader-based explicit
+                // .frame(width:height:) sometimes ended up applying a
+                // proposed-size that was larger than the visible viewport,
+                // leaving the right edge clipped.
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color(UIColor.separator).opacity(0.5), lineWidth: 0.5))
+                    .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
+                    .contextMenu {
+                        Button { UIPasteboard.general.image = image } label: {
+                            Label("Copy Image", systemImage: "doc.on.doc")
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.top, action.isEmpty && url.isEmpty ? 12 : 0)
+
+                    // Result text — file editor style card
+                    if !text.isEmpty {
+                        VStack(spacing: 0) {
+                            // Title bar
+                            HStack(spacing: 6) {
+                                Image(systemName: "globe")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Color(UIColor.secondaryLabel))
+                                Text("Result")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(Color(UIColor.label))
+                                    .lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.92, alpha: 1) }))
+
+                            Divider()
+
+                            // Result content
+                            Text(text)
+                                .font(.system(size: 13, design: .monospaced))
+                                .foregroundStyle(Color(UIColor.label))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                                .padding(14)
+                        }
+                        .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.10, alpha: 1) : UIColor(white: 0.94, alpha: 1) }))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
+                        .padding(.horizontal, 12)
+                    }
+            }
+            .padding(.bottom, 16)
+        }
+    }
+
+    /// Browser text-only result: action + URL capsules + file-editor-style result card.
+    private func browserTextResultContent(_ text: String) -> some View {
+        let action: String = {
+            if case .browserTool(let a) = block.kind { return a }
+            return ""
+        }()
+        let url: String = resolvedBrowserURL
+        let script: String? = browserScriptFromArgs()
+
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                // Action + URL capsules
+                if !action.isEmpty || !url.isEmpty {
+                    HStack(spacing: 8) {
+                        if !action.isEmpty {
+                            Text(action)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.blue)
+                                .clipShape(Capsule())
+                        }
+                        if !url.isEmpty {
+                            CopyableURLCapsule(url: url)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 12)
+                }
+
+                // JS script card for execute_js
+                if let script {
+                    jsScriptCard(script)
+                }
+
+                // Result text — file editor style card
+                if !text.isEmpty {
+                    VStack(spacing: 0) {
+                        // Title bar
+                        HStack(spacing: 6) {
+                            Image(systemName: "globe")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color(UIColor.secondaryLabel))
+                            Text("Result")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(Color(UIColor.label))
+                                .lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.92, alpha: 1) }))
+
+                        Divider()
+
+                        // Result content
+                        Text(sanitizeForDisplay(text))
+                            .font(.system(size: 13, design: .monospaced))
+                            .foregroundStyle(Color(UIColor.label))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                            .padding(14)
+                    }
+                    .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.10, alpha: 1) : UIColor(white: 0.94, alpha: 1) }))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
+                    .padding(.horizontal, 12)
+                }
+            }
+            .padding(.bottom, 16)
+        }
+    }
+
+    /// Zoomable image: fits width, supports pinch-to-zoom and drag.
+    private func zoomableImage(_ img: UIImage) -> some View {
+        ZoomableImageView(image: img)
+    }
+
+    /// Rendered snapshot text (last N lines of tool output).
+    private func snapshotTextContent(_ text: String) -> some View {
+        GeometryReader { geo in
+            let cardWidth = geo.size.width - 24 // 12pt horizontal padding each side
+            let cardMinHeight = cardWidth * 3.0 / 4.0
+            Group {
+                if case .shellTool(let cmd) = block.kind {
+                    // Shell: command header + chunked output. Chunking avoids the
+                    // SwiftUI `Text` soft-truncation ceiling on long output.
+                    let cmdPrefix = "$ \(cmd)\n"
+                    let output = text.hasPrefix(cmdPrefix) ? String(text.dropFirst(cmdPrefix.count)) : text
+                    let chunks = Self.chunkedLines(output.isEmpty ? " " : output)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("$ \(cmd)")
+                                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 14)
+                                .padding(.top, 14)
+
+                            ForEach(chunks, id: \.id) { chunk in
+                                Text(attributedShellLine(chunk.text))
+                                    .font(.system(size: 13, design: .monospaced))
+                                    .foregroundColor(accentColor)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 14)
+                            }
+                        }
+                        .textSelection(.enabled)
+                        .padding(.bottom, 14)
+                        .frame(maxWidth: .infinity, minHeight: cardMinHeight, alignment: .topLeading)
+                        .background(Color.black)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
+                        .padding(.horizontal, 12)
+                        .padding(.top, 12)
+                        .padding(.bottom, 16)
+                    }
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            if !contentHeader.isEmpty {
+                                Text(contentHeader)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(ChatColors.secondaryText)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 16)
+                                    .padding(.bottom, 8)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                            }
+
+                            Text(sanitizeForDisplay(text))
+                                .font(.system(size: 13, design: .monospaced))
+                                .foregroundStyle(accentColor)
+                                .frame(maxWidth: .infinity, minHeight: cardMinHeight, alignment: .topLeading)
+                                .textSelection(.enabled)
+                                .padding(14)
+                                .background(Color(white: 0.12))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                .padding(.horizontal, 12)
+                        }
+                        .padding(.bottom, 16)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Minimal info stub for file_read in snapshot view — avoids duplicating content already shown in chat.
+    private func fileReadInfoView(fileName: String, charCount: Int) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "doc.text")
+                .font(.system(size: 12))
+                .foregroundStyle(Color(UIColor.secondaryLabel))
+            Text(fileName)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color(UIColor.label))
+                .lineLimit(1)
+            Text("(\(Self.formatCharCount(charCount)))")
+                .font(.system(size: 11))
+                .foregroundStyle(Color(UIColor.tertiaryLabel))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    /// Editor-style preview for file_read / file_write tool results.
+    /// - Parameter fileContent: The actual file content to display in the editor.
+    /// - Parameter toolResult: Optional tool result info (minis_url etc.) shown below the editor.
+    // MARK: - File Edit Diff Helpers
+
+    /// Extracts `old_string` and `new_string` from the tool input args JSON for file_edit.
+    private func extractEditStrings() -> (oldString: String, newString: String)? {
+        guard let json = block.toolInputArgs,
+              let data = json.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let old = dict["old_string"] as? String,
+              let new = dict["new_string"] as? String else { return nil }
+        return (old, new)
+    }
+
+    /// Extract the written file content from toolInputArgs for file_write blocks.
+    private func extractWriteContent() -> String? {
+        guard let json = block.toolInputArgs,
+              let data = json.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let content = dict["content"] as? String else { return nil }
+        return content
+    }
+
+    /// Diff-style card for file_edit results showing removed lines (red) and added lines (green).
+    private func fileDiffContent(isStreaming: Bool = false) -> some View {
+        let filePath: String = {
+            if case .fileEditTool(let p) = block.kind { return p }
+            return "file"
+        }()
+        let fileName = (filePath as NSString).lastPathComponent
+        let editStrings = extractEditStrings()
+        let oldText = editStrings?.oldString ?? block.streamingFileContent ?? ""
+        let newText = editStrings?.newString ?? ""
+        let hasEditData = editStrings != nil || (block.streamingFileContent != nil && !(block.streamingFileContent?.isEmpty ?? true))
+        let toolResult = isStreaming ? nil : block.content
+
+        // Compute size label for title bar (just byte size, not the result message)
+        let sizeLabel: String = {
+            if isStreaming { return "streaming…" }
+            let totalBytes = oldText.utf8.count + newText.utf8.count
+            return Self.formatBytes(totalBytes)
+        }()
+
+        // Parse replacement count from tool result (e.g. "Edited /root/test.txt (1 replacement, 234 bytes)")
+        let resultDetail: String? = {
+            guard let result = toolResult, !result.isEmpty else { return nil }
+            // Extract parenthesized detail like "(1 replacement, 234 bytes)"
+            if let range = result.range(of: #"\(([^)]+)\)"#, options: .regularExpression) {
+                return String(result[range])
+            }
+            return nil
+        }()
+
+        return Group {
+            if hasEditData {
+                GeometryReader { geo in
+                    let cardWidth = geo.size.width - 24 // 12pt horizontal padding each side
+                    let cardMinHeight = cardWidth * 3.0 / 4.0
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            // Diff card
+                            VStack(spacing: 0) {
+                            // Title bar — filename + byte size only
+                            HStack(spacing: 6) {
+                                Image(systemName: "square.and.pencil")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.orange)
+                                Text(fileName)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(Color(UIColor.label))
+                                    .lineLimit(1)
+                                Text("(\(sizeLabel))")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(isStreaming ? Color.orange.opacity(0.8) : Color(UIColor.tertiaryLabel))
+                                    .lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.92, alpha: 1) }))
+
+                            Divider()
+
+                            // Diff body — lines are flush against each other
+                            // and against the title divider so the red/green
+                            // bands read as a continuous ribbon. `spacing: 0`
+                            // on the outer VStack drops the SwiftUI default
+                            // line spacing; the per-line backgrounds own all
+                            // the visible padding.
+                            VStack(alignment: .leading, spacing: 0) {
+                                // Removed lines (red)
+                                if !oldText.isEmpty {
+                                    let oldChunks = Self.chunkedDiffLines(oldText, prefix: "- ")
+                                    ForEach(oldChunks, id: \.id) { chunk in
+                                        Text(chunk.text)
+                                            .font(.system(size: 13, design: .monospaced))
+                                            .foregroundStyle(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 1, green: 0.4, blue: 0.4, alpha: 1) : UIColor(red: 0.8, green: 0.1, blue: 0.1, alpha: 1) }))
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.horizontal, 14)
+                                            .padding(.vertical, 2)
+                                            .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.3, green: 0.08, blue: 0.08, alpha: 1) : UIColor(red: 1, green: 0.9, blue: 0.9, alpha: 1) }))
+                                    }
+                                }
+                                // Added lines (green)
+                                if !newText.isEmpty {
+                                    let newChunks = Self.chunkedDiffLines(newText, prefix: "+ ")
+                                    ForEach(newChunks, id: \.id) { chunk in
+                                        Text(chunk.text)
+                                            .font(.system(size: 13, design: .monospaced))
+                                            .foregroundStyle(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.4, green: 1, blue: 0.4, alpha: 1) : UIColor(red: 0.1, green: 0.6, blue: 0.1, alpha: 1) }))
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.horizontal, 14)
+                                            .padding(.vertical, 2)
+                                            .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.08, green: 0.2, blue: 0.08, alpha: 1) : UIColor(red: 0.9, green: 1, blue: 0.9, alpha: 1) }))
+                                    }
+                                }
+                            }
+                            .textSelection(.enabled)
+
+                            // Result info section (inside the card, separated by divider).
+                            // Spacer pushes the footer to the bottom of the card when
+                            // the diff body is shorter than cardMinHeight. Keep both the
+                            // Spacer and the Divider inside `if !isStreaming` so the
+                            // streaming layout (no footer) is unchanged.
+                            if !isStreaming {
+                                Spacer(minLength: 0)
+                                Divider()
+
+                                // Status-aware footer: success → "Edited <path> (1 replacement, …)";
+                                // failed → "Failed to edit <path>" + full error message from
+                                // toolResult (e.g. "old_string not found … First 20 lines: …");
+                                // cancelled → "Cancelled".
+                                let (label, labelColor): (String, Color) = {
+                                    switch block.toolStatus {
+                                    case .failed:    return (AppLocalized("Failed to edit"), .red)
+                                    case .cancelled: return (AppLocalized("Cancelled"),     .orange)
+                                    default:         return (AppLocalized("Edited"),        Color(UIColor.label))
+                                    }
+                                }()
+                                let isFailure: Bool = {
+                                    if case .failed = block.toolStatus { return true }
+                                    if case .cancelled = block.toolStatus { return true }
+                                    return false
+                                }()
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack(spacing: 4) {
+                                        Text(label)
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundStyle(labelColor)
+                                        Text(filePath)
+                                            .font(.system(size: 12, design: .monospaced))
+                                            .foregroundStyle(Color(UIColor.secondaryLabel))
+                                            .lineLimit(1)
+                                            .truncationMode(.middle)
+                                        Spacer()
+                                    }
+                                    if isFailure, let errText = toolResult, !errText.isEmpty {
+                                        // Show the model-visible error text so the user
+                                        // sees the same explanation the agent is acting on.
+                                        // Trim leading "Error: " prefix to avoid the redundant
+                                        // "Failed to edit … Error: …" stacking, and cap at 6
+                                        // lines to keep the card height bounded.
+                                        Text(Self.trimmedErrorMessage(errText))
+                                            .font(.system(size: 12, design: .monospaced))
+                                            .foregroundStyle(Color(UIColor.secondaryLabel))
+                                            .lineLimit(6)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .textSelection(.enabled)
+                                    } else if let detail = resultDetail {
+                                        Text(detail)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(Color(UIColor.tertiaryLabel))
+                                    }
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                            }
+                        }
+                            .frame(maxWidth: .infinity, minHeight: cardMinHeight, maxHeight: .infinity, alignment: .topLeading)
+                            .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.10, alpha: 1) : UIColor(white: 0.94, alpha: 1) }))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
+                            .padding(.horizontal, 12)
+                            .padding(.top, 12)
+                        }
+                        .padding(.bottom, 16)
+                    }
+                }
+            } else {
+                fileEditorContent(block.content)
+            }
+        }
+    }
+
+    // MARK: - Memory Tool Helpers
+
+    /// Extracts the `content` field from the tool input args JSON for memory_write.
+    private func memoryWriteContentFromArgs() -> String? {
+        guard let argsJson = block.toolInputArgs,
+              let data = argsJson.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let content = obj["content"] as? String else { return nil }
+        return content
+    }
+
+    /// Returns the action name from the memoryTool kind (e.g. "memory_write", "memory_get").
+    private func memoryActionName() -> String {
+        if case .memoryTool(let action) = block.kind { return action }
+        return "memory"
+    }
+
+    // MARK: - Browser Helper Methods
+
+    /// Resolves the browser URL for the current block. Checks (in order):
+    /// 1. `browserURL` on the block (set at runtime or restored from persisted `pageURL`)
+    /// 2. `url` field in persisted `toolInputArgs` (for navigate/new_tab/fetch)
+    /// 3. Inherited from the nearest preceding browser block that has a URL
+    ///
+    /// Returns an empty string for any block that is not a browser tool —
+    /// otherwise other tool kinds (e.g. `readImageTool`) that reuse
+    /// `browserResultContent` for their image+text rendering would pick up
+    /// an unrelated URL from a previous browser step and display it above
+    /// the read-image result.
+    private var resolvedBrowserURL: String {
+        guard case .browserTool = block.kind else { return "" }
+        if let url = block.browserURL, !url.isEmpty { return url }
+        // Try extracting url from this block's args
+        if let url = extractURLFromArgs(block) { return url }
+        // Inherit from preceding browser block
+        let idx = min(currentIdx, toolBlocks.count - 1)
+        if idx > 0 {
+            for i in stride(from: idx - 1, through: 0, by: -1) {
+                let prev = toolBlocks[i]
+                if let url = prev.browserURL, !url.isEmpty { return url }
+                if let url = extractURLFromArgs(prev) { return url }
+            }
+        }
+        return ""
+    }
+
+    private func extractURLFromArgs(_ blk: AssistantBlock) -> String? {
+        guard let json = blk.toolInputArgs,
+              let data = json.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let url = dict["url"] as? String,
+              !url.isEmpty else { return nil }
+        return url
+    }
+
+    /// Extracts the `script` field from the tool input args JSON for execute_js.
+    private func browserScriptFromArgs() -> String? {
+        guard let json = block.toolInputArgs,
+              let data = json.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let script = dict["script"] as? String,
+              !script.isEmpty else { return nil }
+        return script
+    }
+
+    /// Code card showing the JS script content for execute_js actions.
+    private func jsScriptCard(_ script: String) -> some View {
+        VStack(spacing: 0) {
+            // Title bar
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.left.forwardslash.chevron.right")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange.opacity(0.7))
+                Text("JavaScript")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.orange)
+                    .lineLimit(1)
+                Spacer()
+                Text(Self.formatBytes(script.utf8.count))
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color(UIColor.tertiaryLabel))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.92, alpha: 1) }))
+
+            Divider()
+
+            // Script content
+            Text(script)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundStyle(Color(UIColor.label))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+                .padding(12)
+        }
+        .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.10, alpha: 1) : UIColor(white: 0.94, alpha: 1) }))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
+        .padding(.horizontal, 12)
+    }
+
+    /// Editor-style card for memory tool content, matching `fileEditorContent` visual style.
+    private func memoryEditorContent(_ memoryContent: String, action: String, resultText: String? = nil, isStreaming: Bool = false) -> some View {
+        let byteCount = memoryContent.utf8.count
+        let sizeLabel = isStreaming
+            ? "\(Self.formatBytes(byteCount)) received"
+            : Self.formatBytes(byteCount)
+
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(spacing: 0) {
+                    // Title bar
+                    HStack(spacing: 6) {
+                        Image(systemName: "brain.head.profile")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.pink.opacity(0.6))
+                        Text(action)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.pink)
+                            .lineLimit(1)
+                        Text("(\(sizeLabel))")
+                            .font(.system(size: 11))
+                            .foregroundStyle(isStreaming ? Color.orange.opacity(0.8) : .pink.opacity(0.5))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.92, alpha: 1) }))
+
+                    Divider()
+
+                    // Memory content body
+                    VStack(alignment: .leading, spacing: 0) {
+                        let chunks = isStreaming
+                            ? Self.liveChunkedLines(memoryContent.isEmpty ? " " : memoryContent)
+                            : Self.chunkedLines(memoryContent.isEmpty ? " " : memoryContent)
+                        ForEach(chunks, id: \.id) { chunk in
+                            Text(chunk.text)
+                                .font(.system(size: 13, design: .monospaced))
+                                .foregroundStyle(.pink.opacity(0.85))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 14)
+                        }
+                    }
+                    .textSelection(.enabled)
+                    .padding(.vertical, 14)
+                }
+                .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.10, alpha: 1) : UIColor(white: 0.94, alpha: 1) }))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
+                .padding(.horizontal, 12)
+                .padding(.top, 12)
+            }
+            .padding(.bottom, 16)
+        }
+    }
+
+    private func fileEditorContent(_ fileContent: String, toolResult: String? = nil, isStreaming: Bool = false) -> some View {
+        let fileName: String = {
+            if case .fileWriteTool(let p) = block.kind { return (p as NSString).lastPathComponent }
+            if case .fileEditTool(let p) = block.kind { return (p as NSString).lastPathComponent }
+            if case .fileReadTool(let p) = block.kind { return (p as NSString).lastPathComponent }
+            return "file"
+        }()
+        let isRead = { if case .fileReadTool = block.kind { return true }; return false }()
+        let byteCount = fileContent.utf8.count
+        let sizeLabel = isStreaming
+            ? "\(Self.formatBytes(byteCount)) received"
+            : Self.formatBytes(byteCount)
+
+        let chunks = isStreaming
+            ? Self.liveChunkedLines(fileContent.isEmpty ? " " : fileContent)
+            : Self.chunkedLines(fileContent.isEmpty ? " " : fileContent)
+
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                // Editor card
+                VStack(spacing: 0) {
+                    // Title bar
+                    HStack(spacing: 6) {
+                        Image(systemName: isRead ? "doc.text" : "doc.text.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color(UIColor.secondaryLabel))
+                        Text(fileName)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Color(UIColor.label))
+                            .lineLimit(1)
+                        Text("(\(sizeLabel))")
+                            .font(.system(size: 11))
+                            .foregroundStyle(isStreaming ? Color.orange.opacity(0.8) : Color(UIColor.tertiaryLabel))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.92, alpha: 1) }))
+
+                    Divider()
+
+                    // File content — chunked rendering
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(chunks, id: \.id) { chunk in
+                            Text(chunk.text)
+                                .font(.system(size: 13, design: .monospaced))
+                                .foregroundStyle(Color(UIColor.label))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 14)
+                        }
+                    }
+                    .textSelection(.enabled)
+                    .padding(.vertical, 14)
+                }
+                .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.10, alpha: 1) : UIColor(white: 0.94, alpha: 1) }))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
+                .padding(.horizontal, 12)
+                .padding(.top, 12)
+
+                // File info tips — shown for completed file_write / file_read
+                let footerPath: String? = {
+                    if isStreaming { return nil }
+                    if case .fileWriteTool(let p) = block.kind { return p }
+                    if case .fileReadTool(let p) = block.kind { return p }
+                    return nil
+                }()
+                if let fullPath = footerPath {
+                    HStack(spacing: 6) {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color(UIColor.secondaryLabel))
+                        Text(fullPath)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(Color(UIColor.label))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: 4)
+                        Text(sizeLabel)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(Color(UIColor.tertiaryLabel))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.15, alpha: 1) : UIColor(white: 0.95, alpha: 1) }))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
+                }
+            }
+            .padding(.bottom, 16)
+        }
+    }
+
+    private static func formatCharCount(_ count: Int) -> String {
+        if count < 1000 { return "\(count) chars" }
+        if count < 1_000_000 { return String(format: "%.1fK chars", Double(count) / 1000.0) }
+        return String(format: "%.1fM chars", Double(count) / 1_000_000.0)
+    }
+
+    private static func formatBytes(_ bytes: Int) -> String {
+        if bytes < 1024 { return "\(bytes) B" }
+        if bytes < 1024 * 1024 { return String(format: "%.1f KB", Double(bytes) / 1024.0) }
+        return String(format: "%.1f MB", Double(bytes) / (1024.0 * 1024.0))
+    }
+
+    /// Strip the `Error: ` prefix that the file_edit handler injects so the
+    /// footer doesn't read "Failed to edit … Error: …". Trims trailing
+    /// whitespace too. Preserves the trailing "First 20 lines:" body so the
+    /// user has the same context the model sees.
+    private static func trimmedErrorMessage(_ raw: String) -> String {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("Error: ") { s.removeFirst("Error: ".count) }
+        return s
+    }
+
+    /// Splits text into chunks of `chunkSize` lines for virtualized rendering.
+    private static func chunkedLines(_ text: String, chunkSize: Int = 40) -> [(id: Int, text: String)] {
+        let sanitized = sanitizeForDisplay(text)
+        let allLines = sanitized.split(separator: "\n", omittingEmptySubsequences: false)
+        return stride(from: 0, to: max(allLines.count, 1), by: chunkSize).map { i in
+            let end = min(i + chunkSize, allLines.count)
+            return (i, allLines[i..<end].joined(separator: "\n"))
+        }
+    }
+
+    /// [T-ios-tool-result-lazy-render] Initial number of chunks to reveal for a
+    /// given chunk list: min(lazyRenderInitialChunks, count), further clamped so
+    /// the revealed text stays under `lazyRenderInitialByteCap` — covers the case
+    /// of a few very long lines that fit in < 5 chunks but exceed 10KB.
+    private static func initialRevealCount(_ chunks: [(id: Int, text: String)]) -> Int {
+        guard !chunks.isEmpty else { return 0 }
+        var count = 0
+        var bytes = 0
+        for chunk in chunks.prefix(lazyRenderInitialChunks) {
+            bytes += chunk.text.utf8.count
+            count += 1
+            if bytes >= lazyRenderInitialByteCap { break }
+        }
+        return max(1, count)
+    }
+
+    /// "Load more" / "Load all" footer shown under a partially-revealed result.
+    /// Tapping bumps `revealedChunkCount`; the bottom sentinel also auto-bumps
+    /// when it scrolls into view so reaching the end keeps loading without a tap.
+    @ViewBuilder
+    private func loadMoreFooter(totalChunks: Int) -> some View {
+        if revealedChunkCount < totalChunks {
+            let remaining = totalChunks - revealedChunkCount
+            let nextBatch = min(Self.lazyRenderBatchChunks, remaining)
+            HStack(spacing: 16) {
+                Button {
+                    revealedChunkCount = min(revealedChunkCount + Self.lazyRenderBatchChunks, totalChunks)
+                } label: {
+                    Label("Load more (\(nextBatch * Self.lazyRenderChunkLines) lines)", systemImage: "chevron.down")
+                        .font(.system(size: 13, weight: .medium))
+                }
+                Button {
+                    revealedChunkCount = totalChunks
+                } label: {
+                    Text("Load all")
+                        .font(.system(size: 13, weight: .medium))
+                }
+            }
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
+            // Auto-load when this footer scrolls into view so the user can just
+            // keep scrolling to reveal more without tapping.
+            .onAppear {
+                revealedChunkCount = min(revealedChunkCount + Self.lazyRenderBatchChunks, totalChunks)
+            }
+        }
+    }
+
+    /// Reset / initialize the revealed window for the currently displayed block.
+    private func resetRevealWindow(for chunks: [(id: Int, text: String)]) {
+        guard revealedForBlockId != block.id else { return }
+        revealedForBlockId = block.id
+        revealedChunkCount = Self.initialRevealCount(chunks)
+    }
+
+    /// Like chunkedLines but caps visible output at ~500 lines during live streaming.
+    private static func liveChunkedLines(_ text: String, chunkSize: Int = 40, maxLines: Int = 500) -> [(id: Int, text: String)] {
+        let sanitized = sanitizeForDisplay(text)
+        let allLines = sanitized.split(separator: "\n", omittingEmptySubsequences: false)
+        let start = allLines.count > maxLines ? allLines.count - maxLines : 0
+        let visibleLines = allLines[start...]
+        return stride(from: 0, to: max(visibleLines.count, 1), by: chunkSize).map { i in
+            let sliceStart = visibleLines.startIndex + i
+            let sliceEnd = min(sliceStart + chunkSize, visibleLines.endIndex)
+            return (start + i, visibleLines[sliceStart..<sliceEnd].joined(separator: "\n"))
+        }
+    }
+
+    /// Splits diff text into chunks with a per-line prefix (e.g. "- " or "+ ") for lazy rendering.
+    private static func chunkedDiffLines(_ text: String, prefix: String, chunkSize: Int = 40) -> [(id: Int, text: String)] {
+        let sanitized = sanitizeForDisplay(text)
+        let allLines = sanitized.components(separatedBy: "\n")
+        return stride(from: 0, to: max(allLines.count, 1), by: chunkSize).map { i in
+            let end = min(i + chunkSize, allLines.count)
+            let chunk = allLines[i..<end].map { prefix + $0 }.joined(separator: "\n")
+            return (i, chunk)
+        }
+    }
+
+    private var textContent: some View {
+        GeometryReader { geo in
+            let cardWidth = geo.size.width - 24 // 12pt horizontal padding each side
+            let cardMinHeight = cardWidth * 3.0 / 4.0
+            ScrollViewReader { proxy in
+            ScrollView {
+                if case .shellTool(let cmd) = block.kind {
+                    // Shell: command header + chunked output (cap at 500 lines while streaming)
+                    let allChunks = isLive
+                        ? Self.liveChunkedLines(block.content.isEmpty ? " " : block.content)
+                        : Self.chunkedLines(block.content.isEmpty ? " " : block.content)
+                    // [T-ios-tool-result-lazy-render] In the detail (non-live)
+                    // view reveal only an initial window and grow on scroll.
+                    let chunks = isLive ? allChunks : Array(allChunks.prefix(max(revealedChunkCount, 1)))
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("$ \(cmd)")
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 14)
+                            .padding(.top, 14)
+
+                        ForEach(chunks, id: \.id) { chunk in
+                            Text(attributedShellLine(chunk.text))
+                                .font(.system(size: 13, design: .monospaced))
+                                .foregroundColor(accentColor)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 14)
+                        }
+
+                        if !isLive {
+                            loadMoreFooter(totalChunks: allChunks.count)
+                        }
+
+                        Color.clear.frame(height: 1).id("end")
+                    }
+                    .onAppear { if !isLive { resetRevealWindow(for: allChunks) } }
+                    .textSelection(.enabled)
+                    .padding(.bottom, isLive ? 24 : 14)
+                    .frame(maxWidth: .infinity, minHeight: cardMinHeight, alignment: .topLeading)
+                    .background(Color.black)
+                    .overlay(alignment: .bottom) {
+                        if isLive {
+                            HStack(spacing: 12) {
+                                Text(resourceMonitor.formattedCPU)
+                                    .foregroundStyle(.green)
+                                Text(resourceMonitor.formattedMem())
+                                    .foregroundStyle(.green)
+                            }
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 5)
+                            .background(Color(white: 0.08))
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
+                    .padding(.horizontal, 12)
+                    .padding(.top, 12)
+                    .padding(.bottom, 16)
+                } else {
+                    // Non-shell: header + chunked content card
+                    VStack(alignment: .leading, spacing: 0) {
+                        if !contentHeader.isEmpty {
+                            Text(contentHeader)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(ChatColors.secondaryText)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 16)
+                                .padding(.bottom, 8)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        }
+
+                        let allChunks = isLive
+                            ? Self.liveChunkedLines(block.content.isEmpty ? " " : block.content)
+                            : Self.chunkedLines(block.content.isEmpty ? " " : block.content)
+                        // [T-ios-tool-result-lazy-render] Reveal an initial
+                        // window in the detail view; grow on scroll / tap.
+                        let chunks = isLive ? allChunks : Array(allChunks.prefix(max(revealedChunkCount, 1)))
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(chunks, id: \.id) { chunk in
+                                Text(chunk.text)
+                                    .font(.system(size: 13, design: .monospaced))
+                                    .foregroundColor(accentColor)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 14)
+                            }
+                            if !isLive {
+                                loadMoreFooter(totalChunks: allChunks.count)
+                            }
+                            Color.clear.frame(height: 1).id("end")
+                        }
+                        .onAppear { if !isLive { resetRevealWindow(for: allChunks) } }
+                        .textSelection(.enabled)
+                        .padding(.vertical, 14)
+                        .frame(maxWidth: .infinity, minHeight: cardMinHeight, alignment: .topLeading)
+                        .background(Color(white: 0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .padding(.horizontal, 12)
+                    }
+                    .padding(.bottom, 16)
+                }
+            }
+            .onChange(of: block.content.count) { _ in
+                if isLive {
+                    proxy.scrollTo("end", anchor: .bottom)
+                }
+            }
+            // [T-ios-tool-result-lazy-render] Switching to another tool block
+            // (next/prev) re-collapses the lazy window to its initial batch.
+            .onChange(of: block.id) { _ in
+                guard !isLive else { return }
+                let chunks = Self.chunkedLines(block.content.isEmpty ? " " : block.content)
+                revealedForBlockId = block.id
+                revealedChunkCount = Self.initialRevealCount(chunks)
+            }
+            }
+        }
+    }
+
+    private var browserContent: some View {
+        let action: String = {
+            if case .browserTool(let a) = block.kind { return a }
+            return ""
+        }()
+        let url: String = resolvedBrowserURL
+        let script: String? = browserScriptFromArgs()
+
+        return VStack(spacing: 0) {
+            if let img = browserSnapshot ?? block.imageFilePath.flatMap({ UIImage(contentsOfFile: $0) }) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Action + URL capsules
+                        if !action.isEmpty || !url.isEmpty {
+                            HStack(spacing: 8) {
+                                if !action.isEmpty {
+                                    Text(action)
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.blue)
+                                        .clipShape(Capsule())
+                                }
+                                if !url.isEmpty {
+                                    CopyableURLCapsule(url: url)
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.top, 12)
+                        }
+
+                        // JS script card for execute_js
+                        if let script {
+                            jsScriptCard(script)
+                        }
+
+                        // Live screenshot — shadowed card. Use scaledToFit +
+                        // frame(maxWidth:.infinity) instead of a GeometryReader-
+                        // computed explicit frame: the latter could over-propose
+                        // the image size during sheet animation on Mac Catalyst /
+                        // iPad and let the right edge clip outside the viewport.
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: .infinity)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color(UIColor.separator).opacity(0.5), lineWidth: 0.5))
+                            .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
+                            .contextMenu {
+                                Button { UIPasteboard.general.image = img } label: {
+                                    Label("Copy Image", systemImage: "doc.on.doc")
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                    }
+                    .padding(.bottom, 16)
+                }
+            } else {
+                VStack(spacing: 0) {
+                    // Action + URL capsules pinned to top
+                    if !action.isEmpty || !url.isEmpty {
+                        HStack(spacing: 8) {
+                            if !action.isEmpty {
+                                Text(action)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color.blue)
+                                    .clipShape(Capsule())
+                            }
+                            if !url.isEmpty {
+                                CopyableURLCapsule(url: url)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.top, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    // JS script card for execute_js (no screenshot yet)
+                    if let script {
+                        jsScriptCard(script)
+                            .padding(.top, 12)
+                    }
+                    Spacer()
+                    VStack(spacing: 8) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 32))
+                            .foregroundStyle(ChatColors.tertiaryText)
+                        Text("Loading...")
+                            .font(.system(size: 13))
+                            .foregroundStyle(ChatColors.tertiaryText)
+                    }
+                    Spacer()
+                }
+            }
+        }
+        .onChange(of: block.imageFilePath) { path in
+            if let path, let img = UIImage(contentsOfFile: path) {
+                browserSnapshot = img
+            }
+        }
+    }
 
     // MARK: - Bottom bar: tool status + navigation
 
@@ -863,966 +2024,6 @@ struct ToolLiveSheet: View {
         return raw.replacingOccurrences(of: "\n", with: " ")
     }
 
-    private static func formatDuration(_ dur: TimeInterval) -> String {
-        if dur < 1 { return String(format: "%.1fs", dur) }
-        if dur < 60 { return String(format: "%.0fs", dur) }
-        let mins = Int(dur) / 60
-        let secs = Int(dur) % 60
-        return "\(mins)m \(secs)s"
-    }
-}
-
-// MARK: - Shared tool block content renderer
-//
-// [pp 09-19 汇聚页对齐] 把 ToolLiveSheet 里按工具类型渲染内容的核心方法抽成
-// 可复用组件，汇聚页（ToolSummaryDetailPage）与小窗（ToolLiveSheet）共用同一套
-// 内容渲染。视觉参数（颜色/字体/间距/圆角/图标）一个都不改——只做定义位置+可见性
-// 的搬移与参数化。
-
-/// Shared tool block content renderer — used by both ToolLiveSheet (floating
-/// toolbar detail) and ToolSummaryDetailPage (汇聚页 tool detail).
-/// Visual parameters (colors/fonts/spacing/cornerRadii/icons) are identical
-/// to the original ToolLiveSheet rendering.
-struct ToolBlockContentView: View {
-    let block: AssistantBlock
-    let isLive: Bool
-    let snapshot: ToolSnapshotItem?
-    var browserPool: BrowserTabPool? = nil
-    var toolBlocks: [AssistantBlock] = []
-    var blockIndex: Int = 0
-
-    @State private var browserSnapshot: UIImage?
-    @State private var snapshotTimer: Timer?
-    @StateObject private var resourceMonitor = SystemResourceMonitor()
-    @State private var revealedChunkCount: Int = 0
-    @State private var revealedForBlockId: UUID?
-
-    private static let lazyRenderChunkLines = 40
-    private static let lazyRenderInitialChunks = 5
-    private static let lazyRenderBatchChunks = 5
-    private static let lazyRenderInitialByteCap = 10 * 1024
-
-    var body: some View {
-        contentBody
-            .onAppear {
-                startBrowserTimer()
-                if isLive && isCurrentShell { resourceMonitor.start() }
-            }
-            .onDisappear {
-                stopBrowserTimer()
-                resourceMonitor.stop()
-            }
-            .onChange(of: isLive) { live in
-                if live && isCurrentShell { resourceMonitor.start() } else { resourceMonitor.stop() }
-            }
-    }
-
-    @ViewBuilder
-    private var contentBody: some View {
-        if isLive {
-            switch block.kind {
-            case .browserTool: browserContent
-            case .fileWriteTool:
-                let liveText = block.streamingFileContent.flatMap { $0.isEmpty ? nil : $0 } ?? block.content
-                fileEditorContent(liveText, isStreaming: true)
-            case .fileEditTool:
-                fileDiffContent(isStreaming: true)
-            case .fileReadTool: fileEditorContent(block.content)
-            case .memoryTool:
-                let content = Self.memoryWriteContentFromArgs(from: block) ?? block.content
-                memoryEditorContent(content, action: Self.memoryActionName(from: block), isStreaming: true)
-            default: textContent
-            }
-        } else if let snap = snapshot {
-            snapshotContent(snap)
-        } else {
-            switch block.kind {
-            case .browserTool:
-                if let img = block.imageFilePath.flatMap({ UIImage(contentsOfFile: $0) }) {
-                    browserResultContent(image: img, text: block.content)
-                } else {
-                    browserTextResultContent(block.content)
-                }
-            case .readImageTool:
-                if let img = block.imageFilePath.flatMap({ UIImage(contentsOfFile: $0) }) {
-                    browserResultContent(image: img, text: block.content)
-                } else {
-                    textContent
-                }
-            case .fileEditTool:
-                fileDiffContent()
-            case .fileWriteTool(let path), .fileReadTool(let path):
-                let hostURL = RootfsManager.shared.dataPath.appendingPathComponent(String(path.dropFirst()))
-                let diskContent = (try? String(contentsOf: hostURL, encoding: .utf8)) ?? ""
-                if !diskContent.isEmpty {
-                    fileEditorContent(diskContent, toolResult: block.content)
-                } else {
-                    fileEditorContent(block.content)
-                }
-            case .memoryTool:
-                let content = Self.memoryWriteContentFromArgs(from: block) ?? block.content
-                memoryEditorContent(content, action: Self.memoryActionName(from: block), resultText: block.content)
-            default:
-                textContent
-            }
-        }
-    }
-
-    private var isCurrentShell: Bool {
-        if case .shellTool = block.kind { return true }
-        return false
-    }
-
-    // MARK: - Snapshot rendering
-
-    @ViewBuilder
-    private func snapshotContent(_ item: ToolSnapshotItem) -> some View {
-        switch item.snapshot.type {
-        case .image:
-            if let ref = item.snapshot.mediaRef {
-                let url = item.mediaResolver(ref)
-                if let img = UIImage(contentsOfFile: url.path) {
-                    browserResultContent(image: img, text: block.content)
-                } else {
-                    textContent
-                }
-            } else {
-                textContent
-            }
-        case .text:
-            if case .fileWriteTool = block.kind, let text = item.snapshot.text, !text.isEmpty {
-                fileEditorContent(text, toolResult: block.content)
-            } else if case .fileEditTool = block.kind {
-                fileDiffContent()
-            } else if case .fileReadTool = block.kind, let text = item.snapshot.text, !text.isEmpty {
-                fileEditorContent(text)
-            } else if case .memoryTool = block.kind {
-                let content = Self.memoryWriteContentFromArgs(from: block) ?? item.snapshot.text ?? block.content
-                memoryEditorContent(content, action: Self.memoryActionName(from: block), resultText: block.content)
-            } else if case .browserTool = block.kind, let text = item.snapshot.text, !text.isEmpty {
-                browserTextResultContent(text)
-            } else if let text = item.snapshot.text, !text.isEmpty {
-                snapshotTextContent(text)
-            } else {
-                textContent
-            }
-        }
-    }
-
-    // MARK: - Browser result rendering
-
-    private func browserResultContent(image: UIImage, text: String) -> some View {
-        let action: String = {
-            if case .browserTool(let a) = block.kind { return a }
-            return ""
-        }()
-        let url: String = resolvedBrowserURL
-        let script: String? = Self.browserScriptFromArgs(from: block)
-
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                if !action.isEmpty || !url.isEmpty {
-                    HStack(spacing: 8) {
-                        if !action.isEmpty {
-                            Text(action)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color.blue)
-                                .clipShape(Capsule())
-                        }
-                        if !url.isEmpty {
-                            CopyableURLCapsule(url: url)
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 12)
-                }
-
-                if let script {
-                    jsScriptCard(script)
-                }
-
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color(UIColor.separator).opacity(0.5), lineWidth: 0.5))
-                    .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
-                    .contextMenu {
-                        Button { UIPasteboard.general.image = image } label: {
-                            Label("Copy Image", systemImage: "doc.on.doc")
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.top, action.isEmpty && url.isEmpty ? 12 : 0)
-
-                    if !text.isEmpty {
-                        VStack(spacing: 0) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "globe")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(Color(UIColor.secondaryLabel))
-                                Text("Result")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(Color(UIColor.label))
-                                    .lineLimit(1)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.92, alpha: 1) }))
-
-                            Divider()
-
-                            Text(text)
-                                .font(.system(size: 13, design: .monospaced))
-                                .foregroundStyle(Color(UIColor.label))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .textSelection(.enabled)
-                                .padding(14)
-                        }
-                        .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.10, alpha: 1) : UIColor(white: 0.94, alpha: 1) }))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
-                        .padding(.horizontal, 12)
-                    }
-            }
-            .padding(.bottom, 16)
-        }
-    }
-
-    private func browserTextResultContent(_ text: String) -> some View {
-        let action: String = {
-            if case .browserTool(let a) = block.kind { return a }
-            return ""
-        }()
-        let url: String = resolvedBrowserURL
-        let script: String? = Self.browserScriptFromArgs(from: block)
-
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                if !action.isEmpty || !url.isEmpty {
-                    HStack(spacing: 8) {
-                        if !action.isEmpty {
-                            Text(action)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color.blue)
-                                .clipShape(Capsule())
-                        }
-                        if !url.isEmpty {
-                            CopyableURLCapsule(url: url)
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 12)
-                }
-
-                if let script {
-                    jsScriptCard(script)
-                }
-
-                if !text.isEmpty {
-                    VStack(spacing: 0) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "globe")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color(UIColor.secondaryLabel))
-                            Text("Result")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(Color(UIColor.label))
-                                .lineLimit(1)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.92, alpha: 1) }))
-
-                        Divider()
-
-                        Text(sanitizeForDisplay(text))
-                            .font(.system(size: 13, design: .monospaced))
-                            .foregroundStyle(Color(UIColor.label))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
-                            .padding(14)
-                    }
-                    .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.10, alpha: 1) : UIColor(white: 0.94, alpha: 1) }))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
-                    .padding(.horizontal, 12)
-                }
-            }
-            .padding(.bottom, 16)
-        }
-    }
-
-    // MARK: - Snapshot text content
-
-    private func snapshotTextContent(_ text: String) -> some View {
-        GeometryReader { geo in
-            let cardWidth = geo.size.width - 24
-            let cardMinHeight = cardWidth * 3.0 / 4.0
-            Group {
-                if case .shellTool(let cmd) = block.kind {
-                    let cmdPrefix = "$ \(cmd)\n"
-                    let output = text.hasPrefix(cmdPrefix) ? String(text.dropFirst(cmdPrefix.count)) : text
-                    let chunks = Self.chunkedLines(output.isEmpty ? " " : output)
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text("$ \(cmd)")
-                                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 14)
-                                .padding(.top, 14)
-
-                            ForEach(chunks, id: \.id) { chunk in
-                                Text(attributedShellLine(chunk.text))
-                                    .font(.system(size: 13, design: .monospaced))
-                                    .foregroundColor(accentColor)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 14)
-                            }
-                        }
-                        .textSelection(.enabled)
-                        .padding(.bottom, 14)
-                        .frame(maxWidth: .infinity, minHeight: cardMinHeight, alignment: .topLeading)
-                        .background(Color.black)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
-                        .padding(.horizontal, 12)
-                        .padding(.top, 12)
-                        .padding(.bottom, 16)
-                    }
-                } else {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            if !contentHeader.isEmpty {
-                                Text(contentHeader)
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(ChatColors.secondaryText)
-                                    .padding(.horizontal, 16)
-                                    .padding(.top, 16)
-                                    .padding(.bottom, 8)
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                            }
-
-                            Text(sanitizeForDisplay(text))
-                                .font(.system(size: 13, design: .monospaced))
-                                .foregroundStyle(accentColor)
-                                .frame(maxWidth: .infinity, minHeight: cardMinHeight, alignment: .topLeading)
-                                .textSelection(.enabled)
-                                .padding(14)
-                                .background(Color(white: 0.12))
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                .padding(.horizontal, 12)
-                        }
-                        .padding(.bottom, 16)
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - File Edit Diff
-
-    private func fileDiffContent(isStreaming: Bool = false) -> some View {
-        let filePath: String = {
-            if case .fileEditTool(let p) = block.kind { return p }
-            return "file"
-        }()
-        let fileName = (filePath as NSString).lastPathComponent
-        let editStrings = Self.extractEditStrings(from: block)
-        let oldText = editStrings?.oldString ?? block.streamingFileContent ?? ""
-        let newText = editStrings?.newString ?? ""
-        let hasEditData = editStrings != nil || (block.streamingFileContent != nil && !(block.streamingFileContent?.isEmpty ?? true))
-        let toolResult = isStreaming ? nil : block.content
-
-        let sizeLabel: String = {
-            if isStreaming { return "streaming…" }
-            let totalBytes = oldText.utf8.count + newText.utf8.count
-            return Self.formatBytes(totalBytes)
-        }()
-
-        let resultDetail: String? = {
-            guard let result = toolResult, !result.isEmpty else { return nil }
-            if let range = result.range(of: #"\(([^)]+)\)"#, options: .regularExpression) {
-                return String(result[range])
-            }
-            return nil
-        }()
-
-        return Group {
-            if hasEditData {
-                GeometryReader { geo in
-                    let cardWidth = geo.size.width - 24
-                    let cardMinHeight = cardWidth * 3.0 / 4.0
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            VStack(spacing: 0) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "square.and.pencil")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.orange)
-                                Text(fileName)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(Color(UIColor.label))
-                                    .lineLimit(1)
-                                Text("(\(sizeLabel))")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(isStreaming ? Color.orange.opacity(0.8) : Color(UIColor.tertiaryLabel))
-                                    .lineLimit(1)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.92, alpha: 1) }))
-
-                            Divider()
-
-                            VStack(alignment: .leading, spacing: 0) {
-                                if !oldText.isEmpty {
-                                    let oldChunks = Self.chunkedDiffLines(oldText, prefix: "- ")
-                                    ForEach(oldChunks, id: \.id) { chunk in
-                                        Text(chunk.text)
-                                            .font(.system(size: 13, design: .monospaced))
-                                            .foregroundStyle(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 1, green: 0.4, blue: 0.4, alpha: 1) : UIColor(red: 0.8, green: 0.1, blue: 0.1, alpha: 1) }))
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .padding(.horizontal, 14)
-                                            .padding(.vertical, 2)
-                                            .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.3, green: 0.08, blue: 0.08, alpha: 1) : UIColor(red: 1, green: 0.9, blue: 0.9, alpha: 1) }))
-                                    }
-                                }
-                                if !newText.isEmpty {
-                                    let newChunks = Self.chunkedDiffLines(newText, prefix: "+ ")
-                                    ForEach(newChunks, id: \.id) { chunk in
-                                        Text(chunk.text)
-                                            .font(.system(size: 13, design: .monospaced))
-                                            .foregroundStyle(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.4, green: 1, blue: 0.4, alpha: 1) : UIColor(red: 0.1, green: 0.6, blue: 0.1, alpha: 1) }))
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .padding(.horizontal, 14)
-                                            .padding(.vertical, 2)
-                                            .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.08, green: 0.2, blue: 0.08, alpha: 1) : UIColor(red: 0.9, green: 1, blue: 0.9, alpha: 1) }))
-                                    }
-                                }
-                            }
-                            .textSelection(.enabled)
-
-                            if !isStreaming {
-                                Spacer(minLength: 0)
-                                Divider()
-
-                                let (label, labelColor): (String, Color) = {
-                                    switch block.toolStatus {
-                                    case .failed:    return (AppLocalized("Failed to edit"), .red)
-                                    case .cancelled: return (AppLocalized("Cancelled"),     .orange)
-                                    default:         return (AppLocalized("Edited"),        Color(UIColor.label))
-                                    }
-                                }()
-                                let isFailure: Bool = {
-                                    if case .failed = block.toolStatus { return true }
-                                    if case .cancelled = block.toolStatus { return true }
-                                    return false
-                                }()
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack(spacing: 4) {
-                                        Text(label)
-                                            .font(.system(size: 13, weight: .semibold))
-                                            .foregroundStyle(labelColor)
-                                        Text(filePath)
-                                            .font(.system(size: 12, design: .monospaced))
-                                            .foregroundStyle(Color(UIColor.secondaryLabel))
-                                            .lineLimit(1)
-                                            .truncationMode(.middle)
-                                        Spacer()
-                                    }
-                                    if isFailure, let errText = toolResult, !errText.isEmpty {
-                                        Text(Self.trimmedErrorMessage(errText))
-                                            .font(.system(size: 12, design: .monospaced))
-                                            .foregroundStyle(Color(UIColor.secondaryLabel))
-                                            .lineLimit(6)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .textSelection(.enabled)
-                                    } else if let detail = resultDetail {
-                                        Text(detail)
-                                            .font(.system(size: 12))
-                                            .foregroundStyle(Color(UIColor.tertiaryLabel))
-                                    }
-                                }
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 10)
-                            }
-                        }
-                            .frame(maxWidth: .infinity, minHeight: cardMinHeight, maxHeight: .infinity, alignment: .topLeading)
-                            .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.10, alpha: 1) : UIColor(white: 0.94, alpha: 1) }))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
-                            .padding(.horizontal, 12)
-                            .padding(.top, 12)
-                        }
-                        .padding(.bottom, 16)
-                    }
-                }
-            } else {
-                fileEditorContent(block.content)
-            }
-        }
-    }
-
-    // MARK: - File Editor Content
-
-    private func fileEditorContent(_ fileContent: String, toolResult: String? = nil, isStreaming: Bool = false) -> some View {
-        let fileName: String = {
-            if case .fileWriteTool(let p) = block.kind { return (p as NSString).lastPathComponent }
-            if case .fileEditTool(let p) = block.kind { return (p as NSString).lastPathComponent }
-            if case .fileReadTool(let p) = block.kind { return (p as NSString).lastPathComponent }
-            return "file"
-        }()
-        let isRead = { if case .fileReadTool = block.kind { return true }; return false }()
-        let byteCount = fileContent.utf8.count
-        let sizeLabel = isStreaming
-            ? "\(Self.formatBytes(byteCount)) received"
-            : Self.formatBytes(byteCount)
-
-        let chunks = isStreaming
-            ? Self.liveChunkedLines(fileContent.isEmpty ? " " : fileContent)
-            : Self.chunkedLines(fileContent.isEmpty ? " " : fileContent)
-
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                VStack(spacing: 0) {
-                    HStack(spacing: 6) {
-                        Image(systemName: isRead ? "doc.text" : "doc.text.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Color(UIColor.secondaryLabel))
-                        Text(fileName)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Color(UIColor.label))
-                            .lineLimit(1)
-                        Text("(\(sizeLabel))")
-                            .font(.system(size: 11))
-                            .foregroundStyle(isStreaming ? Color.orange.opacity(0.8) : Color(UIColor.tertiaryLabel))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.92, alpha: 1) }))
-
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(chunks, id: \.id) { chunk in
-                            Text(chunk.text)
-                                .font(.system(size: 13, design: .monospaced))
-                                .foregroundStyle(Color(UIColor.label))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 14)
-                        }
-                    }
-                    .textSelection(.enabled)
-                    .padding(.vertical, 14)
-                }
-                .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.10, alpha: 1) : UIColor(white: 0.94, alpha: 1) }))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
-                .padding(.horizontal, 12)
-                .padding(.top, 12)
-
-                let footerPath: String? = {
-                    if isStreaming { return nil }
-                    if case .fileWriteTool(let p) = block.kind { return p }
-                    if case .fileReadTool(let p) = block.kind { return p }
-                    return nil
-                }()
-                if let fullPath = footerPath {
-                    HStack(spacing: 6) {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Color(UIColor.secondaryLabel))
-                        Text(fullPath)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundStyle(Color(UIColor.label))
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Spacer(minLength: 4)
-                        Text(sizeLabel)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundStyle(Color(UIColor.tertiaryLabel))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.15, alpha: 1) : UIColor(white: 0.95, alpha: 1) }))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
-                    .padding(.horizontal, 12)
-                    .padding(.top, 8)
-                }
-            }
-            .padding(.bottom, 16)
-        }
-    }
-
-    // MARK: - Memory Editor Content
-
-    private func memoryEditorContent(_ memoryContent: String, action: String, resultText: String? = nil, isStreaming: Bool = false) -> some View {
-        let byteCount = memoryContent.utf8.count
-        let sizeLabel = isStreaming
-            ? "\(Self.formatBytes(byteCount)) received"
-            : Self.formatBytes(byteCount)
-
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                VStack(spacing: 0) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "brain.head.profile")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.pink.opacity(0.6))
-                        Text(action)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.pink)
-                            .lineLimit(1)
-                        Text("(\(sizeLabel))")
-                            .font(.system(size: 11))
-                            .foregroundStyle(isStreaming ? Color.orange.opacity(0.8) : .pink.opacity(0.5))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.92, alpha: 1) }))
-
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 0) {
-                        let chunks = isStreaming
-                            ? Self.liveChunkedLines(memoryContent.isEmpty ? " " : memoryContent)
-                            : Self.chunkedLines(memoryContent.isEmpty ? " " : memoryContent)
-                        ForEach(chunks, id: \.id) { chunk in
-                            Text(chunk.text)
-                                .font(.system(size: 13, design: .monospaced))
-                                .foregroundStyle(.pink.opacity(0.85))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 14)
-                        }
-                    }
-                    .textSelection(.enabled)
-                    .padding(.vertical, 14)
-                }
-                .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.10, alpha: 1) : UIColor(white: 0.94, alpha: 1) }))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
-                .padding(.horizontal, 12)
-                .padding(.top, 12)
-            }
-            .padding(.bottom, 16)
-        }
-    }
-
-    // MARK: - JS Script Card
-
-    private func jsScriptCard(_ script: String) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 6) {
-                Image(systemName: "chevron.left.forwardslash.chevron.right")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.orange.opacity(0.7))
-                Text("JavaScript")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.orange)
-                    .lineLimit(1)
-                Spacer()
-                Text(Self.formatBytes(script.utf8.count))
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color(UIColor.tertiaryLabel))
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.13, alpha: 1) : UIColor(white: 0.92, alpha: 1) }))
-
-            Divider()
-
-            Text(script)
-                .font(.system(size: 12, design: .monospaced))
-                .foregroundStyle(Color(UIColor.label))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
-                .padding(12)
-        }
-        .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.10, alpha: 1) : UIColor(white: 0.94, alpha: 1) }))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
-        .padding(.horizontal, 12)
-    }
-
-    // MARK: - Text Content (shell / generic fallback)
-
-    private var textContent: some View {
-        GeometryReader { geo in
-            let cardWidth = geo.size.width - 24
-            let cardMinHeight = cardWidth * 3.0 / 4.0
-            ScrollViewReader { proxy in
-            ScrollView {
-                if case .shellTool(let cmd) = block.kind {
-                    let allChunks = isLive
-                        ? Self.liveChunkedLines(block.content.isEmpty ? " " : block.content)
-                        : Self.chunkedLines(block.content.isEmpty ? " " : block.content)
-                    let chunks = isLive ? allChunks : Array(allChunks.prefix(max(revealedChunkCount, 1)))
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("$ \(cmd)")
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 14)
-                            .padding(.top, 14)
-
-                        ForEach(chunks, id: \.id) { chunk in
-                            Text(attributedShellLine(chunk.text))
-                                .font(.system(size: 13, design: .monospaced))
-                                .foregroundColor(accentColor)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 14)
-                        }
-
-                        if !isLive {
-                            loadMoreFooter(totalChunks: allChunks.count)
-                        }
-
-                        Color.clear.frame(height: 1).id("end")
-                    }
-                    .onAppear { if !isLive { resetRevealWindow(for: allChunks) } }
-                    .textSelection(.enabled)
-                    .padding(.bottom, isLive ? 24 : 14)
-                    .frame(maxWidth: .infinity, minHeight: cardMinHeight, alignment: .topLeading)
-                    .background(Color.black)
-                    .overlay(alignment: .bottom) {
-                        if isLive {
-                            HStack(spacing: 12) {
-                                Text(resourceMonitor.formattedCPU)
-                                    .foregroundStyle(.green)
-                                Text(resourceMonitor.formattedMem())
-                                    .foregroundStyle(.green)
-                            }
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 5)
-                            .background(Color(white: 0.08))
-                        }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.25, alpha: 1) : UIColor(white: 0.82, alpha: 1) }), lineWidth: 0.5))
-                    .padding(.horizontal, 12)
-                    .padding(.top, 12)
-                    .padding(.bottom, 16)
-                } else {
-                    VStack(alignment: .leading, spacing: 0) {
-                        if !contentHeader.isEmpty {
-                            Text(contentHeader)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(ChatColors.secondaryText)
-                                .padding(.horizontal, 16)
-                                .padding(.top, 16)
-                                .padding(.bottom, 8)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                        }
-
-                        let allChunks = isLive
-                            ? Self.liveChunkedLines(block.content.isEmpty ? " " : block.content)
-                            : Self.chunkedLines(block.content.isEmpty ? " " : block.content)
-                        let chunks = isLive ? allChunks : Array(allChunks.prefix(max(revealedChunkCount, 1)))
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(chunks, id: \.id) { chunk in
-                                Text(chunk.text)
-                                    .font(.system(size: 13, design: .monospaced))
-                                    .foregroundColor(accentColor)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 14)
-                            }
-                            if !isLive {
-                                loadMoreFooter(totalChunks: allChunks.count)
-                            }
-                            Color.clear.frame(height: 1).id("end")
-                        }
-                        .onAppear { if !isLive { resetRevealWindow(for: allChunks) } }
-                        .textSelection(.enabled)
-                        .padding(.vertical, 14)
-                        .frame(maxWidth: .infinity, minHeight: cardMinHeight, alignment: .topLeading)
-                        .background(Color(white: 0.12))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .padding(.horizontal, 12)
-                    }
-                    .padding(.bottom, 16)
-                }
-            }
-            .onChange(of: block.content.count) { _ in
-                if isLive {
-                    proxy.scrollTo("end", anchor: .bottom)
-                }
-            }
-            .onChange(of: block.id) { _ in
-                guard !isLive else { return }
-                let chunks = Self.chunkedLines(block.content.isEmpty ? " " : block.content)
-                revealedForBlockId = block.id
-                revealedChunkCount = Self.initialRevealCount(chunks)
-            }
-            }
-        }
-    }
-
-    // MARK: - Browser Content (live)
-
-    private var browserContent: some View {
-        let action: String = {
-            if case .browserTool(let a) = block.kind { return a }
-            return ""
-        }()
-        let url: String = resolvedBrowserURL
-        let script: String? = Self.browserScriptFromArgs(from: block)
-
-        return VStack(spacing: 0) {
-            if let img = browserSnapshot ?? block.imageFilePath.flatMap({ UIImage(contentsOfFile: $0) }) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        if !action.isEmpty || !url.isEmpty {
-                            HStack(spacing: 8) {
-                                if !action.isEmpty {
-                                    Text(action)
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(Color.blue)
-                                        .clipShape(Capsule())
-                                }
-                                if !url.isEmpty {
-                                    CopyableURLCapsule(url: url)
-                                }
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.top, 12)
-                        }
-
-                        if let script {
-                            jsScriptCard(script)
-                        }
-
-                        Image(uiImage: img)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: .infinity)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                            .overlay(RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color(UIColor.separator).opacity(0.5), lineWidth: 0.5))
-                            .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
-                            .contextMenu {
-                                Button { UIPasteboard.general.image = img } label: {
-                                    Label("Copy Image", systemImage: "doc.on.doc")
-                                }
-                            }
-                            .padding(.horizontal, 12)
-                    }
-                    .padding(.bottom, 16)
-                }
-            } else {
-                VStack(spacing: 0) {
-                    if !action.isEmpty || !url.isEmpty {
-                        HStack(spacing: 8) {
-                            if !action.isEmpty {
-                                Text(action)
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Color.blue)
-                                    .clipShape(Capsule())
-                            }
-                            if !url.isEmpty {
-                                CopyableURLCapsule(url: url)
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.top, 12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    if let script {
-                        jsScriptCard(script)
-                            .padding(.top, 12)
-                    }
-                    Spacer()
-                    VStack(spacing: 8) {
-                        Image(systemName: "globe")
-                            .font(.system(size: 32))
-                            .foregroundStyle(ChatColors.tertiaryText)
-                        Text("Loading...")
-                            .font(.system(size: 13))
-                            .foregroundStyle(ChatColors.tertiaryText)
-                    }
-                    Spacer()
-                }
-            }
-        }
-        .onChange(of: block.imageFilePath) { path in
-            if let path, let img = UIImage(contentsOfFile: path) {
-                browserSnapshot = img
-            }
-        }
-    }
-
-    // MARK: - Browser URL resolution
-
-    private var resolvedBrowserURL: String {
-        guard case .browserTool = block.kind else { return "" }
-        if let url = block.browserURL, !url.isEmpty { return url }
-        if let url = Self.extractURLFromArgs(block) { return url }
-        // [09-19 自审 M1] 恢复旧钳制：流式收缩窗口内 blockIndex 可能超界，防数组越界
-        let idx = min(blockIndex, toolBlocks.count - 1)
-        if idx > 0 {
-            for i in stride(from: idx - 1, through: 0, by: -1) {
-                let prev = toolBlocks[i]
-                if let url = prev.browserURL, !url.isEmpty { return url }
-                if let url = Self.extractURLFromArgs(prev) { return url }
-            }
-        }
-        return ""
-    }
-
-    // MARK: - Lazy rendering helpers
-
-    @ViewBuilder
-    private func loadMoreFooter(totalChunks: Int) -> some View {
-        if revealedChunkCount < totalChunks {
-            let remaining = totalChunks - revealedChunkCount
-            let nextBatch = min(Self.lazyRenderBatchChunks, remaining)
-            HStack(spacing: 16) {
-                Button {
-                    revealedChunkCount = min(revealedChunkCount + Self.lazyRenderBatchChunks, totalChunks)
-                } label: {
-                    Label("Load more (\(nextBatch * Self.lazyRenderChunkLines) lines)", systemImage: "chevron.down")
-                        .font(.system(size: 13, weight: .medium))
-                }
-                Button {
-                    revealedChunkCount = totalChunks
-                } label: {
-                    Text("Load all")
-                        .font(.system(size: 13, weight: .medium))
-                }
-            }
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity)
-            .onAppear {
-                revealedChunkCount = min(revealedChunkCount + Self.lazyRenderBatchChunks, totalChunks)
-            }
-        }
-    }
-
-    private func resetRevealWindow(for chunks: [(id: Int, text: String)]) {
-        guard revealedForBlockId != block.id else { return }
-        revealedForBlockId = block.id
-        revealedChunkCount = Self.initialRevealCount(chunks)
-    }
-
-    // MARK: - Computed properties
-
     private var contentHeader: String {
         switch block.kind {
         case .shellTool(let cmd): return cmd
@@ -1851,6 +2052,14 @@ struct ToolBlockContentView: View {
         }
     }
 
+    private static func formatDuration(_ dur: TimeInterval) -> String {
+        if dur < 1 { return String(format: "%.1fs", dur) }
+        if dur < 60 { return String(format: "%.0fs", dur) }
+        let mins = Int(dur) / 60
+        let secs = Int(dur) % 60
+        return "\(mins)m \(secs)s"
+    }
+
     // MARK: - Browser snapshot timer
 
     private func startBrowserTimer() {
@@ -1874,117 +2083,6 @@ struct ToolBlockContentView: View {
             if let img = try? await manager.webView.takeSnapshot(configuration: config) {
                 browserSnapshot = img
             }
-        }
-    }
-
-    // MARK: - Static helpers (also used by ToolLiveSheet nav bar)
-
-    static func extractEditStrings(from block: AssistantBlock) -> (oldString: String, newString: String)? {
-        guard let json = block.toolInputArgs,
-              let data = json.data(using: .utf8),
-              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let old = dict["old_string"] as? String,
-              let new = dict["new_string"] as? String else { return nil }
-        return (old, new)
-    }
-
-    static func extractWriteContent(from block: AssistantBlock) -> String? {
-        guard let json = block.toolInputArgs,
-              let data = json.data(using: .utf8),
-              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let content = dict["content"] as? String else { return nil }
-        return content
-    }
-
-    static func memoryWriteContentFromArgs(from block: AssistantBlock) -> String? {
-        guard let argsJson = block.toolInputArgs,
-              let data = argsJson.data(using: .utf8),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let content = obj["content"] as? String else { return nil }
-        return content
-    }
-
-    static func memoryActionName(from block: AssistantBlock) -> String {
-        if case .memoryTool(let action) = block.kind { return action }
-        return "memory"
-    }
-
-    static func extractURLFromArgs(_ blk: AssistantBlock) -> String? {
-        guard let json = blk.toolInputArgs,
-              let data = json.data(using: .utf8),
-              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let url = dict["url"] as? String,
-              !url.isEmpty else { return nil }
-        return url
-    }
-
-    static func browserScriptFromArgs(from block: AssistantBlock) -> String? {
-        guard let json = block.toolInputArgs,
-              let data = json.data(using: .utf8),
-              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let script = dict["script"] as? String,
-              !script.isEmpty else { return nil }
-        return script
-    }
-
-    static func formatBytes(_ bytes: Int) -> String {
-        if bytes < 1024 { return "\(bytes) B" }
-        if bytes < 1024 * 1024 { return String(format: "%.1f KB", Double(bytes) / 1024.0) }
-        return String(format: "%.1f MB", Double(bytes) / (1024.0 * 1024.0))
-    }
-
-    static func formatCharCount(_ count: Int) -> String {
-        if count < 1000 { return "\(count) chars" }
-        if count < 1_000_000 { return String(format: "%.1fK chars", Double(count) / 1000.0) }
-        return String(format: "%.1fM chars", Double(count) / 1_000_000.0)
-    }
-
-    static func trimmedErrorMessage(_ raw: String) -> String {
-        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if s.hasPrefix("Error: ") { s.removeFirst("Error: ".count) }
-        return s
-    }
-
-    static func chunkedLines(_ text: String, chunkSize: Int = 40) -> [(id: Int, text: String)] {
-        let sanitized = sanitizeForDisplay(text)
-        let allLines = sanitized.split(separator: "\n", omittingEmptySubsequences: false)
-        return stride(from: 0, to: max(allLines.count, 1), by: chunkSize).map { i in
-            let end = min(i + chunkSize, allLines.count)
-            return (i, allLines[i..<end].joined(separator: "\n"))
-        }
-    }
-
-    static func initialRevealCount(_ chunks: [(id: Int, text: String)]) -> Int {
-        guard !chunks.isEmpty else { return 0 }
-        var count = 0
-        var bytes = 0
-        for chunk in chunks.prefix(lazyRenderInitialChunks) {
-            bytes += chunk.text.utf8.count
-            count += 1
-            if bytes >= lazyRenderInitialByteCap { break }
-        }
-        return max(1, count)
-    }
-
-    static func liveChunkedLines(_ text: String, chunkSize: Int = 40, maxLines: Int = 500) -> [(id: Int, text: String)] {
-        let sanitized = sanitizeForDisplay(text)
-        let allLines = sanitized.split(separator: "\n", omittingEmptySubsequences: false)
-        let start = allLines.count > maxLines ? allLines.count - maxLines : 0
-        let visibleLines = allLines[start...]
-        return stride(from: 0, to: max(visibleLines.count, 1), by: chunkSize).map { i in
-            let sliceStart = visibleLines.startIndex + i
-            let sliceEnd = min(sliceStart + chunkSize, visibleLines.endIndex)
-            return (start + i, visibleLines[sliceStart..<sliceEnd].joined(separator: "\n"))
-        }
-    }
-
-    static func chunkedDiffLines(_ text: String, prefix: String, chunkSize: Int = 40) -> [(id: Int, text: String)] {
-        let sanitized = sanitizeForDisplay(text)
-        let allLines = sanitized.components(separatedBy: "\n")
-        return stride(from: 0, to: max(allLines.count, 1), by: chunkSize).map { i in
-            let end = min(i + chunkSize, allLines.count)
-            let chunk = allLines[i..<end].map { prefix + $0 }.joined(separator: "\n")
-            return (i, chunk)
         }
     }
 }
