@@ -116,7 +116,12 @@ private final class ShimmerLabelHost: UIView {
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        maskKey = ""            // 深浅色切换 → 字色变了，掩膜重渲
+        // [v12.3 09-19] 仅在深浅色真正切换时重渲掩膜。iOS 17+ 该回调在宿主
+        // 更新/布局期间被频繁调用，此前无条件清 maskKey → 每次触发都白重建
+        // 一次 mask 图（真机日志实证：3.5 分钟 95 次、每 ~300ms 一次）。
+        // 无变化时零动作（不清缓存、不触发布局）。
+        guard traitCollection.userInterfaceStyle != previousTraitCollection?.userInterfaceStyle else { return }
+        maskKey = ""            // 字色变了，掩膜重渲
         setNeedsLayout()
     }
 
