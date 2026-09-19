@@ -1094,3 +1094,5 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **验证**：静态检查（替换唯一性 + 括号平衡）通过；**编译与回归 ①–⑧ 需 CI + 真机**。
 
 **追加（2026-09-20，pp「搜索栏为什么点不发光回弹？」）**：`SearchBarSurface` 的 iOS 26 分支 `.regular` → `.regular.interactive()`——液态玻璃的按压/聚焦反馈（系统放大 + 提亮）由 `Glass.interactive()` 提供；同 AA ChatComposer 配方（B16-INPUTBAR，pp「改成 claudio 那样放大和发亮」）与齿轮/滚动钮「真控件挂 interactive」先例。修正原条目 C 的「材质无改动」表述：材质本体（glassEffect in capsule）不变，交互层此前缺失、本次补上。
+
+**追加 2（2026-09-20，pp「搜索的那个图标是不是用的黑色」）**：`searchBarCapsule` 放大镜 `.secondary` → `ChatColors.inputIconFg`——输入栏三图标同一「图标黑」常数（B16-INPUTBAR：浅色纯黑 / 深色 secondaryLabel），与参照图实测（放大镜 ≈ 纯黑 rgb22-43）对齐。占位文字/清除按钮颜色不动。

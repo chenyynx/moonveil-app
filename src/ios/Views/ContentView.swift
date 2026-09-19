@@ -4250,9 +4250,12 @@ struct ContentView: View {
 
     private var searchBarCapsule: some View {
         HStack(spacing: 8) {
+            // [SEARCH-BAR-ICON-INK] pp 2026-09-20「搜索的那个图标是不是用的黑色」：
+            // `.secondary` → 图标黑（输入栏三图标同一常数，B16-INPUTBAR：浅色纯黑 /
+            // 深色 secondaryLabel）；与参照图放大镜像素实测（≈纯黑）对齐。
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ChatColors.inputIconFg)
             TextField("Search chats...", text: $searchText)
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
