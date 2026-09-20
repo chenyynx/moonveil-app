@@ -1,20 +1,19 @@
 // RemoteSessionListView.swift — 远端会话列表（R0，batch 8）
 //
-// 形态（pp 2026-09-20 定稿）：板块切分照官方两大模块——「设备」+「项目」；
-// 会话行/底栏复用本机列表 UI；设备与项目两板块按大厂风重排（REMOTE-REDESIGN-1，
-// pp 2026-09-20 拍板：设备行=图标+名称/地址两行+状态徽章，板块头=主色标题+淡色圆钮）；
+// 形态（pp 2026-09-20 定稿，REMOTE-REDESIGN-4 = 方案 B「Claude 设计语言」落地）：
+// 暖奶油画布 → 深色终端窗卡（设备）→ 液态玻璃操作 → 13pt tertiary 项目头 → 暖卡堆
+// 会话（琥珀待批准 / teal running / 珊瑚未读点）；冻结三件（顶栏/新会话/搜索栏）原样；
 // AA 视觉只出现在点进去的弹窗页（PairDeviceSheet / ProjectEditor / 详情 / 归档）。
 // 数据源只走 RemoteKit 的 public facade（RemoteService / RemotePairingPayload），
 // 不读 ChatStore、不碰 ContentView 的 stackList（死隔离：远端列表与本机列表文件级零交集）。
 //
 // 功能面（AA 官方移动端会话列表全量，不阉割）：
-//   • 设备板块：设备行（44 圆底服务器图标 + 设备名/完整地址两行 + 已连接徽章）
-//     +「配对新设备」入口行 → PairDeviceSheet
-//   • 项目板块：折叠头（项目 + chevron 折叠 + 新建）→ ProjectEditorSheet；
-//     页面级选项（归档/断开）在顶栏右上角 … 玻璃圆（REMOTE-REDESIGN-3）
-//   • 会话行：本机 SessionRow 完整结构（无底裸 lucide 头像 + 标题 + 摘要 + 时间 +
-//     置顶角标）；状态映射进头像槽位——运行中=外圈转圈 / 未读=右上红点 /
-//     等待批准=右下 mint 角标（pp 2026-09-20 定稿：只换头像，其余与本机卡一致）
+//   • 设备：深色终端窗卡（三色点 + mono 地址 + CONNECTED）→ 玻璃「配对新设备」
+//     → PairDeviceSheet
+//   • 项目：✳ + 13pt tertiary 折叠头（整行点击折叠；chevron 按定稿去掉）＋ 新建
+//     → ProjectEditorSheet；页面级选项（归档/断开）在顶栏右上角 … 玻璃圆
+//   • 会话：暖卡堆（白圆 lucide 头像 + 标题/摘要 + 时间）；状态语义化——
+//     等待批准=琥珀胶囊 / 运行中=teal 转圈+mono running / 未读=卡角珊瑚点 / 置顶=pin
 //   • 长按菜单：Open / Rename / Pin·Unpin / Archive·Restore / Copy Session ID
 //   • 左滑动作：置顶 / 归档 / 删除
 //   • 归档页（ArchivedSessionsSheet）+ 下拉刷新 + 空态诚实
@@ -91,6 +90,8 @@ struct RemoteSessionListView: View {
     // 本视图不再另挂右上角菜单。
     var body: some View {
         content
+            // 方案 B（REMOTE-REDESIGN-4）：整页暖奶油画布（深色 = 暖黑），列表背景让位
+            .background(RemotePalette.canvas.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // 顶栏右上角选项（pp 2026-09-20：「顶栏右边是不是少了个按钮」——
@@ -129,22 +130,20 @@ struct RemoteSessionListView: View {
         }
     }
 
-    // MARK: - 列表（官方两大板块：设备 / 项目；行视觉全部复用本机列表 UI）
+    // MARK: - 列表（方案 B：深色终端卡 → 玻璃操作 → 项目头 → 暖卡堆）
 
     private var sessionList: some View {
         List {
-            // —— 设备板块（板块头内联，与项目头同一套设计语言）——
+            // —— 设备（终端窗卡 = 页面主语；无板块头）——
             Section {
-                deviceSectionHeader
-                deviceRow
+                deviceTerminalCard
                 if pendingNotices > 0 {
                     pendingNoticesRow
                 }
-                pairDeviceRow
+                pairGlassButton
             }
 
-            // —— 项目板块（projectHeader 行自带标题 + 折叠 + 菜单 + 新建；
-            // 不套 Section header 重复一遍） ——
+            // —— 项目（✳ + 13pt tertiary 头；会话 = 暖卡堆）——
             Section {
                 projectHeader
                 if !projectsCollapsed {
@@ -163,63 +162,84 @@ struct RemoteSessionListView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .listRowInsets(EdgeInsets())
                             .listRowSeparator(.hidden)
-                            .listRowBackground(Color(.systemBackground))
+                            .listRowBackground(Color.clear)
                     }
                 }
             }
         }
         .listStyle(.plain)
-        // 不藏列表滚动背景：与本机列表同款平色 systemBackground（本机也不 hide，
-        // 渐隐层由底栏的 background 挂载负责，见 BottomBarFadeView）
+        // 方案 B：列表滚动背景让位给页面画布（画布挂在 body 级 background 上）
+        .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.immediately)
         .safeAreaInset(edge: .bottom) { bottomBar }
         .refreshable { await refresh() }
     }
 
-    // MARK: - 会话行（REMOTE-REDESIGN-1：本机 ContentView.SessionRow 完整结构，
-    // 唯一差异 = 头像为无底裸 lucide message-square-quote，pp 2026-09-20 定稿）
-    // 无左缩进（pp 10:4x 装机反馈「卡片左边空一大截」）：36pt 项目缩进随旧板块结构一并移除，
-    // 与本机卡同款对称 horizontal 16pt。
-    // 状态映射进头像槽位：运行中 → 外圈转圈（SpinningRing 同款）；未读 → 头像右上
-    // 红点；等待批准 → 头像右下 mint 角标。字级走 App Base 缩放（scaledApp）。
+    // MARK: - 会话卡（方案 B：暖卡堆——白圆头像 + 标题/摘要 + 时间；状态语义化：
+    // 等待批准=琥珀胶囊 / 运行中=teal 转圈+mono running / 未读=卡角珊瑚点；
+    // pp 2026-09-20 定稿。字级走 App Base 缩放（scaledApp）。
 
     private func sessionRow(_ item: RemoteSessionItem) -> some View {
         Button {
             openSession(item)
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 11) {
                 sessionAvatar(for: item)
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(item.title)
-                        .font(.system(size: FontSettings.shared.scaledApp(16), weight: .semibold))
-                        .foregroundStyle(Color.primary)
+                        .font(.system(size: FontSettings.shared.scaledApp(15.5), weight: .semibold))
+                        .foregroundStyle(RemotePalette.ink)
                         .lineLimit(1)
                     Text(item.previewText)
-                        .font(.system(size: FontSettings.shared.scaledApp(14)))
-                        .foregroundStyle(Color.secondary)
+                        .font(.system(size: FontSettings.shared.scaledApp(13)))
+                        .foregroundStyle(RemotePalette.body)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 1)
                 VStack(alignment: .trailing, spacing: 4) {
                     Text(item.updatedAtText)
-                        .font(.system(size: FontSettings.shared.scaledApp(13)))
-                        .foregroundStyle(.tertiary)
-                    if item.isPinned {
+                        .font(.system(size: FontSettings.shared.scaledApp(12)))
+                        .foregroundStyle(RemotePalette.timeFaint)
+                    if item.indicator == .waitingApproval {
+                        Text("待批准")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 3)
+                            .background(RemotePalette.amber, in: Capsule())
+                    } else if item.indicator == .running {
+                        HStack(spacing: 4) {
+                            RemoteSpinningRing(color: RemotePalette.runningTeal)
+                                .frame(width: 9, height: 9)
+                            Text("running")
+                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .foregroundStyle(RemotePalette.runningTeal)
+                        }
+                    } else if item.isPinned {
                         Image(systemName: "pin.fill")
                             .font(.system(size: 10))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(RemotePalette.faint)
                     }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .contentShape(Rectangle())
+            .padding(.horizontal, 13)
+            .padding(.vertical, 11)
+            .frame(maxWidth: .infinity)
+            .background(RemotePalette.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(alignment: .topTrailing) {
+                if item.indicator == .unread {
+                    Circle()
+                        .fill(RemotePalette.coral)
+                        .frame(width: 10, height: 10)
+                        .offset(x: 4, y: -4)
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets())
+        .listRowInsets(EdgeInsets(top: 4.5, leading: 16, bottom: 4.5, trailing: 16))
         .listRowSeparator(.hidden)
-        // 行背景对齐本机：平色 systemBackground（RemoteRowCardBackground 已随之删除）
-        .listRowBackground(Color(.systemBackground))
+        .listRowBackground(Color.clear)
         .contextMenu {
             RemoteSessionContextMenu(item: item) { action in
                 handleMenuAction(action, for: item)
@@ -236,30 +256,16 @@ struct RemoteSessionListView: View {
         }
     }
 
-    /// 头像槽位：44×44 裸图标居中；三态 overlay 的几何（offset ±2 / 8pt 红点 /
-    /// 16pt 角标）与本机 SessionRow 的角标位一致。
+    /// 头像：白圆底 + 裸 lucide；运行中 = teal 外圈转圈（方案 B 语义位）。
     @ViewBuilder
     private func sessionAvatar(for item: RemoteSessionItem) -> some View {
-        RemoteSessionIcon(size: 24, color: .secondary)
-            .frame(width: 44, height: 44)
+        RemoteSessionIcon(size: 20, color: RemotePalette.avatarInk)
+            .frame(width: 40, height: 40)
+            .background(RemotePalette.avatarWash, in: Circle())
             .overlay {
                 if item.indicator == .running {
-                    RemoteSpinningRing(color: .secondary)
-                        .frame(width: 42, height: 42)
-                }
-            }
-            .overlay(alignment: .bottomTrailing) {
-                if item.indicator == .waitingApproval {
-                    RemoteBadgeCircle(icon: "bell.fill", color: .mint, iconSize: 8)
-                        .offset(x: 2, y: 2)
-                }
-            }
-            .overlay(alignment: .topTrailing) {
-                if item.indicator == .unread {
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: 8, height: 8)
-                        .offset(x: -1, y: 1)
+                    RemoteSpinningRing(color: RemotePalette.runningTeal)
+                        .frame(width: 44, height: 44)
                 }
             }
     }
@@ -349,166 +355,161 @@ struct RemoteSessionListView: View {
         .contentShape(.capsule)
     }
 
-    // MARK: - 设备板块（REMOTE-REDESIGN-1：大厂风重排，pp 2026-09-20）
+    // MARK: - 设备（方案 B / REMOTE-REDESIGN-4：深色终端窗卡，pp 2026-09-20 定稿）
 
-    /// 板块头（内联行，与项目头同一套设计语言：主色标题）。
-    private var deviceSectionHeader: some View {
-        HStack(spacing: 6) {
-            Text("设备")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color.primary)
-            Spacer(minLength: 0)
-        }
-        .padding(.leading, 16)
-        .padding(.trailing, 16)
-        .frame(minHeight: 48)
-        .listRowInsets(EdgeInsets())
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color(.systemBackground))
-    }
-
-    /// 设备行：左 44 圆底服务器图标（在线绿/离线灰）+ 设备名/完整地址两行 +
-    /// 右侧「已连接/未连接」淡底状态徽章；连接判定沿用 service.state == .ready。
-    private var deviceRow: some View {
+    /// 终端窗卡：mac 三色点 + mono 地址 + CONNECTED 标（在线 teal 点）。
+    private var deviceTerminalCard: some View {
         let connected = service.state == .ready
-        let tint = connected ? Color.green : Color.secondary
-        return HStack(spacing: 12) {
-            Image(systemName: "server.rack")
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(tint)
-                .frame(width: 44, height: 44)
-                .background(tint.opacity(0.12), in: Circle())
-            VStack(alignment: .leading, spacing: 3) {
-                Text(hostLabel)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(connected ? Color.primary : Color.secondary)
-                    .lineLimit(1)
-                Text(serverLabel)
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(Color.secondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            HStack(spacing: 5) {
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Circle().fill(RemotePalette.trafficRed).frame(width: 9, height: 9)
+                Circle().fill(RemotePalette.trafficYellow).frame(width: 9, height: 9)
+                Circle().fill(RemotePalette.trafficGreen).frame(width: 9, height: 9)
+                Spacer(minLength: 0)
                 Circle()
-                    .fill(connected ? Color.green : Color.secondary.opacity(0.6))
+                    .fill(connected ? RemotePalette.teal : RemotePalette.terminalFaint)
                     .frame(width: 6, height: 6)
-                Text(connected ? "已连接" : "未连接")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(tint)
+                Text(connected ? "CONNECTED" : "OFFLINE")
+                    .font(.system(size: 10.5, design: .monospaced))
+                    .tracking(0.4)
+                    .foregroundStyle(RemotePalette.terminalFaint)
             }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(tint.opacity(0.10), in: Capsule())
+            .padding(.bottom, 10)
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(connected ? RemotePalette.teal : RemotePalette.terminalFaint)
+                    .frame(width: 7, height: 7)
+                Text(hostLabel)
+                    .font(.system(size: 15, design: .monospaced))
+                    .foregroundStyle(RemotePalette.terminalText)
+                    .lineLimit(1)
+            }
+            Text(terminalSubLine)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(RemotePalette.terminalFaint)
+                .lineLimit(1)
+                .padding(.top, 5)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .frame(minHeight: 64)
-        .contentShape(Rectangle())
-        .listRowInsets(EdgeInsets())
+        .padding(.top, 13)
+        .padding(.bottom, 14)
+        .background(RemotePalette.terminal, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 6, trailing: 16))
         .listRowSeparator(.hidden)
-        .listRowBackground(Color(.systemBackground))
+        .listRowBackground(Color.clear)
     }
 
-    /// 待处理提醒行：bell 淡色圆底 + 橙色数字胶囊（Mail/提醒事项式）。
+    /// 终端副行：地址 — N sessions（预览数据期用真实计数，不假造）。
+    private var terminalSubLine: String {
+        let base = serverLabel == "—" ? "not configured" : serverLabel
+        return "\(base) — \(sessions.count) sessions"
+    }
+
+    /// 待处理提醒行（方案 B：琥珀胶囊）。
     private var pendingNoticesRow: some View {
         HStack(spacing: 12) {
             Image(systemName: "bell.badge.fill")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color.orange)
+                .foregroundStyle(RemotePalette.amber)
                 .frame(width: 28, height: 28)
-                .background(Color.orange.opacity(0.12), in: Circle())
+                .background(RemotePalette.amber.opacity(0.16), in: Circle())
             Text("需要你处理")
                 .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(Color.primary)
+                .foregroundStyle(RemotePalette.ink)
             Spacer(minLength: 0)
             Text("\(pendingNotices)")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Color.white)
                 .padding(.horizontal, 7)
                 .padding(.vertical, 2)
-                .background(Color.orange, in: Capsule())
+                .background(RemotePalette.amber, in: Capsule())
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 13)
         .frame(minHeight: 44)
         .contentShape(Rectangle())
-        .listRowInsets(EdgeInsets())
+        .listRowInsets(EdgeInsets(top: 3, leading: 16, bottom: 3, trailing: 16))
         .listRowSeparator(.hidden)
-        .listRowBackground(Color(.systemBackground))
+        .listRowBackground(Color.clear)
     }
 
-    /// 「配对新设备」入口行：淡色 28 圆底 + 号 + chevron。
-    /// 弹窗内容 PairDeviceSheet 保持 AA 视觉——pp 定稿：进按钮的 UI 才完全用 AA。
-    private var pairDeviceRow: some View {
+    /// 「配对新设备」= 液态玻璃胶囊（pp 定稿）。iOS 26 = 系统玻璃；低版本回退
+    /// 淡灰胶囊（本仓 deployment < 26，glass API 必须守卫——R3 构建教训；
+    /// 配方同 gear / SearchBarSurface 的既有写法）。
+    private var pairGlassButton: some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                GlassEffectContainer(spacing: 12) {
+                    pairButtonControl
+                        .glassEffect(.regular.interactive(), in: Capsule())
+                }
+            } else {
+                pairButtonControl
+                    .background(Capsule().fill(Color(UIColor.secondarySystemBackground)))
+                    .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+            }
+        }
+        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 6, trailing: 16))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+    }
+
+    private var pairButtonControl: some View {
         Button {
             showsPairSheet = true
         } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 Image(systemName: "plus")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.primary)
-                    .frame(width: 28, height: 28)
-                    .background(Color.primary.opacity(0.06), in: Circle())
+                    .foregroundStyle(RemotePalette.coral)
                 Text("配对新设备")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Color.primary)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.secondary)
+                    .font(.system(size: 14.5, weight: .semibold))
+                    .foregroundStyle(RemotePalette.ink)
             }
-            .padding(.horizontal, 16)
-            .frame(minHeight: 56)
-            .contentShape(Rectangle())
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets())
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color(.systemBackground))
     }
 
-    // MARK: - 项目头（REMOTE-REDESIGN-1 重排：主色标题 + 会话数 + chevron 折叠 +
-    // ＋ 新建淡色圆钮；REMOTE-REDESIGN-3 起 … 菜单迁顶栏右上角）
+    // MARK: - 项目头（方案 B：✳ + 13pt tertiary 灰——对齐本机时间字级，pp 定稿；
+    // 无计数；整行点击折叠（chevron 图标按定稿去掉）；＋ 新建圆钮）
 
     private var projectHeader: some View {
         HStack(spacing: 12) {
             Button {
                 withAnimation(.snappy) { projectsCollapsed.toggle() }
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: 7) {
+                    RemoteSpikeMark()
                     Text("项目")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color.primary)
-                    Text("\(projectItems.count)")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color.secondary)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.secondary)
-                        .rotationEffect(.degrees(projectsCollapsed ? 0 : 90))
+                        .font(.system(size: 13, weight: .semibold))
+                        .tracking(0.3)
                 }
+                .foregroundStyle(RemotePalette.faint)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(Text(projectsCollapsed ? "项目（已折叠）" : "项目（已展开）"))
             Spacer(minLength: 0)
             Button {
                 showsProjectEditor = true
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.primary)
+                    .foregroundStyle(RemotePalette.ink)
                     .frame(width: 28, height: 28)
-                    .background(Color.primary.opacity(0.06), in: Circle())
+                    .background(RemotePalette.card, in: Circle())
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
         }
-        .padding(.leading, 16)
-        .padding(.trailing, 16)
-        .frame(minHeight: 48)
-        .listRowInsets(EdgeInsets())
+        .frame(minHeight: 40)
+        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 6, trailing: 16))
         .listRowSeparator(.hidden)
-        .listRowBackground(Color(.systemBackground))
+        .listRowBackground(Color.clear)
     }
 
     // MARK: - 操作
@@ -568,23 +569,35 @@ struct RemoteSessionListView: View {
         Button("断开连接", role: .destructive, action: onDisconnect)
     }
 
-    /// 顶栏右上角 …（玻璃圆，与 RootModeTabsView 固定栏 ☰ 同一配方：
-    /// GlassEffectContainer + .regular.interactive() Circle——AA composer 配方；
+    /// 顶栏右上角 …（玻璃圆，与 RootModeTabsView 固定栏 ☰ 同一配方；
+    /// iOS 26 = 系统玻璃 / 低版本回退淡灰圆——本仓 deployment < 26 必须守卫；
     /// 44pt 对齐 gearDiameter；本机 toolbar … 菜单同位，pp 2026-09-20）
     private var topBarOptionsButton: some View {
-        GlassEffectContainer(spacing: 12) {
-            Menu {
-                listOptionsMenuContent
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(Color.primary)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
+        Group {
+            if #available(iOS 26.0, *) {
+                GlassEffectContainer(spacing: 12) {
+                    topBarMenu
+                        .glassEffect(.regular.interactive(), in: Circle())
+                }
+            } else {
+                topBarMenu
+                    .background(Circle().fill(Color(UIColor.secondarySystemBackground)))
+                    .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 1))
             }
-            .buttonStyle(.plain)
-            .glassEffect(.regular.interactive(), in: Circle())
         }
+    }
+
+    private var topBarMenu: some View {
+        Menu {
+            listOptionsMenuContent
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(Color.primary)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
     }
 }
 

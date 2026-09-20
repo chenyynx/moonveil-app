@@ -1198,3 +1198,19 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离**：只动 RemoteSessionListView.swift；RemoteRootView（principal ModeTabPicker）/本机 ContentView toolbar 零改动。
 - **回归项**：① Remote 列表顶栏右上角出现玻璃 … 且菜单两项可用 ② 项目头折叠与＋新建不回归 ③ 本机 tab 顶栏零变化 ④ 玻璃按压回弹（interactive）⑤ 深色模式。
 - **验证**：静态（括号平衡 + 断言式替换 + Menu 单实例核对）；**编译与回归 ①–⑤ 需 CI + 装机**。
+
+## REMOTE-REDESIGN-4 — 方案 B「Claude 设计语言」全量落地（2026-09-20，pp 拍板「照你修改过后的方案二做」）
+
+- **依据**：设计稿 `shared/moonveil/remote-redesign/v2-claude.html`（pp 逐项打磨定稿：液态玻璃 CTA / 13pt tertiary 项目头 / 无计数 / 深色终端卡 / 暖卡堆）。
+- **Files**: `src/ios/Views/RemoteSessions/RemoteSessionListView.swift`、`RemoteSessionComponents.swift`（+RemotePalette 调色板 +RemoteSpikeMark）、`PATCHES.md`。
+- **改动**：
+  - A 画布：整页暖奶油 `#FAF9F5`（深色暖黑 `#181715`）——body 级 background + List `.scrollContentBackground(.hidden)`；调色板全 dynamic（深浅双值）。
+  - B 设备 = 深色终端窗卡：mac 三色点（#FF5F57/#FEBC2E/#28C840）+ mono host + teal 点 + CONNECTED/OFFLINE 标 + 副行「地址 — N sessions」（真实计数）；16pt 连续圆角。
+  - C 操作 = 液态玻璃胶囊「配对新设备」（GlassEffectContainer + .regular.interactive() Capsule；coral 加号 + ink 文字）；「需要你处理」行改琥珀胶囊。
+  - D 项目头：`✳`（RemoteSpikeMark 四芒星）+「项目」13pt semibold tertiary（对齐本机时间字级）；**无计数、无 chevron**（整行点击折叠保留）；＋ 新建 = 28pt 暖卡圆钮。
+  - E 会话 = 暖卡堆：`#EFE9DE` 12pt 连续圆角卡 + 白圆头像（裸 lucide）；状态语义化——等待批准=琥珀胶囊「待批准」/ 运行中=teal 转圈+mono「running」/ 未读=卡角珊瑚点（offset 4,-4）/ 置顶=pin；字级 scaledApp(15.5/13/12)。删 RemoteBadgeCircle（不再引用）。
+  - F 冻结区（顶栏/新会话胶囊/搜索栏）零改动；topBarOptionsButton（R3）保留。
+- **死隔离**：只动 RemoteSessions 两文件 + PATCHES；ContentView / RemoteKit / AA 弹窗零改动；不新增文件（零 pbxproj）；bottomBar 渐隐/搜索栏复用现有共享件（材质自适应，无需改共享文件）。
+- **回归项**：① 终端卡在/离线两态与 CONNECTED/OFFLINE 标 ② 玻璃按钮弹 PairDeviceSheet 且按压回弹 ③ 项目头整行折叠 + ＋新建 ④ 卡堆三状态渲染位（琥珀胶囊/teal 转圈+mono/珊瑚卡角点）⑤ 长按菜单与左滑三动作 ⑥ 搜索（标题+摘要）⑦ 深色模式（暖黑画布）⑧ 字号档位跟随 ⑨ 顶栏 … 菜单仍可用 ⑩ CI 门禁全绿。
+- **GLASS-GUARD-FIX（同批）**：`GlassEffectContainer`/`glassEffect` 补 `#available(iOS 26.0, *)` 守卫 + 低版本回退（淡灰圆/胶囊）——**R3 的 iOS Build 挂因**（本仓 deployment < 26，裸用 glass API = 编译错；仓库既有约定见 gear/SearchBarSurface 守卫）。
+- **验证**：静态（括号平衡 + 断言式整段替换 + 悬空符号核对：RemoteBadgeCircle 全库无引用）；**编译与回归 ①–⑩ 需 CI + 装机**。

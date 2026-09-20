@@ -7,8 +7,8 @@
 
 import SwiftUI
 
-// MARK: - 状态四态（语义沿用 AA ChatSidebarSessionIndicator；渲染位随本机卡头像槽位：
-// 运行中 = 头像外圈转圈 / 未读 = 头像右上红点 / 等待批准 = 头像右下 mint 角标）
+// MARK: - 状态四态（语义沿用 AA ChatSidebarSessionIndicator；方案 B 渲染位：
+// 运行中 = 头像 teal 外圈 + 尾部 mono running / 未读 = 卡角珊瑚点 / 等待批准 = 尾部琥珀胶囊）
 
 enum RemoteSessionIndicator: Equatable {
     case waitingApproval
@@ -33,19 +33,71 @@ struct RemoteSpinningRing: View {
     }
 }
 
-/// 本机 SessionRow 的 badgeCircle 同款角标（16pt 圆底白字形；offset 由调用方给）。
-struct RemoteBadgeCircle: View {
-    let icon: String
-    let color: Color
-    var iconSize: CGFloat = 9
+// MARK: - 方案 B 调色板（claude.md tokens；dynamic 深浅适配——REMOTE-REDESIGN-4）
 
+enum RemotePalette {
+    /// 页面画布：暖奶油 / 暖黑
+    static let canvas = dyn(0xFAF9F5, 0x181715)
+    /// 会话卡：暖纸 / elevated
+    static let card = dyn(0xEFE9DE, 0x252320)
+    /// 终端窗卡底（深一档于画布，保证窗口感）
+    static let terminal = dyn(0x181715, 0x0E0D0C)
+    static let terminalText = dyn(0xFAF9F5, 0xFAF9F5)
+    static let terminalFaint = dyn(0x8E8B82, 0x8E8B82)
+    /// 主/次/三级文字
+    static let ink = dyn(0x141413, 0xFAF9F5)
+    static let body = dyn(0x6C6A64, 0xA09D96)
+    static let faint = dyn(0xA6A29B, 0x8E8B82)
+    static let timeFaint = dyn(0x8E8B82, 0x8E8B82)
+    /// 头像
+    static let avatarInk = dyn(0x3D3D3A, 0xFAF9F5)
+    static let avatarWash = dyn(0xFAF9F5, 0x3A3733)
+    /// 品牌点缀（claude.md 同名 tokens）
+    static let coral = Color(red: 0.800, green: 0.471, blue: 0.361)   // #cc785c
+    static let amber = Color(red: 0.910, green: 0.647, blue: 0.353)   // #e8a55a
+    static let teal = Color(red: 0.365, green: 0.722, blue: 0.651)    // #5db8a6
+    static let runningTeal = dyn(0x3D9D8C, 0x5DB8A6)
+    /// 终端窗三色点
+    static let trafficRed = Color(red: 1.000, green: 0.373, blue: 0.341)
+    static let trafficYellow = Color(red: 0.996, green: 0.737, blue: 0.180)
+    static let trafficGreen = Color(red: 0.157, green: 0.784, blue: 0.251)
+
+    private static func dyn(_ light: UInt32, _ dark: UInt32) -> Color {
+        Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark ? ui(dark) : ui(light)
+        })
+    }
+
+    private static func ui(_ hex: UInt32) -> UIColor {
+        UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255.0,
+                green: CGFloat((hex >> 8) & 0xFF) / 255.0,
+                blue: CGFloat(hex & 0xFF) / 255.0,
+                alpha: 1)
+    }
+}
+
+// MARK: - Anthropic 四芒星（✳）内容标记
+
+struct RemoteSpikeShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let c = CGPoint(x: rect.midX, y: rect.midY)
+        let r = min(rect.width, rect.height) / 2
+        let d = r * 0.7071
+        p.move(to: CGPoint(x: c.x, y: c.y - r)); p.addLine(to: CGPoint(x: c.x, y: c.y + r))
+        p.move(to: CGPoint(x: c.x - r, y: c.y)); p.addLine(to: CGPoint(x: c.x + r, y: c.y))
+        p.move(to: CGPoint(x: c.x - d, y: c.y - d)); p.addLine(to: CGPoint(x: c.x + d, y: c.y + d))
+        p.move(to: CGPoint(x: c.x + d, y: c.y - d)); p.addLine(to: CGPoint(x: c.x - d, y: c.y + d))
+        return p
+    }
+}
+
+struct RemoteSpikeMark: View {
+    var size: CGFloat = 10
     var body: some View {
-        Image(systemName: icon)
-            .font(.system(size: iconSize, weight: .bold))
-            .foregroundStyle(.white)
-            .frame(width: 16, height: 16)
-            .background(color)
-            .clipShape(Circle())
+        RemoteSpikeShape()
+            .stroke(style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
+            .frame(width: size, height: size)
     }
 }
 
