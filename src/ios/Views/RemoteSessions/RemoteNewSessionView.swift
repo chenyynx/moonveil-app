@@ -72,7 +72,7 @@ struct RemoteNewSessionView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(action: dismiss) {
+                    Button { dismiss() } label: {
                         Image(systemName: "chevron.left")
                             .fontWeight(.semibold)
                             .accessibilityLabel(String(localized: "返回"))
