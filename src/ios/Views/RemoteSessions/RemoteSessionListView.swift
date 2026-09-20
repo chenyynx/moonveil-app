@@ -37,6 +37,19 @@ struct RemoteSessionListView: View {
     /// 未连接时的登录/配对入口（唤起 RootModeTabsView 的登录全屏盖）。
     var onOpenLogin: () -> Void = {}
 
+    /// 配对观察器（官方 AgentSetupCoordinator：账号级、不随 sheet 存亡；列表页
+    /// 是远端功能的常驻根视图，生命周期等价）。
+    @StateObject private var agentSetup: AgentSetupCoordinator
+
+    init(service: RemoteService, pendingNotices: Int = 0,
+         onDisconnect: @escaping () -> Void = {}, onOpenLogin: @escaping () -> Void = {}) {
+        self.service = service
+        self.pendingNotices = pendingNotices
+        self.onDisconnect = onDisconnect
+        self.onOpenLogin = onOpenLogin
+        _agentSetup = StateObject(wrappedValue: AgentSetupCoordinator(service: service))
+    }
+
     // MARK: - 服务器地址（RemoteService 只写不读；读官方持久化键 agentsAnywhere.serverURL，
     // 与 RemoteRootView 同一来源）
     // [CI-FIX] 注释不出现 RemoteKit 符号名（import-scan 门禁连注释都扫，2026-09-20）
@@ -109,7 +122,7 @@ struct RemoteSessionListView: View {
                 ToolbarItem(placement: .topBarTrailing) { topBarTrailingControls }
             }
             .sheet(isPresented: $showsPairSheet) {
-                PairDeviceSheet(service: service)
+                PairDeviceSheet(service: service, setup: agentSetup)
             }
             .sheet(isPresented: $showsProjectEditor) {
                 // 项目编辑（AA 的 ProjectEditorSheet 视觉；数据面就绪前弹联动占位）
@@ -243,6 +256,12 @@ struct RemoteSessionListView: View {
         // REMOTE-DEVICE-1：设备详情页（长按终端卡进入）
         .navigationDestination(isPresented: $showsDeviceDetail) {
             RemoteDeviceDetailView(service: service)
+        }
+        .onChange(of: agentSetup.presentedConnector?.id) { _, id in
+            // 官方：configured 设备由 ChatShellView 消费 presentedConnector 弹出
+            // AddDeviceAgentSheet（设备 Agent 管理批落地）。过渡为真实跳转：
+            // 打开该设备详情页的 Agent 区。
+            if id != nil { showsDeviceDetail = true }
         }
     }
 

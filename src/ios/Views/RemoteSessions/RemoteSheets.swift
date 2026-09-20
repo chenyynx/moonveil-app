@@ -13,22 +13,22 @@ struct RemoteProjectEditorSheet: View {
     @ObservedObject var service: RemoteService
     @Environment(\.dismiss) private var dismiss
 
-    private var serverLabel: String {
-        UserDefaults.standard.string(forKey: "agentsAnywhere.serverURL") ?? "—"
-    }
-
-    @State private var device = ""
+    @State private var connectors: [RemoteConnector] = []
+    @State private var selectedConnectorId: String?
     @State private var path = ""
     @State private var projectName = ""
+    @State private var isWorking = false
     @State private var error: String?
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("设备") {
-                    Picker("设备", selection: $device) {
-                        Text("选择设备").tag("")
-                        Text(serverLabel).tag("server")
+                    Picker("设备", selection: $selectedConnectorId) {
+                        Text("选择设备").tag(String?.none)
+                        ForEach(connectors) { connector in
+                            Text(connector.name).tag(String?.some(connector.id))
+                        }
                     }
                     .pickerStyle(.navigationLink)
                 }
@@ -68,16 +68,43 @@ struct RemoteProjectEditorSheet: View {
             .toolbar {
                 SheetCloseToolbar { dismiss() }
                 ToolbarItem(placement: .topBarTrailing) {
-                    // 数据面（项目创建）未接通前显式禁用——同「浏览目录」的处理；
-                    // 不做「点了看着成功其实什么都没发生」的假态。
-                    Button("创建") {
-                        // RemoteService 的项目创建 public 面就绪后接这里（batch 8 R0）。
-                    }
-                    .disabled(true)
+                    // 数据面已接通（FILES-HOME：createProject）——真创建。
+                    Button("创建") { Task { await create() } }
+                        .disabled(!canCreate || isWorking)
                 }
             }
         }
         .appSheetPresentation(.compact)
+        .task { connectors = (try? await service.listConnectors()) ?? [] }
+        .onChange(of: path) { _, newValue in
+            // 官方「按目录自动填写名称」：名称未被手动编辑过（空）时跟随路径末段。
+            if projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                projectName = ProjectWorkspacePath.name(newValue)
+            }
+        }
+    }
+
+    private var canCreate: Bool {
+        selectedConnectorId != nil
+            && !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func create() async {
+        guard let connectorId = selectedConnectorId, canCreate, !isWorking else { return }
+        isWorking = true
+        error = nil
+        defer { isWorking = false }
+        do {
+            _ = try await service.createProject(
+                connectorId: connectorId,
+                workspacePath: path.trimmingCharacters(in: .whitespacesAndNewlines),
+                name: projectName.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+            dismiss()
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 }
 

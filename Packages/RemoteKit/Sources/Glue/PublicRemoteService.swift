@@ -141,6 +141,13 @@ public struct RemoteSessionWriteResult: Sendable {
     public let serverTime: String
 }
 
+/// Public mirror of V2ConnectorCreateResponse（配对凭证；token 仅客户端持有）。
+public struct RemoteConnectorCreateResponse: Sendable, Hashable {
+    public let connector: RemoteConnector
+    public let connectorToken: String
+    public let tokenPrefix: String
+}
+
 /// Public mirror of V2WorkspaceDirectory（目录列举；字段 verbatim）。
 public struct RemoteWorkspaceDirectory: Sendable {
     public let path: String
@@ -538,9 +545,63 @@ public final class RemoteService: ObservableObject {
             try await self.engine.createProject(name: name, connectorId: connectorId,
                                                 workspacePath: workspacePath, manuallyCreated: manuallyCreated)
         }
-        return RemoteProject(id: r.project.id, connectorId: r.project.connectorId, name: r.project.name,
-                             workspacePath: r.project.workspacePath, pinned: r.project.pinned,
-                             activeSessionCount: r.project.activeSessionCount)
+        return Self.mapProject(r.project)
+    }
+
+    // MARK: - Pairing（官方 V2DevicePairingService 等价面）
+
+    /// 当前服务器地址（配对命令与 claim 的 serverUrl 参数；upstream AppState.serverURL 语义）。
+    public var serverURLValue: URL? { engine.serverURL }
+
+    /// 创建配对凭证（官方 createDevice：空名拒绝 → POST /connectors）。
+    public func createConnector(name: String) async throws -> RemoteConnectorCreateResponse {
+        let normalizedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedName.isEmpty else {
+            throw RemoteServiceError.rejected(code: nil, message: "Device name is empty.")
+        }
+        let r = try await attempt { try await self.engine.createConnector(name: normalizedName) }
+        return RemoteConnectorCreateResponse(connector: Self.mapConnector(r.connector),
+                                             connectorToken: r.connectorToken, tokenPrefix: r.tokenPrefix)
+    }
+
+    /// 认领配对码（官方 claimPairing：数字过滤 + 6 位校验 + status=="claimed" 校验）。
+    public func claimPairing(code: String, name: String, serverUrl: String,
+                             connectorId: String, connectorToken: String) async throws -> RemoteConnector {
+        let normalizedCode = code.filter(\.isNumber)
+        guard normalizedCode.count == 6 else {
+            throw RemoteServiceError.rejected(code: nil, message: "Invalid pairing code.")
+        }
+        let r = try await attempt {
+            try await self.engine.claimPairing(code: normalizedCode, name: name, serverUrl: serverUrl,
+                                               connectorId: connectorId, connectorToken: connectorToken)
+        }
+        guard r.status == "claimed", let connector = r.connector else {
+            throw RemoteServiceError.rejected(code: nil, message: "Pairing was not claimed.")
+        }
+        return Self.mapConnector(connector)
+    }
+
+    /// 读单个连接器（配对轮询；官方 V2DevicePairingService.connector）。
+    public func connector(connectorId: String) async throws -> RemoteConnector {
+        let r = try await attempt { try await self.engine.connector(connectorId: connectorId) }
+        return Self.mapConnector(r.connector)
+    }
+
+    /// 重命名连接器（官方 deviceManagement.renameConnector → PATCH /connectors/{id}）。
+    public func renameConnector(connectorId: String, name: String) async throws -> RemoteConnector {
+        let r = try await attempt { try await self.engine.renameConnector(connectorId: connectorId, name: name) }
+        return Self.mapConnector(r.connector)
+    }
+
+    private static func mapConnector(_ c: V2Connector) -> RemoteConnector {
+        RemoteConnector(id: c.id, name: c.name, connectorKind: c.connectorKind,
+                        deviceOs: c.deviceOs, status: c.status.rawValue, lastSeenAt: c.lastSeenAt)
+    }
+
+    private static func mapProject(_ p: V2Project) -> RemoteProject {
+        RemoteProject(id: p.id, connectorId: p.connectorId, name: p.name,
+                      workspacePath: p.workspacePath, pinned: p.pinned,
+                      activeSessionCount: p.activeSessionCount)
     }
 
     private func bulkAction(sessionIds: [String],

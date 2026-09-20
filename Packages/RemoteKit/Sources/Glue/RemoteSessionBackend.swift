@@ -19,6 +19,9 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
     private var creationService: V2SessionCreationService?
     private var lastServerURL: URL?
 
+    /// Facade 用：配对命令与 claim 的 serverUrl（upstream AppState.serverURL）。
+    var serverURL: URL? { lastServerURL }
+
     init(clientId: String = UUID().uuidString) {
         self.clientId = clientId
     }
@@ -184,6 +187,25 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
         try await requireAPI().projects.create(V2ProjectCreateRequest(
             name: name, connectorId: connectorId, workspacePath: workspacePath, manuallyCreated: manuallyCreated
         ))
+    }
+
+    // Pairing flow（官方 V2DevicePairingService 的等价面）。
+    func createConnector(name: String) async throws -> V2ConnectorCreateResponse {
+        try await requireAPI().connectors.createConnector(request: V2ConnectorCreateRequest(name: name))
+    }
+
+    func claimPairing(code: String, name: String, serverUrl: String, connectorId: String, connectorToken: String) async throws -> V2PairingClaimResponse {
+        try await requireAPI().connectors.claimPairing(request: V2PairingClaimRequest(
+            code: code, name: name, serverUrl: serverUrl, connectorId: connectorId, connectorToken: connectorToken
+        ))
+    }
+
+    func connector(connectorId: String) async throws -> V2ConnectorResponse {
+        try await requireAPI().connectors.connector(connectorId: connectorId)
+    }
+
+    func renameConnector(connectorId: String, name: String) async throws -> V2ConnectorResponse {
+        try await requireAPI().connectors.updateConnector(connectorId: connectorId, request: V2ConnectorUpdateRequest(name: name))
     }
 
     func runtimeTypes(connectorId: V2ConnectorID) async throws -> V2RuntimeTypeListResponse {
