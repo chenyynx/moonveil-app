@@ -1240,3 +1240,17 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离**：只动 RemoteSessionListView.swift；RootModeTabsView/ContentView 零改动；不新增文件（零 pbxproj）。
 - **回归项**：① 右上角 ＋ 弹出配对页 ② ⋯ 菜单两项可用 ③ 设备卡区域无残留玻璃行 ④ 空态按钮不变 ⑤ 深色模式。
 - **验证**：静态（断言式替换 + glass 残留清零 + 括号平衡）；**编译与回归需 CI + 装机**。
+
+## AA-LIST-MENU — 顶栏 … 菜单补齐 AA 官方全量（2026-09-20，pp：「aa的三个点点开这么多东西 你怎么只有三个」）
+
+- **官方对照**（亲读 `~/aa-ios` 源：ChatSidebarView.swift ChatSidebarListMenu / V2DeviceManagement.swift / ProjectSidebarPreferences.swift）：
+  - Picker「侧栏显示」= 按项目 / 全部会话，@AppStorage 持久化（官方 key `aa.native.sidebar.session-list`，默认 false=按项目）；
+  - filters() = Picker「会话」活跃/已归档/全部（V2DeviceSessionFilter），**仅在按项目模式出现**；
+  - Divider + 「归档会话」。
+- **落地（无死开关，全真实行为）**：
+  - A 侧栏显示 picker：`showsAllSessions` @AppStorage（同 key）；按项目 = 项目小标题分组（名称解析：预览别名表 ["p1":"工作台"]，Staged 换远端项目列表）+「未分组会话」殿后；全部会话 = 平铺卡堆（原形态）。
+  - B 归档筛选 picker：`archiveFilter` 三态真实过滤会话源（items / archived / 两者），仅按项目模式出现（同官方）；`RemoteSessionFilter` 枚举 = V2DeviceSessionFilter 等价。
+  - C 空态文案按筛选区分（已归档专属文案）；「归档会话」「断开连接」保留。
+- **死隔离**：只动 RemoteSessionListView.swift（+ 枚举声明）；RootModeTabsView/ContentView/RemoteKit 零改动；不新增文件（零 pbxproj）。
+- **回归项**：① 菜单显示两个 Picker（按项目模式）+ 归档会话 + 断开连接，全部可点且真实生效 ② 切换按项目/全部会话后列表形态切换、重启保留（@AppStorage）③ 活跃/已归档/全部过滤生效（已归档空数据期 → 诚实空文案）④ 未分组会话殿后 ⑤ REMOTE-ROW-FENCE 首卡门在两模式都正确 ⑥ 深色模式。
+- **验证**：静态（断言式替换 + 括号平衡）；**编译与回归需 CI + 装机**。

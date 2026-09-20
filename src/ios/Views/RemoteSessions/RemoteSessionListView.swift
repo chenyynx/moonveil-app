@@ -10,8 +10,9 @@
 // 功能面（AA 官方移动端会话列表全量，不阉割）：
 //   • 设备：深色终端窗卡（三色点 + mono 地址 + CONNECTED）；配对新设备 =
 //     顶栏右上角 ＋ → PairDeviceSheet（pp 2026-09-20 挪位）
-//   • 项目：✳ + 13pt tertiary 折叠头（整行点击折叠；chevron 按定稿去掉）＋ 新建
-//     → ProjectEditorSheet；页面级选项（归档/断开）在顶栏右上角 … 玻璃圆
+//   • 项目：✳ + 13pt tertiary 折叠头（整行点击折叠）＋ 新建 → ProjectEditorSheet；
+//     顶栏右上角 … = AA 官方全量列表菜单（侧栏显示 按项目/全部会话 + 归档筛选
+//     活跃/已归档/全部 + 归档会话）——AA-LIST-MENU，2026-09-20
 //   • 会话：暖卡堆（白圆 lucide 头像 + 标题/摘要 + 时间）；状态语义化——
 //     等待批准=琥珀胶囊 / 运行中=teal 转圈+mono running / 未读=卡角珊瑚点 / 置顶=pin
 //   • 长按菜单：Open / Rename / Pin·Unpin / Archive·Restore / Copy Session ID
@@ -53,11 +54,20 @@ struct RemoteSessionListView: View {
         RemoteSessionStore.shared.items
     }
 
+    /// 归档筛选后的会话源（AA archiveScope 等价：活跃 / 已归档 / 全部）。
+    private var sourceSessions: [RemoteSessionItem] {
+        switch archiveFilter {
+        case .active: return sessions
+        case .archived: return RemoteSessionStore.shared.archived
+        case .all: return sessions + RemoteSessionStore.shared.archived
+        }
+    }
+
     /// 搜索过滤：标题/摘要本地过滤（本机搜索走 ChatStore 后端，远端数据面接通后再对齐）
     private var filteredSessions: [RemoteSessionItem] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return sessions }
-        return sessions.filter {
+        guard !query.isEmpty else { return sourceSessions }
+        return sourceSessions.filter {
             $0.title.localizedCaseInsensitiveContains(query)
                 || $0.previewText.localizedCaseInsensitiveContains(query)
         }
@@ -84,6 +94,10 @@ struct RemoteSessionListView: View {
     @FocusState private var searchFocused: Bool
     // 项目板块折叠（官方「项目 ▾」）
     @State private var projectsCollapsed = false
+    /// 侧栏显示（AA 官方 ChatSidebarListMenu 同 key 持久化）：false = 按项目 / true = 全部会话。
+    @AppStorage("aa.native.sidebar.session-list") private var showsAllSessions = false
+    /// 归档筛选三态（AA V2DeviceSessionFilter 等价；仅按项目模式出现在菜单，同官方 filters()）。
+    @State private var archiveFilter: RemoteSessionFilter = .active
 
     // 导航容器与 ModeTabPicker 顶栏由 RemoteRootView 的 NavigationStack 提供
     // （pp 定稿：胶囊切换位置不动）；列表选项菜单在板块结构的项目头 …，
@@ -145,14 +159,26 @@ struct RemoteSessionListView: View {
             Section {
                 projectHeader
                 if !projectsCollapsed {
-                    ForEach(projectItems) { item in
-                        sessionRow(item)
-                            .background(firstRowFenceReporter(for: item))
+                    if showsAllSessions {
+                        // 全部会话（AA 官方 flat 模式）：平铺卡堆。
+                        ForEach(projectItems) { item in
+                            sessionRow(item)
+                                .background(firstRowFenceReporter(for: item))
+                        }
+                    } else {
+                        // 按项目（AA 官方默认）：项目小标题 + 组内卡堆；未分组殿后。
+                        ForEach(groupedItems) { group in
+                            projectGroupLabel(group.name)
+                            ForEach(group.items) { item in
+                                sessionRow(item)
+                                    .background(firstRowFenceReporter(for: item))
+                            }
+                        }
                     }
                     if projectItems.isEmpty {
                         // 搜索无结果 ≠ 没有项目——文案分开，保持诚实
                         Text(searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                             ? "还没有项目。"
+                             ? (archiveFilter == .archived ? "还没有归档的会话。" : "还没有项目。")
                              : "没有匹配的会话。")
                             .font(.system(size: 16))
                             .foregroundStyle(.secondary)
@@ -264,7 +290,7 @@ struct RemoteSessionListView: View {
     /// 仅首卡挂 reporter（中间卡不报，零额外开销）。
     @ViewBuilder
     private func firstRowFenceReporter(for item: RemoteSessionItem) -> some View {
-        if item.id == projectItems.first?.id {
+        if item.id == stackFirstItemId {
             GeometryReader { proxy in
                 Color.clear
                     .onAppear { RemoteRowsFence.topY = proxy.frame(in: .global).minY }
@@ -493,6 +519,20 @@ struct RemoteSessionListView: View {
         .listRowBackground(Color.clear)
     }
 
+    /// 按项目模式的项目小标题（AA「未分组会话」同款下标题字级）。
+    private func projectGroupLabel(_ name: String) -> some View {
+        Text(name)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(RemotePalette.faint)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+    }
+
     // MARK: - 操作
 
     private func openSession(_ item: RemoteSessionItem) {
@@ -533,10 +573,44 @@ struct RemoteSessionListView: View {
 
     // MARK: - 派生
 
-    /// 项目板块的会话 = 搜索过滤后的全部会话（两大板块结构下不再有独立「置顶/全部」段；
-    /// 置顶项排前。按项目分组折叠的条目级呈现随数据面接通再对齐官方项目抽屉。）
+    /// 项目板块的会话 = 筛选+搜索后的会话（置顶项排前）。
+    /// 完整项目抽屉（文件夹行/逐项展开/按项目新建）随数据面批对齐官方。
     private var projectItems: [RemoteSessionItem] {
         filteredSessions.sorted { ($0.isPinned ? 0 : 1) < ($1.isPinned ? 0 : 1) }
+    }
+
+    /// 按项目分组的渲染单元（AA「项目」模式：项目小标题 + 组内会话；未分组殿后）。
+    private struct ProjectGroup: Identifiable {
+        let id: String
+        let name: String
+        let items: [RemoteSessionItem]
+    }
+
+    private var groupedItems: [ProjectGroup] {
+        var buckets: [String: [RemoteSessionItem]] = [:]
+        for item in projectItems {
+            buckets[item.projectId ?? "", default: []].append(item)
+        }
+        var out: [ProjectGroup] = buckets
+            .filter { !$0.key.isEmpty }
+            .map { ProjectGroup(id: $0.key, name: projectDisplayName(for: $0.key), items: $0.value) }
+            .sorted { $0.name < $1.name }
+        if let unassigned = buckets[""] {
+            out.append(ProjectGroup(id: "__unassigned", name: "未分组会话", items: unassigned))
+        }
+        return out
+    }
+
+    /// 预览期项目名别名表——数据面接通后由远端项目列表替换（Staged: 项目管理 public 面）。
+    static let previewProjectNames: [String: String] = ["p1": "工作台"]
+
+    private func projectDisplayName(for projectId: String) -> String {
+        Self.previewProjectNames[projectId] ?? projectId
+    }
+
+    /// 当前渲染顺序下的第一张卡（[REMOTE-ROW-FENCE] reporter 的门）。
+    private var stackFirstItemId: String? {
+        showsAllSessions ? projectItems.first?.id : groupedItems.first?.items.first?.id
     }
 
     // 列表选项（归档/断开）= 页面级操作，挂顶栏右上角 …（本机同位；
@@ -544,6 +618,20 @@ struct RemoteSessionListView: View {
     // 导航容器与 ModeTabPicker 顶栏仍由 RemoteRootView 提供。
     @ViewBuilder
     private var listOptionsMenuContent: some View {
+        // AA 官方「侧栏显示」：按项目 / 全部会话（同 key 持久化，默认按项目）。
+        Picker("侧栏显示", selection: $showsAllSessions) {
+            Text("按项目").tag(false)
+            Text("全部会话").tag(true)
+        }
+        // AA 官方：归档筛选只在按项目模式出现（filters() 注入点语义，本机同位不发明）。
+        if !showsAllSessions {
+            Picker("会话", selection: $archiveFilter) {
+                Text("活跃").tag(RemoteSessionFilter.active)
+                Text("已归档").tag(RemoteSessionFilter.archived)
+                Text("全部").tag(RemoteSessionFilter.all)
+            }
+        }
+        Divider()
         Button("归档会话", systemImage: "archivebox") { showsArchives = true }
         Divider()
         // 断开连接入口从 RemoteRootView 的状态卡迁移至此（接线时不丢）
@@ -580,6 +668,13 @@ struct RemoteSessionListView: View {
                 .foregroundStyle(Color.primary)
         }
     }
+}
+
+// MARK: - 归档筛选三态（AA V2DeviceSessionFilter 的等价实现：active/archived/all）
+
+enum RemoteSessionFilter: String, CaseIterable, Identifiable {
+    case active, archived, all
+    var id: String { rawValue }
 }
 
 // MARK: - 数据模型（远端会话条目；数据面就绪前由 RemoteSessionStore 占位）
