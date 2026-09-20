@@ -549,17 +549,17 @@ struct RemoteSessionListView: View {
         .padding(.bottom, 14)
         .background(RemotePalette.terminal, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        // REMOTE-DEVICE-1：长按终端卡 → 设备详情页（pp 2026-09-20 指定入口）。
+        // REMOTE-DEVICE-1：点按整卡进入设备详情页（pp 2026-09-21 改：原长按入口
+        // 2026-09-20 版改单击——「现在是长按卡片才能进去 改为点一次就进入」）。
         // 未连接时点按整卡 → 登录/配对（pp 2026-09-20「要提醒用户连接」）。
-        .onLongPressGesture {
-            guard service.state == .ready else { return }
-            showsDeviceDetail = true
-        }
         .onTapGesture {
-            guard service.state != .ready else { return }
-            onOpenLogin()
+            if service.state == .ready {
+                showsDeviceDetail = true
+            } else {
+                onOpenLogin()
+            }
         }
-        .accessibilityHint(Text(service.state == .ready ? "长按查看设备详情" : "点按登录并配对设备"))
+        .accessibilityHint(Text(service.state == .ready ? "查看设备详情" : "点按登录并配对设备"))
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 6, trailing: 16))
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
