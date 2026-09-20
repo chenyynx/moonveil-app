@@ -63,10 +63,21 @@ struct RemoteNewSessionView: View {
                         applyError: { model.settingsError })
                 }
             }
-            // 官方 ChatPageToolbar（title: "" + onMenu）——顶栏直接用官方组件，
-            // 不再自建（pp 2026-09-20「让你直接用？你是照着改？」）。
-            .modifier(ChatPageToolbar(title: "", onMenu: { dismiss() }))
+            // 顶栏：左上角 = 本机页面同款系统返回标（chevron，pp 2026-09-21
+            // 「这个页面的左上角那个图标应该是跟本地页面一样的那个返回标」——
+            // 官方此处是 SidebarMenuIcon ≡，本仓按 pp 拍板换返回箭头，动作 = dismiss
+            // 与原 onMenu 语义一致）。ChatPageToolbar(title: "") 在此仅贡献左侧键，
+            // 改用原生 toolbar 等价替换（title 本就为空，无 subtitle/status 面），
+            // 共享件 ChatPageToolbar 保持官方逐字不动（SessionChatView 仍在用 ≡）。
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: dismiss) {
+                        Image(systemName: "chevron.left")
+                            .fontWeight(.semibold)
+                            .accessibilityLabel(String(localized: "返回"))
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) { targetButton }
             }
         }
