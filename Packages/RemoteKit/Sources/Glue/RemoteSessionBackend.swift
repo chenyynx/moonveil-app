@@ -27,10 +27,10 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
     /// accountID 取 profile.userId（未取到退 official-account，见 RemoteService.chat 注释）。
     var chatServices: V2RemoteChatServices? {
         guard let api else { return nil }
-        if let store = chatServicesStore, chatServicesServerURL == api?.serverURL { return store }
+        if let store = chatServicesStore, chatServicesServerURL == api.serverURL { return store }
         let services = V2RemoteChatServices(api: api, accountID: profile?.userId ?? "official-account")
         chatServicesStore = services
-        chatServicesServerURL = api?.serverURL
+        chatServicesServerURL = api.serverURL
         return services
     }
 
