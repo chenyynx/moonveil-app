@@ -43,7 +43,6 @@ jobs:
         with:
           path: src/ios/build/DerivedData
           key: deriveddata-${{ runner.os }}-${{ hashFiles('src/ios/**', 'Packages/**') }}
-          restore-keys: deriveddata-${{ runner.os }}-
 
       - name: Build native deps (lame → ffmpeg → ish → rclone → alpine rootfs)
         run: |
