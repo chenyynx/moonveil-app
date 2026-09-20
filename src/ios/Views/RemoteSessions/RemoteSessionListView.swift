@@ -580,6 +580,8 @@ struct RemoteSessionItem: Identifiable, Equatable {
     var isPinned: Bool = false
     var indicator: RemoteSessionIndicator = .none
     var updatedAtText: String = ""
+    /// 本机卡摘要行（最后一条消息预览）；数据面就绪前由预览数据填充
+    var previewText: String = ""
 }
 
 @MainActor
