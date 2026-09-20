@@ -21,6 +21,8 @@ struct RemoteRootView: View {
     }()
 
     @State private var pendingNotices = 0
+    /// 官方 RootView.swift:52 的全局染色数据源（黑/白自适应）。
+    @Environment(\.colorScheme) private var colorScheme
 
     var onOpenLogin: () -> Void = {}
 
@@ -41,6 +43,10 @@ struct RemoteRootView: View {
             let n = SoulStore.cachedMetadata.name
             soulName = n.isEmpty ? "Moonveil" : n
         }
+        // 官方 RootView.swift:52 逐字同源：全局 tint = 主文本色（黑/白），官方
+        // Assets 无 AccentColor、仅靠这行把 Menu/Label 图标/裸 Button 全染黑。
+        // 漏搬导致「全部项目/新设备/创建项目」显示系统蓝（pp 官方截图 2026-09-21 定案）。
+        .tint(AppTheme.primaryText(colorScheme))
     }
 
     @ViewBuilder
