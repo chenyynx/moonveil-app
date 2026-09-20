@@ -1293,3 +1293,19 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **回归项**：① 首次进入加载真实会话（非假数据）② 活跃 / 已归档 / 全部三态筛选真实生效 ③ 项目分组名 = 远端项目名（非「工作台」别名）④ 置顶 / 归档 / 取消归档 / 打开标记已读（乐观 + 回滚）⑤ 下拉刷新 ⑥ 设备页会话与项目名同源 ⑦ 归档页恢复按钮生效 ⑧ 加载失败 → 错误态 + 重试 ⑨ 无会话 → 空态 ⑩ 深色模式。
 - **验证**：静态（断言式替换 + 括号平衡 + 残留引用归零 + pbxproj 计数核对 + RemoteKit swift build 通过[1] + 四文件 swiftc -parse 通过）；**编译与回归需 CI + 装机**。
   - [1] Linux swift build 仅 `no such module 'Network'`（Apple 专有 framework，既有现象非本批引入）；本批改动的 PublicRemoteService / RemoteSessionBackend 两文件在同次 build 中编译通过。
+
+## NEWSESSION-UI — 新会话页对齐 AA 官方 NewSessionView（2026-09-20，pp：「远端这点击新会话胶囊弹出来的这个页面是自己写的？aa的打开是这样的」+「还有右上角的胶囊也要也要搬」）
+
+- **官方对照（origin-cache/ios/Agents Anywhere）**：Views/Chat/NewSessionView.swift（全屏页：欢迎区居中 + 工作目录行 + 状态行 + 底部 composer + 顶栏目标胶囊）、NewSessionWelcomeView.swift（sparkles + 随机大标题 + glyph 级揭示动画）、SessionTargetSheet.swift（目标选择：设备 → 展开 Agent → 选择即应用）、ProjectSelectionSheet.swift（工作目录）、Models/Chat/{GlyphRevealLedger, TextPhraseSequence, ReplyPresentation}.swift、Views/Chat/Markdown/StreamingGlyphReveal.swift。
+- **落地（5 新文件 + 3 文件接线）**：
+  - `RemoteNewSessionReveal.swift`：动画四件套逐字移植（GlyphRevealEffect/Ledger、TextPhraseSequence、ReplyPresentation、StreamingTextPhrase/StreamingGlyphReveal/GlyphRevealRenderer）。**唯一差异 = 版本守卫（非裁剪）**：textRenderer / TextAttribute 是 iOS 18 API、主 target 17.0 —— `#available(iOS 18.0, *)` 走官方同款 TextRenderer 逐 glyph 路径；iOS < 18 静态完整显示（几何恒为最终字形）。@Entry 宏换传统 EnvironmentKey（16/17 兼容）。
+  - `RemoteNewSessionWelcome.swift`：欢迎区移植（六标题随机 × 两行副标题；120ms 布局静默期 + 30Hz 揭示节拍 + cubic ease-out workspace 揭示；取消 / Reduce Motion 落定完整文案；触觉 UIImpactFeedbackGenerator）。差异：官方 sidebar 环境值（canReveal）本仓无侧栏 → 恒 true；onGeometryChange（iOS 18）→ firstRowFenceReporter 同款 GeometryReader 观察。
+  - `RemoteNewSessionModel.swift`：ViewModel 等价物——行为对齐此前 Form 版（并行拉设备+项目、离线设备不发 runtimeTypes、代际令牌防串台、默认在线设备 + recommended runtime、gate = 在线 + 项目 + 运行时 + 非空）；新增 selectTarget（目标 sheet 应用入口）。
+  - `RemoteNewSessionView.swift`：全屏页主视图（欢迎区垂直居中 + 工作目录行下划线样式 + 状态行按可达性 + composer 基础版：+ / 描述任务… / arrow.up 发送）+ 顶栏（左关闭 + 右目标胶囊「设备和 Agent · 设备名 ˅」，文案对齐官方 zh 值）。
+  - `RemoteNewSessionSheets.swift`：目标选择 sheet（设备列表在线优先 → 展开看 Agent → 应用即关闭；inventory 走 runtimeTypes 缓存）+ 工作目录 sheet（项目列表）。
+- **接线**：列表页与新会话入口 `.sheet` → `.fullScreenCover`（RemoteNewSessionView；创建成功回调刷新列表）；设备页同款改造；**删旧 Form 版「新会话抽屉」**（RemoteSheets.swift 585→175 行）。
+- **pbxproj**：5 文件挂载（ids A1E8-A1EC / B1E8-B1EC，含 `-default-isolation MainActor` 旗标）；**平铺 RemoteSessions/ 目录**（与组 path 对齐——子目录会触发 audit missing=5）。
+- **Staged（不假造）**：composer 的 +（附件与对话选项，当前禁用呈现）；模型/权限选择（官方 capabilities 链路）；草稿持久化（官方 ComposerDraft）；工作目录的文件系统浏览；创建结果未确认的 confirmationDialog（官方 creationUncertain）。
+- **死隔离**：5 新文件 + 3 文件接线（列表 / 设备 / RemoteSheets 删块）；ContentView / ChatStore / 本机零改动；RemoteKit 零改动。
+- **回归项**：① 列表页「新对话」胶囊 → 全屏新会话页（欢迎动画：sparkles + 随机标题 glyph 揭示 + 副标题）② 工作目录行点开项目选择 ③ 状态行（设备离线 / Agent 检查中 / 无设备）④ 目标胶囊点开目标 sheet → 展开设备选 Agent → 应用回填 ⑤ composer 输入 + 发送（创建成功回列表并刷新）⑥ 设备页同入口 ⑦ 下拉刷新 ⑧ 深色模式 ⑨ Reduce Motion 落定完整文案。
+- **验证**：静态（8 文件 parse 0 错 + 括号配平 + audit missing=0 + 门禁全绿）；**编译与回归需 CI + 装机**。

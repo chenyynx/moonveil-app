@@ -71,10 +71,10 @@ struct RemoteRootView: View {
     private var connected: some View {
         RemoteSessionListView(service: service,
                               pendingNotices: pendingNotices,
-                              onOpenLogin: onOpenLogin,
                               onDisconnect: {
                                   service.reset()
                                   pendingNotices = 0
-                              })
+                              },
+                              onOpenLogin: onOpenLogin)
     }
 }

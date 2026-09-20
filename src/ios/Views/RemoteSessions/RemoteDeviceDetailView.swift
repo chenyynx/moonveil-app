@@ -125,7 +125,10 @@ struct RemoteDeviceDetailView: View {
             ToolbarItem(placement: .topBarTrailing) { deviceActionsMenu }
         }
         .sheet(isPresented: $showsAddAgent) { RemoteAddAgentSheet() }
-        .sheet(isPresented: $showsNewSession) { RemoteNewSessionSheet(service: service) }
+        // 新会话全屏页（AA NewSessionView 形态，2026-09-20 起与列表页同源）。
+        .fullScreenCover(isPresented: $showsNewSession) {
+            RemoteNewSessionView(service: service)
+        }
         .sheet(isPresented: $showsProjectEditor) { RemoteProjectEditorSheet(service: service) }
         .sheet(isPresented: $showsSessionDetail) {
             if let id = selectedSessionId {

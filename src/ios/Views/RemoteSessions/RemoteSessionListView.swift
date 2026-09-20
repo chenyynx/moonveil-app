@@ -115,10 +115,13 @@ struct RemoteSessionListView: View {
                 // 项目编辑（AA 的 ProjectEditorSheet 视觉；数据面就绪前弹联动占位）
                 RemoteProjectEditorSheet(service: service)
             }
-            .sheet(isPresented: $showsNewSession) {
-                // 新会话抽屉（AA 官方语义：设备 → 项目 → 运行时 → 任务；
-                // 与项目头的 + （RemoteProjectEditorSheet）是两个不同入口）
-                RemoteNewSessionSheet(service: service)
+            .fullScreenCover(isPresented: $showsNewSession) {
+                // 新会话全屏页（AA 官方 NewSessionView 形态：欢迎区 glyph 揭示 +
+                // 目标胶囊 + 工作目录行 + 底部 composer；2026-09-20 pp「aa的打开
+                // 是这样的」）。创建成功 → 刷新列表；与项目头 + 是两个不同入口。
+                RemoteNewSessionView(service: service) { _ in
+                    loader.load(service: service, filter: archiveFilter, force: true)
+                }
             }
             .sheet(isPresented: $showsArchives) {
                 RemoteArchivedSessionsSheet(service: service)
