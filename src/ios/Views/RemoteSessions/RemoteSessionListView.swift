@@ -569,35 +569,18 @@ struct RemoteSessionListView: View {
         Button("断开连接", role: .destructive, action: onDisconnect)
     }
 
-    /// 顶栏右上角 …（玻璃圆，与 RootModeTabsView 固定栏 ☰ 同一配方；
-    /// iOS 26 = 系统玻璃 / 低版本回退淡灰圆——本仓 deployment < 26 必须守卫；
-    /// 44pt 对齐 gearDiameter；本机 toolbar … 菜单同位，pp 2026-09-20）
+    /// 顶栏右上角 …——**原生工具栏样式**（pp 2026-09-20「没用苹果原生？」）：
+    /// 裸 ellipsis 字形，不套自定义圆底；与本机 tab 同位置惯例一致
+    /// （ContentView：TerminalCircle 24×24 / alarm 15pt 均为裸图标）。
+    /// 系统提供标准热区与按压反馈；玻璃圆底版（☰ 同配方）已按 pp 意见移除。
     private var topBarOptionsButton: some View {
-        Group {
-            if #available(iOS 26.0, *) {
-                GlassEffectContainer(spacing: 12) {
-                    topBarMenu
-                        .glassEffect(.regular.interactive(), in: Circle())
-                }
-            } else {
-                topBarMenu
-                    .background(Circle().fill(Color(UIColor.secondarySystemBackground)))
-                    .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 1))
-            }
-        }
-    }
-
-    private var topBarMenu: some View {
         Menu {
             listOptionsMenuContent
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(Color.primary)
-                .frame(width: 44, height: 44)
-                .contentShape(Circle())
         }
-        .buttonStyle(.plain)
     }
 }
 

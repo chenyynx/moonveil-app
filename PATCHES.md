@@ -1214,3 +1214,11 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **回归项**：① 终端卡在/离线两态与 CONNECTED/OFFLINE 标 ② 玻璃按钮弹 PairDeviceSheet 且按压回弹 ③ 项目头整行折叠 + ＋新建 ④ 卡堆三状态渲染位（琥珀胶囊/teal 转圈+mono/珊瑚卡角点）⑤ 长按菜单与左滑三动作 ⑥ 搜索（标题+摘要）⑦ 深色模式（暖黑画布）⑧ 字号档位跟随 ⑨ 顶栏 … 菜单仍可用 ⑩ CI 门禁全绿。
 - **GLASS-GUARD-FIX（同批）**：`GlassEffectContainer`/`glassEffect` 补 `#available(iOS 26.0, *)` 守卫 + 低版本回退（淡灰圆/胶囊）——**R3 的 iOS Build 挂因**（本仓 deployment < 26，裸用 glass API = 编译错；仓库既有约定见 gear/SearchBarSurface 守卫）。
 - **验证**：静态（括号平衡 + 断言式整段替换 + 悬空符号核对：RemoteBadgeCircle 全库无引用）；**编译与回归 ①–⑩ 需 CI + 装机**。
+
+## TOPBAR-BTN-NATIVE — 顶栏右上角改原生工具栏样式（2026-09-20，pp：「右上角的按钮怎么回事？没用苹果原生？」）
+
+- **缘起**：R3 的 … 按钮 = 手搓玻璃圆底（GlassEffectContainer + glassEffect，对齐固定栏 ☰ 配方）；pp 装机后指出应为苹果原生样式。本机 tab 同位置的既有惯例 = **裸图标**（ContentView toolbar：TerminalCircle 24×24、alarm 15pt，均无自定义圆底，系统提供热区/按压）。
+- **修复**：topBarOptionsButton 改裸 `ellipsis` 字形（17pt medium，Color.primary），删除自定义圆底、GlassEffectContainer 分支与低版本回退（不再需要守卫）；菜单内容不变（归档会话/断开连接）。
+- **死隔离**：只动 RemoteSessionListView.swift 一个属性；配对玻璃 CTA（pp 指定保留）与本机 tab 零改动。
+- **回归项**：① 右上角为原生裸字形，系统按压反馈正常 ② 菜单两项可用 ③ 与 ☰/胶囊布局不冲突 ④ 深色模式。
+- **验证**：静态（断言式替换 + glass 残留计数 1 = 仅配对按钮）；**编译与回归需 CI + 装机**。
