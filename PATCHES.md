@@ -1190,3 +1190,11 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **回归项**：① 设备行在线/离线两态视觉与徽章文案 ② 配对入口弹 PairDeviceSheet（AA 视觉不变）③ 待处理计数行出现条件与计数正确 ④ 项目头折叠/…菜单/+新建行为不变 ⑤ 会话行三状态渲染位正确（转圈/红点/mint 角标）⑥ 搜索命中标题与摘要 ⑦ 长按菜单/左滑三动作不回归 ⑧ 深色模式全套 ⑨ 字号档位跟随 App Base ⑩ CI 门禁（import-scan/pbxproj-audit/freeze）全绿。
 - **补（同日 10:4x 装机反馈）**：删会话行 36pt 左缩进（inset 参数整体移除，签名/调用/行背景三处闭合）——pp：「会话卡片左边怎么空这么大一截」；与本机卡同款对称 horizontal 16pt。
 - **验证**：本机无 Swift 工具链；静态（括号平衡 + 删除符号全库无引用 + 新增符号引用闭合）；**编译与回归 ①–⑩ 需 CI + 装机**。
+
+## REMOTE-REDESIGN-3 — 顶栏右上角选项按钮回归（2026-09-20，pp：「顶栏右边是不是少了个按钮」）
+
+- **缘起**：TWOMODULE 批把远端列表右上角 … 整个删掉（当时内容 = 死的「列表显示」Picker + 归档会话，归档挪进项目头 …），结果顶栏左 ☰ 右空不对称；本机同位置有 … 工具菜单（Shell Terminal/Rootfs/Browser 等）。
+- **修复**：RemoteSessionListView 顶栏补右上角 … 玻璃圆（44pt，GlassEffectContainer + .regular.interactive() Circle——与 RootModeTabsView 固定栏 ☰ 同一 AA composer 配方，对齐 gearDiameter）；菜单 = 归档会话 + 断开连接（listOptionsMenuContent 原内容）；项目头 … 菜单移除（避免双入口），项目头只留 ▾ 折叠 + ＋ 新建。
+- **死隔离**：只动 RemoteSessionListView.swift；RemoteRootView（principal ModeTabPicker）/本机 ContentView toolbar 零改动。
+- **回归项**：① Remote 列表顶栏右上角出现玻璃 … 且菜单两项可用 ② 项目头折叠与＋新建不回归 ③ 本机 tab 顶栏零变化 ④ 玻璃按压回弹（interactive）⑤ 深色模式。
+- **验证**：静态（括号平衡 + 断言式替换 + Menu 单实例核对）；**编译与回归 ①–⑤ 需 CI + 装机**。

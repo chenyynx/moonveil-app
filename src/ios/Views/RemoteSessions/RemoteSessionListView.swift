@@ -10,7 +10,8 @@
 // 功能面（AA 官方移动端会话列表全量，不阉割）：
 //   • 设备板块：设备行（44 圆底服务器图标 + 设备名/完整地址两行 + 已连接徽章）
 //     +「配对新设备」入口行 → PairDeviceSheet
-//   • 项目板块：折叠头（项目 + 会话数 + chevron + … 菜单 + 新建）→ ProjectEditorSheet
+//   • 项目板块：折叠头（项目 + chevron 折叠 + 新建）→ ProjectEditorSheet；
+//     页面级选项（归档/断开）在顶栏右上角 … 玻璃圆（REMOTE-REDESIGN-3）
 //   • 会话行：本机 SessionRow 完整结构（无底裸 lucide 头像 + 标题 + 摘要 + 时间 +
 //     置顶角标）；状态映射进头像槽位——运行中=外圈转圈 / 未读=右上红点 /
 //     等待批准=右下 mint 角标（pp 2026-09-20 定稿：只换头像，其余与本机卡一致）
@@ -91,6 +92,12 @@ struct RemoteSessionListView: View {
     var body: some View {
         content
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                // 顶栏右上角选项（pp 2026-09-20：「顶栏右边是不是少了个按钮」——
+                // 本机同位置有 … 工具菜单，TWOMODULE 曾把远端的删成空；归档/断开
+                // 从项目头 … 迁回此处，页面级操作回到顶栏传统位）
+                ToolbarItem(placement: .topBarTrailing) { topBarOptionsButton }
+            }
             .sheet(isPresented: $showsPairSheet) {
                 PairDeviceSheet(service: service)
             }
@@ -461,7 +468,7 @@ struct RemoteSessionListView: View {
     }
 
     // MARK: - 项目头（REMOTE-REDESIGN-1 重排：主色标题 + 会话数 + chevron 折叠 +
-    // … 菜单 / + 新建 淡色圆钮；行为与官方三件套一致）
+    // ＋ 新建淡色圆钮；REMOTE-REDESIGN-3 起 … 菜单迁顶栏右上角）
 
     private var projectHeader: some View {
         HStack(spacing: 12) {
@@ -484,17 +491,6 @@ struct RemoteSessionListView: View {
             }
             .buttonStyle(.plain)
             Spacer(minLength: 0)
-            Menu {
-                listOptionsMenuContent
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.primary)
-                    .frame(width: 28, height: 28)
-                    .background(Color.primary.opacity(0.06), in: Circle())
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
             Button {
                 showsProjectEditor = true
             } label: {
@@ -561,7 +557,8 @@ struct RemoteSessionListView: View {
         filteredSessions.sorted { ($0.isPinned ? 0 : 1) < ($1.isPinned ? 0 : 1) }
     }
 
-    // 列表选项（归档/断开）挂在项目头的 …（官方位置）；右上角不再另放菜单。
+    // 列表选项（归档/断开）= 页面级操作，挂顶栏右上角 …（本机同位；
+    // REMOTE-REDESIGN-3 从项目头 … 迁回，项目头只留 ▾ 折叠与 ＋ 新建）。
     // 导航容器与 ModeTabPicker 顶栏仍由 RemoteRootView 提供。
     @ViewBuilder
     private var listOptionsMenuContent: some View {
@@ -569,6 +566,25 @@ struct RemoteSessionListView: View {
         Divider()
         // 断开连接入口从 RemoteRootView 的状态卡迁移至此（接线时不丢）
         Button("断开连接", role: .destructive, action: onDisconnect)
+    }
+
+    /// 顶栏右上角 …（玻璃圆，与 RootModeTabsView 固定栏 ☰ 同一配方：
+    /// GlassEffectContainer + .regular.interactive() Circle——AA composer 配方；
+    /// 44pt 对齐 gearDiameter；本机 toolbar … 菜单同位，pp 2026-09-20）
+    private var topBarOptionsButton: some View {
+        GlassEffectContainer(spacing: 12) {
+            Menu {
+                listOptionsMenuContent
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(Color.primary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .glassEffect(.regular.interactive(), in: Circle())
+        }
     }
 }
 
