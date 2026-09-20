@@ -1747,6 +1747,14 @@ struct ContentView: View {
                 // intent, and a stale crash flag must not swallow them.
                 CrashReporter.shared.clearCrashLoopFlag()
                 shareLog.warning("[Share] .task: crash-loop detected — skipping session restore, landing on the session list")
+            } else if tabRouter.mode != .local {
+                // [LAUNCH-SESSION-TAB-GUARD] 启动会话默认只在本地 tab 生效
+                // （pp 2026-09-20「远端切页到本地回去是切的聊天页」+「设置里
+                // 启动会话功能是不是这个引起的冲突」）：lastTab 记忆为远端时，
+                // 启动偷偷把本地 push 到上次会话，用户切回本地就落在聊天页而
+                // 非列表。显式意图（通知 / 分享 / 快捷指令 / 崩溃循环保护）已在
+                // 上面先行分支，不受本守卫影响。
+                shareLog.info("[Share] .task: non-local tab active — skipping launchScreen default")
             } else {
                 // No share — normal launch screen behavior
                 switch launchScreen {

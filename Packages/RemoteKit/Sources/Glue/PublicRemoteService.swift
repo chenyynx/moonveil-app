@@ -213,6 +213,12 @@ public final class RemoteService: ObservableObject {
 
     public init(clientId: String = UUID().uuidString) {
         engine = RemoteSessionBackend(clientId: clientId)
+        // 同步恢复持久化会话（pp 2026-09-20「后台清了打开会弹一秒这个页面」：
+        // 恢复原先在 RootModeTabsView.task 里异步跑，RemoteRootView 首帧渲染时
+        // state 还是 .idle，未连接引导页会闪一秒。keychain + UserDefaults 读取
+        // 本身同步，提到 init 后首帧 state 已是 .ready；无凭据时保持 .idle
+        // （引导页语义正确）。幂等：.task 的二次恢复守 case .idle 直接跳过。
+        _ = restoreSession()
     }
 
     // MARK: Auth published state (page bindings, AppState→facade swap, B8-AUTH)
