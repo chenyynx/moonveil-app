@@ -53,7 +53,9 @@ protocol RemoteSessionServing: AnyObject {
         title: String?,
         cwd: String?,
         content: String,
-        clientMessageId: String
+        clientMessageId: String,
+        selections: [V2RuntimeSelectionScope: V2SelectionID],
+        attachments: [V2LocalAttachment]
     ) async throws -> V2SessionCreateResponse
 
     @discardableResult
