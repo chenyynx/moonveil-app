@@ -56,6 +56,10 @@ final class RootTabRouter: ObservableObject {
     /// this edge, so the fixed gear stands down instead of doubling it.
     @Published var localSelecting: Bool = false
 
+    /// `remoteAtRoot` — 远端线是否在列表根（REMOTE-DEVICE-1：设备详情页 push 时为 false）。
+    /// 页切手势与固定栏 ☰ 与 localAtRoot 同规则消费；远端线此前没有 push，恒 true。
+    @Published var remoteAtRoot: Bool = true
+
     /// True while a horizontal page swipe is ARMED (the shell has committed to switching
     /// tabs for this gesture). The session lists read this and freeze their scroll, so a
     /// horizontal swipe can no longer also scroll the list vertically

@@ -1254,3 +1254,16 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离**：只动 RemoteSessionListView.swift（+ 枚举声明）；RootModeTabsView/ContentView/RemoteKit 零改动；不新增文件（零 pbxproj）。
 - **回归项**：① 菜单显示两个 Picker（按项目模式）+ 归档会话 + 断开连接，全部可点且真实生效 ② 切换按项目/全部会话后列表形态切换、重启保留（@AppStorage）③ 活跃/已归档/全部过滤生效（已归档空数据期 → 诚实空文案）④ 未分组会话殿后 ⑤ REMOTE-ROW-FENCE 首卡门在两模式都正确 ⑥ 深色模式。
 - **验证**：静态（断言式替换 + 括号平衡）；**编译与回归需 CI + 装机**。
+
+## REMOTE-DEVICE-1 — 设备详情页移植（AA DeviceManagementView）+ 长按终端卡入口（2026-09-20，pp：「这个页面你还没移过来。入口做 长按终端卡片进去进这个页面」）
+
+- **官方对照**（亲读 `~/aa-ios` Views/Devices/）：DeviceManagementView + DeviceOverviewSections（GroupBox 28 连续圆角）+ DeviceAgentSection（header/重新发现/footer 黑玻璃「添加更多 Agent」）+ DeviceOverviewContent（contentSwitcher segmented、DeviceProjectList 目录行、DeviceSessionList 行 + 范围 picker + ⋯ + 筛选 segmented）+ AddDeviceAgentSheet（空态文案）。
+- **落地**：
+  - A 新文件 `RemoteDeviceDetailView.swift`：Agent Runtime 区（零行 + 刷新 + 黑玻璃添加按钮）→ 设备内容 segmented（项目/会话）→ 项目 tab（N 个项目 + ＋；目录行 = folder + 名称 + N 会话 + [文件(禁)/新会话] + 上下文菜单；工作目录模式空态）→ 会话 tab（范围 picker + ⋯（选择/批量归档，禁）+ 新会话 + 活跃/已归档/全部 segmented + 会话行：标题/项目名/状态标/日期；行 tap → 会话详情 sheet）。含 `RemoteAddAgentSheet`（官方空态文案）。
+  - B 入口：终端卡长按 → `navigationDestination` push（pp 指定）；顶栏 title = host + 连接描述；右上 … = 设备菜单（新会话/复制设备 ID 可用；重命名/轮换/删除按官方 !canManage 禁用）。
+  - C push 页交互收口：`RootTabRouter.remoteAtRoot`（详情页 onAppear/onDisappear 上报）；页切手势远端线同规则（B16-SWIPE-SCOPE 预留位）；固定栏 ☰ 远端 push 时收起（与本地一致）。
+  - D pbxproj：克隆兄弟条目挂载（ids A1E6/B1E6，含 `-default-isolation MainActor` 编译旗标）。
+- **Staged（带期，随数据面批交付）**：agents inventory / 工作目录列表（RemoteService runtime 面）；项目管理写操作（重命名/置顶/归档/删除）；设备管理写操作（重命名/轮换/删除）；会话多选 + 批量归档 dock + 范围 ⋯ 实作；文件浏览（files service）。以上均按官方禁用态呈现（非死开关）。
+- **死隔离**：新增 1 文件 + 改 RemoteSessionListView/RootTabRouter/RootModeTabsView（各最小接线）；ContentView/RemoteKit/AA 弹窗零改动。
+- **回归项**：① 长按终端卡 push 设备详情页 ② 页内三区（runtime/项目/会话）渲染与空态 ③ 项目行新会话按钮弹新会话抽屉 ④ 会话行 tap 弹详情 ⑤ 返回后列表态正常 + ☰ 回归 + 页切恢复 ⑥ 详情页内横滑不切 tab ⑦ 深色模式。
+- **验证**：静态（断言式替换 + 括号平衡 + pbxproj 计数核对）；**编译与回归需 CI + 装机**。

@@ -98,6 +98,8 @@ struct RemoteSessionListView: View {
     @AppStorage("aa.native.sidebar.session-list") private var showsAllSessions = false
     /// 归档筛选三态（AA V2DeviceSessionFilter 等价；仅按项目模式出现在菜单，同官方 filters()）。
     @State private var archiveFilter: RemoteSessionFilter = .active
+    /// 设备详情页 push（长按终端卡；REMOTE-DEVICE-1，pp 2026-09-20 指定入口）。
+    @State private var showsDeviceDetail = false
 
     // 导航容器与 ModeTabPicker 顶栏由 RemoteRootView 的 NavigationStack 提供
     // （pp 定稿：胶囊切换位置不动）；列表选项菜单在板块结构的项目头 …，
@@ -202,6 +204,10 @@ struct RemoteSessionListView: View {
         .scrollDismissesKeyboard(.immediately)
         .safeAreaInset(edge: .bottom) { bottomBar }
         .refreshable { await refresh() }
+        // REMOTE-DEVICE-1：设备详情页（长按终端卡进入）
+        .navigationDestination(isPresented: $showsDeviceDetail) {
+            RemoteDeviceDetailView(service: service)
+        }
     }
 
     // MARK: - 会话卡（方案 B：暖卡堆——白圆头像 + 标题/摘要 + 时间；状态语义化：
@@ -441,6 +447,9 @@ struct RemoteSessionListView: View {
         .padding(.bottom, 14)
         .background(RemotePalette.terminal, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        // REMOTE-DEVICE-1：长按终端卡 → 设备详情页（pp 2026-09-20 指定入口）
+        .onLongPressGesture { showsDeviceDetail = true }
+        .accessibilityHint(Text("长按查看设备详情"))
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 6, trailing: 16))
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)

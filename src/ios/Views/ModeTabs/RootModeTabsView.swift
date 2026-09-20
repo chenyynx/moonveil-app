@@ -150,12 +150,16 @@ struct RootModeTabsView: View {
                 let dy = value.translation.height
                 let start = value.startLocation
 
-                // [B16-SWIPE-SCOPE] (pp 2026-09-17「聊天页滑动也能滑到remote页?」)
-                // 横滑切页只属于根列表页 —— 本机已 push 进聊天页(localAtRoot == false)
-                // 时整个手势直接退出;会话内的横滑无消费场景,误触反而打断阅读。
-                // B13-SWIPEFIX-5 的「列表区」本意就是会话列表。Remote 将来上会话页时
-                // 同规则适用(仍走这一个栅栏位)。
-                guard router.localAtRoot else { return }
+                // [B16-SWIPE-SCOPE] (pp 2026-09-17「聊天页滑动也能滑到remote页?」+
+                // 2026-09-20 远端设备详情页)：横滑切页只属于两条线各自的根列表页——
+                // 本机 push 进聊天页(localAtRoot == false) / 远端 push 进设备详情页
+                // (remoteAtRoot == false) 时整个手势直接退出；push 页内的横滑无消费
+                // 场景，误触反而打断阅读。B13-SWIPEFIX-5 的「列表区」本意就是会话列表。
+                if router.mode == .remote {
+                    guard router.remoteAtRoot else { return }
+                } else {
+                    guard router.localAtRoot else { return }
+                }
                 guard start.y > Self.listAreaTop else { return }
                 // [BOTTOM-BAR-FENCE] pp 2026-09-20「滑动底部胶囊/搜索栏也会触发切页」：
                 // 底部操作栏（新会话胶囊 + 全宽搜索栏，safeAreaInset 位于屏底 ~150pt 内，
@@ -239,11 +243,11 @@ struct RootModeTabsView: View {
     /// 12pt = AA's container spacing; glasses closer than this merge like liquid.
     private static let glassSpacing: CGFloat = 12
 
-    /// Hidden when the local line is not at its list root (a pushed chat owns that bar)
-    /// or when rows are checked (the page draws Cancel at this edge). The remote line has
-    /// no pushes yet, so it is always at root.
+    /// Hidden when the line on screen is not at its list root (a pushed page owns that
+    /// bar) or when rows are checked (the page draws Cancel at this edge).
+    /// 远端线自 REMOTE-DEVICE-1 起有 push（设备详情页）——与本地同规则收 ☰。
     private var gearVisible: Bool {
-        guard router.mode == .local else { return true }
+        guard router.mode == .local else { return router.remoteAtRoot }
         return router.localAtRoot && !router.localSelecting
     }
 
