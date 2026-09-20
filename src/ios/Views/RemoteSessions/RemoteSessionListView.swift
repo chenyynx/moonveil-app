@@ -34,6 +34,8 @@ struct RemoteSessionListView: View {
     /// 审批计数与断开动作由 RemoteRootView 透传（本视图不持有连接生命周期）。
     var pendingNotices: Int = 0
     var onDisconnect: () -> Void = {}
+    /// 未连接时的登录/配对入口（唤起 RootModeTabsView 的登录全屏盖）。
+    var onOpenLogin: () -> Void = {}
 
     // MARK: - 服务器地址（RemoteService 只写不读；读官方持久化键 agentsAnywhere.serverURL，
     // 与 RemoteRootView 同一来源）
@@ -138,16 +140,22 @@ struct RemoteSessionListView: View {
 
     @ViewBuilder
     private var content: some View {
-        switch loader.phase {
-        case .idle, .loading:
-            loadingState
-        case .failed(let message):
-            errorState(message)
-        case .loaded:
-            if sessions.isEmpty {
-                emptyState
-            } else {
-                sessionList
+        if service.state != .ready {
+            // 未连接：仍是列表页布局——设备终端卡提醒连接（pp 2026-09-20），
+            // 会话区不渲染（无数据可列）；加载三态只在已连接后出现。
+            sessionList
+        } else {
+            switch loader.phase {
+            case .idle, .loading:
+                loadingState
+            case .failed(let message):
+                errorState(message)
+            case .loaded:
+                if sessions.isEmpty {
+                    emptyState
+                } else {
+                    sessionList
+                }
             }
         }
     }
@@ -200,6 +208,8 @@ struct RemoteSessionListView: View {
             }
 
             // —— 项目（✳ + 13pt tertiary 头；会话 = 暖卡堆）——
+            // 未连接时不渲染：设备终端卡已提醒连接，会话区无数据可列。
+            if service.state == .ready {
             Section {
                 projectHeader
                 if !projectsCollapsed {
@@ -239,6 +249,7 @@ struct RemoteSessionListView: View {
                     }
                 }
             }
+            }   // if service.state == .ready（会话 Section）
         }
         .listStyle(.plain)
         // 方案 B：列表滚动背景让位给页面画布（画布挂在 body 级 background 上）
@@ -372,7 +383,7 @@ struct RemoteSessionListView: View {
                 .foregroundStyle(.secondary)
             Text("还没有远程会话")
                 .font(.title3.bold())
-            Text("连接工作区后，云端的会话会出现在这里。")
+            Text("新建一个会话，或从桌面端开始。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -489,16 +500,28 @@ struct RemoteSessionListView: View {
         .padding(.bottom, 14)
         .background(RemotePalette.terminal, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        // REMOTE-DEVICE-1：长按终端卡 → 设备详情页（pp 2026-09-20 指定入口）
-        .onLongPressGesture { showsDeviceDetail = true }
-        .accessibilityHint(Text("长按查看设备详情"))
+        // REMOTE-DEVICE-1：长按终端卡 → 设备详情页（pp 2026-09-20 指定入口）。
+        // 未连接时点按整卡 → 登录/配对（pp 2026-09-20「要提醒用户连接」）。
+        .onLongPressGesture {
+            guard service.state == .ready else { return }
+            showsDeviceDetail = true
+        }
+        .onTapGesture {
+            guard service.state != .ready else { return }
+            onOpenLogin()
+        }
+        .accessibilityHint(Text(service.state == .ready ? "长按查看设备详情" : "点按登录并配对设备"))
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 6, trailing: 16))
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
     }
 
     /// 终端副行：地址 — N sessions（预览数据期用真实计数，不假造）。
+    /// 终端副行：已连接 = 地址 — N sessions；未连接 = 提醒登录配对（整卡可点）。
     private var terminalSubLine: String {
+        guard service.state == .ready else {
+            return "not connected — tap to log in & pair"
+        }
         let base = serverLabel == "—" ? "not configured" : serverLabel
         return "\(base) — \(sessions.count) sessions"
     }

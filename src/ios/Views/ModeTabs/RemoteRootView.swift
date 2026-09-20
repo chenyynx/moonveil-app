@@ -46,33 +46,12 @@ struct RemoteRootView: View {
     @ViewBuilder
     private var content: some View {
         switch service.state {
-        case .idle, .degraded: guide
-        case .pairing:         pairingPending
-        case .ready:           connected
+        // 未连接也用列表页：设备终端卡显示无设备 + 提醒连接（pp 2026-09-20
+        // 「没连接的时候这个页面应该也是连接了的那个页面啊 只是没设备
+        //   要提醒用户连接」）；首启登录由更上层的 needsLoginGate 全屏盖负责。
+        case .pairing:               pairingPending
+        case .idle, .degraded, .ready: connected
         }
-    }
-
-    // MARK: State 1 — 未登录空态卡（U1 终案：一键回全屏登录；表单本体=官方 ManualLoginView）
-
-    private var guide: some View {
-        VStack(spacing: 14) {
-            if case .degraded(let reason) = service.state {
-                Label(reason, systemImage: "wifi.exclamationmark")
-                    .font(.callout).foregroundStyle(.orange)
-            }
-            Image(systemName: "link.badge.plus")
-                .font(.system(size: 40)).foregroundStyle(.secondary)
-            Text("还没有连接远程工作空间")
-                .font(.title3.bold())
-            Button {
-                onOpenLogin()
-            } label: {
-                Text("去登录").fontWeight(.semibold).frame(maxWidth: 200)
-            }
-            .buttonStyle(.borderedProminent)
-            .padding(.top, 4)
-        }
-        .padding(20)
     }
 
 
@@ -92,6 +71,7 @@ struct RemoteRootView: View {
     private var connected: some View {
         RemoteSessionListView(service: service,
                               pendingNotices: pendingNotices,
+                              onOpenLogin: onOpenLogin,
                               onDisconnect: {
                                   service.reset()
                                   pendingNotices = 0
