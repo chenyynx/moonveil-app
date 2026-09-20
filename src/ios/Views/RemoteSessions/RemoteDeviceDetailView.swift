@@ -94,7 +94,7 @@ struct RemoteDeviceDetailView: View {
 
     // MARK: - Body
 
-    var body: some View {
+    private var scrollContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 if let agents {
@@ -113,6 +113,24 @@ struct RemoteDeviceDetailView: View {
             .padding(.top, 12)
             .padding(.bottom, 24)
         }
+    }
+
+    @ToolbarContentBuilder private var toolbarBody: some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            VStack(spacing: 1) {
+                Text(connector.name)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(RemotePalette.ink)
+                Text(connectionDescription)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(RemotePalette.body)
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) { deviceActionsMenu }
+    }
+
+    var body: some View {
+        scrollContent
         .scrollIndicators(.hidden)
         .background(RemotePalette.canvas.ignoresSafeArea())
         .refreshable {
@@ -120,19 +138,7 @@ struct RemoteDeviceDetailView: View {
             await agents?.refresh()
         }
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                VStack(spacing: 1) {
-                    Text(connector.name)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(RemotePalette.ink)
-                    Text(connectionDescription)
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(RemotePalette.body)
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) { deviceActionsMenu }
-        }
+        .toolbar { toolbarBody }
         // 官方 112-119：sessions tab 多选时底部 dock（P3-2）
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if tab == .sessions && model.isSelectingSessions {

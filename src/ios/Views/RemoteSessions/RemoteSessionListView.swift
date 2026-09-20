@@ -210,15 +210,15 @@ struct RemoteSessionListView: View {
                     // 官方 AppState:804 sessionReads.onChange：已读态变化投影回列表。
                     // 本仓列表项由 RemoteSessionLoader 持有（无单条 upsert API）→
                     // 已读变化触发一次列表刷新等价覆盖，refresh 内部自带节流。
-                    services.sessionReads.onChange = { [weak self] _ in
-                        guard let self, self.service.state == .ready else { return }
-                        self.loader.load(service: self.service, filter: self.archiveFilter)
+                    services.sessionReads.onChange = { _ in
+                        guard service.state == .ready else { return }
+                        loader.load(service: service, filter: archiveFilter)
                     }
                     // 「返回编辑」跳页通道（官方 onSelectPage(.newSession) 的本仓等价物）：
                     // 聊天页 editCreation 暂存草稿后回调这里 → 关聊天页 + 开新会话页。
-                    services.onReturnToNewSession = { [weak self] in
-                        self?.showsChat = false
-                        self?.showsNewSession = true
+                    services.onReturnToNewSession = {
+                        showsChat = false
+                        showsNewSession = true
                     }
                 }
         } else {
