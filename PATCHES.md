@@ -1164,3 +1164,15 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离**：只动远端列表文件；本机 ContentView / RemoteKit / AA 弹窗（PairDeviceSheet/ProjectEditor/详情/归档）零改动；不新增文件（零 pbxproj）。
 - **回归项**：① 列表只剩设备/项目两大板块，行视觉与本机一致 ② 「+ 配对设备」整行弹 AA 配对页 ③ 项目头 ▾ 折叠/展开会话区 ④ 项目头 … 弹归档/断开菜单、+ 弹项目编辑 ⑤ 搜索过滤与两态空文案 ⑥ 置顶左滑仍生效（排序置顶项在前）⑦ 长按菜单/左滑动作不回归 ⑧ 深色模式。
 - **验证**：本机无 Swift 工具链；静态三轮（括号平衡 0、grep 零悬空：connectorRow/listOptionsButton/pinnedItems/recentItems 全库无引用）；**编译与回归 ①–⑧ 需 CI + 装机**。
+
+## NEW-SESSION-DRAWER — 远端新会话抽屉：照官方 设备→项目→运行时→任务 流程 + RemoteKit Glue 扩 inventory 三面（Qoder 双子代理并行, 2026-09-20，pp：「点击页面进去的逻辑要跟官方一样」→「一起做 可以让子代理一起 做完必须审查」）
+
+- **Files**: `Packages/RemoteKit/Sources/Glue/RemoteSessionBackend.swift`（+3 thin pass-through：listConnectors/listProjects→`requireAPI().projects.list()`/runtimeTypes(connectorId:)）；`Glue/PublicRemoteService.swift`（+3 public 镜像 `RemoteConnector`/`RemoteProject`/`RemoteRuntimeType` + 3 public 方法，全走 `attempt{}`，字段 verbatim、presence rawValue 原样；文件头 Staging 注释更新）；`src/ios/Views/RemoteSessions/RemoteSheets.swift`（+`RemoteNewSessionSheet` ~400 行，既有三 sheet 零改动）；`RemoteSessionListView.swift`（startNewSession 改开新抽屉 + sheet 接线；项目头 + 仍开 RemoteProjectEditorSheet）。
+- **缘起**：「新会话」按钮此前错误地弹创建项目 sheet（骨架期占位）。官方语义 = 新会话抽屉（选目标设备/项目/运行时 + 任务输入 + 真提交）。数据面缺口：Glue 只有 startSession 活路，无 inventory 列表面——引擎内部 V2ConnectorAPI/V2ProjectAPI 全部已编译，只欠 public 映射（薄封装成例在 PublicRemoteService 已有）。
+- **修复**：
+  - A Glue 扩面（契约先冻结、双子代理并行实现、UI 逐字引用）：connectors/projects/runtimeTypes 三面 public 化，String-id + verbatim 字段镜像，无 stub 无假返回（Glue 铁律）。AAV2 冻结区零改动 → 不动 AA-ATTRIBUTION。
+  - B 抽屉（AA 视觉，结构照 PairDeviceSheet：NavigationStack+Form+SheetCloseToolbar+appSheetPresentation(.compact)+提交锁全页）：官方键文案「把任务发送到合适的设备。/开始一个专注会话。」；设备行 = 在线绿点/离线灰点（点样式同列表 deviceRow），离线可选可填禁提交 +「设备离线，等待重新连接。」；项目按 connectorId 本地过滤、空列表引导走项目头 +；运行时只列 available、默认 recommended、离线设备不发请求（refreshRuntimes 门）；工作目录手输 = 选中项目 workspacePath 自动填、可改（官方目录浏览器 listWorkspaceFiles 未接通 → 诚实降级，注释标明）；任务输入多行；提交 gate = state.ready ∧ 设备在线 ∧ 项目 ∧ 运行时 ∧ 非空白 ∧ !isSubmitting，真调 `startSession`（clientMessageId=UUID），成功 dismiss（列表刷新等数据面批，不注入假条目）、失败页面内红字。
+  - C 审查轮修补（对抗审 0 BLOCKER + 3 RISK 顺手修）：RISK-1 切设备时悬空 selectedProjectId 一律清（含项目已删情形）；RISK-2 loadData 设备/项目 withTaskGroup 并行拉（串行会被长超时拖住）；RISK-3 离线设备不发 runtimeTypes（红字噪音）。竞态：runtimeLoadToken 代际令牌丢弃过期响应。
+- **死隔离**：RemoteKit 改动全部在 Glue（自有层），AAV2 冻结区未触碰；UI 只消费 public facade；不新建文件（零 pbxproj）；既有三 sheet 一字未动（diff 删侧仅文件头注释）。
+- **回归项**：① 列表点「新会话」开抽屉而非创建项目 ② 设备/项目/运行时三级真实加载与联动（切设备清项目/目录归属）③ 离线设备可选可填、提交灰 ④ 空项目引导文案 ⑤ 真提交成功 → 服务端出现新会话（startSession 活路，装机验）⑥ 失败错误上屏不吞 ⑦ 提交中全页锁 + 关窗按钮禁用 ⑧ 项目头 + 仍开创建项目（不受影响）⑨ 配对/归档/详情三 sheet 零回归 ⑩ CI import-scan/pbxproj-audit/freeze-check 全绿。
+- **验证**：本机无 Swift 工具链；双子代理交付后主代理逐行审 + **对抗审查子代理全量复核**（契约 8 项逐字对、编译风险对定义文件逐个核：pbxproj -default-isolation MainActor 覆盖、SheetCloseToolbar/AppGlassButton/appSheetPresentation 签名、deployment target 26.2 下 API 可用性、Hashable 合成、同模块编译无 import 问题；结论 0 BLOCKER）+ 3 RISK 当场修 + 括号平衡 4 文件全 0；**编译与回归 ①–⑩ 需 CI + 装机**。

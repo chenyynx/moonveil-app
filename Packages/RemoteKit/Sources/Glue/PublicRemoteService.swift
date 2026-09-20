@@ -9,6 +9,8 @@ import Combine
 // passthrough (D1 不发明第二 schema).
 // Staging with deadlines (完整性铁律): notices / steer / timeline-page public
 // methods land with batch7 (审批 UI) — engine already serves them internally.
+// Inventory trio (connectors / projects / runtimeTypes) delivered: the
+// new-session drawer's read-only lists.
 // No stubs, no fake returns: every method delegates to the real engine.
 // ════════════════════════════════════════════════════════════════════
 
@@ -66,6 +68,38 @@ public struct RemoteSessionCreated: Sendable {
     public let sessionId: String
     /// V2SessionMeta re-encoded verbatim (Codable passthrough).
     public let sessionMetaJSON: Data
+}
+
+// MARK: - Inventory mirrors (new-session drawer: connectors / projects / runtime types)
+
+/// Public mirror of V2Connector (String ids; official typealias IS String).
+public struct RemoteConnector: Sendable, Identifiable, Hashable {
+    public let id: String
+    public let name: String
+    public let connectorKind: String
+    public let deviceOs: String?
+    public let status: String   // official V2ConnectorPresence rawValue verbatim: "online"/"offline"/"unknown"
+    public let lastSeenAt: String?
+    public var isOnline: Bool { status == "online" }
+}
+
+/// Public mirror of V2Project (userId/counts/timestamps stay server-side).
+public struct RemoteProject: Sendable, Identifiable, Hashable {
+    public let id: String
+    public let connectorId: String
+    public let name: String
+    public let workspacePath: String
+    public let pinned: Bool
+    public let activeSessionCount: Int
+}
+
+/// Public mirror of V2RuntimeType. `runtimeType` is verbatim and feeds
+/// startSession's `runtime` param; no Identifiable (contract for the drawer).
+public struct RemoteRuntimeType: Sendable, Hashable {
+    public let runtimeType: String  // verbatim; feeds startSession's `runtime` param
+    public let displayName: String
+    public let available: Bool
+    public let recommended: Bool
 }
 
 // MARK: - Notices public surface (batch7 promise — delivered with the shell)
@@ -339,6 +373,33 @@ public final class RemoteService: ObservableObject {
     @discardableResult
     public func interrupt(sessionId: String) async throws -> Data {
         try absorb(try await attempt { try await self.engine.interrupt(sessionId: sessionId) })
+    }
+
+    // MARK: - Inventory (new-session drawer surface)
+
+    public func listConnectors() async throws -> [RemoteConnector] {
+        let r = try await attempt { try await self.engine.listConnectors() }
+        return r.connectors.map {
+            RemoteConnector(id: $0.id, name: $0.name, connectorKind: $0.connectorKind,
+                            deviceOs: $0.deviceOs, status: $0.status.rawValue, lastSeenAt: $0.lastSeenAt)
+        }
+    }
+
+    public func listProjects() async throws -> [RemoteProject] {
+        let r = try await attempt { try await self.engine.listProjects() }
+        return r.projects.map {
+            RemoteProject(id: $0.id, connectorId: $0.connectorId, name: $0.name,
+                          workspacePath: $0.workspacePath, pinned: $0.pinned,
+                          activeSessionCount: $0.activeSessionCount)
+        }
+    }
+
+    public func runtimeTypes(connectorId: String) async throws -> [RemoteRuntimeType] {
+        let r = try await attempt { try await self.engine.runtimeTypes(connectorId: connectorId) }
+        return r.runtimeTypes.map {
+            RemoteRuntimeType(runtimeType: $0.runtimeType, displayName: $0.displayName,
+                              available: $0.available, recommended: $0.recommended)
+        }
     }
 
     // MARK: Out-seam

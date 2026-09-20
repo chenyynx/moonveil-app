@@ -60,6 +60,7 @@ struct RemoteSessionListView: View {
     @State private var showsArchives = false
     @State private var showsPairSheet = false
     @State private var showsProjectEditor = false
+    @State private var showsNewSession = false
     @State private var showsSessionDetail = false
     @State private var selectedSessionId: String?
     // 底栏搜索（与本机同款交互：即时过滤标题、键盘收起三出口）
@@ -80,6 +81,11 @@ struct RemoteSessionListView: View {
             .sheet(isPresented: $showsProjectEditor) {
                 // 项目编辑（AA 的 ProjectEditorSheet 视觉；数据面就绪前弹联动占位）
                 RemoteProjectEditorSheet(service: service)
+            }
+            .sheet(isPresented: $showsNewSession) {
+                // 新会话抽屉（AA 官方语义：设备 → 项目 → 运行时 → 任务；
+                // 与项目头的 + （RemoteProjectEditorSheet）是两个不同入口）
+                RemoteNewSessionSheet(service: service)
             }
             .sheet(isPresented: $showsArchives) {
                 RemoteArchivedSessionsSheet(service: service)
@@ -413,7 +419,7 @@ struct RemoteSessionListView: View {
     }
 
     private func startNewSession() {
-        showsProjectEditor = true
+        showsNewSession = true
     }
 
     private func togglePin(_ item: RemoteSessionItem) {

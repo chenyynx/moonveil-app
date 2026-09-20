@@ -133,6 +133,21 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
         try await requireAPI().runtime.interrupt(sessionId: sessionId)
     }
 
+    // New-session drawer lists: thin pass-throughs, no local cache — the
+    // server is the single source of truth for inventory (same rule as above).
+
+    func listConnectors() async throws -> V2ConnectorListResponse {
+        try await requireAPI().connectors.listConnectors()
+    }
+
+    func listProjects() async throws -> V2ProjectListResponse {
+        try await requireAPI().projects.list()
+    }
+
+    func runtimeTypes(connectorId: V2ConnectorID) async throws -> V2RuntimeTypeListResponse {
+        try await requireAPI().connectors.runtimeTypes(connectorId: connectorId)
+    }
+
     // MARK: - Out-seam: events + recovery
 
     func events(sessionId: V2SessionID) async throws -> AsyncThrowingStream<V2SessionEvent, Error> {
