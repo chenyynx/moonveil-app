@@ -1,7 +1,17 @@
-// swift-tools-version:5.9
-// B8-FIX3: 5.9 banner = Swift-5 language mode default (Xcode derives pkg mode from
-// the tools banner; per-target/package pins were ignored there). Banner carries no
-// trailing text on purpose: SwiftPM parses everything on that line as the version.
+// swift-tools-version:6.0
+// CIFIX-6 (2026-09-21): banner 5.9 → 6.0 — only way to get .defaultIsolation(MainActor.self),
+// which official ClientCore uses (ios/Package.swift: swiftSettings: [.defaultIsolation(MainActor.self)]).
+// TimelineGrouping.swift:12 ($0.structure.status.isActive) hard-errors without default
+// isolation; file is verbatim-frozen so the setting had to move to build config.
+// B8-FIX3 superseded: that note assumed Xcode resolves this package — it does NOT
+// (Minis.xcodeproj packageReferences has no RemoteKit; sources are compiled directly
+// into the app target via PBXGroup + per-file build files). The banner only feeds
+// `swift build` (RemoteKit Build CI + local), which honors swiftLanguageVersions.
+// Language mode stays Swift 5 = upstream's SWIFT_VERSION (5.0 in the v2.0.0 Xcode
+// project). Frozen AAV2 leans on Swift-5 warning-level actor isolation
+// (HTTPReadRetryPolicy.permitsRetry is @MainActor, called from a nonisolated retry
+// loop; HTTPTransport.swift:56) — .v5 pin keeps that warning-level, 6.0 banner alone
+// would hard-error the verbatim sources.
 import PackageDescription
 
 // Moonveil RemoteKit — isolated SwiftPM package (D4 门1: App→RemoteKit one-way).
@@ -16,6 +26,20 @@ import PackageDescription
 // Sources/Glue/ = our only seam work (SessionBackend binding + D1 sqlite adapter + D2 out-seam).
 // Freeze integrity: scripts/aav2-freeze-check.sh (CI gate), independent of compilation —
 // it walks Sources/AAV2/** on disk, which this restructure does not touch.
+// CIFIX-6: official ClientCore uses swiftSettings: [.defaultIsolation(MainActor.self)]
+// (ios/Package.swift, tools 6.2). AAV2 verbatim files assume MainActor default isolation —
+// without it TimelineGrouping.swift:12 ($0.structure.status.isActive) and every
+// @Observable model property reference fails to type-check under Xcode 26.2 / Swift 6.2.
+// .defaultIsolation is a 6.1+ ManifestAPI and needs a 6.2 banner to even parse — the
+// local Linux toolchain is 6.0.3 and enforces no such check, so gate on compiler version.
+// unsafeFlags(["-default-isolation","MainActor"]) is the same frontend flag .defaultIsolation
+// lowers to (and exactly what the Xcode project passes per-file via COMPILER_FLAGS).
+#if swift(>=6.1)
+let isolationSettings: [SwiftSetting] = [.unsafeFlags(["-default-isolation", "MainActor"])]
+#else
+let isolationSettings: [SwiftSetting] = []
+#endif
+
 let package = Package(
     name: "RemoteKit",
     platforms: [.iOS(.v17), .macOS(.v14)], // v17 = Observation floor of frozen AAV2 (iOS Build exit-65 forensics 2026-09-15; pp compat call pending)
@@ -72,8 +96,9 @@ let package = Package(
                 "AAV2/Views/Components/StableViewModel.swift",
                 // batch5 (2026-09-15): the seam itself (first real Glue)
                 "Glue",
-            ]
+            ],
+            swiftSettings: isolationSettings
         )
     ],
-    swiftLanguageVersions: [.v5]  // 5.9-era spelling (last positional: no comma)
+    swiftLanguageVersions: [.v5]  // pinned to Swift 5 (header note); 6.0 banner would default to v6
 )
