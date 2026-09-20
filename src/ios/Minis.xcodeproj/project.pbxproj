@@ -604,7 +604,6 @@
 		D05AF00E000000000000B215 /* WorkspacePreviewDownloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A215 /* WorkspacePreviewDownloads.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1F1 /* AgentSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F1 /* AgentSetupCoordinator.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1F0 /* V2PairingCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F0 /* V2PairingCommand.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
-		D05AF00E000000000000B1EF /* ProjectWorkspacePath.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1EF /* ProjectWorkspacePath.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1ED /* ChatHeaderStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1ED /* ChatHeaderStatus.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1EE /* RemoteChatPageToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1EE /* RemoteChatPageToolbar.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1E8 /* RemoteNewSessionReveal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E8 /* RemoteNewSessionReveal.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
@@ -714,6 +713,7 @@
 		RKA5E30D09E037A68960C9D2 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKBBB2102086175F480C8A8C /* APIClient.swift */ };
 		RKA917BE9E53EAE776E6BD14 /* V2TimelineItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK01E4AF3E2F26914B53D1E6 /* V2TimelineItem.swift */ };
 		RKAA29C8115382CFC0F4881C /* RemoteSessionBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKF56CFD8F4EE56B21FE3CAB /* RemoteSessionBackend.swift */ };
+		RKAEA121CEADC3530D2F2F49F6 /* ProjectWorkspacePath.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK9610948D424D5442259BF286 /* ProjectWorkspacePath.swift */; };
 		RKADEA4BF291842ED0CD3B43 /* V2AccountModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKBF28378DC3802DB225B305 /* V2AccountModels.swift */ };
 		RKCBF31BE15F7E43A36BE7CA /* RuntimeLocalizedCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKC7DD572BCDBA2F04D523CD /* RuntimeLocalizedCopy.swift */ };
 		RKCCDA07C488129D74BCECC2 /* V2AttachmentAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK4AE266861A7C2F34A54894 /* V2AttachmentAPI.swift */ };
@@ -1485,7 +1485,6 @@
 		D05AF00E000000000000A215 /* WorkspacePreviewDownloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspacePreviewDownloads.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1F1 /* AgentSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSetupCoordinator.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1F0 /* V2PairingCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2PairingCommand.swift; sourceTree = "<group>"; };
-		D05AF00E000000000000A1EF /* ProjectWorkspacePath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspacePath.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1ED /* ChatHeaderStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHeaderStatus.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1EE /* RemoteChatPageToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteChatPageToolbar.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1E8 /* RemoteNewSessionReveal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteNewSessionReveal.swift; sourceTree = "<group>"; };
@@ -1605,6 +1604,7 @@
 		RKEB66E3211A689C00168FCA /* V2RuntimeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RuntimeState.swift; sourceTree = "<group>"; };
 		RKED0B4B28B6EE9DE3F6F1BC /* V2RuntimeNotice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RuntimeNotice.swift; sourceTree = "<group>"; };
 		RKF56CFD8F4EE56B21FE3CAB /* RemoteSessionBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionBackend.swift; sourceTree = "<group>"; };
+		RK9610948D424D5442259BF286 /* ProjectWorkspacePath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspacePath.swift; sourceTree = "<group>"; };
 		RKF693C48379EBEA047D26D8 /* V2BusinessError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2BusinessError.swift; sourceTree = "<group>"; };
 		RKF7F69447FE82772862631F /* V2ConnectorAPI+Download.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "V2ConnectorAPI+Download.swift"; sourceTree = "<group>"; };
 		RK0AE8920F88C2842E13A6A7 /* AppSymbolAssets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSymbolAssets.swift; sourceTree = "<group>"; };
@@ -2810,7 +2810,6 @@
 			D05AF00E000000000000A1FC /* ComposerOptionsSheet.swift */,
 			D05AF00E000000000000A1F1 /* AgentSetupCoordinator.swift */,
 			D05AF00E000000000000A1F0 /* V2PairingCommand.swift */,
-			D05AF00E000000000000A1EF /* ProjectWorkspacePath.swift */,
 			D05AF00E000000000000A1ED /* ChatHeaderStatus.swift */,
 			D05AF00E000000000000A1EE /* RemoteChatPageToolbar.swift */,
 			D05AF00E000000000000A1E8 /* RemoteNewSessionReveal.swift */,
@@ -3149,6 +3148,7 @@
 				RKC35EE3507A9669E86992AB /* PublicRemoteService.swift */,
 				RK51378A9A3646786BF43394 /* RemoteKit.swift */,
 				RKF56CFD8F4EE56B21FE3CAB /* RemoteSessionBackend.swift */,
+				RK9610948D424D5442259BF286 /* ProjectWorkspacePath.swift */,
 				RK94D4EAF6CF4C89609010C3 /* RemoteSessionServing.swift */,
 				RK82041650767F57DFF6207E6D /* V2RemoteChatServices.swift */,
 			);
@@ -4036,7 +4036,6 @@
 				D05AF00E000000000000B215 /* WorkspacePreviewDownloads.swift in Sources */,
 			D05AF00E000000000000B1F1 /* AgentSetupCoordinator.swift in Sources */,
 			D05AF00E000000000000B1F0 /* V2PairingCommand.swift in Sources */,
-			D05AF00E000000000000B1EF /* ProjectWorkspacePath.swift in Sources */,
 			D05AF00E000000000000B1ED /* ChatHeaderStatus.swift in Sources */,
 			D05AF00E000000000000B1EE /* RemoteChatPageToolbar.swift in Sources */,
 			D05AF00E000000000000B1E8 /* RemoteNewSessionReveal.swift in Sources */,
@@ -4152,6 +4151,7 @@
 				RK16B2922CBEEE3196084668 /* PublicRemoteService.swift in Sources */,
 				RKE25F80EAA59E3319CA8BC6 /* RemoteKit.swift in Sources */,
 				RKAA29C8115382CFC0F4881C /* RemoteSessionBackend.swift in Sources */,
+				RKAEA121CEADC3530D2F2F49F6 /* ProjectWorkspacePath.swift in Sources */,
 				RK4E256035471AF2EEF870A3 /* RemoteSessionServing.swift in Sources */,
 				RK7838A371121004E9034001 /* AppSymbolAssets.swift in Sources */,
 			);
