@@ -12,8 +12,10 @@ import Foundation
 /// - `sessionReads` (V2SessionReadCoordinator): official AppState-only consumer
 ///   (background read-marking); no app consumer yet — kept out until wired.
 /// - `onSelectPage`/`editCreation`：navigation is NavigationStack-based here (no ChatShell
-///   selection pages); `onReturnToNewSession` + `discardCreation` carry the half the chat page
-///   needs (see below). `editCreation` stays unwired — see the 缺口 note.
+///   selection pages); `onReturnToNewSession` + `discardCreation` + `editCreation` together
+///   carry what the chat page needs: `editCreation` hands the pending round's text +
+///   attachments to the app-layer facade (`onEditCreation`), which restores the draft on
+///   `RemoteNewSessionModel` and pops to the new-session page.
 /// - `flushCache` keeps the official shape but has no caller yet: upstream calls it from
 ///   `AppState.setAppInBackground`, whose hook sits on the App root (`AgentsAnywhereApp.swift:23`
 ///   `.onChange(of: scenePhase)`). Our App root is ContentView = 本机线, 死隔离 forbids touching
@@ -100,11 +102,23 @@ final class V2RemoteChatServices {
         onReturnToNewSession?()
     }
 
-    /// 官方 `editCreation` 依赖 `newSession.restoreCreationDraft`（官方 NewSessionModel
-    /// 的草稿 + 目标回填 API）。本仓新会话页是 facade 版 RemoteNewSessionModel，没有等价的
-    /// 草稿回填入口，只做「跳新会话页」会静默丢掉待发内容 → 不实现（不假接通）：
-    /// SessionChatModel.onEditCreation 保持 nil，官方件对 nil 自然短路。
-    /// 缺口与计划见 PATCHES.md P1-CHAT 批与自审报告「未完成项」。
+    /// 官方 `editCreation`：把已发回合的待发内容回填到新会话草稿并跳页。
+    /// 官方调 `newSession.restoreCreationDraft(meta, pending)` + `onSelectPage(.newSession)`；
+    /// 本仓 new-session 是 app 层 facade（RemoteNewSessionModel），草稿回填由 app 层
+    /// 注入的 `onEditCreation` 承担（meta + pending → facade.restoreCreationDraft），
+    /// 跳页沿用官方的 `onReturnToNewSession`（discardCreation 同款通道）。
+    func editCreation(_ session: V2SessionModel, pending: V2PendingMessage) {
+        guard let meta = session.metadata else { return }
+        // 官方 newSession 是长驻单例可直接调；本仓新会话页 model 是页面级
+        // @StateObject，跳页后才创建 → 先暂存，RemoteNewSessionView 首帧 .task 消费。
+        pendingEditCreation = (meta, pending)
+        onReturnToNewSession?()
+    }
+
+    /// 官方 `newSession.restoreCreationDraft` 的待回填草稿暂存（facade 版的
+    /// 「跨页面传递」通道：editCreation 存入 → 新会话页 .task 取出回填 → 清空）。
+    /// 消费方：RemoteNewSessionView.task；RemoteSessionListView 负责打开该页。
+    var pendingEditCreation: (V2SessionMeta, V2PendingMessage)?
 
     func flushCache() async {
         await dashboardRepository.flushCache()

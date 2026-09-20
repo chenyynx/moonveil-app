@@ -365,6 +365,37 @@ final class RemoteNewSessionModel: ObservableObject {
 
     // MARK: - 创建（官方 onSend 语义；成功返回 sessionId）
 
+    /// 官方 `NewSessionModel.restoreCreationDraft` 的 facade 等价物：从已发回合
+    /// 回填草稿（文本 + 附件），并把目标聚焦到原会话的设备/工作目录。
+    ///
+    /// 与官方的差异（全部留据）：
+    ///   • 官方目标聚焦是 `focusDevice + selectProject + runtimeID` 同步设值；
+    ///     本仓 facade 的 connector/runtime 清单是异步加载的，这里只先落
+    ///     `selectedConnectorId`/`manualWorkspacePath`（同步可用部分），设备
+    ///     清单到齐后 `refresh` 会自然收敛——跳页后用户看到的就是
+    ///     已聚焦 + 草稿已回填的状态。
+    ///   • 官方 `creationUncertain`（发送结果未定）分支：pending.delivery ==
+    ///     .uncertain 时官方会提示先查会话列表；本仓 facade 无创建中态模型，
+    ///     不实现该提示，草稿照常回填。
+    func restoreCreationDraft(connectorId: String, workspacePath: String?,
+                              projectId: String?, runtimeType: String?,
+                              text: String, attachments: [ChatAttachment]) {
+        // 官方草稿冲突守卫：已有其他草稿则保留原草稿并提示，不覆盖。
+        if (!draft.text.isEmpty || !draft.attachments.isEmpty),
+           draft.text != text || draft.attachments.map(\.id) != attachments.map(\.id) {
+            error = String(localized: "新会话中已有其他草稿，已为你保留。请先处理该草稿，再返回这条发送记录。")
+            return
+        }
+        // 目标聚焦（同步可落的部分；异步清单由 refresh 收敛）
+        selectedConnectorId = connectorId
+        if let projectId { selectedProjectId = projectId; manualWorkspacePath = nil }
+        else if let workspacePath, !workspacePath.isEmpty { _ = selectWorkspace(workspacePath) }
+        if let runtimeType { selectedRuntimeType = runtimeType }
+        // 草稿回填
+        draft.text = text
+        draft.attachments = attachments
+    }
+
     func create(text: String, service: RemoteService) async -> String? {
         guard canCreate,
               let connector = selectedConnector,

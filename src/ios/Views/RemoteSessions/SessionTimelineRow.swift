@@ -10,8 +10,12 @@
 //   • 官方 `ChatMarkdownView(isStreaming:resolvesFileReferences:)` 两参数属 Textual
 //     渲染件私有（§0f 禁令）：流式由 `SelectableMarkdownView` 自身随 markdown 字符串
 //     更新驱动；`file:行号` 引用内联可点（官方 resolvesFileReferences）在本渲染层无对应
-//     物 → 记 P3 缺口（见报告「未完成项」），不私造解析器。文件改动的可点预览另由
-//     TimelineFileChangeView / TimelineToolDetails 的 `onFile` 承担（已在链路内）。
+//     物 → 已用 `SessionFileReferenceLinks.rewrite` 补齐（送渲染前把命中的
+//     file:行号 inline code 重写成 markdown 链接，判定委托冻结件
+//     `SessionFileReference.inlineReference`，与官方同源；点击走
+//     SessionChatView 已注入的 `.environment(\.openURL)` 拦截器）。文件改动的
+//     可点预览另由 TimelineFileChangeView / TimelineToolDetails 的 `onFile`
+//     承担（已在链路内）。
 //   • 文件末尾 `extension JSONValue { readableText }` 为官方 app 层 extension，
 //     与官方同文件同位置保留（单模块下与搬运件同层，无 AAV2 冻结区改动）。
 
@@ -62,7 +66,9 @@ struct SessionTimelineRow: View {
 
     private var markdown: some View {
         // §0f 渲染桥接：官方 ChatMarkdownView（Textual）→ Moonveil SelectableMarkdownView。
-        SelectableMarkdownView(markdown: row.text)
+        // 官方在解析阶段给「文件引用型 inline code」挂 .link（ChatMarkdownView:44-52）；
+        // 本仓解析器不跑那趟 → 送渲染前先重写成 markdown 链接（见 SessionFileReferenceLinks）。
+        SelectableMarkdownView(markdown: SessionFileReferenceLinks.rewrite(row.text))
             .id(row.layoutGeneration)
             .frame(minHeight: row.value.isStreamingText ? lineHeight : nil, alignment: .topLeading)
     }

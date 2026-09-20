@@ -81,7 +81,23 @@ struct RemoteNewSessionView: View {
         .sheet(isPresented: $showsWorkspace) {
             RemoteNewSessionWorkspaceSheet(model: model, service: service)
         }
-        .task { await model.load(service: service) }
+        .task {
+            await model.load(service: service)
+            // 官方 NewSessionModel.restoreCreationDraft 的本仓消费点：聊天页
+            // 「返回编辑」→ services.pendingEditCreation 暂存 → 此处回填草稿并聚焦
+            // 原会话目标（设备/工作目录/项目/runtime），然后清空暂存。
+            if let services = service.chat,
+               let pending = services.pendingEditCreation {
+                services.pendingEditCreation = nil
+                model.restoreCreationDraft(
+                    connectorId: pending.0.connectorId,
+                    workspacePath: pending.0.cwd,
+                    projectId: pending.0.projectId,
+                    runtimeType: pending.0.runtimeType,
+                    text: pending.1.content,
+                    attachments: pending.1.attachments)
+            }
+        }
     }
 
     // MARK: - 状态内容（官方 statusContent：连接状态 / 创建中 / 错误）

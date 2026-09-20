@@ -175,6 +175,12 @@ struct RemoteSessionListView: View {
                     // 官方 AppState.makeV2Services → services.restoreCache(selection:)：
                     // 进页面先把本地缓存铺进仓库（离线可见），网络回来再覆盖。
                     await services.restoreCache(selection: .session(id))
+                    // 「返回编辑」跳页通道（官方 onSelectPage(.newSession) 的本仓等价物）：
+                    // 聊天页 editCreation 暂存草稿后回调这里 → 关聊天页 + 开新会话页。
+                    services.onReturnToNewSession = { [weak self] in
+                        self?.showsChat = false
+                        self?.showsNewSession = true
+                    }
                 }
         } else {
             Color.clear

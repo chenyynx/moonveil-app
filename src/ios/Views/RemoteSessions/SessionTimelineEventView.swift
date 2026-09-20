@@ -67,7 +67,8 @@ struct SessionTimelineEventView: View {
             } else {
                 TimelineFold(id: row.id, title: value.title, symbol: value.symbol, status: row.value.status, disclosures: disclosures) {
                     // §0f 渲染桥接：官方 ChatMarkdownView（Textual）→ Moonveil SelectableMarkdownView。
-                    SelectableMarkdownView(markdown: row.text)
+                    // §0f：file:行号 可点化（官方在解析阶段挂 .link，本仓送渲染前重写）
+                    SelectableMarkdownView(markdown: SessionFileReferenceLinks.rewrite(row.text))
                         .id(row.layoutGeneration).padding(.leading, 24).foregroundStyle(.secondary)
                 }
             }

@@ -4,10 +4,9 @@
 //   • `services` 形参类型 = 本仓组合根 `V2RemoteChatServices`（Glue），等价官方
 //     `V2ClientServices`；消费的成员（sessionRepository / attachments / workspaceFiles /
 //     sessionDetail / discardCreation）与官方同名同语义。
-//   • `chat.onEditCreation` 未接：官方该闭包调 `services.editCreation`，依赖官方
-//     NewSessionModel 的草稿回填（本仓新会话页为 facade 版 RemoteNewSessionModel，无等价
-//     入口）→ 不做半截接通，见 Glue/V2RemoteChatServices.swift 缺口字据 + 自审报告未完成项。
-//     `onDiscardCreation` 已按官方接通。
+//   • `chat.onEditCreation` 已接（官方逐字）：→ services.editCreation → app 层 facade
+//     `RemoteNewSessionModel.restoreCreationDraft` 草稿回填 + 跳新会话页（见
+//     Glue/V2RemoteChatServices.editCreation / RemoteSessionListView 注入点）。
 //   • `.glassEffect(.regular.interactive(), in: .capsule)`（iOS 26）→ `remoteGlassCapsule`。
 //   • `traceChatLayout` 诊断修饰剥离（本仓无该基建）。
 //   • `sidebarDrawer*` 两个环境值在本仓恒 false（键声明见 SidebarDrawerEnvironmentKeys.swift），
@@ -50,6 +49,9 @@ struct SessionChatView: View, Equatable {
         _storage = StateObject(wrappedValue: StableViewModel {
             let chat = SessionChatModel(session: session, repository: services.sessionRepository, attachments: services.attachments,
                 files: services.workspaceFiles)
+            chat.onEditCreation = { [weak services, weak session] pending in
+                if let session { services?.editCreation(session, pending: pending) }
+            }
             chat.onDiscardCreation = { [weak services] in services?.discardCreation(session.id) }
             return chat
         })
