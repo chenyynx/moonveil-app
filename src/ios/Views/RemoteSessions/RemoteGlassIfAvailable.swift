@@ -71,7 +71,7 @@ extension View {
 /// <18 不施加任何效果：这是系统滚动边缘样式的缺失，不是功能缺失，不发明替代模糊层。
 private struct ScrollEdgeSoftIfAvailable: ViewModifier {
     @ViewBuilder func body(content: Content) -> some View {
-        if #available(iOS 18.0, *) {
+        if #available(iOS 26.0, *) {
             content.scrollEdgeEffectStyle(.soft, for: .all)
         } else {
             content

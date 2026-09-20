@@ -8,7 +8,7 @@ import SwiftUI
 private struct DockSnapBehavior: ViewModifier {
     @ViewBuilder func body(content: Content) -> some View {
         if #available(iOS 18.0, *) {
-            contentmodifier(DockSnapBehavior())
+            content.scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne))
         } else {
             content.scrollTargetBehavior(.viewAligned)
         }

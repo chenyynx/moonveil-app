@@ -26,7 +26,7 @@ final class ChatSelectableTextView: UITextView {
 
     override var intrinsicContentSize: CGSize {
         if ownsContentWidth {
-            let fit = sizeThatFits(CGSize(width: .greatestFiniteMagnitude, height: .greatestFiniteMagnitude))
+            let fit = sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
             return CGSize(width: ceil(fit.width), height: ceil(fit.height))
         }
         return CGSize(width: UIView.noIntrinsicMetric, height: lastHeight)

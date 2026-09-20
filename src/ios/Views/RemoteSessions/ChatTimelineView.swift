@@ -83,7 +83,7 @@ private struct ChatTimelineOrchestrationView: View {
             .scrollDismissesKeyboard(.interactively)
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.always, axes: .vertical)
-            .scrollEdgeEffectStyle(.soft, for: .top)
+            .aaScrollEdgeSoft()
             .defaultScrollAnchor(.top, for: .initialOffset)
             .defaultScrollAnchor(.top, for: .alignment)
             .defaultScrollAnchor(.top, for: .sizeChanges)
