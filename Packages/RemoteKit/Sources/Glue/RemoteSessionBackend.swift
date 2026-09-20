@@ -108,7 +108,9 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
         title: String?,
         cwd: String?,
         content: String,
-        clientMessageId: String
+        clientMessageId: String,
+        selections: [V2RuntimeSelectionScope: V2SelectionID],
+        attachments: [V2LocalAttachment]
     ) async throws -> V2SessionCreateResponse {
         try await requireCreation().createAndStart(
             connectorId: connectorId,
@@ -118,8 +120,8 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
             title: title,
             cwd: cwd,
             content: content,
-            selections: [:],
-            attachments: [],
+            selections: selections,
+            attachments: attachments,
             clientMessageId: clientMessageId
         )
     }
@@ -206,6 +208,16 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
 
     func renameConnector(connectorId: String, name: String) async throws -> V2ConnectorResponse {
         try await requireAPI().connectors.updateConnector(connectorId: connectorId, request: V2ConnectorUpdateRequest(name: name))
+    }
+
+    // Session preparation（官方 V2SessionPreparationService 等价面）。
+    func prepareSession(connectorId: V2ConnectorID, runtimeId: V2RuntimeID) async throws -> V2PreparedSession {
+        try await V2SessionPreparationService(connectorAPI: requireAPI().connectors)
+            .prepare(connectorId: connectorId, runtimeId: runtimeId)
+    }
+
+    func listRuntimes(connectorId: V2ConnectorID) async throws -> V2DeviceRuntimeListResponse {
+        try await requireAPI().connectors.listRuntimes(connectorId: connectorId)
     }
 
     func runtimeTypes(connectorId: V2ConnectorID) async throws -> V2RuntimeTypeListResponse {

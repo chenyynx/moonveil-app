@@ -141,6 +141,51 @@ public struct RemoteSessionWriteResult: Sendable {
     public let serverTime: String
 }
 
+/// Public mirror of 官方 ChatSettingsCatalog 的数据面（title/detail 已在 facade 用
+/// RuntimeLocalizedCopy 完成本地化；selectionID 为跨 API 的唯一不透明选择标识）。
+public struct RemoteCatalogOption: Sendable, Identifiable, Hashable {
+    public let id: String
+    public let title: String
+    public let detail: String
+    public let selectionID: String?
+    public let isDefault: Bool
+    public let isEnabled: Bool
+    public let disabledReason: String?
+}
+
+public struct RemoteCatalogModel: Sendable, Identifiable, Hashable {
+    public let option: RemoteCatalogOption
+    public let reasoning: [RemoteCatalogOption]
+    public var id: String { option.id }
+}
+
+public struct RemoteSettingsCatalog: Sendable {
+    public let models: [RemoteCatalogModel]
+    public let permissions: [RemoteCatalogOption]
+}
+
+/// Public mirror of V2PreparedSession（会话创建前的 runtime 准备快照）。
+public struct RemotePreparedSession: Sendable {
+    public let isReadyForSession: Bool
+    public let unavailableReason: String?
+    public let allowsAttachment: Bool
+    public let allowsModelCatalog: Bool
+    public let allowsPermissionCatalog: Bool
+    public let catalog: RemoteSettingsCatalog
+}
+
+/// Public mirror of V2LocalAttachment（新建会话的内联附件）。
+public struct RemoteLocalAttachment: Sendable {
+    public let fileId: String
+    public let name: String
+    public let mediaType: String
+    public let data: Data
+
+    public init(fileId: String, name: String, mediaType: String, data: Data) {
+        self.fileId = fileId; self.name = name; self.mediaType = mediaType; self.data = data
+    }
+}
+
 /// Public mirror of V2ConnectorCreateResponse（配对凭证；token 仅客户端持有）。
 public struct RemoteConnectorCreateResponse: Sendable, Hashable {
     public let connector: RemoteConnector
@@ -420,17 +465,78 @@ public final class RemoteService: ObservableObject {
         title: String? = nil,
         cwd: String? = nil,
         content: String,
-        clientMessageId: String
+        clientMessageId: String,
+        selections: [String: String] = [:],
+        attachments: [RemoteLocalAttachment] = []
     ) async throws -> RemoteSessionCreated {
         let r = try await attempt {
             try await self.engine.startSession(
                 connectorId: connectorId, projectId: projectId,
                 runtime: runtime, runtimeId: runtimeId,
                 title: title, cwd: cwd,
-                content: content, clientMessageId: clientMessageId
+                content: content, clientMessageId: clientMessageId,
+                selections: Dictionary(uniqueKeysWithValues: selections.map {
+                    (V2RuntimeSelectionScope(rawValue: $0.key), $0.value)
+                }),
+                attachments: attachments.map {
+                    V2LocalAttachment(fileId: $0.fileId, name: $0.name, mediaType: $0.mediaType, data: $0.data, sha256: nil)
+                }
             )
         }
         return .init(sessionId: r.session.id, sessionMetaJSON: try encode(r.session))
+    }
+
+    /// 官方 V2SessionPreparationService.prepare 等价。moonveil 的运行时以 runtimeType
+    /// 为键（UI 模型），此处解析实例：listRuntimes → 匹配 runtimeType 且就绪的实例
+    /// → prepare(runtimeId)；catalog 只在 capability 允许时请求，本地化在此完成。
+    public func prepareSession(connectorId: String, runtimeType: String) async throws -> RemotePreparedSession {
+        let list = try await attempt { try await self.engine.listRuntimes(connectorId: connectorId) }
+        guard let runtime = list.runtimes.first(where: { $0.runtimeType == runtimeType && $0.isReadyForSession })
+                ?? list.runtimes.first(where: { $0.runtimeType == runtimeType }) else {
+            throw RemoteServiceError.rejected(code: nil, message: "Runtime is unavailable.")
+        }
+        let value = try await attempt {
+            try await self.engine.prepareSession(connectorId: connectorId, runtimeId: runtime.runtimeId)
+        }
+        return RemotePreparedSession(
+            isReadyForSession: value.runtime.isReadyForSession,
+            unavailableReason: value.runtime.sessionUnavailableReason,
+            allowsAttachment: value.capabilities.allows("runtime.attachment"),
+            allowsModelCatalog: value.capabilities.allows("catalog.model"),
+            allowsPermissionCatalog: value.capabilities.allows("catalog.permission"),
+            catalog: RemoteSettingsCatalog(
+                models: value.catalogs.model.models.map { model in
+                    RemoteCatalogModel(
+                        option: Self.mapCatalogOption(id: model.id, title: model.displayName, detail: model.description,
+                                                      selection: model.selectionId, isDefault: model.default,
+                                                      enabled: model.enabled, reason: model.disabledReason, metadata: model.metadata),
+                        reasoning: model.reasoningItems.map {
+                            Self.mapCatalogOption(id: $0.id, title: $0.displayName, detail: $0.description,
+                                                  selection: $0.selectionId, isDefault: $0.default,
+                                                  enabled: $0.enabled, reason: $0.disabledReason, metadata: $0.metadata)
+                        }
+                    )
+                },
+                permissions: value.catalogs.permission.permissions.map {
+                    Self.mapCatalogOption(id: $0.id, title: $0.displayName, detail: $0.description,
+                                          selection: $0.selectionId, isDefault: $0.default,
+                                          enabled: $0.enabled, reason: $0.disabledReason, metadata: $0.metadata)
+                }
+            )
+        )
+    }
+
+    private static func mapCatalogOption(id: String, title: String, detail: String?, selection: String?,
+                                         isDefault: Bool, enabled: Bool?, reason: String?, metadata: JSONValue) -> RemoteCatalogOption {
+        RemoteCatalogOption(
+            id: id,
+            title: RuntimeLocalizedCopy.text(title, metadata: metadata),
+            detail: RuntimeLocalizedCopy.text(detail ?? "", metadata: metadata, field: "descriptionKey"),
+            selectionID: selection,
+            isDefault: isDefault,
+            isEnabled: enabled ?? metadata["enabled"]?.boolValue ?? true,
+            disabledReason: reason ?? metadata["disabledReason"]?.stringValue
+        )
     }
 
     /// Returns the official action `result` payload verbatim (JSON passthrough);

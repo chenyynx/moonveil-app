@@ -20,6 +20,9 @@ struct RemoteNewSessionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @ScaledMetric(relativeTo: .body) private var bodyLineHeight: CGFloat = 22
+
+    private var controls: ChatControlMetrics { .init(bodyLineHeight: bodyLineHeight) }
     @StateObject private var model = RemoteNewSessionModel()
     @State private var showsTarget = false
     @State private var showsWorkspace = false
@@ -41,7 +44,23 @@ struct RemoteNewSessionView: View {
                     .refreshable { await model.refresh(service: service) }
                 }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    composer
+                    // 官方 NewSessionView 同款调用（ChatComposerDock 完整搬运，2026-09-20）。
+                    ChatComposerDock(draft: model.draft, settings: model.settings,
+                        maximumEditorHeight: min(160, max(72, geometry.size.height * 0.30)), controls: controls,
+                        canSend: model.canCreate, canAttach: model.canAttach && model.prepared,
+                        canSelectModel: model.allowsModelCatalog,
+                        canSelectPermission: model.allowsPermissionCatalog,
+                        isBusy: model.isCreating, isLoadingSettings: model.settingsLoading,
+                        settingsError: model.settingsError,
+                        onSend: { text in
+                            if let id = await model.create(text: text, service: service) {
+                                onCreated(id)
+                                dismiss()
+                            }
+                        },
+                        onLoadSettings: { await model.prepareTarget(service: service) },
+                        onApplySettings: { model.saveSelections(); return true },
+                        applyError: { model.settingsError })
                 }
             }
             // 官方 ChatPageToolbar（title: "" + onMenu）——顶栏直接用官方组件，
@@ -169,74 +188,6 @@ struct RemoteNewSessionView: View {
         .accessibilityIdentifier("chat.new.target")
     }
 
-    // MARK: - Composer（官方 ChatComposerDock 形态的基础版）
-
-    private var composer: some View {
-        HStack(alignment: .bottom, spacing: 10) {
-            // 附件与对话选项：随附件批次接通（当前禁用，不假造入口）。
-            Button {} label: {
-                AppSymbol("plus", size: 22)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 36, height: 36)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .disabled(true)
-            .accessibilityLabel("附件与对话选项")
-
-            ZStack(alignment: .topLeading) {
-                if model.text.isEmpty {
-                    Text("描述任务...")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 7)
-                        .allowsHitTesting(false)
-                }
-                TextField("", text: $model.text, axis: .vertical)
-                    .font(.body)
-                    .lineLimit(1...5)
-                    .textFieldStyle(.plain)
-                    .autocorrectionDisabled()
-                    .padding(.vertical, 7)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Button { send() } label: {
-                AppSymbol("arrow.up", size: 17)
-                    .foregroundStyle(AppTheme.primaryControlForeground(colorScheme))
-                    .frame(width: 32, height: 32)
-                    .background(
-                        AppTheme.primaryControlBackground(colorScheme)
-                            .opacity(model.canCreate && !model.isCreating ? 1 : 0.42),
-                        in: Circle()
-                    )
-                    .frame(width: 36, height: 36)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .disabled(!model.canCreate)
-            .accessibilityLabel("发送消息")
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(.quaternary, lineWidth: 0.5)
-        )
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 10)
-    }
-
-    private func send() {
-        Task {
-            if let id = await model.create(service: service) {
-                onCreated(id)
-                dismiss()
-            }
-        }
-    }
 }
 
 /// Center the welcome and workspace alone. Notices flow below that anchor and

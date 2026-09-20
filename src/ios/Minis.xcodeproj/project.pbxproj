@@ -557,6 +557,17 @@
 		D05AF00E000000000000B1E1 /* RemoteSessionIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E1 /* RemoteSessionIcon.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1E2 /* RemoteSessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E2 /* RemoteSessionListView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1E6 /* RemoteDeviceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E6 /* RemoteDeviceDetailView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1F2 /* ChatControlMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F2 /* ChatControlMetrics.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1F3 /* ComposerLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F3 /* ComposerLayout.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1F4 /* ChatImageThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F4 /* ChatImageThumbnail.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1F5 /* ComposerDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F5 /* ComposerDraft.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1F6 /* NativeComposerEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F6 /* NativeComposerEditor.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1F7 /* ChatComposerAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F7 /* ChatComposerAttachment.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1F8 /* ChatComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F8 /* ChatComposer.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1F9 /* ChatComposerDock.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F9 /* ChatComposerDock.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1FA /* InlineSelectionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1FA /* InlineSelectionRow.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1FB /* ConversationSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1FB /* ConversationSettings.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1FC /* ComposerOptionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1FC /* ComposerOptionsSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1F1 /* AgentSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F1 /* AgentSetupCoordinator.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1F0 /* V2PairingCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F0 /* V2PairingCommand.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1EF /* ProjectWorkspacePath.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1EF /* ProjectWorkspacePath.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
@@ -1339,6 +1350,17 @@
 		D05AF00E000000000000A1E1 /* RemoteSessionIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionIcon.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1E2 /* RemoteSessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionListView.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1E6 /* RemoteDeviceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteDeviceDetailView.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1F2 /* ChatControlMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatControlMetrics.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1F3 /* ComposerLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerLayout.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1F4 /* ChatImageThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatImageThumbnail.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1F5 /* ComposerDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerDraft.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1F6 /* NativeComposerEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerEditor.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1F7 /* ChatComposerAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatComposerAttachment.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1F8 /* ChatComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatComposer.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1F9 /* ChatComposerDock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatComposerDock.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1FA /* InlineSelectionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineSelectionRow.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1FB /* ConversationSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSettings.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1FC /* ComposerOptionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerOptionsSheet.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1F1 /* AgentSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSetupCoordinator.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1F0 /* V2PairingCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2PairingCommand.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1EF /* ProjectWorkspacePath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspacePath.swift; sourceTree = "<group>"; };
@@ -2599,6 +2621,17 @@
 				D05AF00E000000000000A1E4 /* PairDeviceSheet.swift */,
 				D05AF00E000000000000A1E5 /* RemoteSheets.swift */,
 				D05AF00E000000000000A1E6 /* RemoteDeviceDetailView.swift */,
+			D05AF00E000000000000A1F2 /* ChatControlMetrics.swift */,
+			D05AF00E000000000000A1F3 /* ComposerLayout.swift */,
+			D05AF00E000000000000A1F4 /* ChatImageThumbnail.swift */,
+			D05AF00E000000000000A1F5 /* ComposerDraft.swift */,
+			D05AF00E000000000000A1F6 /* NativeComposerEditor.swift */,
+			D05AF00E000000000000A1F7 /* ChatComposerAttachment.swift */,
+			D05AF00E000000000000A1F8 /* ChatComposer.swift */,
+			D05AF00E000000000000A1F9 /* ChatComposerDock.swift */,
+			D05AF00E000000000000A1FA /* InlineSelectionRow.swift */,
+			D05AF00E000000000000A1FB /* ConversationSettings.swift */,
+			D05AF00E000000000000A1FC /* ComposerOptionsSheet.swift */,
 			D05AF00E000000000000A1F1 /* AgentSetupCoordinator.swift */,
 			D05AF00E000000000000A1F0 /* V2PairingCommand.swift */,
 			D05AF00E000000000000A1EF /* ProjectWorkspacePath.swift */,
@@ -3660,6 +3693,17 @@
 				D05AF00E000000000000B1E4 /* PairDeviceSheet.swift in Sources */,
 				D05AF00E000000000000B1E5 /* RemoteSheets.swift in Sources */,
 				D05AF00E000000000000B1E6 /* RemoteDeviceDetailView.swift in Sources */,
+			D05AF00E000000000000B1F2 /* ChatControlMetrics.swift in Sources */,
+			D05AF00E000000000000B1F3 /* ComposerLayout.swift in Sources */,
+			D05AF00E000000000000B1F4 /* ChatImageThumbnail.swift in Sources */,
+			D05AF00E000000000000B1F5 /* ComposerDraft.swift in Sources */,
+			D05AF00E000000000000B1F6 /* NativeComposerEditor.swift in Sources */,
+			D05AF00E000000000000B1F7 /* ChatComposerAttachment.swift in Sources */,
+			D05AF00E000000000000B1F8 /* ChatComposer.swift in Sources */,
+			D05AF00E000000000000B1F9 /* ChatComposerDock.swift in Sources */,
+			D05AF00E000000000000B1FA /* InlineSelectionRow.swift in Sources */,
+			D05AF00E000000000000B1FB /* ConversationSettings.swift in Sources */,
+			D05AF00E000000000000B1FC /* ComposerOptionsSheet.swift in Sources */,
 			D05AF00E000000000000B1F1 /* AgentSetupCoordinator.swift in Sources */,
 			D05AF00E000000000000B1F0 /* V2PairingCommand.swift in Sources */,
 			D05AF00E000000000000B1EF /* ProjectWorkspacePath.swift in Sources */,

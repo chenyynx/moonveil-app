@@ -47,10 +47,21 @@ final class RemoteNewSessionModel: ObservableObject {
         guard let homePath, !workspacePath.isEmpty else { return false }
         return workspacePath == homePath
     }
-    // 草稿与提交
-    @Published var text = ""
+    // 草稿与提交（官方 ComposerDraft：编辑器持有 marked-text 状态，账号/会话持有草稿生命周期）
+    let draft = ComposerDraft()
     @Published private(set) var isCreating = false
     @Published private(set) var error: String?
+
+    // 对话选项（官方 ConversationSettings + prepareTarget 快照）
+    let settings = ConversationSettings()
+    @Published private(set) var settingsLoading = false
+    @Published private(set) var settingsError: String?
+    @Published private(set) var prepared = false
+    @Published private(set) var allowsAttachment = false
+    @Published private(set) var allowsModelCatalog = false
+    @Published private(set) var allowsPermissionCatalog = false
+    private var savedSelections: [V2RuntimeSelectionScope: V2SelectionID] = [:]
+    private var prepareToken = 0
 
     // MARK: - 派生
 
@@ -72,18 +83,26 @@ final class RemoteNewSessionModel: ObservableObject {
     }
 
     private var trimmedContent: String {
-        text.trimmingCharacters(in: .whitespacesAndNewlines)
+        draft.text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// 官方 gate：设备在线 + 工作目录已定 + 选中运行时 + 任务非空白；提交中锁死。
+    /// 官方 gate（NewSessionModel:171-176 的 remote 等价，无 network 监视）：
+    /// 设备在线 + 工作目录已定 + 运行时就绪 + 准备完成 + 选择有效 + 草稿可发。
     /// （项目在 create 时由 resolver 解析——官方语义：home/任意目录可直接开始。）
     var canCreate: Bool {
         (selectedConnector?.isOnline ?? false)
             && !workspacePath.isEmpty
             && selectedRuntime != nil
-            && !trimmedContent.isEmpty
+            && prepared
             && !isCreating
+            && !settingsLoading
+            && settings.hasValidSelections
+            && draft.canAttemptSend
+            && (draft.attachments.isEmpty || canAttach)
     }
+
+    /// 官方 canAttach：runtime 能力允许附件（prepare 快照门控）。
+    var canAttach: Bool { allowsAttachment }
 
     /// 工作目录行显示名（官方 workspaceName）：项目名 → Home 目录 → 路径末段。
     var workspaceName: String {
@@ -243,6 +262,39 @@ final class RemoteNewSessionModel: ObservableObject {
         // 默认选 recommended；无 recommended 则第一个 available
         selectedRuntimeType = (runtimes.first(where: { $0.recommended }) ?? runtimes.first)?.runtimeType
         runtimesLoaded = true
+        // 官方 load 链：选中 runtime 后 prepare（catalogs / capabilities）
+        await prepareTarget(service: service)
+    }
+
+    /// 官方 NewSessionModel.prepareTarget 的 remote 等价：runtime 准备快照
+    /// （状态 + capabilities + catalog）→ settings.replace。
+    func prepareTarget(service: RemoteService) async {
+        prepareToken += 1
+        let version = prepareToken
+        prepared = false
+        if !isCreating { error = nil }
+        guard let connector = selectedConnector, connector.isOnline,
+              let runtimeType = selectedRuntimeType else { return }
+        settingsLoading = true
+        defer { if version == prepareToken { settingsLoading = false } }
+        do {
+            let value = try await service.prepareSession(connectorId: connector.id, runtimeType: runtimeType)
+            guard version == prepareToken, !Task.isCancelled else { return }
+            prepared = true
+            allowsAttachment = value.allowsAttachment
+            allowsModelCatalog = value.allowsModelCatalog
+            allowsPermissionCatalog = value.allowsPermissionCatalog
+            settingsError = value.isReadyForSession ? nil : value.unavailableReason
+            settings.replace(ChatSettingsCatalog(value.catalog), selections: savedSelections)
+        } catch {
+            guard version == prepareToken else { return }
+            settingsError = error.localizedDescription
+        }
+    }
+
+    /// 官方 saveSelections：选择持久化（本批内存保存，persist 随后续批）。
+    func saveSelections() {
+        savedSelections = settings.selections
     }
 
     /// 官方 NewSessionModel.resolveHome：files.directory(root: "~", path: ".")
@@ -313,15 +365,17 @@ final class RemoteNewSessionModel: ObservableObject {
 
     // MARK: - 创建（官方 onSend 语义；成功返回 sessionId）
 
-    func create(service: RemoteService) async -> String? {
+    func create(text: String, service: RemoteService) async -> String? {
         guard canCreate,
               let connector = selectedConnector,
               let runtime = selectedRuntimeType
         else { return nil }
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                        to: nil, from: nil, for: nil)
+        draft.text = text
+        guard draft.canAttemptSend else { return nil }
+        let files = draft.attachments
         isCreating = true
         error = nil
+        saveSelections()
         defer { isCreating = false }
         do {
             // 官方 V2WorkspaceProjectResolver：工作目录 resolve 成项目（没有即创建
@@ -338,8 +392,11 @@ final class RemoteNewSessionModel: ObservableObject {
                 title: nil,
                 cwd: project.workspacePath.isEmpty ? nil : project.workspacePath,
                 content: trimmedContent,
-                clientMessageId: UUID().uuidString
+                clientMessageId: UUID().uuidString,
+                selections: Dictionary(uniqueKeysWithValues: settings.selections.map { ($0.key.rawValue, $0.value) }),
+                attachments: files.map { RemoteLocalAttachment(fileId: $0.id, name: $0.name, mediaType: $0.mediaType, data: $0.data) }
             )
+            draft.clear()
             return result.sessionId
         } catch {
             self.error = error.localizedDescription

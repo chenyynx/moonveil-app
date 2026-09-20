@@ -1,0 +1,116 @@
+// ConversationSettings.swift — AA 官方 Models/Chat/ConversationSettings.swift 逐字搬运。
+//
+// 适配点（明示）：
+// - ChatSettingsCatalog 的构造源：官方 `init(_ value: V2SessionCatalogs)` 直接用
+//   RemoteKit 内部类型（同模块）；本仓 facade 边界下改为 `init(_ value: RemoteSettingsCatalog)`
+//   ——facade 已在 mirror 时用 RuntimeLocalizedCopy 完成 title/detail 本地化，字段逐一对齐。
+// - extension V2RuntimeCapabilitySnapshot.allows 与 extension JSONValue.boolValue：
+//   官方置于本文件；本仓前述 extension 随 V2SessionPreparationService 置于 RemoteKit
+//   （facade/业务层共用），此处不重复定义。
+
+import Foundation
+import Observation
+
+struct CatalogOption: Identifiable, Equatable {
+    let id: String
+    let title: String
+    var detail = ""
+    var selectionID: String?
+    var isDefault = false
+    var isEnabled = true
+    var disabledReason: String?
+}
+
+struct ChatModelOption: Identifiable, Equatable {
+    let option: CatalogOption
+    var reasoning: [CatalogOption] = []
+    var id: String { option.id }
+}
+
+struct ChatSettingsCatalog: Equatable {
+    var models: [ChatModelOption] = []
+    var permissions: [CatalogOption] = []
+
+    init() {}
+    init(_ value: RemoteSettingsCatalog) {
+        models = value.models.map { model in
+            ChatModelOption(option: Self.option(model.option),
+                reasoning: model.reasoning.map { Self.option($0) })
+        }
+        permissions = value.permissions.map { Self.option($0) }
+    }
+
+    private static func option(_ value: RemoteCatalogOption) -> CatalogOption {
+        CatalogOption(id: value.id, title: value.title, detail: value.detail,
+                      selectionID: value.selectionID, isDefault: value.isDefault,
+                      isEnabled: value.isEnabled, disabledReason: value.disabledReason)
+    }
+}
+
+/// Catalog IDs label UI choices; only opaque selection IDs cross the API boundary.
+@MainActor @Observable
+final class ConversationSettings {
+    private(set) var catalog = ChatSettingsCatalog()
+    private(set) var modelID = ""
+    private(set) var reasoningID = ""
+    private(set) var permissionID = ""
+
+    var model: ChatModelOption? { catalog.models.first { $0.id == modelID } }
+    var reasoning: CatalogOption? { model?.reasoning.first { $0.id == reasoningID } }
+    var permission: CatalogOption? { catalog.permissions.first { $0.id == permissionID } }
+    var modelLabel: String {
+        let parts = [model?.option.title, reasoning?.title].compactMap { $0 }
+        return parts.isEmpty ? String(localized: "默认模型") : parts.joined(separator: " · ")
+    }
+    var selections: [V2RuntimeSelectionScope: V2SelectionID] {
+        var result: [V2RuntimeSelectionScope: V2SelectionID] = [:]
+        result[.model] = reasoning?.selectionID ?? model?.option.selectionID
+        result[.permission] = permission?.selectionID
+        return result
+    }
+    var hasValidSelections: Bool {
+        (catalog.models.isEmpty || selections[.model] != nil)
+            && (catalog.permissions.isEmpty || selections[.permission] != nil)
+    }
+
+    func replace(_ catalog: ChatSettingsCatalog, selections: [V2RuntimeSelectionScope: V2SelectionID] = [:], defaults: Bool = true) {
+        self.catalog = catalog
+        modelID = ""; reasoningID = ""; permissionID = ""
+        let selection = selections[.model]
+        for model in catalog.models where model.option.isEnabled {
+            if let selection, model.option.selectionID == selection {
+                modelID = model.id; break
+            }
+            if let selection, let reasoning = model.reasoning.first(where: { $0.isEnabled && $0.selectionID == selection }) {
+                modelID = model.id; reasoningID = reasoning.id; break
+            }
+        }
+        if modelID.isEmpty, defaults,
+           let model = catalog.models.first(where: { $0.option.isDefault && $0.option.isEnabled })
+               ?? catalog.models.first(where: { $0.option.isEnabled }) {
+            _ = selectModel(model.id)
+        }
+        permissionID = catalog.permissions.first { $0.isEnabled && $0.selectionID == selections[.permission] }?.id ?? ""
+        if permissionID.isEmpty, defaults {
+            permissionID = catalog.permissions.first { $0.isDefault && $0.isEnabled }?.id
+                ?? catalog.permissions.first { $0.isEnabled }?.id ?? ""
+        }
+    }
+
+    @discardableResult func selectModel(_ id: String, reasoning reasoningID: String = "") -> Bool {
+        guard let model = catalog.models.first(where: { $0.id == id && $0.option.isEnabled }) else { return false }
+        let chosen = reasoningID.isEmpty
+            ? model.reasoning.first(where: { $0.isDefault && $0.isEnabled }) ?? model.reasoning.first(where: { $0.isEnabled })
+            : model.reasoning.first(where: { $0.id == reasoningID && $0.isEnabled })
+        guard reasoningID.isEmpty || chosen != nil,
+              model.option.selectionID != nil || chosen?.selectionID != nil else { return false }
+        modelID = id; self.reasoningID = chosen?.id ?? ""
+        return true
+    }
+
+    @discardableResult func selectPermission(_ id: String) -> Bool {
+        guard catalog.permissions.contains(where: { $0.id == id && $0.isEnabled && $0.selectionID != nil }) else { return false }
+        permissionID = id
+        return true
+    }
+}
