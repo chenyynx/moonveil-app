@@ -38,6 +38,10 @@ final class RemoteNewSessionModel: ObservableObject {
     /// 当前设备的家目录（解析后；官方 homePath）。
     var homePath: String? { selectedConnectorId.flatMap { homePaths[$0] } }
 
+    /// 官方的 isPreparing（目标准备中）在本仓的等价：选中设备后正在拉取
+    /// 运行时清单（targetButton 的转圈指示）。
+    var isPreparing: Bool { selectedConnector != nil && !runtimesLoaded }
+
     /// 当前工作目录是否 = 家目录（官方 isHome）。
     var isHome: Bool {
         guard let homePath, !workspacePath.isEmpty else { return false }

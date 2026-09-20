@@ -158,7 +158,7 @@ struct RemoteNewSessionView: View {
                 .frame(maxWidth: horizontalSizeClass == .regular ? 280 : 210, alignment: .leading)
                 .fixedSize(horizontal: true, vertical: false)
                 Group {
-                    if model.runtimesLoading { ProgressView().controlSize(.mini) }
+                    if model.isPreparing { ProgressView().controlSize(.mini) }
                     else { AppSymbol("chevron.down", size: 12) }
                 }.frame(width: 14, height: 14)
             }
