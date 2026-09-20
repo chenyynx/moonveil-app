@@ -1334,7 +1334,18 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
   - ~~`editCreation`（官方「编辑已发回合 → 回填新会话草稿」）：…无草稿回填入口 → 不接~~ → **已接通**（Doris, 2026-09-21，pp「接」）：
     `V2RemoteChatServices.editCreation` 暂存 `pendingEditCreation`（meta + pending）→ `onReturnToNewSession` 关聊天页 + 开新会话页 → `RemoteNewSessionView.task` 消费暂存 → `RemoteNewSessionModel.restoreCreationDraft` 回填文本 + 附件并聚焦原会话目标（connectorId/cwd/projectId/runtimeType），含官方草稿冲突守卫。`SessionChatModel.onEditCreation` 按官方逐字接回。
     > P1 自审的「facade 无回填 API」判断修正：`ComposerDraft.text`/`.attachments` 开放可写，缺的只是「跨页面传递 + 目标聚焦」胶水，非不可为。
-  - 后台落盘钩子：官方 `setAppInBackground`（`AgentsAnywhereApp.swift:23` 的 App 根 `scenePhase` → `flushCache()` + `sessionRepository.suspend()/resume()`）未装配——本仓 App 根是 `ContentView`（本机线，死隔离禁改）。过渡期缓存持久化由冻结仓库自身的 500ms debounce（`V2DashboardRepository.changed` / `V2SessionModel:178`）+ 登出 `shutdown(removingCache:)` 保证；Glue 的 `flushCache()` 保持官方形状待钩子。需要 pp/Doris 拍：是否在远端线页面根单独装 `scenePhase` 观察者。
+  - ~~后台落盘钩子未装配~~ → **已装配（方案 B）**（Doris, 2026-09-21，pp「b吧」）：
+    Glue 加 `setAppInBackground(_:)` = 官方 `AppState.setAppInBackground`（:747-762）的
+    本仓等价物，仅冻结仓库半段：`flushCache()` + `sessionRepository.suspend()/resume()`
+    + `sessionReads.setActive(!background)`。钩子挂在远端线页面根
+    `RemoteSessionListView.onChange(of: scenePhase)`（App 根 = 本机线，死隔离禁改；
+    services 未就绪短路）。官方 AppState 另有的 agentSetup / accountSync /
+    dashboardUpdatesTask 在本仓另有宿主（配对轮询=AgentSetupCoordinator；
+    列表轮询=RemoteSessionLoader），不在此重复。
+    `sessionReads`（V2SessionReadCoordinator）从组合根剪枝名单移出并全接：
+    reconcile 钩子（AppState:791）+ updateConnectivity（:331）+
+    setVisibleSession（:372，`local:` 前缀不计已读，同官方判据）+
+    onChange（:804，本仓 loader 无单条 upsert → 触发一次列表刷新等价覆盖）。
   - ~~timeline 行内 `file:行号` 引用 chip 的点击跳转（官方跳 Workspace 预览）：跳链未接（P3）~~ → **已接通**（Doris, 2026-09-21，pp「接」）：
     新增 `SessionFileReferenceLinks.rewrite`：送 `SelectableMarkdownView` 渲染前，把命中 `SessionFileReference.inlineReference` 的 inline code 重写成 markdown 链接（判定委托冻结件，与官方 ChatMarkdownView:44-52 同源）；code 节点样式保留，点击走 SessionChatView 已注入的 `.environment(\.openURL)` 拦截器 → workspace 预览。接入点：SessionTimelineRow / SessionTimelineEventView 两处正文渲染。
   - 官方 `sessionReads`（V2SessionReadCoordinator 后台已读编排）成员未接线：文件已编译进 target，等 AppState 级消费者（P3）。

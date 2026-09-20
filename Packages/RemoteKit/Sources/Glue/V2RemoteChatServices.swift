@@ -9,19 +9,24 @@ import Foundation
 ///   (NEWSESSION-* batches); no double owner for the same state.
 /// - `agentSetup`/`agentModels`/`DeviceAgentModel`: pairing polling lives in
 ///   app-layer AgentSetupCoordinator; DeviceAgent wiring lands with P2.
-/// - `sessionReads` (V2SessionReadCoordinator): official AppState-only consumer
-///   (background read-marking); no app consumer yet — kept out until wired.
+/// - `sessionReads` (V2SessionReadCoordinator): wired via `setAppInBackground`
+///   (official AppState:747-762); the scenePhase hook lives on the remote-line page
+///   root (`RemoteSessionListView`) because the App root is the local line —
+///   死隔离 forbids touching it. Same semantics, narrower host.
 /// - `onSelectPage`/`editCreation`：navigation is NavigationStack-based here (no ChatShell
 ///   selection pages); `onReturnToNewSession` + `discardCreation` + `editCreation` together
 ///   carry what the chat page needs: `editCreation` hands the pending round's text +
 ///   attachments to the app-layer facade (`onEditCreation`), which restores the draft on
 ///   `RemoteNewSessionModel` and pops to the new-session page.
-/// - `flushCache` keeps the official shape but has no caller yet: upstream calls it from
-///   `AppState.setAppInBackground`, whose hook sits on the App root (`AgentsAnywhereApp.swift:23`
-///   `.onChange(of: scenePhase)`). Our App root is ContentView = 本机线, 死隔离 forbids touching
-///   it. Cache durability in the meantime comes from the frozen repositories themselves
-///   (500 ms debounce in `V2DashboardRepository.changed` / `V2SessionModel:178`) and the
-///   `shutdown(removingCache:)` already wired on sign-out. Unfinished item, see PATCHES.md.
+/// - `flushCache` + `setAppInBackground`: official calls these from
+///   `AppState.setAppInBackground`, whose hook sits on the App root
+///   (`AgentsAnywhereApp.swift:23` `.onChange(of: scenePhase)`). Our App root is
+///   ContentView = 本机线, 死隔离 forbids touching it → the hook lives on the
+///   remote-line page root (`RemoteSessionListView`) instead (2026-09-21 pp 方案 B).
+///   Same semantics; agentSetup / accountSync / dashboardUpdatesTask are
+///   AppState-owned elsewhere in this repo (pairing polling = AgentSetupCoordinator;
+///   dashboard polling = RemoteSessionLoader), so this only carries the frozen
+///   repo half: flushCache + sessionRepository suspend/resume + sessionReads.
 /// Everything else (scope/localStore/repositories/services/connectivity wiring)
 /// follows the official init verbatim.
 @MainActor
@@ -43,6 +48,8 @@ final class V2RemoteChatServices {
     let devicePairing: V2DevicePairingService
     let deviceManagement: V2DeviceManagementService
     let workspaceFiles: V2WorkspaceFilesService
+    /// 官方 `services.sessionReads`（后台已读编排；setAppInBackground 的被管理方）。
+    let sessionReads = V2SessionReadCoordinator()
 
     init(api: V2APIClient, accountID: String) {
         self.api = api
@@ -74,10 +81,14 @@ final class V2RemoteChatServices {
             connectorAPI: api.connectors,
             serverURL: api.serverURL
         )
+        // 官方 AppState:791 reconcile 钩子：dashboard 事件经 sessionReads 过滤
+        dashboardRepository.reconcile = { [weak self] in self?.sessionReads.ingest($0) ?? $0 }
         connectivity.onChange = { [weak self] status in
             guard let self else { return }
             self.sessionRepository.updateConnectivity(status)
             self.dashboardRepository.updateNetwork(status)
+            // 官方 AppState:331：网络变化同步给已读编排
+            self.sessionReads.updateConnectivity(status)
             self.onConnectivityChange?(status)
         }
         connectivity.start()
@@ -119,6 +130,21 @@ final class V2RemoteChatServices {
     /// 「跨页面传递」通道：editCreation 存入 → 新会话页 .task 取出回填 → 清空）。
     /// 消费方：RemoteNewSessionView.task；RemoteSessionListView 负责打开该页。
     var pendingEditCreation: (V2SessionMeta, V2PendingMessage)?
+
+    /// 官方 `AppState.setAppInBackground` 的本仓等价物（方案 B：钩子挂在远端线
+    /// 页面根 RemoteSessionListView，不碰 App 根）。只承载冻结仓库半段：
+    /// flushCache + sessionRepository suspend/resume + sessionReads。
+    /// AppState 拥有的其余件（agentSetup / accountSync / dashboardUpdatesTask）
+    /// 在本仓另有宿主（配对轮询=AgentSetupCoordinator；列表轮询=RemoteSessionLoader）。
+    func setAppInBackground(_ background: Bool) {
+        sessionReads.setActive(!background)
+        if background {
+            Task { await flushCache() }
+            sessionRepository.suspend()
+        } else {
+            sessionRepository.resume()
+        }
+    }
 
     func flushCache() async {
         await dashboardRepository.flushCache()

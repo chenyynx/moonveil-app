@@ -100,6 +100,9 @@ struct RemoteSessionListView: View {
     /// 的本仓等价物：无常驻 connectors 镜像 → 就绪时拉一次，供聊天页副标题与文件页标题。
     @State private var connectorNames: [String: String] = [:]
     @Environment(\.dismiss) private var dismiss
+    /// 官方 AgentsAnywhereApp.swift:23 的后台钩子（方案 B：App 根属本机线，
+    /// 死隔离禁动 → 挂远端线页面根；services 未就绪时短路）。
+    @Environment(\.scenePhase) private var scenePhase
     // 底栏搜索（与本机同款交互：即时过滤标题、键盘收起三出口）
     @State private var searchText = ""
     @FocusState private var searchFocused: Bool
@@ -145,6 +148,12 @@ struct RemoteSessionListView: View {
             .sheet(isPresented: $showsArchives) {
                 RemoteArchivedSessionsSheet(service: service)
             }
+            .onChange(of: scenePhase) { _, phase in
+                // 官方 AppState.setAppInBackground：进后台 flushCache+suspend，
+                // 回前台 resume。services 未就绪（未登录/未 bootstrap）时短路。
+                guard let services = service.chat else { return }
+                services.setAppInBackground(phase == .background)
+            }
             .onAppear {
                 guard service.state == .ready else { return }
                 loader.load(service: service, filter: archiveFilter)
@@ -175,6 +184,17 @@ struct RemoteSessionListView: View {
                     // 官方 AppState.makeV2Services → services.restoreCache(selection:)：
                     // 进页面先把本地缓存铺进仓库（离线可见），网络回来再覆盖。
                     await services.restoreCache(selection: .session(id))
+                    // 官方 AppState:372 sessionReads.setVisibleSession：
+                    // local: 前缀的本地草稿不计已读，同官方判据。
+                    services.sessionReads.setVisibleSession(
+                        id.hasPrefix("local:") ? nil : id)
+                    // 官方 AppState:804 sessionReads.onChange：已读态变化投影回列表。
+                    // 本仓列表项由 RemoteSessionLoader 持有（无单条 upsert API）→
+                    // 已读变化触发一次列表刷新等价覆盖，refresh 内部自带节流。
+                    services.sessionReads.onChange = { [weak self] _ in
+                        guard let self, self.service.state == .ready else { return }
+                        self.loader.load(service: self.service, filter: self.archiveFilter)
+                    }
                     // 「返回编辑」跳页通道（官方 onSelectPage(.newSession) 的本仓等价物）：
                     // 聊天页 editCreation 暂存草稿后回调这里 → 关聊天页 + 开新会话页。
                     services.onReturnToNewSession = { [weak self] in
