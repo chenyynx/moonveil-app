@@ -19,40 +19,42 @@ struct RemoteNewSessionView: View {
     var onCreated: (String) -> Void = { _ in }
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var model = RemoteNewSessionModel()
     @State private var showsTarget = false
     @State private var showsWorkspace = false
 
     var body: some View {
         NavigationStack {
-            GeometryReader { viewport in
-                ScrollView {
-                    VStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        VStack(alignment: .leading, spacing: 28) {
+            GeometryReader { geometry in
+                GeometryReader { viewport in
+                    ScrollView {
+                        RemoteNewSessionContentLayout(viewportHeight: max(0, viewport.size.height - 48)) {
                             RemoteNewSessionWelcomeView { workspaceButton }
                             statusContent
                         }
                         .padding(24)
-                        .frame(maxWidth: 760, alignment: .leading)
+                        .frame(maxWidth: 760)
                         .frame(maxWidth: .infinity)
-                        Spacer(minLength: 0)
                     }
-                    .frame(minHeight: viewport.size.height)
+                    .scrollDismissesKeyboard(.interactively)
+                    .refreshable { await model.refresh(service: service) }
                 }
-                .scrollDismissesKeyboard(.interactively)
-                .refreshable { await model.refresh(service: service) }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    composer
+                }
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) { composer }
-            .navigationBarTitleDisplayMode(.inline)
+            // 官方 ChatPageToolbar（title: "" + onMenu）——顶栏直接用官方组件，
+            // 不再自建（pp 2026-09-20「让你直接用？你是照着改？」）。
+            .modifier(ChatPageToolbar(title: "", onMenu: { dismiss() }))
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { closeButton }
                 ToolbarItem(placement: .topBarTrailing) { targetButton }
             }
         }
-        // 官方 ChatDetailNavigation 同款：整页 tint = primaryControlBackground
-        // （黑/白）。系统工具栏玻璃与控件据此呈中性色（pp 指出的紫色胶囊
-        // 即缺此覆盖时系统对 accent 染色所致）。
+        // 官方 ChatDetailNavigation 非 drawer 分支的两个视觉点（drawer 宿主逻辑
+        // 依赖官方侧栏体系，本仓无侧栏不搬）：systemBackground 背景 +
+        // primaryControl tint（黑/白）——系统玻璃与控件据此呈中性色。
+        .background(Color(uiColor: .systemBackground))
         .tint(AppTheme.primaryControlBackground(colorScheme))
         .sheet(isPresented: $showsTarget) {
             RemoteNewSessionTargetSheet(model: model, service: service)
@@ -131,41 +133,39 @@ struct RemoteNewSessionView: View {
 
     // MARK: - 顶栏（关闭 + 目标胶囊）
 
-    private var closeButton: some View {
-        // 官方工具栏按钮同款：裸字形，系统负责玻璃圆与按压态。
-        Button { dismiss() } label: {
-            AppSymbol("xmark", size: 17)
-                .foregroundStyle(.primary)
-        }
-        .accessibilityLabel("关闭")
-    }
-
-    /// 目标胶囊：官方 targetButton ——「设备和 Agent · 设备名 ˅」。
+    /// 目标胶囊：官方 targetButton 逐字（remote 适配仅两处：model.draft.isFocused
+    /// → resignFirstResponder；model.runtime/model.connector → 本仓 model 字段。
+    /// 含官方的 maxWidth/fixedSize/Group 尺寸细节——胶囊交给系统工具栏玻璃）。
     private var targetButton: some View {
         Button {
             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
                                             to: nil, from: nil, for: nil)
             showsTarget = true
         } label: {
-            // 官方 targetButton 同款：裸内容，无自定义背景/内边距——胶囊由
-            // iOS 26 系统工具栏玻璃自动呈现（pp「为什么要改颜色」教训：
-            // 自画 background 会让系统玻璃与颜色表现全部偏离官方）。
             HStack(spacing: 8) {
                 HStack(spacing: 4) {
-                    Text(model.targetRuntimeName)
+                    Text(model.selectedRuntime?.displayName ?? String(localized: "运行目标"))
                         .fontWeight(.semibold).layoutPriority(1)
-                    Text(verbatim: "·").foregroundStyle(.secondary)
-                    Text(verbatim: model.targetDeviceName)
-                        .foregroundStyle(.secondary).truncationMode(.middle)
+                    if let device = model.selectedConnector {
+                        Text(verbatim: "·").foregroundStyle(.secondary)
+                        Text(verbatim: device.name).foregroundStyle(.secondary)
+                            .truncationMode(.middle)
+                    }
                 }
                 .font(.subheadline)
                 .lineLimit(1)
-                AppSymbol("chevron.down", size: 12)
+                .frame(maxWidth: horizontalSizeClass == .regular ? 280 : 210, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: false)
+                Group {
+                    if model.runtimesLoading { ProgressView().controlSize(.mini) }
+                    else { AppSymbol("chevron.down", size: 12) }
+                }.frame(width: 14, height: 14)
             }
         }
         .disabled(model.isCreating)
-        .accessibilityLabel("选择设备和 Agent")
-        .accessibilityValue([model.targetRuntimeName, model.targetDeviceName].joined(separator: " · "))
+        .accessibilityLabel(String(localized: "选择设备和 Agent"))
+        .accessibilityValue([model.selectedRuntime?.displayName, model.selectedConnector?.name].compactMap { $0 }.joined(separator: " · "))
+        .accessibilityIdentifier("chat.new.target")
     }
 
     // MARK: - Composer（官方 ChatComposerDock 形态的基础版）
@@ -235,5 +235,32 @@ struct RemoteNewSessionView: View {
                 dismiss()
             }
         }
+    }
+}
+
+/// Center the welcome and workspace alone. Notices flow below that anchor and
+/// extend the scrollable page when needed, rather than recentering the welcome.
+/// （AA 官方 NewSessionView.swift 底部 NewSessionContentLayout 逐字，改名。）
+private struct RemoteNewSessionContentLayout: Layout {
+    let viewportHeight: CGFloat
+    private let spacing: CGFloat = 28
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.replacingUnspecifiedDimensions().width
+        let childProposal = ProposedViewSize(width: width, height: nil)
+        let welcome = subviews[0].sizeThatFits(childProposal)
+        let status = subviews[1].sizeThatFits(childProposal)
+        let top = max(0, (viewportHeight - welcome.height) / 2)
+        let statusHeight = status.height > 0 ? spacing + status.height : 0
+        return CGSize(width: width, height: max(viewportHeight, top + welcome.height + statusHeight))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let childProposal = ProposedViewSize(width: bounds.width, height: nil)
+        let welcome = subviews[0].sizeThatFits(childProposal)
+        let top = max(0, (viewportHeight - welcome.height) / 2)
+        subviews[0].place(at: CGPoint(x: bounds.minX, y: bounds.minY + top), anchor: .topLeading, proposal: childProposal)
+        subviews[1].place(at: CGPoint(x: bounds.minX, y: bounds.minY + top + welcome.height + spacing),
+            anchor: .topLeading, proposal: childProposal)
     }
 }
