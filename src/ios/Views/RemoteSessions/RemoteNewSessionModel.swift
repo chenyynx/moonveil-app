@@ -94,19 +94,20 @@ final class RemoteNewSessionModel: ObservableObject {
         case agentNotReady
 
         var title: String {
+            // 全部为官方 zh-Hans 显示值（key ≠ 显示值的已按 xcstrings 实际值）。
             switch self {
-            case .loadingDevices: "正在查找设备…"
-            case .noDevices: "还没有可用设备"
+            case .loadingDevices: "加载设备中..."
+            case .noDevices: "当前没有在线设备"
             case .deviceOffline: "目标设备离线"
-            case .loadingAgent: "正在检查 Agent…"
-            case .noAgents: "这台设备尚无已配置的 Agent。"
-            case .agentNotReady: "选择一个已就绪的 Agent"
+            case .loadingAgent: "正在发现…"
+            case .noAgents: "还没有配置 Runtime。"
+            case .agentNotReady: "选择代理"
             }
         }
         var detail: String {
             switch self {
             case .loadingDevices: ""
-            case .noDevices(let error): error ?? "从列表配对设备，连接后即可开始。"
+            case .noDevices(let error): error ?? "添加设备后才能选择项目或开始会话。"
             case .deviceOffline: "等待它重新连接，或选择其他在线设备。草稿会继续保留。"
             case .loadingAgent: ""
             case .noAgents: "可在设备管理中配置或启动实例。"

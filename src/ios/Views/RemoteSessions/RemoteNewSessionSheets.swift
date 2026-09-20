@@ -37,7 +37,7 @@ struct RemoteNewSessionTargetSheet: View {
         NavigationStack {
             List {
                 if devices.isEmpty {
-                    ContentUnavailableView("没有设备", appSymbol: "desktopcomputer")
+                    ContentUnavailableView("无设备。", appSymbol: "desktopcomputer")
                 }
                 Section {
                     ForEach(devices) { device in
@@ -48,7 +48,7 @@ struct RemoteNewSessionTargetSheet: View {
                     Section { Text(error).font(.footnote).foregroundStyle(.secondary) }
                 }
             }
-            .navigationTitle("运行目标")
+            .navigationTitle("设备和 Agent")   // 官方 key「运行目标」的 zh-Hans 显示值
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { SheetCloseToolbar(disabled: applying != nil) { dismiss() } }
             .refreshable {
@@ -115,12 +115,12 @@ struct RemoteNewSessionTargetSheet: View {
             if loadingDevices.contains(device.id) {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("正在检查 Agent…").font(.footnote).foregroundStyle(.secondary)
+                    Text("正在发现…").font(.footnote).foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 6)
             } else if let error = inventoryErrors[device.id] {
                 Text(error).font(.footnote).foregroundStyle(.secondary)
-                Button("重新加载") { Task { await loadInventory(device.id) } }
+                Button("刷新") { Task { await loadInventory(device.id) } }
                     .disabled(!device.isOnline)
             } else {
                 let inventory = (inventories[device.id] ?? []).sorted {
@@ -128,7 +128,7 @@ struct RemoteNewSessionTargetSheet: View {
                         < ($1.available ? 0 : 1, $1.displayName, $1.runtimeType)
                 }
                 if inventory.isEmpty, device.isOnline {
-                    Text("这台设备尚无已配置的 Agent。")
+                    Text("还没有配置 Runtime。")
                         .font(.footnote).foregroundStyle(.secondary)
                         .padding(.vertical, 6)
                 }
@@ -167,7 +167,8 @@ struct RemoteNewSessionTargetSheet: View {
     }
 
     private func deviceDetail(_ device: RemoteConnector) -> String {
-        let status = device.isOnline ? "Online" : "Offline"
+        // 官方 key「Online」/「Offline」的 zh-Hans 显示值。
+        let status = device.isOnline ? "在线" : "离线"
         return [device.deviceOs, status].compactMap { $0 }.joined(separator: " · ")
     }
 
@@ -199,7 +200,7 @@ struct RemoteNewSessionTargetSheet: View {
             )
             applying = nil
             if accepted { dismiss() }
-            else { selectionError = "当前设置未保存，请稍后重试。" }
+            else { selectionError = "无法更新模型或权限。" }   // 官方 zh-Hans 显示值
         }
     }
 }
@@ -210,6 +211,7 @@ struct RemoteNewSessionWorkspaceSheet: View {
     @ObservedObject var model: RemoteNewSessionModel
     @ObservedObject var service: RemoteService
     @Environment(\.dismiss) private var dismiss
+    @State private var showsProjectEditor = false
 
     var body: some View {
         NavigationStack {
@@ -217,11 +219,11 @@ struct RemoteNewSessionWorkspaceSheet: View {
                 Section {
                     Label(model.selectedConnector?.name ?? "选择设备", appSymbol: "desktopcomputer")
                     if let connector = model.selectedConnector, !connector.isOnline {
-                        Label("设备或网络已离线，已保存的项目仍可选择。", appSymbol: "wifi.slash")
+                        Label("设备或网络已离线，已保存的目录仍可选择。", appSymbol: "wifi.slash")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }
-                Section("这台设备上的项目") {
+                Section("项目") {   // 官方 key「这台设备上的项目」的 zh-Hans 显示值
                     ForEach(model.availableProjects) { project in
                         Button {
                             model.selectProject(project)
@@ -250,10 +252,16 @@ struct RemoteNewSessionWorkspaceSheet: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    if model.availableProjects.isEmpty {
-                        Text(model.projectsLoaded ? "还没有项目。用项目头的 + 先创建一个。" : "正在加载项目…")
+                    if !model.projectsLoaded {
+                        Text("正在加载项目…")
                             .foregroundStyle(.secondary)
                     }
+                    // 官方 ProjectSelectionSheet：项目列表后的「创建项目」入口
+                    // （folder.badge.plus → ProjectEditorSheet）。
+                    Button("创建项目", appSymbol: "folder.badge.plus") {
+                        showsProjectEditor = true
+                    }
+                    .disabled(model.selectedConnector == nil)
                 }
                 if let error = model.projectsError {
                     Section { Text(error).font(.footnote).foregroundStyle(.secondary) }
@@ -265,5 +273,8 @@ struct RemoteNewSessionWorkspaceSheet: View {
             .refreshable { await model.refresh(service: service) }
         }
         .appSheetPresentation(.compact)
+        .sheet(isPresented: $showsProjectEditor) {
+            RemoteProjectEditorSheet(service: service)
+        }
     }
 }

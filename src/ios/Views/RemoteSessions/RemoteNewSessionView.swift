@@ -87,7 +87,7 @@ struct RemoteNewSessionView: View {
                         Button("选择其他设备") { showsTarget = true }
                     }
                     if case .agentNotReady = status {
-                        Button("选择 Agent") { showsTarget = true }
+                        Button("选择代理") { showsTarget = true }
                     }
                 }
                 .multilineTextAlignment(.leading)
@@ -144,7 +144,8 @@ struct RemoteNewSessionView: View {
         } label: {
             HStack(spacing: 8) {
                 HStack(spacing: 4) {
-                    Text(model.selectedRuntime?.displayName ?? String(localized: "运行目标"))
+                    // 官方 key「运行目标」的 zh-Hans 显示值 = 「设备和 Agent」
+                    Text(model.selectedRuntime?.displayName ?? String(localized: "设备和 Agent"))
                         .fontWeight(.semibold).layoutPriority(1)
                     if let device = model.selectedConnector {
                         Text(verbatim: "·").foregroundStyle(.secondary)
