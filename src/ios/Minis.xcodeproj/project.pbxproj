@@ -600,6 +600,7 @@
 		RK2E3D9E03F9A5401927FD95 /* V2SessionAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK0119D6FFA49389FF76390F /* V2SessionAPI.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RK30E248D71DC1E723A32BC9 /* V2RuntimeCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK050A422F90A278039C51D2 /* V2RuntimeCatalog.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RK3ABEBA10EB582DB7A2466F /* V2SessionCreationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK2A0D84D995C1476CD63E64 /* V2SessionCreationService.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK8AC74AC6B53B433C84CD8EA6 /* V2SessionPreparationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK5960122CA5834F3BAF7827E8 /* V2SessionPreparationService.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RK3E123EAE3B6A194BEEB9DE /* V2Connector.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKC10E00CD4B4D5693FDF777 /* V2Connector.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RK4586C3552A2D15DD0C25F9 /* V2WorkspaceFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK2ECDB143D1432442D1808C /* V2WorkspaceFiles.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RK4E256035471AF2EEF870A3 /* RemoteSessionServing.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK94D4EAF6CF4C89609010C3 /* RemoteSessionServing.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
@@ -1388,6 +1389,7 @@
 		RK22657518C931B903CF4C82 /* V2RuntimeCapability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RuntimeCapability.swift; sourceTree = "<group>"; };
 		RK25D135219623EB2AA7CE6A /* V2SessionTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionTimeline.swift; sourceTree = "<group>"; };
 		RK2A0D84D995C1476CD63E64 /* V2SessionCreationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionCreationService.swift; sourceTree = "<group>"; };
+		RK5960122CA5834F3BAF7827E8 /* V2SessionPreparationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionPreparationService.swift; sourceTree = "<group>"; };
 		RK2E1A4F0317161CE8AEA74E /* V2SessionData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionData.swift; sourceTree = "<group>"; };
 		RK2ECDB143D1432442D1808C /* V2WorkspaceFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2WorkspaceFiles.swift; sourceTree = "<group>"; };
 		RK3F64C2DFF3744F87C6BE91 /* ServerNetworkPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerNetworkPolicy.swift; sourceTree = "<group>"; };
@@ -2676,6 +2678,7 @@
 			isa = PBXGroup;
 			children = (
 				RKF693C48379EBEA047D26D8 /* V2BusinessError.swift */,
+				RK5960122CA5834F3BAF7827E8 /* V2SessionPreparationService.swift */,
 				RK2A0D84D995C1476CD63E64 /* V2SessionCreationService.swift */,
 			);
 			path = "Business";
@@ -3726,6 +3729,7 @@
 				RK705BFC0CB5059CC0370E6E /* V2RuntimeAPI.swift in Sources */,
 				RK2E3D9E03F9A5401927FD95 /* V2SessionAPI.swift in Sources */,
 				RKD33B2E987B21CF60A8F24D /* V2BusinessError.swift in Sources */,
+				RK8AC74AC6B53B433C84CD8EA6 /* V2SessionPreparationService.swift in Sources */,
 				RK3ABEBA10EB582DB7A2466F /* V2SessionCreationService.swift in Sources */,
 				RKADEA4BF291842ED0CD3B43 /* V2AccountModels.swift in Sources */,
 				RKF73F37D7D31F51FBE85BDE /* V2AttachmentModels.swift in Sources */,
