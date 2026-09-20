@@ -21,6 +21,15 @@ enum BottomBarFence {
     nonisolated(unsafe) static var topY: CGFloat = 0
 }
 
+/// [REMOTE-ROW-FENCE] 远端卡堆区的窗口坐标顶沿 —— 由 RemoteSessionListView 的首卡上报。
+/// 页切手势在该区域让位：卡片自带 swipeActions（置顶/归档/删除），行手势必须优先
+/// （pp 2026-09-20「卡片我往右滑怎么切换页了」——右滑卡被 dx>0 → 切回本机 的判定抢走；
+/// 这是 B13「列表横滑切 tab」与行手势的冲突面，仅对 Remote 卡堆收窄，本机不动）。
+/// 未上报/无卡 = greatestFiniteMagnitude → `start.y >= topY` 恒假 = 不排除。
+enum RemoteRowsFence {
+    nonisolated(unsafe) static var topY: CGFloat = .greatestFiniteMagnitude
+}
+
 @MainActor
 struct RootModeTabsView: View {
     @StateObject private var router = RootTabRouter.shared
@@ -158,6 +167,10 @@ struct RootModeTabsView: View {
                     ? BottomBarFence.topY - Self.bottomBarFenceMargin
                     : Self.screenHeight - Self.bottomBarZoneHeight
                 guard start.y < fenceTop else { return }
+                // [REMOTE-ROW-FENCE] pp 2026-09-20「卡片我往右滑怎么切换页了」：
+                // 远端卡堆区让位给行手势（swipeActions 是卡片一级操作）；首卡顶沿由
+                // RemoteSessionListView 上报，未上报 = 不排除。
+                if router.mode == .remote, start.y >= RemoteRowsFence.topY { return }
                 let inBubbleZone = start.y > Self.screenHeight - Self.bubbleZoneHeight
                     && start.x > Self.screenWidth - Self.bubbleZoneWidth
                 guard !inBubbleZone else { return }

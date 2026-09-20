@@ -1222,3 +1222,14 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离**：只动 RemoteSessionListView.swift 一个属性；配对玻璃 CTA（pp 指定保留）与本机 tab 零改动。
 - **回归项**：① 右上角为原生裸字形，系统按压反馈正常 ② 菜单两项可用 ③ 与 ☰/胶囊布局不冲突 ④ 深色模式。
 - **验证**：静态（断言式替换 + glass 残留计数 1 = 仅配对按钮）；**编译与回归需 CI + 装机**。
+
+## REMOTE-ROW-FENCE — 卡片横滑不再切页：卡堆区让位给行手势（2026-09-20，pp：「卡片我往右滑怎么切换页了」）
+
+- **根因**：B13 的整页横滑（列表区生效，pp 当时明确要「列表横滑切 tab」）与卡片 swipeActions 冲突——右滑卡（置顶方向）被页切判定 dx>0 → 切回本机 抢走；行手势从未拿到过。
+- **修复**（仿 BottomBarFence 既有成例）：
+  - A `RootModeTabsView`：新增 `RemoteRowsFence.topY`（未上报 = .greatestFiniteMagnitude 不排除）；页切判定新增「`mode == .remote` 且 `start.y >= topY` → return」（不 arm、不切页）——**只收窄 Remote 卡堆，本机 tab 的「列表横滑切 tab」行为零改动**。
+  - B `RemoteSessionListView`：首卡经 GeometryReader 上报卡堆顶沿（onAppear + onChange，同 ContentView 底栏上报写法）；折叠切换与空态文案行两个复位点（收起/搜索无结果 → 栅栏复位，页切恢复）。
+- **语义**：Remote tab 上「划到卡面上」= 行操作（置顶/归档/删除）；「划在设备卡/配对按钮区」= 切页（本机 ⟷ Remote）。
+- **死隔离**：只动 RootModeTabsView（新增枚举 + 一行判定）与 RemoteSessionListView（reporter + 两复位点）；本机 ContentView/BottomBarFence/现有页切逻辑零改动；不新增文件（零 pbxproj）。
+- **回归项**：① 右滑卡出「置顶」（不再切页）② 左滑卡出「归档/删除」（不切页）③ 自卡堆上方（设备卡/配对区）横滑仍切 tab ④ 本机 tab 横滑切 tab 不受影响 ⑤ 折叠/搜索空态后页切恢复 ⑥ 深色模式。
+- **验证**：静态（断言式替换 + 括号平衡 + 引用计数）；**编译与回归需 CI + 装机**。

@@ -149,6 +149,7 @@ struct RemoteSessionListView: View {
                 if !projectsCollapsed {
                     ForEach(projectItems) { item in
                         sessionRow(item)
+                            .background(firstRowFenceReporter(for: item))
                     }
                     if projectItems.isEmpty {
                         // 搜索无结果 ≠ 没有项目——文案分开，保持诚实
@@ -163,6 +164,10 @@ struct RemoteSessionListView: View {
                             .listRowInsets(EdgeInsets())
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
+                            .onAppear {
+                                // [REMOTE-ROW-FENCE] 卡堆清空（搜索/无项目）→ 栅栏复位
+                                RemoteRowsFence.topY = .greatestFiniteMagnitude
+                            }
                     }
                 }
             }
@@ -253,6 +258,22 @@ struct RemoteSessionListView: View {
             Button { archive(item) } label: { Label("归档", systemImage: "archivebox") }
                 .tint(.gray)
             Button(role: .destructive) { delete(item) } label: { Label("删除", systemImage: "trash") }
+        }
+    }
+
+    /// [REMOTE-ROW-FENCE] 首卡上报卡堆区顶沿（窗口坐标）——页切手势在卡堆区让位给
+    /// 行 swipeActions（pp 2026-09-20「卡片我往右滑怎么切换页了」）。
+    /// 仅首卡挂 reporter（中间卡不报，零额外开销）。
+    @ViewBuilder
+    private func firstRowFenceReporter(for item: RemoteSessionItem) -> some View {
+        if item.id == projectItems.first?.id {
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { RemoteRowsFence.topY = proxy.frame(in: .global).minY }
+                    .onChange(of: proxy.frame(in: .global).minY) { _, y in
+                        RemoteRowsFence.topY = y
+                    }
+            }
         }
     }
 
@@ -481,6 +502,8 @@ struct RemoteSessionListView: View {
         HStack(spacing: 12) {
             Button {
                 withAnimation(.snappy) { projectsCollapsed.toggle() }
+                // [REMOTE-ROW-FENCE] 收起/展开后卡位变化——先复位，展开时首卡会重新上报
+                RemoteRowsFence.topY = .greatestFiniteMagnitude
             } label: {
                 HStack(spacing: 7) {
                     RemoteSpikeMark()
