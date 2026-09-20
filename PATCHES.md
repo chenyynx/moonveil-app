@@ -1233,3 +1233,10 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离**：只动 RootModeTabsView（新增枚举 + 一行判定）与 RemoteSessionListView（reporter + 两复位点）；本机 ContentView/BottomBarFence/现有页切逻辑零改动；不新增文件（零 pbxproj）。
 - **回归项**：① 右滑卡出「置顶」（不再切页）② 左滑卡出「归档/删除」（不切页）③ 自卡堆上方（设备卡/配对区）横滑仍切 tab ④ 本机 tab 横滑切 tab 不受影响 ⑤ 折叠/搜索空态后页切恢复 ⑥ 深色模式。
 - **验证**：静态（断言式替换 + 括号平衡 + 引用计数）；**编译与回归需 CI + 装机**。
+
+## PAIR-TO-TOPBAR — 配对新设备挪进顶栏右上角（2026-09-20，pp：「把配对新设备的按钮放进右上角算了」）
+
+- **改动**：删设备卡下方全宽玻璃胶囊（pairGlassButton/pairButtonControl 整体移除——玻璃件自此全部退场）；顶栏右上角改控件组 = **[＋ 配对新设备]**（直接开 PairDeviceSheet）+ [⋯ 菜单]（归档/断开），均原生裸字形（与本机 tab 工具栏惯例一致）。
+- **死隔离**：只动 RemoteSessionListView.swift；RootModeTabsView/ContentView 零改动；不新增文件（零 pbxproj）。
+- **回归项**：① 右上角 ＋ 弹出配对页 ② ⋯ 菜单两项可用 ③ 设备卡区域无残留玻璃行 ④ 空态按钮不变 ⑤ 深色模式。
+- **验证**：静态（断言式替换 + glass 残留清零 + 括号平衡）；**编译与回归需 CI + 装机**。

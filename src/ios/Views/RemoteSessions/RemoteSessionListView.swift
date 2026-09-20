@@ -8,8 +8,8 @@
 // 不读 ChatStore、不碰 ContentView 的 stackList（死隔离：远端列表与本机列表文件级零交集）。
 //
 // 功能面（AA 官方移动端会话列表全量，不阉割）：
-//   • 设备：深色终端窗卡（三色点 + mono 地址 + CONNECTED）→ 玻璃「配对新设备」
-//     → PairDeviceSheet
+//   • 设备：深色终端窗卡（三色点 + mono 地址 + CONNECTED）；配对新设备 =
+//     顶栏右上角 ＋ → PairDeviceSheet（pp 2026-09-20 挪位）
 //   • 项目：✳ + 13pt tertiary 折叠头（整行点击折叠；chevron 按定稿去掉）＋ 新建
 //     → ProjectEditorSheet；页面级选项（归档/断开）在顶栏右上角 … 玻璃圆
 //   • 会话：暖卡堆（白圆 lucide 头像 + 标题/摘要 + 时间）；状态语义化——
@@ -94,10 +94,9 @@ struct RemoteSessionListView: View {
             .background(RemotePalette.canvas.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // 顶栏右上角选项（pp 2026-09-20：「顶栏右边是不是少了个按钮」——
-                // 本机同位置有 … 工具菜单，TWOMODULE 曾把远端的删成空；归档/断开
-                // 从项目头 … 迁回此处，页面级操作回到顶栏传统位）
-                ToolbarItem(placement: .topBarTrailing) { topBarOptionsButton }
+                // 顶栏右上角：＋ 配对新设备（pp 2026-09-20「把配对新设备的按钮放进
+                // 右上角算了」——替代设备卡下方全宽玻璃胶囊）+ ⋯ 菜单（归档/断开）。
+                ToolbarItem(placement: .topBarTrailing) { topBarTrailingControls }
             }
             .sheet(isPresented: $showsPairSheet) {
                 PairDeviceSheet(service: service)
@@ -140,7 +139,6 @@ struct RemoteSessionListView: View {
                 if pendingNotices > 0 {
                     pendingNoticesRow
                 }
-                pairGlassButton
             }
 
             // —— 项目（✳ + 13pt tertiary 头；会话 = 暖卡堆）——
@@ -455,46 +453,6 @@ struct RemoteSessionListView: View {
         .listRowBackground(Color.clear)
     }
 
-    /// 「配对新设备」= 液态玻璃胶囊（pp 定稿）。iOS 26 = 系统玻璃；低版本回退
-    /// 淡灰胶囊（本仓 deployment < 26，glass API 必须守卫——R3 构建教训；
-    /// 配方同 gear / SearchBarSurface 的既有写法）。
-    private var pairGlassButton: some View {
-        Group {
-            if #available(iOS 26.0, *) {
-                GlassEffectContainer(spacing: 12) {
-                    pairButtonControl
-                        .glassEffect(.regular.interactive(), in: Capsule())
-                }
-            } else {
-                pairButtonControl
-                    .background(Capsule().fill(Color(UIColor.secondarySystemBackground)))
-                    .overlay(Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 1))
-            }
-        }
-        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 6, trailing: 16))
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
-    }
-
-    private var pairButtonControl: some View {
-        Button {
-            showsPairSheet = true
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "plus")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(RemotePalette.coral)
-                Text("配对新设备")
-                    .font(.system(size: 14.5, weight: .semibold))
-                    .foregroundStyle(RemotePalette.ink)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-    }
-
     // MARK: - 项目头（方案 B：✳ + 13pt tertiary 灰——对齐本机时间字级，pp 定稿；
     // 无计数；整行点击折叠（chevron 图标按定稿去掉）；＋ 新建圆钮）
 
@@ -590,6 +548,23 @@ struct RemoteSessionListView: View {
         Divider()
         // 断开连接入口从 RemoteRootView 的状态卡迁移至此（接线时不丢）
         Button("断开连接", role: .destructive, action: onDisconnect)
+    }
+
+    /// 顶栏右上角控件组：＋ 配对新设备（pp 2026-09-20「把配对新设备的按钮放进
+    /// 右上角算了」）+ ⋯ 菜单。均原生裸字形——与本机 tab 工具栏惯例一致，
+    /// 系统提供标准热区与按压反馈。
+    private var topBarTrailingControls: some View {
+        HStack(spacing: 16) {
+            Button {
+                showsPairSheet = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(Color.primary)
+            }
+            .accessibilityLabel(Text("配对新设备"))
+            topBarOptionsButton
+        }
     }
 
     /// 顶栏右上角 …——**原生工具栏样式**（pp 2026-09-20「没用苹果原生？」）：
