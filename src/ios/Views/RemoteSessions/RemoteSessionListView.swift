@@ -141,61 +141,11 @@ struct RemoteSessionListView: View {
             }
     }
 
-    @ViewBuilder
     private var content: some View {
-        if service.state != .ready {
-            // 未连接：仍是列表页布局——设备终端卡提醒连接（pp 2026-09-20），
-            // 会话区不渲染（无数据可列）；加载三态只在已连接后出现。
-            sessionList
-        } else {
-            switch loader.phase {
-            case .idle, .loading:
-                loadingState
-            case .failed(let message):
-                errorState(message)
-            case .loaded:
-                if sessions.isEmpty {
-                    emptyState
-                } else {
-                    sessionList
-                }
-            }
-        }
-    }
-
-    // MARK: - 加载 / 错误态（诚实：加载中说加载中，失败给原因 + 重试）
-
-    private var loadingState: some View {
-        VStack(spacing: 14) {
-            ProgressView()
-            Text("正在加载远程会话…")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .safeAreaInset(edge: .bottom) { bottomBar }
-    }
-
-    private func errorState(_ message: String) -> some View {
-        VStack(spacing: 14) {
-            Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-            Text("加载失败")
-                .font(.title3.bold())
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Button("重试") {
-                loader.load(service: service, filter: archiveFilter, force: true)
-            }
-            .buttonStyle(.borderedProminent)
-            .padding(.top, 4)
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .safeAreaInset(edge: .bottom) { bottomBar }
+        // 页面骨架（设备终端卡 + 项目头 + 底栏）永远在；加载 / 错误 / 空都只
+        // 发生在会话区内部（pp 2026-09-20「这个页面没改？」：整页空态连设备卡
+        // 都吞掉了，未连接/已连接必须同构）。
+        sessionList
     }
 
     // MARK: - 列表（方案 B：深色终端卡 → 玻璃操作 → 项目头 → 暖卡堆）
@@ -216,39 +166,69 @@ struct RemoteSessionListView: View {
             Section {
                 projectHeader
                 if !projectsCollapsed {
-                    if showsAllSessions {
-                        // 全部会话（AA 官方 flat 模式）：平铺卡堆。
-                        ForEach(projectItems) { item in
-                            sessionRow(item)
-                                .background(firstRowFenceReporter(for: item))
+                    switch loader.phase {
+                    case .idle, .loading:
+                        // 加载中也保留页面骨架：状态只在会话区内呈现。
+                        sessionStatusRow {
+                            HStack(spacing: 10) {
+                                ProgressView().controlSize(.small)
+                                Text("正在加载远程会话…")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-                    } else {
-                        // 按项目（AA 官方默认）：项目小标题 + 组内卡堆；未分组殿后。
-                        ForEach(groupedItems) { group in
-                            projectGroupLabel(group.name)
-                            ForEach(group.items) { item in
+                    case .failed(let message):
+                        sessionStatusRow {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("加载失败")
+                                    .font(.system(size: 15, weight: .medium))
+                                Text(message)
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.secondary)
+                                Button("重试") {
+                                    loader.load(service: service, filter: archiveFilter, force: true)
+                                }
+                                .font(.system(size: 14, weight: .medium))
+                            }
+                        }
+                    case .loaded:
+                        if showsAllSessions {
+                            // 全部会话（AA 官方 flat 模式）：平铺卡堆。
+                            ForEach(projectItems) { item in
                                 sessionRow(item)
                                     .background(firstRowFenceReporter(for: item))
                             }
-                        }
-                    }
-                    if projectItems.isEmpty {
-                        // 搜索无结果 ≠ 没有项目——文案分开，保持诚实
-                        Text(searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                             ? (archiveFilter == .archived ? "还没有归档的会话。" : "还没有项目。")
-                             : "没有匹配的会话。")
-                            .font(.system(size: 16))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 16)
-                            .frame(minHeight: 48)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .listRowInsets(EdgeInsets())
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .onAppear {
-                                // [REMOTE-ROW-FENCE] 卡堆清空（搜索/无项目）→ 栅栏复位
-                                RemoteRowsFence.topY = .greatestFiniteMagnitude
+                        } else {
+                            // 按项目（AA 官方默认）：项目小标题 + 组内卡堆；未分组殿后。
+                            ForEach(groupedItems) { group in
+                                projectGroupLabel(group.name)
+                                ForEach(group.items) { item in
+                                    sessionRow(item)
+                                        .background(firstRowFenceReporter(for: item))
+                                }
                             }
+                        }
+                        if projectItems.isEmpty {
+                            // 搜索无结果 ≠ 没数据——文案分开，保持诚实；
+                            // 有项目无会话 vs 没项目 再分开（空态内嵌后）。
+                            Text(searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                 ? (archiveFilter == .archived
+                                    ? "还没有归档的会话。"
+                                    : (loader.projectNames.isEmpty ? "还没有项目。" : "还没有会话。点右下角「新对话」开始。"))
+                                 : "没有匹配的会话。")
+                                .font(.system(size: 16))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 16)
+                                .frame(minHeight: 48)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .listRowInsets(EdgeInsets())
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .onAppear {
+                                    // [REMOTE-ROW-FENCE] 卡堆清空（搜索/无项目）→ 栅栏复位
+                                    RemoteRowsFence.topY = .greatestFiniteMagnitude
+                                }
+                        }
                     }
                 }
             }
@@ -264,6 +244,18 @@ struct RemoteSessionListView: View {
         .navigationDestination(isPresented: $showsDeviceDetail) {
             RemoteDeviceDetailView(service: service)
         }
+    }
+
+    /// 会话区内的状态行（加载 / 错误）——保持页面骨架完整，不替换整页
+    /// （pp 2026-09-20「这个页面没改？」：空态也不许把设备卡吞掉）。
+    private func sessionStatusRow<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
     }
 
     // MARK: - 会话卡（方案 B：暖卡堆——白圆头像 + 标题/摘要 + 时间；状态语义化：
@@ -375,28 +367,6 @@ struct RemoteSessionListView: View {
                         .frame(width: 44, height: 44)
                 }
             }
-    }
-
-    // MARK: - 空态（诚实：没数据就说没数据）
-
-    private var emptyState: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "tray")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-            Text("还没有远程会话")
-                .font(.title3.bold())
-            Text("新建一个会话，或从桌面端开始。")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Button("配对新设备") { showsPairSheet = true }
-                .buttonStyle(.borderedProminent)
-                .padding(.top, 4)
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .safeAreaInset(edge: .bottom) { bottomBar }
     }
 
     // MARK: - 底部栏（与本机同一套配方：BottomBarRecipe + SearchBarSurface +
