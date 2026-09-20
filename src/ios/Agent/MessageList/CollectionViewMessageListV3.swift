@@ -206,7 +206,7 @@ struct CollectionViewMessageListV3: UIViewControllerRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    enum Section { case main }
+    nonisolated enum Section { case main }
 }
 
 // MARK: - V3 Bridged Cell Views (no GeometryReader)
