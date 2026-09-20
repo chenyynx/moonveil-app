@@ -23,7 +23,7 @@ private struct GlassCardIfAvailable: ViewModifier {
     }
 }
 
-private struct GlassCapsuleIfAvailable: ViewModifier {
+private struct RemoteGlassCapsuleIfAvailable: ViewModifier {
     let interactive: Bool
     @ViewBuilder func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
@@ -39,7 +39,7 @@ extension View {
     func remoteGlassCard() -> some View { modifier(GlassCardIfAvailable()) }
     /// 官方 `.glassEffect(.regular[.interactive()], in: .capsule)`。
     func remoteGlassCapsule(interactive: Bool = false) -> some View {
-        modifier(GlassCapsuleIfAvailable(interactive: interactive))
+        modifier(RemoteGlassCapsuleIfAvailable(interactive: interactive))
     }
 }
 

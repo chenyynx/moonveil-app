@@ -1,6 +1,346 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "dashboard.device.runtimeConfigComponents.modelGateway.label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.modelGateway.label"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u6a21\u578b Gateway\uff08\u53ef\u9009\uff09"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.modelGateway.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.modelGateway.description"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u8ba9\u8fd9\u4e2a Runtime \u901a\u8fc7\u517c\u5bb9\u7684\u81ea\u5b9a\u4e49 Gateway \u53d1\u9001\u6a21\u578b\u8bf7\u6c42\u3002\u4e24\u4e2a\u5b57\u6bb5\u90fd\u7559\u7a7a\u65f6\uff0c\u7ee7\u7eed\u4f7f\u7528 Runtime \u9ed8\u8ba4\u7684\u6a21\u578b\u5730\u5740\u548c\u8ba4\u8bc1\u3002"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.modelGateway.requiredLabel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.modelGateway.requiredLabel"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u6a21\u578b Gateway"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.modelGateway.requiredDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.modelGateway.requiredDescription"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u65b0 Codex \u5b9e\u4f8b\u5fc5\u987b\u4f7f\u7528\u6a21\u578b Gateway\uff0c\u8bf7\u586b\u5199 Gateway \u5730\u5740\u548c API Key\u3002"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.customModels.label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.customModels.label"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u81ea\u5b9a\u4e49\u6a21\u578b\uff08\u53ef\u9009\uff09"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.customModels.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.customModels.description"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u624b\u52a8\u6dfb\u52a0\u8981\u663e\u793a\u5728\u6a21\u578b\u9009\u62e9\u5668\u91cc\u7684\u6a21\u578b\uff0c\u4ee5\u53ca\u6bcf\u4e2a\u6a21\u578b\u53ef\u7528\u7684\u63a8\u7406\u5f3a\u5ea6\u3002"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.keyValue.label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.keyValue.label"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u73af\u5883\u53d8\u91cf\uff08\u53ef\u9009\uff09"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.keyValue.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.keyValue.description"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u542f\u52a8\u8fd9\u4e2a Runtime \u65f6\u8ffd\u52a0\u6216\u8986\u76d6\u7684\u73af\u5883\u53d8\u91cf\u3002"
+          }
+        }
+      }
+    },
+    "dashboard.device.showModelGatewayApiKey": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.showModelGatewayApiKey"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u663e\u793a Gateway API Key"
+          }
+        }
+      }
+    },
+    "dashboard.device.hideModelGatewayApiKey": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.hideModelGatewayApiKey"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u9690\u85cf Gateway API Key"
+          }
+        }
+      }
+    },
+    "dashboard.device.agentRuntimes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.agentRuntimes"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent Runtime"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeNamePlaceholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeNamePlaceholder"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runtime \u5b9e\u4f8b\u540d\u79f0"
+          }
+        }
+      }
+    },
+    "dashboard.pairDevice.quickAdd": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.pairDevice.quickAdd"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u5feb\u901f\u6dfb\u52a0"
+          }
+        }
+      }
+    },
+    "dashboard.device.configure": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.configure"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u914d\u7f6e"
+          }
+        }
+      }
+    },
+    "dashboard.device.archiveSelected": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.archiveSelected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u5f52\u6863\u5df2\u9009\u62e9"
+          }
+        }
+      }
+    },
+    "dashboard.device.unarchiveSelected": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.unarchiveSelected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u53d6\u6d88\u5f52\u6863\u5df2\u9009\u62e9"
+          }
+        }
+      }
+    },
+    "Gateway URL": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway URL"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway \u5730\u5740"
+          }
+        }
+      }
+    },
+    "Gateway API key": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway API key"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway API Key"
+          }
+        }
+      }
+    },
+    "Show secret": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show secret"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u663e\u793a\u5bc6\u94a5"
+          }
+        }
+      }
+    },
+    "Hide secret": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide secret"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\u9690\u85cf\u5bc6\u94a5"
+          }
+        }
+      }
+    },
     "Block Spacing": {
       "localizations": {
         "en": {

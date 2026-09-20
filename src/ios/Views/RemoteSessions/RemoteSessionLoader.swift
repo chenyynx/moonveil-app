@@ -32,11 +32,32 @@ final class RemoteSessionLoader: ObservableObject {
     @Published private(set) var archivedPhase: Phase = .idle
     /// 最近一次写操作错误（乐观回滚时点亮，供 UI 诚实展示）。
     @Published private(set) var writeError: String?
+    /// P3-3 错误分类（官方判据 = V2ClientFailure：网络中断/鉴权失效/数据不兼容——
+    /// ChatToastStore 按 kind 出中文标题，源串保留原文）。写面与加载面各一。
+    @Published private(set) var writeFailure: V2ClientFailure?
+    /// P3-3：加载面最近一次失败（含 loadMore——分页失败不清已加载列表，只点亮这里）。
+    @Published private(set) var loadFailure: V2ClientFailure?
+    /// P3-1：当前筛选最近一次加载的游标状态（服务端 nextCursor 续拉）。
+    @Published private(set) var isLoadingMore = false
 
     private var loadTask: Task<Void, Never>?
     private var archivedTask: Task<Void, Never>?
     /// 最近一次加载的筛选——变化时才重拉。
     private var lastFilter: RemoteSessionFilter?
+    private var activeCursor: String?
+    private var activeHasMore = false
+    private var archivedCursor: String?
+    private var archivedHasMore = false
+
+    /// 列表页判据：当前筛选还有未到达的页（到页尾时触发 loadMore）。
+    var hasMorePages: Bool {
+        switch lastFilter {
+        case .active: return activeHasMore
+        case .archived: return archivedHasMore
+        case .all: return activeHasMore || archivedHasMore
+        case nil: return false
+        }
+    }
 
     // MARK: - 列表读
 
@@ -47,6 +68,7 @@ final class RemoteSessionLoader: ObservableObject {
         loadTask?.cancel()
         phase = .loading
         writeError = nil
+        writeFailure = nil
         loadTask = Task { [weak self] in
             guard let self else { return }
             do {
@@ -54,16 +76,24 @@ final class RemoteSessionLoader: ObservableObject {
                 let archived: [RemoteSessionMeta]
                 switch filter {
                 case .active:
-                    active = try await service.listSessions(archived: false).sessions
-                    archived = []
+                    let page = try await service.listSessions(archived: false)
+                    active = page.sessions
+                    activeCursor = page.nextCursor; activeHasMore = page.hasMore
+                    archivedCursor = nil; archivedHasMore = false
                 case .archived:
-                    active = []
-                    archived = try await service.listSessions(archived: true).sessions
+                    let page = try await service.listSessions(archived: true)
+                    archived = page.sessions
+                    archivedCursor = page.nextCursor; archivedHasMore = page.hasMore
+                    activeCursor = nil; activeHasMore = false
                 case .all:
-                    async let a = service.listSessions(archived: false).sessions
-                    async let b = service.listSessions(archived: true).sessions
-                    active = try await a
-                    archived = try await b
+                    async let a = service.listSessions(archived: false)
+                    async let b = service.listSessions(archived: true)
+                    let activePage = try await a
+                    let archivedPage = try await b
+                    active = activePage.sessions
+                    archived = archivedPage.sessions
+                    activeCursor = activePage.nextCursor; activeHasMore = activePage.hasMore
+                    archivedCursor = archivedPage.nextCursor; archivedHasMore = archivedPage.hasMore
                 }
                 // 项目名字典：失败不阻断会话列表（名字缺失时回退 projectId 原值）
                 if let projects = try? await service.listProjects() {
@@ -75,10 +105,44 @@ final class RemoteSessionLoader: ObservableObject {
                 let merged = active + archived
                 items = Self.sortedForList(merged).map(Self.map)
                 phase = .loaded
+                loadFailure = nil
             } catch {
                 phase = .failed(error.localizedDescription)
+                loadFailure = V2ClientFailure(error)
             }
         }
+    }
+
+    /// P3-1（2026-09-21）：列表到达页尾时按服务端游标拉下一页。
+    /// 官方 iOS 客户端无常驻列表分页消费方（侧栏 = dashboard 全量快照，
+    /// nextCursor 仅域层 V2SessionAPI 契约——查证记录见 ~/qoder_selfreview_p2p3.md），
+    /// 本方法按服务端分页契约实现。失败不改 phase（已加载内容保持），
+    /// 错误只点亮 loadFailure 供 toast 分类展示。
+    func loadMore(service: RemoteService) async {
+        guard case .loaded = phase, !isLoadingMore, let filter = lastFilter else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+        do {
+            if filter != .archived, activeHasMore, let cursor = activeCursor {
+                let page = try await service.listSessions(archived: false, cursor: cursor)
+                activeCursor = page.nextCursor; activeHasMore = page.hasMore
+                appendSessions(page.sessions)
+            } else if filter != .active, archivedHasMore, let cursor = archivedCursor {
+                let page = try await service.listSessions(archived: true, cursor: cursor)
+                archivedCursor = page.nextCursor; archivedHasMore = page.hasMore
+                appendSessions(page.sessions)
+            }
+        } catch {
+            loadFailure = V2ClientFailure(error)
+        }
+    }
+
+    /// 新一页并入现有列表：按 id 去重（服务端游标窗口可能重叠），排序沿用 resort。
+    private func appendSessions(_ new: [RemoteSessionMeta]) {
+        for m in new.map(Self.map) where !items.contains(where: { $0.id == m.id }) {
+            items.append(m)
+        }
+        resort()
     }
 
     /// 归档页 / 设备页归档筛选的数据源（独立于主筛选）。
@@ -96,6 +160,12 @@ final class RemoteSessionLoader: ObservableObject {
                 archivedPhase = .failed(error.localizedDescription)
             }
         }
+    }
+
+    /// 分页加载失败也回写 writeFailure 之外的加载面判据——统一入口（内部用）。
+    private func markWriteFailure(_ error: Error) {
+        writeError = error.localizedDescription
+        writeFailure = V2ClientFailure(error)
     }
 
     /// 下拉刷新：强制重拉当前筛选（+归档页若已加载过）。
@@ -221,7 +291,7 @@ final class RemoteSessionLoader: ObservableObject {
                     items[ridx].isPinned = !newValue
                     resort()
                 }
-                writeError = error.localizedDescription
+                markWriteFailure(error)
             }
         }
     }
@@ -241,7 +311,7 @@ final class RemoteSessionLoader: ObservableObject {
             } catch {
                 items.append(contentsOf: removed)
                 resort()
-                writeError = error.localizedDescription
+                markWriteFailure(error)
             }
         }
     }
@@ -261,7 +331,7 @@ final class RemoteSessionLoader: ObservableObject {
             } catch {
                 archivedItems.append(contentsOf: removed)
                 archivedItems.sort { $0.sortDate > $1.sortDate }
-                writeError = error.localizedDescription
+                markWriteFailure(error)
             }
         }
     }

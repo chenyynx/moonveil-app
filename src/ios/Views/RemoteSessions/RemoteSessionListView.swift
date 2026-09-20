@@ -116,6 +116,8 @@ struct RemoteSessionListView: View {
     @State private var showsDeviceDetail = false
     /// 远端会话数据层（共享单例：列表页 / 设备页 / 弹窗同源）。
     @StateObject private var loader = RemoteSessionLoader.shared
+    /// P3-3：页面级错误 toast 存储（官方一槽一错语义，AAV2 冻结件）。
+    @State private var toasts = ChatToastStore()
 
     // 导航容器与 ModeTabPicker 顶栏由 RemoteRootView 的 NavigationStack 提供
     // （pp 定稿：胶囊切换位置不动）；列表选项菜单在板块结构的项目头 …，
@@ -129,6 +131,23 @@ struct RemoteSessionListView: View {
                 // 顶栏右上角：＋ 配对新设备（pp 2026-09-20「把配对新设备的按钮放进
                 // 右上角算了」——替代设备卡下方全宽玻璃胶囊）+ ⋯ 菜单（归档/断开）。
                 ToolbarItem(placement: .topBarTrailing) { topBarTrailingControls }
+            }
+            // P3-3（2026-09-21）错误 toast 细化：官方 ChatErrorToasts + ChatToastStore
+            // 分类逐字（网络已断开 / 登录状态需要验证 / 会话数据格式不兼容 / 操作未完成，
+            // 标题由 AAV2 ChatToastStore 按 V2ClientFailure.kind 给出）。加载面源 "sync"
+            // （带「刷新」按钮——官方重试语义：显式重读，不重放失败动作）；写操作面源
+            // "operation"（乐观回滚后的诚实展示）。原「加载失败+行内重试」状态行保留
+            // （pp 已验收骨架），toast 只在跨源并发时补分类信息，不互斥。
+            .overlay(alignment: .top) {
+                ChatErrorToasts(store: toasts, isRetrying: loader.phase == .loading,
+                    onRetry: { _ in await loader.refresh(service: service, filter: archiveFilter) })
+                    .padding(.top, 8)
+            }
+            .onChange(of: loader.loadFailure) { _, failure in
+                toasts.update(source: "sync", failure: failure, canRetry: failure != nil)
+            }
+            .onChange(of: loader.writeFailure) { _, failure in
+                toasts.update(source: "operation", failure: failure)
             }
             .sheet(isPresented: $showsPairSheet) {
                 PairDeviceSheet(service: service, setup: agentSetup)
@@ -274,6 +293,23 @@ struct RemoteSessionListView: View {
                                 }
                             }
                         }
+                        // P3-1（2026-09-21）：卡堆滚到页尾 → 按服务端游标续拉下一页。
+                        // List 懒渲染使 onAppear 只在尾行可见时触发；isLoadingMore
+                        // 短路重复请求。「正在加载…」为本仓风格文案（官方 iOS 端无
+                        // 分页消费方，无官方对照串——差异字据见自审报告）。
+                        if loader.hasMorePages {
+                            sessionStatusRow {
+                                HStack(spacing: 10) {
+                                    ProgressView().controlSize(.small)
+                                    Text("正在加载…")
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .onAppear {
+                                Task { await loader.loadMore(service: service) }
+                            }
+                        }
                         if projectItems.isEmpty {
                             // 搜索无结果 ≠ 没数据——文案分开，保持诚实；
                             // 有项目无会话 vs 没项目 再分开（空态内嵌后）。
@@ -306,20 +342,53 @@ struct RemoteSessionListView: View {
         .scrollDismissesKeyboard(.immediately)
         .safeAreaInset(edge: .bottom) { bottomBar }
         .refreshable { await refresh() }
-        // REMOTE-DEVICE-1：设备详情页（长按终端卡进入）
+        // REMOTE-DEVICE-1 + P2-A：设备详情页（单击终端卡进入）；per-connector 数据面
+        // （官方 ChatShellView:107-143 形状：connector 从 dashboardRepository.connectors
+        // 取、删除回调走组合根 removeConnector、.id(connectorId) 官方 190 行）。
         .navigationDestination(isPresented: $showsDeviceDetail) {
-            RemoteDeviceDetailView(service: service)
+            if let connector = deviceConnector, let services = service.chat {
+                RemoteDeviceDetailView(service: service, connector: connector) { id in
+                    services.removeConnector(connectorId: id)
+                    showsDeviceDetail = false
+                }
+                .id(connector.id)
+            } else {
+                Color.clear
+            }
         }
         // P1-CHAT：会话聊天页（官方 ChatShell selection 的本仓导航等价物）
         .navigationDestination(isPresented: $showsChat) {
             chatDestination
         }
-        .onChange(of: agentSetup.presentedConnector?.id) { _, id in
-            // 官方：configured 设备由 ChatShellView 消费 presentedConnector 弹出
-            // AddDeviceAgentSheet（设备 Agent 管理批落地）。过渡为真实跳转：
-            // 打开该设备详情页的 Agent 区。
-            if id != nil { showsDeviceDetail = true }
+        // PAIRING-FULL 收尾（P2-B）：官方 ChatShellView:39-45/53-59 形状——配对就绪的
+        // 设备弹 AgentSetupSheet（原「跳设备详情页」过渡移除）；关闭 = finish + 刷 dashboard。
+        .sheet(item: agentSetupBinding) { facade in
+            if let services = service.chat,
+               let device = services.dashboardRepository.connectors.first(where: { $0.id == facade.id }) {
+                AgentSetupSheet(connector: device, model: services.agents(on: device.id)) {
+                    agentSetup.finish(device.id)
+                    Task { await services.dashboardRepository.refresh() }
+                    loader.load(service: service, filter: archiveFilter, force: true)
+                }
+            }
         }
+    }
+
+    /// 官方 agentSetupBinding（ChatShellView:53-59；本仓 coordinator 为 app 层
+    /// RemoteConnector 面，V2Connector 在 sheet 内容里按 id 映射）。
+    private var agentSetupBinding: Binding<RemoteConnector?> {
+        Binding(get: { agentSetup.presentedConnector }, set: { value in
+            if value == nil, let connector = agentSetup.presentedConnector {
+                agentSetup.finish(connector.id)
+            }
+        })
+    }
+
+    /// 终端卡对应的设备：官方侧栏按 connector 逐台列卡；本仓单终端卡定稿 →
+    /// 优先在线、否则第一台（pp 已验收的单设备视角）。
+    private var deviceConnector: V2Connector? {
+        let connectors = service.chat?.dashboardRepository.connectors ?? []
+        return connectors.first { $0.status == .online } ?? connectors.first
     }
 
     /// 会话区内的状态行（加载 / 错误）——保持页面骨架完整，不替换整页

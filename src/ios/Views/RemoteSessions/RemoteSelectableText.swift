@@ -20,7 +20,7 @@ import SwiftUI
 /// - 默认：宽度由 SwiftUI 容器给定，高度 = 该宽度下的排版高度（用户气泡）。
 /// - `ownsContentWidth`：按内容宽度撑开（官方 code / diff 面板在横向 ScrollView
 ///   内用 `.fixedSize(horizontal: true, vertical: false)`）。
-private final class ChatSelectableTextView: UITextView {
+final class ChatSelectableTextView: UITextView {
     var ownsContentWidth = false
     private var lastHeight: CGFloat = 0
 

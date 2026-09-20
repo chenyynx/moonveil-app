@@ -49,7 +49,12 @@ final class V2RemoteChatServices {
     let deviceManagement: V2DeviceManagementService
     let workspaceFiles: V2WorkspaceFilesService
     /// 官方 `services.sessionReads`（后台已读编排；setAppInBackground 的被管理方）。
-    let sessionReads = V2SessionReadCoordinator()
+    let sessionReads: V2SessionReadCoordinator
+    /// 官方逐字（V2ClientServices:69）：per-connector 的 DeviceAgentModel 缓存。
+    private var agentModels: [String: DeviceAgentModel] = [:]
+    /// 官方 AppState:41（`@Published private(set) var sessionActionError`）——本仓
+    /// 组合根即数据面宿主（AppState 的会话动作半段落这里，见 setSessionsArchived）。
+    var sessionActionError: String?
 
     init(api: V2APIClient, accountID: String) {
         self.api = api
@@ -71,6 +76,12 @@ final class V2RemoteChatServices {
             runtimeAPI: api.runtime,
             realtimeAPI: api.realtime
         )
+        // 官方 V2ClientServices:44-48：构造时注入 markRead 发送闭包
+        sessionReads = V2SessionReadCoordinator { id in
+            let response = try await api.sessions.markRead(sessionIds: [id])
+            guard let receipt = response.sessions.first(where: { $0.id == id }) else { throw HTTPError.invalidResponse }
+            return receipt
+        }
         sessionCreation = V2SessionCreationService(sessionAPI: api.sessions)
         attachments = V2AttachmentService(attachmentAPI: api.attachments)
         interactions = V2RuntimeInteractionService(runtimeAPI: api.runtime)
@@ -87,6 +98,8 @@ final class V2RemoteChatServices {
             guard let self else { return }
             self.sessionRepository.updateConnectivity(status)
             self.dashboardRepository.updateNetwork(status)
+            // P2：官方 V2ClientServices:97 —— 网络变化推给缓存的 DeviceAgentModel
+            self.updateAgentConnections()
             // 官方 AppState:331：网络变化同步给已读编排
             self.sessionReads.updateConnectivity(status)
             self.onConnectivityChange?(status)
@@ -105,6 +118,73 @@ final class V2RemoteChatServices {
     /// 官方 `onSelectPage(.newSession)` 的本仓等价物：回到「新会话」页由 app 层注入
     /// （本仓导航为 NavigationStack + fullScreenCover，无 ChatShell 选择页）。
     var onReturnToNewSession: (() -> Void)?
+
+    // MARK: - P2 设备管理数据面（官方 V2ClientServices + AppState 的会话/连接器写回半段）
+
+    /// 官方逐字（V2ClientServices:100-105）：per-connector 缓存 DeviceAgentModel。
+    /// 本仓差异：官方 `agentSetup.updateConnectors` 半段宿主在 app 层
+    /// AgentSetupCoordinator（配对轮询），此处只承载 agent 模型连接态刷新。
+    func agents(on connectorID: String) -> DeviceAgentModel {
+        if let model = agentModels[connectorID] { return model }
+        let model = DeviceAgentModel(connectorID: connectorID, service: deviceManagement)
+        agentModels[connectorID] = model
+        updateAgentConnections()
+        return model
+    }
+
+    /// 官方逐字（V2ClientServices:107-111）去掉 `agentSetup.updateConnectors` 半段
+    /// （见上：宿主在 AgentSetupCoordinator）。connectivity.onChange 与 dashboard
+    /// 刷新时调用，把连接器在线态推给每个缓存的 DeviceAgentModel。
+    func updateAgentConnections() {
+        let online = Set(dashboardRepository.connectors.filter { $0.status == .online }.map(\.id))
+        for (id, model) in agentModels {
+            model.updateConnection(dashboardRepository.isFresh && online.contains(id) && connectivity.status.availability != .offline)
+        }
+    }
+
+    /// 官方 AppState.updateConnector（632）：连接器写回（rename/rotate 后）。
+    func updateConnector(_ updated: V2Connector) {
+        dashboardRepository.upsertConnector(updated)
+        updateAgentConnections()
+    }
+
+    /// 官方 AppState.removeConnector（636-639）：删连接器 + 清该连接器会话。
+    func removeConnector(connectorId: V2ConnectorID) {
+        sessionRepository.remove(sessionIds: dashboardRepository.sessions.filter { $0.connectorId == connectorId }.map(\.id))
+        dashboardRepository.removeConnector(connectorId)
+        updateAgentConnections()
+    }
+
+    /// 官方 AppState.updateSessions（641）：批量会话写回 dashboard 仓库。
+    func updateSessions(_ updated: [V2SessionMeta]) {
+        dashboardRepository.upsert(updated)
+    }
+
+    /// 官方 AppState.setSessionsArchived（396-418）：批量归档/取消归档，
+    /// 成功回写每个更新会话，失败落 sessionActionError。本仓组合根即数据面宿主，
+    /// 无官方 `cachedServices === services` 换代守卫（单一组合根、无替换）。
+    func setSessionsArchived(sessionIds: [V2SessionID], archived: Bool) async -> Bool {
+        sessionActionError = nil
+        do {
+            let updatedSessions = if archived {
+                try await dashboard.archive(sessionIds: sessionIds)
+            } else {
+                try await dashboard.unarchive(sessionIds: sessionIds)
+            }
+            for updated in updatedSessions {
+                dashboardRepository.upsert([updated])
+            }
+            return true
+        } catch {
+            sessionActionError = error.localizedDescription
+            return false
+        }
+    }
+
+    func dismissSessionActionError() {
+        sessionActionError = nil
+    }
+
 
     /// 官方逐字（数据半段）：本地创建会话的发送记录被放弃 → 撤掉仓库里的临时会话。
     func discardCreation(_ id: String) {
