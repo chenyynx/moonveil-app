@@ -18,17 +18,19 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
     private var api: V2APIClient?
     private var creationService: V2SessionCreationService?
     private var chatServicesStore: V2RemoteChatServices?
-    private var chatServicesAPIRef: V2APIClient?
+    // Identity key for the cached chatServices (V2APIClient is a struct — no reference
+    // identity; serverURL is its identity, tokens rotate in-place via updateToken).
+    private var chatServicesServerURL: URL?
     private var lastServerURL: URL?
 
     /// 组合根（官方 V2ClientServices 等价物）。单实例挂在 backend 上，
     /// accountID 取 profile.userId（未取到退 official-account，见 RemoteService.chat 注释）。
     var chatServices: V2RemoteChatServices? {
         guard let api else { return nil }
-        if let store = chatServicesStore, chatServicesAPIRef === api { return store }
+        if let store = chatServicesStore, chatServicesServerURL == api?.serverURL { return store }
         let services = V2RemoteChatServices(api: api, accountID: profile?.userId ?? "official-account")
         chatServicesStore = services
-        chatServicesAPIRef = api
+        chatServicesServerURL = api?.serverURL
         return services
     }
 
@@ -293,10 +295,10 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
         // the only holder of the secret inside this module).
         tokenProvider?.update(nil)
         // Official shutdown(removingCache:) before refs drop (V2ClientServices.shutdown).
-        let services = (chatServicesAPIRef === api) ? chatServicesStore : nil
+        let services = (chatServicesServerURL == api?.serverURL) ? chatServicesStore : nil
         services?.shutdown(removingCache: false)
         chatServicesStore = nil
-        chatServicesAPIRef = nil
+        chatServicesServerURL = nil
         authClient = nil
         tokenProvider = nil
         api = nil
