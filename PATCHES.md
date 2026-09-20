@@ -1176,3 +1176,16 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离**：RemoteKit 改动全部在 Glue（自有层），AAV2 冻结区未触碰；UI 只消费 public facade；不新建文件（零 pbxproj）；既有三 sheet 一字未动（diff 删侧仅文件头注释）。
 - **回归项**：① 列表点「新会话」开抽屉而非创建项目 ② 设备/项目/运行时三级真实加载与联动（切设备清项目/目录归属）③ 离线设备可选可填、提交灰 ④ 空项目引导文案 ⑤ 真提交成功 → 服务端出现新会话（startSession 活路，装机验）⑥ 失败错误上屏不吞 ⑦ 提交中全页锁 + 关窗按钮禁用 ⑧ 项目头 + 仍开创建项目（不受影响）⑨ 配对/归档/详情三 sheet 零回归 ⑩ CI import-scan/pbxproj-audit/freeze-check 全绿。
 - **验证**：本机无 Swift 工具链；双子代理交付后主代理逐行审 + **对抗审查子代理全量复核**（契约 8 项逐字对、编译风险对定义文件逐个核：pbxproj -default-isolation MainActor 覆盖、SheetCloseToolbar/AppGlassButton/appSheetPresentation 签名、deployment target 26.2 下 API 可用性、Hashable 合成、同模块编译无 import 问题；结论 0 BLOCKER）+ 3 RISK 当场修 + 括号平衡 4 文件全 0；**编译与回归 ①–⑩ 需 CI + 装机**。
+
+## REMOTE-REDESIGN-1 — 远端页大厂风重排：设备/项目板块重设计 + 会话行换本机 SessionRow 完整结构（2026-09-20，pp 三点拍板）
+
+- **pp 指令**：①设备板块按大厂 UI 重新设计排版 ②聊天卡片用本机 UI、只替换头像（头像=无底裸 lucide）③「项目 >」分组头 + …/+ 按钮也要设计 ④「预览数据 · 真实会话接通中」删除。冻结：顶栏 / 新会话胶囊 / 搜索栏零改动。
+- **Files**: `src/ios/Views/RemoteSessions/RemoteSessionListView.swift`、`RemoteSessionComponents.swift`、`PATCHES.md`。
+- **修复**：
+  - A 设备板块：板块头内联（「设备」16 semibold 主色，与项目头同语言，删 sectionLabel）；deviceRow 重排 = 44 圆底 server.rack 图标（在线绿/离线灰 tinted 底）+ host 名 16 semibold / 完整地址 12 mono 两行（新增 hostLabel 取 URL host）+ 右侧「已连接/未连接」淡底胶囊徽章；配对入口 = 淡色 28 圆底 + 号 + 「配对新设备」+ chevron；「需要你处理 ×N」组件化 pendingNoticesRow（bell 淡色圆底 + 橙色数字胶囊）。
+  - B 项目板块头：标题 16 semibold 主色 + 会话计数 + chevron 折叠（rotationEffect 90° 旋转动画，语义同原 ▾）+ 右侧 … / + 淡色 28 圆钮（菜单项与新建行为不变）。
+  - C 会话行：单行简版 → 本机 ContentView.SessionRow 完整结构（44 头像槽 + 标题 scaledApp(16) semibold + 摘要行 scaledApp(14) + 时间 scaledApp(13) tertiary + 置顶 pin 角标；spacing 8 / V12 padding 与本机一致）；头像 = 无底裸 RemoteSessionIcon 24pt 居中（pp 定稿）；状态映射：运行中→RemoteSpinningRing（ContentView.SpinningRing 逐字复制，不改本机文件可见性）、未读→头像右上 8pt 红点、等待批准→头像右下 mint bell 角标（offset ±2 同本机）；RemoteSessionItem 新增 previewText（预览数据补假摘要）。
+  - D 删除 previewBanner（pp：去掉）；搜索过滤扩到摘要行（卡片可见内容可搜）；RemoteStatusIndicator 视图删除，四态语义保留为 RemoteSessionIndicator 枚举；空态按钮文案随「配对新设备」。
+- **死隔离**：只动 RemoteSessions 两文件 + PATCHES；ContentView / RemoteKit / AA 弹窗（PairDevice/ProjectEditor/详情/归档/新会话抽屉）零改动（转圈用复制件不改共享可见性）；不新增文件（零 pbxproj）；冻结区（顶栏/新会话胶囊/搜索栏）零改动。
+- **回归项**：① 设备行在线/离线两态视觉与徽章文案 ② 配对入口弹 PairDeviceSheet（AA 视觉不变）③ 待处理计数行出现条件与计数正确 ④ 项目头折叠/…菜单/+新建行为不变 ⑤ 会话行三状态渲染位正确（转圈/红点/mint 角标）⑥ 搜索命中标题与摘要 ⑦ 长按菜单/左滑三动作不回归 ⑧ 深色模式全套 ⑨ 字号档位跟随 App Base ⑩ CI 门禁（import-scan/pbxproj-audit/freeze）全绿。
+- **验证**：本机无 Swift 工具链；静态（括号平衡 + 删除符号全库无引用 + 新增符号引用闭合）；**编译与回归 ①–⑩ 需 CI + 装机**。

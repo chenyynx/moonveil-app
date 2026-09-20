@@ -7,43 +7,45 @@
 
 import SwiftUI
 
-// MARK: - 状态指示器（AA ChatSidebarSessionIndicator 四态）
+// MARK: - 状态四态（语义沿用 AA ChatSidebarSessionIndicator；渲染位随本机卡头像槽位：
+// 运行中 = 头像外圈转圈 / 未读 = 头像右上红点 / 等待批准 = 头像右下 mint 角标）
 
-struct RemoteStatusIndicator: View {
-    enum Indicator: Equatable {
-        case waitingApproval
-        case running
-        case unread
-        case none
-    }
+enum RemoteSessionIndicator: Equatable {
+    case waitingApproval
+    case running
+    case unread
+    case none
+}
 
-    let indicator: Indicator
+/// 本机 SessionRow 的 SpinningRing 逐字复制（原件是 ContentView 的 private——
+/// 复制而不改本机大文件的可见性，死隔离；参数与视觉与其保持一致）。
+struct RemoteSpinningRing: View {
+    let color: Color
 
     var body: some View {
-        switch indicator {
-        case .waitingApproval:
-            Text("等待批准")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.mint)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(.mint.opacity(0.16), in: Capsule())
-                .fixedSize()
-                .accessibilityLabel("等待批准")
-        case .running:
-            ProgressView()
-                .controlSize(.mini)
-                .tint(.primary)
-                .frame(width: 14, height: 14)
-                .accessibilityLabel("运行中")
-        case .unread:
+        TimelineView(.animation) { timeline in
+            let angle = timeline.date.timeIntervalSinceReferenceDate.remainder(dividingBy: 1.0) * 360
             Circle()
-                .fill(.green)
-                .frame(width: 8, height: 8)
-                .accessibilityLabel("未读")
-        case .none:
-            EmptyView()
+                .trim(from: 0, to: 0.3)
+                .stroke(color, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                .rotationEffect(.degrees(angle))
         }
+    }
+}
+
+/// 本机 SessionRow 的 badgeCircle 同款角标（16pt 圆底白字形；offset 由调用方给）。
+struct RemoteBadgeCircle: View {
+    let icon: String
+    let color: Color
+    var iconSize: CGFloat = 9
+
+    var body: some View {
+        Image(systemName: icon)
+            .font(.system(size: iconSize, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: 16, height: 16)
+            .background(color)
+            .clipShape(Circle())
     }
 }
 
