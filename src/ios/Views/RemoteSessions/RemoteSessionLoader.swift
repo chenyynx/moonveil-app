@@ -78,11 +78,13 @@ final class RemoteSessionLoader: ObservableObject {
                 case .active:
                     let page = try await service.listSessions(archived: false)
                     active = page.sessions
+                    archived = []
                     activeCursor = page.nextCursor; activeHasMore = page.hasMore
                     archivedCursor = nil; archivedHasMore = false
                 case .archived:
                     let page = try await service.listSessions(archived: true)
                     archived = page.sessions
+                    active = []
                     archivedCursor = page.nextCursor; archivedHasMore = page.hasMore
                     activeCursor = nil; activeHasMore = false
                 case .all:
