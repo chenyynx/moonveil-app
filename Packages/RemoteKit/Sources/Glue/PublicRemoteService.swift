@@ -858,3 +858,35 @@ extension RemotePairingPayload {
         MobileLoginPayload(type: "agents-anywhere.mobile-login", version: 1, webUrl: webUrl, userId: userId, loginToken: loginToken, expiresAt: expiresAt)
     }
 }
+
+// MARK: - AA 官方 app 层 extension 的 Glue 安置（AAV2 为逐字节冻结区；官方这些
+// extension 位于 app 层 Models/Chat，本仓单 target 编译、置于 Glue 保持冻结区纯净）。
+
+// Source: AA Models/Chat/NewSessionModel.swift:399-409 (verbatim).
+extension V2DeviceRuntime {
+    var isReadyForSession: Bool { configured && active && available && status == .running }
+    var sessionUnavailableReason: String? {
+        if !configured { return String(localized: "尚未配置") }
+        if !active { return String(localized: "未启用，请在设备管理中启动") }
+        if let reason, !reason.isEmpty { return reason }
+        if status != .running { return String(localized: "尚未就绪 \(status.displayName)") }
+        return available ? nil : String(localized: "当前不可用")
+    }
+    var sessionDisplayName: String { name.isEmpty ? displayName : name }
+}
+
+// Source: AA Models/Chat/ConversationSettings.swift (verbatim extension).
+extension V2RuntimeCapabilitySnapshot {
+    func allows(_ id: V2CapabilityID) -> Bool {
+        guard let value = capability(id: id) else { return false }
+        return value.supported && value.available && value.allowed
+    }
+}
+
+// Source: AA Models/Chat/ConversationSettings.swift (verbatim extension).
+extension JSONValue {
+    var boolValue: Bool? {
+        if case let .bool(value) = self { return value }
+        return nil
+    }
+}

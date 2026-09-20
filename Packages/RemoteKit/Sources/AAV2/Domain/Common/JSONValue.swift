@@ -56,13 +56,6 @@ nonisolated enum JSONValue: Codable, Hashable {
         }
     }
 
-    // Source: AA Models/Chat/ConversationSettings.swift (verbatim extension; 供
-    // facade 的 catalog 映射与业务层共用).
-    nonisolated var boolValue: Bool? {
-        if case let .bool(value) = self { return value }
-        return nil
-    }
-
     nonisolated var displayString: String {
         switch self {
         case let .string(value):
