@@ -40,6 +40,34 @@ struct ChatSettingsCatalog: Equatable {
         permissions = value.permissions.map { Self.option($0) }
     }
 
+    /// 官方原版构造（AA Models/Chat/ConversationSettings.swift verbatim）——供直接持有
+    /// V2SessionCatalogs 的调用方；与 facade mirror 构造并存。
+    init(_ value: V2SessionCatalogs) {
+        models = value.model.models.map { model in
+            ChatModelOption(option: Self.option(id: model.id, title: model.displayName,
+                detail: model.description, selection: model.selectionId, isDefault: model.default,
+                enabled: model.enabled, reason: model.disabledReason, metadata: model.metadata),
+                reasoning: model.reasoningItems.map { item in
+                    Self.option(id: item.id, title: item.displayName, detail: item.description,
+                        selection: item.selectionId, isDefault: item.default,
+                        enabled: item.enabled, reason: item.disabledReason, metadata: item.metadata)
+                })
+        }
+        permissions = value.permission.permissions.map { item in
+            Self.option(id: item.id, title: item.displayName, detail: item.description,
+                selection: item.selectionId, isDefault: item.default,
+                enabled: item.enabled, reason: item.disabledReason, metadata: item.metadata)
+        }
+    }
+
+    private static func option(id: String, title: String, detail: String?, selection: String?,
+                               isDefault: Bool, enabled: Bool?, reason: String?, metadata: JSONValue) -> CatalogOption {
+        CatalogOption(id: id, title: RuntimeLocalizedCopy.text(title, metadata: metadata),
+            detail: RuntimeLocalizedCopy.text(detail ?? "", metadata: metadata, field: "descriptionKey"), selectionID: selection,
+            isDefault: isDefault, isEnabled: enabled ?? metadata["enabled"]?.boolValue ?? true,
+            disabledReason: reason ?? metadata["disabledReason"]?.stringValue)
+    }
+
     private static func option(_ value: RemoteCatalogOption) -> CatalogOption {
         CatalogOption(id: value.id, title: value.title, detail: value.detail,
                       selectionID: value.selectionID, isDefault: value.isDefault,

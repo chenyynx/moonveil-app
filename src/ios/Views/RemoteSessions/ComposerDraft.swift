@@ -2,6 +2,7 @@
 // （含 ChatAttachment；V2AttachmentReference / V2LocalAttachment 单模块同可见性）。
 
 import Foundation
+import Observation
 
 nonisolated struct ChatAttachment: Codable, Identifiable, Equatable {
     let id: String
