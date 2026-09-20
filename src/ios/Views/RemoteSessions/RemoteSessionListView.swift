@@ -20,9 +20,12 @@
 //   • 归档页（ArchivedSessionsSheet）+ 下拉刷新 + 空态诚实
 //
 // Staged with deadlines（完整性铁律 — 明示不藏）：
-//   • 会话行未读/审批角标的条目级来源 → RemoteService 的会话状态面（本批先接通列表骨架，
-//     指示器按数据面就绪度逐项点亮，不做假数据）
-//   • 项目/归档/重命名的服务端写操作 → RemoteService 的项目管理 public 面（同上）
+//   • DATA-1 已落地（2026-09-20）：列表读（listSessions 三态 + 项目名真实化）
+//     与写（置顶 / 归档 / 取消归档 / 标记已读；乐观更新 + 失败回滚）全链路接通，
+//     未读 / 运行 / 待批准指示器全部来自真实会话状态，预览假数据已全删。
+//   • 删除会话：服务端无删除端点（仅归档/取消归档/标记已读）——Staged，不假造成功态。
+//   • 重命名 UI（AA RenameSheet）：写端点 patchSessionMeta(title:) 已就绪，随弹窗批接入。
+//   • 会话页聊天接线（timeline/snapshot）+ 分页加载（nextCursor）→ 下一批。
 
 import SwiftUI
 
@@ -49,18 +52,14 @@ struct RemoteSessionListView: View {
         return host
     }
 
+    /// 数据源：RemoteSessionLoader（真实远端会话；归档三态在加载层完成）。
     private var sessions: [RemoteSessionItem] {
-        // 预览数据（接 RemoteService 后替换）
-        RemoteSessionStore.shared.items
+        loader.items
     }
 
-    /// 归档筛选后的会话源（AA archiveScope 等价：活跃 / 已归档 / 全部）。
+    /// 归档筛选后的会话源（筛选已在加载层完成，此处仅保留接口形状）。
     private var sourceSessions: [RemoteSessionItem] {
-        switch archiveFilter {
-        case .active: return sessions
-        case .archived: return RemoteSessionStore.shared.archived
-        case .all: return sessions + RemoteSessionStore.shared.archived
-        }
+        sessions
     }
 
     /// 搜索过滤：标题/摘要本地过滤（本机搜索走 ChatStore 后端，远端数据面接通后再对齐）
@@ -72,15 +71,6 @@ struct RemoteSessionListView: View {
                 || $0.previewText.localizedCaseInsensitiveContains(query)
         }
     }
-
-    // 预览用假数据（数据面接通后删除）；previewText = 本机卡摘要行的假摘要
-    static let previewItems: [RemoteSessionItem] = [
-        .init(id: "s1", title: "首页改版 · 数据看板", projectId: "p1", indicator: .waitingApproval, updatedAtText: "10:24", previewText: "把转化率卡片改成周环比"),
-        .init(id: "s2", title: "周报自动化", projectId: "p1", indicator: .unread, updatedAtText: "09:12", previewText: "第 38 周周报草稿已生成"),
-        .init(id: "s3", title: "API 网关迁移", indicator: .running, updatedAtText: "昨天", previewText: "灰度 5% 流量验证中"),
-        .init(id: "s4", title: "Claude Code 接入评估", updatedAtText: "9-18", previewText: "整理了三家的报价对比"),
-        .init(id: "s5", title: "服务器续费提醒", updatedAtText: "9-15", previewText: "证书 9-30 到期，记得续期"),
-    ]
 
 
     @State private var showsArchives = false
@@ -100,6 +90,8 @@ struct RemoteSessionListView: View {
     @State private var archiveFilter: RemoteSessionFilter = .active
     /// 设备详情页 push（长按终端卡；REMOTE-DEVICE-1，pp 2026-09-20 指定入口）。
     @State private var showsDeviceDetail = false
+    /// 远端会话数据层（共享单例：列表页 / 设备页 / 弹窗同源）。
+    @StateObject private var loader = RemoteSessionLoader.shared
 
     // 导航容器与 ModeTabPicker 顶栏由 RemoteRootView 的 NavigationStack 提供
     // （pp 定稿：胶囊切换位置不动）；列表选项菜单在板块结构的项目头 …，
@@ -134,15 +126,65 @@ struct RemoteSessionListView: View {
                     RemoteSessionDetailSheet(service: service, sessionId: id)
                 }
             }
+            .onAppear {
+                guard service.state == .ready else { return }
+                loader.load(service: service, filter: archiveFilter)
+                loader.loadArchived(service: service)
+            }
+            .onChange(of: archiveFilter) { _, newFilter in
+                loader.load(service: service, filter: newFilter, force: true)
+            }
     }
 
     @ViewBuilder
     private var content: some View {
-        if sessions.isEmpty {
-            emptyState
-        } else {
-            sessionList
+        switch loader.phase {
+        case .idle, .loading:
+            loadingState
+        case .failed(let message):
+            errorState(message)
+        case .loaded:
+            if sessions.isEmpty {
+                emptyState
+            } else {
+                sessionList
+            }
         }
+    }
+
+    // MARK: - 加载 / 错误态（诚实：加载中说加载中，失败给原因 + 重试）
+
+    private var loadingState: some View {
+        VStack(spacing: 14) {
+            ProgressView()
+            Text("正在加载远程会话…")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .safeAreaInset(edge: .bottom) { bottomBar }
+    }
+
+    private func errorState(_ message: String) -> some View {
+        VStack(spacing: 14) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 40))
+                .foregroundStyle(.secondary)
+            Text("加载失败")
+                .font(.title3.bold())
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("重试") {
+                loader.load(service: service, filter: archiveFilter, force: true)
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .safeAreaInset(edge: .bottom) { bottomBar }
     }
 
     // MARK: - 列表（方案 B：深色终端卡 → 玻璃操作 → 项目头 → 暖卡堆）
@@ -262,7 +304,7 @@ struct RemoteSessionListView: View {
             .frame(maxWidth: .infinity)
             .background(RemotePalette.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(alignment: .topTrailing) {
-                if item.indicator == .unread {
+                if item.isUnread {
                     Circle()
                         .fill(RemotePalette.coral)
                         .frame(width: 10, height: 10)
@@ -545,6 +587,8 @@ struct RemoteSessionListView: View {
     // MARK: - 操作
 
     private func openSession(_ item: RemoteSessionItem) {
+        // 打开即标记已读（AA 官方语义；写失败不阻断查看）
+        loader.markRead([item.id], service: service)
         // 会话页接线在聊天页批；本批列表骨架 + 弹窗。
         selectedSessionId = item.id
         showsSessionDetail = true
@@ -555,21 +599,24 @@ struct RemoteSessionListView: View {
     }
 
     private func togglePin(_ item: RemoteSessionItem) {
-        RemoteSessionStore.shared.togglePin(item.id)
+        loader.togglePin(item.id, service: service)
     }
 
     private func archive(_ item: RemoteSessionItem) {
-        RemoteSessionStore.shared.archive(item.id)
+        loader.archive([item.id], service: service)
     }
 
+    // 删除：服务端会话只有归档/取消归档/标记已读，无删除端点（Staged，
+    // 见 PATCHES 台账）；本按钮暂不假造成功态。
     private func delete(_ item: RemoteSessionItem) {
-        RemoteSessionStore.shared.delete(item.id)
     }
 
     private func handleMenuAction(_ action: RemoteSessionMenuAction, for item: RemoteSessionItem) {
         switch action {
         case .open: openSession(item)
-        case .rename: RemoteSessionStore.shared.startRename(item.id)
+        case .rename:
+            // 重命名 UI（AA RenameSheet）随写操作弹窗批接入；暂不假造。
+            break
         case .togglePin: togglePin(item)
         case .archive: archive(item)
         case .copyId: UIPasteboard.general.string = item.id
@@ -577,7 +624,7 @@ struct RemoteSessionListView: View {
     }
 
     private func refresh() async {
-        // 数据面刷新：RemoteService 的会话列表 public 面就绪后接这里。
+        await loader.refresh(service: service, filter: archiveFilter)
     }
 
     // MARK: - 派生
@@ -610,11 +657,9 @@ struct RemoteSessionListView: View {
         return out
     }
 
-    /// 预览期项目名别名表——数据面接通后由远端项目列表替换（Staged: 项目管理 public 面）。
-    static let previewProjectNames: [String: String] = ["p1": "工作台"]
-
+    /// 项目名：远端项目列表的真实结果（缺失时回退 projectId 原值）。
     private func projectDisplayName(for projectId: String) -> String {
-        Self.previewProjectNames[projectId] ?? projectId
+        loader.projectNames[projectId] ?? projectId
     }
 
     /// 当前渲染顺序下的第一张卡（[REMOTE-ROW-FENCE] reporter 的门）。
@@ -686,33 +731,24 @@ enum RemoteSessionFilter: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-// MARK: - 数据模型（远端会话条目；数据面就绪前由 RemoteSessionStore 占位）
+// MARK: - 数据模型（远端会话条目；由 RemoteSessionLoader 从真实会话映射）
 
 struct RemoteSessionItem: Identifiable, Equatable {
     let id: String
     var title: String
     var projectId: String?
+    /// 该会话所属连接器（设备页按设备筛选用）。
+    var connectorId: String = ""
     var isPinned: Bool = false
+    /// 尾部指示器（等待批准 / running / 无）——与卡角未读点正交。
     var indicator: RemoteSessionIndicator = .none
+    /// 卡角未读点（与尾部指示器正交，可同时出现）。
+    var isUnread: Bool = false
     var updatedAtText: String = ""
-    /// 本机卡摘要行（最后一条消息预览）；数据面就绪前由预览数据填充
+    /// 摘要行：工作目录末段 / 运行时显示名（不假造消息内容）。
     var previewText: String = ""
-}
-
-@MainActor
-final class RemoteSessionStore: ObservableObject {
-    static let shared = RemoteSessionStore()
-    @Published private(set) var items: [RemoteSessionItem] = RemoteSessionListView.previewItems
-    @Published private(set) var archived: [RemoteSessionItem] = []
-
-    func title(for id: String) -> String? {
-        items.first { $0.id == id }?.title
-    }
-
-    func togglePin(_ id: String) {}
-    func archive(_ id: String) {}
-    func delete(_ id: String) {}
-    func startRename(_ id: String) {}
+    /// 排序键（时间戳原始值；不用于显示）。
+    var sortDate: Date = .distantPast
 }
 
 enum RemoteSessionMenuAction {

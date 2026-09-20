@@ -557,6 +557,7 @@
 		D05AF00E000000000000B1E1 /* RemoteSessionIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E1 /* RemoteSessionIcon.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1E2 /* RemoteSessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E2 /* RemoteSessionListView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1E6 /* RemoteDeviceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E6 /* RemoteDeviceDetailView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1E7 /* RemoteSessionLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E7 /* RemoteSessionLoader.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1E3 /* RemoteSessionComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E3 /* RemoteSessionComponents.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1E4 /* PairDeviceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E4 /* PairDeviceSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1E5 /* RemoteSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E5 /* RemoteSheets.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
@@ -1328,6 +1329,7 @@
 		D05AF00E000000000000A1E1 /* RemoteSessionIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionIcon.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1E2 /* RemoteSessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionListView.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1E6 /* RemoteDeviceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteDeviceDetailView.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1E7 /* RemoteSessionLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionLoader.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1E3 /* RemoteSessionComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionComponents.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1E4 /* PairDeviceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairDeviceSheet.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1E5 /* RemoteSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSheets.swift; sourceTree = "<group>"; };
@@ -2577,6 +2579,7 @@
 				D05AF00E000000000000A1E4 /* PairDeviceSheet.swift */,
 				D05AF00E000000000000A1E5 /* RemoteSheets.swift */,
 				D05AF00E000000000000A1E6 /* RemoteDeviceDetailView.swift */,
+			D05AF00E000000000000A1E7 /* RemoteSessionLoader.swift */,
 			);
 			path = RemoteSessions;
 			sourceTree = "<group>";
@@ -3627,6 +3630,7 @@
 				D05AF00E000000000000B1E4 /* PairDeviceSheet.swift in Sources */,
 				D05AF00E000000000000B1E5 /* RemoteSheets.swift in Sources */,
 				D05AF00E000000000000B1E6 /* RemoteDeviceDetailView.swift in Sources */,
+			D05AF00E000000000000B1E7 /* RemoteSessionLoader.swift in Sources */,
 				RKA5E30D09E037A68960C9D2 /* APIClient.swift in Sources */,
 				RK841E540C6428CA784680A3 /* V2APIClient.swift in Sources */,
 				RK15D69F5654E261C0C2624A /* V2AccountAPI.swift in Sources */,

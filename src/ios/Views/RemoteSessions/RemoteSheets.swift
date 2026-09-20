@@ -90,7 +90,7 @@ struct RemoteArchivedSessionsSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(RemoteSessionStore.shared.archived) { session in
+                ForEach(RemoteSessionLoader.shared.archivedItems) { session in
                     HStack {
                         Button { dismiss() } label: {
                             VStack(alignment: .leading, spacing: 5) {
@@ -106,7 +106,7 @@ struct RemoteArchivedSessionsSheet: View {
                         .buttonStyle(.plain)
                         Spacer()
                         Button {
-                            // 恢复（数据面就绪后接）
+                            RemoteSessionLoader.shared.unarchive([session.id], service: service)
                         } label: {
                             Image(systemName: "tray.and.arrow.up")
                         }
@@ -118,7 +118,12 @@ struct RemoteArchivedSessionsSheet: View {
             .navigationTitle("归档会话")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { SheetCloseToolbar { dismiss() } }
-            .refreshable {}
+            .onAppear {
+                RemoteSessionLoader.shared.loadArchived(service: service)
+            }
+            .refreshable {
+                await RemoteSessionLoader.shared.refreshArchived(service: service)
+            }
         }
         .appSheetPresentation(.compact)
     }
@@ -139,7 +144,7 @@ struct RemoteSessionDetailSheet: View {
         NavigationStack {
             List {
                 Section("会话") {
-                    row("标题", RemoteSessionStore.shared.title(for: sessionId) ?? "未命名会话")
+                    row("标题", RemoteSessionLoader.shared.cachedTitle(for: sessionId) ?? "未命名会话")
                     row("设备", serverLabel)
                     row("Agent", "—")
                     row("状态", "—")

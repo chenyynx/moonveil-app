@@ -1267,3 +1267,29 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离**：新增 1 文件 + 改 RemoteSessionListView/RootTabRouter/RootModeTabsView（各最小接线）；ContentView/RemoteKit/AA 弹窗零改动。
 - **回归项**：① 长按终端卡 push 设备详情页 ② 页内三区（runtime/项目/会话）渲染与空态 ③ 项目行新会话按钮弹新会话抽屉 ④ 会话行 tap 弹详情 ⑤ 返回后列表态正常 + ☰ 回归 + 页切恢复 ⑥ 详情页内横滑不切 tab ⑦ 深色模式。
 - **验证**：静态（断言式替换 + 括号平衡 + pbxproj 计数核对）；**编译与回归需 CI + 装机**。
+
+## DATA-1 — 远端列表数据面：读+写全链路接通（2026-09-20，预览假数据全删）
+
+- **背景**：列表页 / 设备页 / 弹窗此前全部消费 `RemoteSessionStore`（预览假数据 + `previewProjectNames` 别名表）。本批接通 RemoteKit → 服务端真实会话链路。
+- **官方对照（端点级，非自造）**：
+  - 读：`GET /sessions`（archived 分页 + cursor）、`GET /projects`（项目名字典）；会话条目 = 服务端 `SessionView` dashboard 投影（camelCase 字段名与客户端 `V2SessionMeta` 一一对应，无第二 schema）。
+  - 写：`PATCH /sessions/{id}/meta`（title/pinned/archived）、`POST /sessions/archive|unarchive|read`（批量，返回更新后的会话列表）。
+- **落地（三段接线 + 数据层）**：
+  - A RemoteKit engine（`RemoteSessionBackend`）：8 个 pass-through（listSessions / sessionInventory / sessionMeta / patchSessionMeta / markRead / archive / unarchive / listProjectSessions）——与 listConnectors/listProjects 同款薄转发，零本地缓存（服务端单一事实源）。
+  - B RemoteKit public facade（`PublicRemoteService`）：public mirror `RemoteSessionMeta`（字段 verbatim；status / connectorStatus 为 rawValue 字符串）+ `RemoteSessionListPage` / `RemoteSessionWriteResult` 信封；public 方法 listSessions / sessionMeta / patchSessionMeta / markRead / archive / unarchive / listProjectSessions。AAV2 内部类型不外泄（claudio 同款 Glue 约定）。
+  - C 新文件 `RemoteSessionLoader.swift`（共享单例 @MainActor ObservableObject；pbxproj ids A1E7/B1E7，含 `-default-isolation MainActor` 旗标）：
+    - 读：归档三态（`.all` = 活跃 + 已归档两路 async let 并发合并）；项目名字典来自 listProjects()，**失败不阻断列表**（回退 projectId 原值）；
+    - 映射：标题空 →「未命名会话」；摘要 = 工作目录末段 → 运行时显示名 → 空串（**不假造消息内容**）；时间 = ISO8601 → 相对时间（刚刚 / N 分钟前 / HH:mm / 昨天 / M月d日 / yyyy-M-d；支持小数秒两试解析，服务端 utc_now() 为 isoformat 带 Z）；
+    - 指示器：**尾部**（waiting_approval → 待批准胶囊；running/pending/stopping → running 转圈）与**卡角未读点正交**——RemoteSessionItem 拆为 `indicator` + `isUnread`，两者可同时出现（修掉四态枚举无法表达「运行中 + 未读」的缺陷）；
+    - 排序：置顶优先 + 时间倒序（`sortDate` 存原始时间戳，不用格式化字符串排序）；
+    - 写：乐观更新 + 服务端写回 + 失败回滚（togglePin / archive / unarchive）；markRead 本地乐观清未读、写失败不回滚 UI（不阻断查看）；错误进 `writeError` 供 UI 诚实展示。
+  - D 三个页面迁移到共享 loader（删 `RemoteSessionStore` 单例 + `previewItems` + `previewProjectNames`）：RemoteSessionListView（onAppear 触发加载 + onChange(archiveFilter) 重拉 + refreshable 接 refresh；content 三态：加载中 / 失败 + 重试 / 空 / 列表）；RemoteDeviceDetailView（读缓存 + 项目名真实化）；RemoteSheets（归档页 onAppear loadArchived + 恢复按钮接 unarchive + refreshable 接 refreshArchived；详情页标题走 cachedTitle）。
+  - E 会话卡卡角未读点判据从 `indicator == .unread` 改为独立 `isUnread`。
+- **诚实占位（Staged，不假造成功态）**：
+  - 删除会话：服务端无删除端点——左滑删除按钮暂为空实现；
+  - 重命名 UI（AA RenameSheet）：写端点已就绪，只差输入 UI，随弹窗批接入；
+  - 会话页聊天接线（timeline / snapshot）+ 分页加载（nextCursor）→ 下一批（首版 limit=100 覆盖典型场景）。
+- **死隔离**：只动 RemoteKit（Glue 两文件，纯新增方法 / mirror，既有签名零变更）+ RemoteSessions/ 目录四文件（+1 新文件）；ContentView / ChatStore / 本机列表零改动。
+- **回归项**：① 首次进入加载真实会话（非假数据）② 活跃 / 已归档 / 全部三态筛选真实生效 ③ 项目分组名 = 远端项目名（非「工作台」别名）④ 置顶 / 归档 / 取消归档 / 打开标记已读（乐观 + 回滚）⑤ 下拉刷新 ⑥ 设备页会话与项目名同源 ⑦ 归档页恢复按钮生效 ⑧ 加载失败 → 错误态 + 重试 ⑨ 无会话 → 空态 ⑩ 深色模式。
+- **验证**：静态（断言式替换 + 括号平衡 + 残留引用归零 + pbxproj 计数核对 + RemoteKit swift build 通过[1] + 四文件 swiftc -parse 通过）；**编译与回归需 CI + 装机**。
+  - [1] Linux swift build 仅 `no such module 'Network'`（Apple 专有 framework，既有现象非本批引入）；本批改动的 PublicRemoteService / RemoteSessionBackend 两文件在同次 build 中编译通过。

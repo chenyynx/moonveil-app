@@ -50,15 +50,15 @@ struct RemoteDeviceDetailView: View {
     private var connected: Bool { service.state == .ready }
     private var connectionDescription: String { connected ? "已连接" : "设备离线" }
 
-    // MARK: - 数据（预览期）
+    // MARK: - 数据（RemoteSessionLoader 共享单例；列表页触发加载，本页读缓存）
 
-    private var sessions: [RemoteSessionItem] { RemoteSessionStore.shared.items }
+    private var sessions: [RemoteSessionItem] { RemoteSessionLoader.shared.items }
 
     private var sourceSessions: [RemoteSessionItem] {
         switch archiveFilter {
         case .active: return sessions
-        case .archived: return RemoteSessionStore.shared.archived
-        case .all: return sessions + RemoteSessionStore.shared.archived
+        case .archived: return RemoteSessionLoader.shared.archivedItems
+        case .all: return sessions + RemoteSessionLoader.shared.archivedItems
         }
     }
 
@@ -76,7 +76,7 @@ struct RemoteDeviceDetailView: View {
         let sessionCount: Int
     }
 
-    /// 项目由预览会话派生（Staged：远端项目列表接通后替换）。
+    /// 项目由当前会话的 projectId 派生（项目名取远端真实列表）。
     private var projects: [DeviceProject] {
         var counts: [String: Int] = [:]
         for item in sessions {
@@ -88,7 +88,7 @@ struct RemoteDeviceDetailView: View {
     }
 
     private static func projectName(_ id: String) -> String {
-        RemoteSessionListView.previewProjectNames[id] ?? id
+        RemoteSessionLoader.shared.projectNames[id] ?? id
     }
 
     // MARK: - Body

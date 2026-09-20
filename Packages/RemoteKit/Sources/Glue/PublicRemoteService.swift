@@ -102,6 +102,45 @@ public struct RemoteRuntimeType: Sendable, Hashable {
     public let recommended: Bool
 }
 
+/// Public mirror of V2SessionMeta — the dashboard projection. Field names are
+/// camelCase verbatim against the server SessionView (no second schema, D1);
+/// `status`/`connectorStatus` are rawValue strings the UI interprets.
+public struct RemoteSessionMeta: Sendable, Identifiable, Hashable {
+    public let id: String
+    public let connectorId: String
+    public let projectId: String?
+    public let runtime: String
+    public let runtimeId: String?
+    public let runtimeTypeDisplayName: String?
+    public let title: String?
+    public let cwd: String?
+    public let status: String            // V2RuntimeStatus rawValue verbatim
+    public let connectorStatus: String   // "online"/"offline"/"unknown"
+    public let pinned: Bool
+    public let archived: Bool
+    public let unread: Bool
+    public let lastActivityAt: String?
+    public let lastItemAt: String?
+    public let lastItemOrderSeq: Int?
+    public let sortAt: String?
+    public let createdAt: String?
+}
+
+/// One page of listSessions(archived:) — official envelope fields verbatim.
+public struct RemoteSessionListPage: Sendable {
+    public let sessions: [RemoteSessionMeta]
+    public let hasMore: Bool
+    public let nextCursor: String?
+    public let serverTime: String
+}
+
+/// Sessions after a bulk write — official V2SessionBulkActionResponse verbatim.
+public struct RemoteSessionWriteResult: Sendable {
+    public let sessions: [RemoteSessionMeta]
+    public let notFound: [String]
+    public let serverTime: String
+}
+
 // MARK: - Notices public surface (batch7 promise — delivered with the shell)
 
 public struct RemoteNoticeActionInput: Sendable {
@@ -392,6 +431,70 @@ public final class RemoteService: ObservableObject {
                           workspacePath: $0.workspacePath, pinned: $0.pinned,
                           activeSessionCount: $0.activeSessionCount)
         }
+    }
+
+    // MARK: - Sessions (DATA-1: list / meta / writes)
+
+    public func listSessions(archived: Bool, cursor: String? = nil) async throws -> RemoteSessionListPage {
+        let r = try await attempt { try await self.engine.listSessions(archived: archived, cursor: cursor) }
+        return .init(sessions: r.sessions.map(Self.mapSession),
+                     hasMore: r.hasMore, nextCursor: r.nextCursor, serverTime: r.serverTime)
+    }
+
+    public func sessionMeta(sessionId: String) async throws -> RemoteSessionMeta {
+        let r = try await attempt { try await self.engine.sessionMeta(sessionId: sessionId) }
+        return Self.mapSession(r.session)
+    }
+
+    /// title / pinned / archived — official V2SessionMetaPatchRequest fields verbatim.
+    @discardableResult
+    public func patchSessionMeta(sessionId: String, title: String? = nil,
+                                 pinned: Bool? = nil, archived: Bool? = nil) async throws -> RemoteSessionMeta {
+        let req = V2SessionMetaPatchRequest(title: title, pinned: pinned, archived: archived)
+        let r = try await attempt { try await self.engine.patchSessionMeta(sessionId: sessionId, request: req) }
+        return Self.mapSession(r.session)
+    }
+
+    @discardableResult
+    public func markRead(sessionIds: [String]) async throws -> RemoteSessionWriteResult {
+        try await bulkAction(sessionIds: sessionIds) { try await self.engine.markRead(sessionIds: $0) }
+    }
+
+    @discardableResult
+    public func archive(sessionIds: [String]) async throws -> RemoteSessionWriteResult {
+        try await bulkAction(sessionIds: sessionIds) { try await self.engine.archive(sessionIds: $0) }
+    }
+
+    @discardableResult
+    public func unarchive(sessionIds: [String]) async throws -> RemoteSessionWriteResult {
+        try await bulkAction(sessionIds: sessionIds) { try await self.engine.unarchive(sessionIds: $0) }
+    }
+
+    /// Sessions of one project (official /projects/{id}/sessions; archived split).
+    public func listProjectSessions(projectId: String, archived: Bool = false,
+                                    cursor: String? = nil) async throws -> RemoteSessionListPage {
+        let r = try await attempt { try await self.engine.listProjectSessions(projectId: projectId, archived: archived, cursor: cursor) }
+        return .init(sessions: r.sessions.map(Self.mapSession),
+                     hasMore: r.hasMore, nextCursor: r.nextCursor, serverTime: r.serverTime)
+    }
+
+    private func bulkAction(sessionIds: [String],
+                            op: @escaping ([String]) async throws -> V2SessionBulkActionResponse) async throws -> RemoteSessionWriteResult {
+        let r = try await attempt { try await op(sessionIds) }
+        return .init(sessions: r.sessions.map(Self.mapSession),
+                     notFound: r.notFound, serverTime: r.serverTime)
+    }
+
+    static func mapSession(_ s: V2SessionMeta) -> RemoteSessionMeta {
+        RemoteSessionMeta(id: s.id, connectorId: s.connectorId, projectId: s.projectId,
+                          runtime: s.runtime, runtimeId: s.runtimeId,
+                          runtimeTypeDisplayName: s.runtimeTypeDisplayName,
+                          title: s.title, cwd: s.cwd, status: s.status.rawValue,
+                          connectorStatus: s.connectorStatus.rawValue,
+                          pinned: s.pinned, archived: s.archived, unread: s.unread,
+                          lastActivityAt: s.lastActivityAt, lastItemAt: s.lastItemAt,
+                          lastItemOrderSeq: s.lastItemOrderSeq, sortAt: s.sortAt,
+                          createdAt: s.createdAt)
     }
 
     public func runtimeTypes(connectorId: String) async throws -> [RemoteRuntimeType] {

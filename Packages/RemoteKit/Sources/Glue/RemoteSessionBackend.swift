@@ -144,6 +144,32 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
         try await requireAPI().projects.list()
     }
 
+    // Session reads: dashboard list (archived split + paging), meta, bulk actions.
+    func listSessions(archived: Bool, cursor: String?) async throws -> V2SessionListResponse {
+        try await requireAPI().sessions.listSessions(archived: archived, cursor: cursor)
+    }
+    func sessionInventory() async throws -> V2SessionInventoryResponse {
+        try await requireAPI().sessions.sessionInventory()
+    }
+    func sessionMeta(sessionId: V2SessionID) async throws -> V2SessionMetaResponse {
+        try await requireAPI().sessions.sessionMeta(sessionId: sessionId)
+    }
+    func patchSessionMeta(sessionId: V2SessionID, request: V2SessionMetaPatchRequest) async throws -> V2SessionMetaResponse {
+        try await requireAPI().sessions.patchSessionMeta(sessionId: sessionId, request: request)
+    }
+    func markRead(sessionIds: [V2SessionID]) async throws -> V2SessionBulkActionResponse {
+        try await requireAPI().sessions.markRead(sessionIds: sessionIds)
+    }
+    func archive(sessionIds: [V2SessionID]) async throws -> V2SessionBulkActionResponse {
+        try await requireAPI().sessions.archive(sessionIds: sessionIds)
+    }
+    func unarchive(sessionIds: [V2SessionID]) async throws -> V2SessionBulkActionResponse {
+        try await requireAPI().sessions.unarchive(sessionIds: sessionIds)
+    }
+    func listProjectSessions(projectId: String, archived: Bool, cursor: String?) async throws -> V2SessionListResponse {
+        try await requireAPI().projects.sessions(projectId, archived: archived, cursor: cursor)
+    }
+
     func runtimeTypes(connectorId: V2ConnectorID) async throws -> V2RuntimeTypeListResponse {
         try await requireAPI().connectors.runtimeTypes(connectorId: connectorId)
     }
