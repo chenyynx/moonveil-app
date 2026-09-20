@@ -232,6 +232,11 @@ struct ModeTabPicker: View {
             .offset(x: r.minX, y: (Self.rowHeight - Self.pillHeight) / 2)
             .allowsHitTesting(false)
             .animation(Self.settle, value: isDragging)
+            // [TAB-SWAP-FLASH 2026-09-21] 胶囊滑动动画显式化：tab 内容层改为瞬切
+            // （RootModeTabsView 对 opacity 加 .animation(nil, value: mode) 断开
+            // crossfade 叠影）后，滑动仍由这条显式绑定保证（scrub 跟手不受影响：
+            // 跟手由 progress 驱动，不在绑定值里；吸附/点切由 selection 驱动 → settle）。
+            .animation(Self.settle, value: selection)
     }
 
     /// <26 fallback: solid capsule (upstream SearchBarSurface 家规 — no homemade blur).
@@ -247,6 +252,11 @@ struct ModeTabPicker: View {
             .offset(x: r.minX, y: (Self.rowHeight - Self.pillHeight) / 2)
             .allowsHitTesting(false)
             .animation(Self.settle, value: isDragging)
+            // [TAB-SWAP-FLASH 2026-09-21] 胶囊滑动动画显式化：tab 内容层改为瞬切
+            // （RootModeTabsView 对 opacity 加 .animation(nil, value: mode) 断开
+            // crossfade 叠影）后，滑动仍由这条显式绑定保证（scrub 跟手不受影响：
+            // 跟手由 progress 驱动，不在绑定值里；吸附/点切由 selection 驱动 → settle）。
+            .animation(Self.settle, value: selection)
     }
 
     @ViewBuilder

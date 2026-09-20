@@ -48,6 +48,13 @@ struct RootModeTabsView: View {
             ContentView()
                 .opacity(router.mode == .local ? 1 : 0)
                 .allowsHitTesting(router.mode == .local)
+                // [TAB-SWAP-FLASH 2026-09-21] pp「切 tab 搜索栏那一坨和新会话胶囊会闪
+                // 一下」：tap/横滑两条路径的 withAnimation 事务把两个 tab 的 opacity
+                // 变成 crossfade——两 tab 底部同位置都有深色「新会话胶囊+搜索栏」，
+                // 半透明叠影即闪源。内容层瞬切（胶囊动画在 ModeTabPicker 内部显式
+                // 绑定，不受影响）。ContentView 不读 router.mode（D4 红线），此修饰
+                // 只影响整体 opacity 翻转方式，本机线本体零改动。
+                .animation(nil, value: router.mode)
 
             if router.seenRemote {
                 // B12 CI repair: a bare `if/else` is a STATEMENT — trailing view
@@ -70,6 +77,8 @@ struct RootModeTabsView: View {
                 }
                 .opacity(router.mode == .remote ? 1 : 0)
                 .allowsHitTesting(router.mode == .remote)
+                // [TAB-SWAP-FLASH] 同上：远端内容层瞬切（胶囊动画见 ModeTabPicker）。
+                .animation(nil, value: router.mode)
             }
         }
         .overlay(alignment: .topLeading) {
