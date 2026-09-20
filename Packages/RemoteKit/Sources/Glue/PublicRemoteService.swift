@@ -141,6 +141,27 @@ public struct RemoteSessionWriteResult: Sendable {
     public let serverTime: String
 }
 
+/// Public mirror of V2WorkspaceDirectory（目录列举；字段 verbatim）。
+public struct RemoteWorkspaceDirectory: Sendable {
+    public let path: String
+    public let entries: [RemoteWorkspaceEntry]
+    public let truncated: Bool?
+    public let targetType: String?
+}
+
+/// Public mirror of V2WorkspaceEntry（fd 字段 verbatim）。
+public struct RemoteWorkspaceEntry: Sendable, Identifiable, Hashable {
+    public let name: String
+    public let path: String
+    public let type: String
+    public let size: Int?
+    public let modifiedAt: String?
+
+    public var id: String { path }
+    public var isDirectory: Bool { type == "directory" }
+    public var isFile: Bool { type == "file" }
+}
+
 // MARK: - Notices public surface (batch7 promise — delivered with the shell)
 
 public struct RemoteNoticeActionInput: Sendable {
@@ -482,6 +503,44 @@ public final class RemoteService: ObservableObject {
         let r = try await attempt { try await self.engine.listProjectSessions(projectId: projectId, archived: archived, cursor: cursor) }
         return .init(sessions: r.sessions.map(Self.mapSession),
                      hasMore: r.hasMore, nextCursor: r.nextCursor, serverTime: r.serverTime)
+    }
+
+    // MARK: - Workspace files + projects (official V2WorkspaceFilesService /
+    // V2WorkspaceProjectResolver equivalents)
+
+    /// One directory listing through the connector RPC boundary（官方
+    /// V2WorkspaceFilesService.directory 同款：error 优先于 ok 抛出）。
+    public func workspaceDirectory(connectorId: String, root: String, path: String) async throws -> RemoteWorkspaceDirectory {
+        let r = try await attempt {
+            try await self.engine.workspaceDirectory(connectorId: connectorId, root: root, path: path)
+        }
+        if let error = r.error, !r.ok {
+            throw RemoteServiceError.rejected(code: error.code, message: error.message)
+        }
+        guard r.ok, let directory = r.result else {
+            throw RemoteServiceError.rejected(code: nil, message: "The workspace directory is unavailable.")
+        }
+        return RemoteWorkspaceDirectory(
+            path: directory.path,
+            entries: directory.entries.map {
+                RemoteWorkspaceEntry(name: $0.name, path: $0.path, type: $0.type, size: $0.size, modifiedAt: $0.modifiedAt)
+            },
+            truncated: directory.truncated,
+            targetType: directory.targetType
+        )
+    }
+
+    /// 创建项目（官方 V2WorkspaceProjectResolver 创建步；manuallyCreated=false
+    /// 为工作目录自动 resolve 场景）。
+    public func createProject(connectorId: String, workspacePath: String, name: String,
+                              manuallyCreated: Bool = true) async throws -> RemoteProject {
+        let r = try await attempt {
+            try await self.engine.createProject(name: name, connectorId: connectorId,
+                                                workspacePath: workspacePath, manuallyCreated: manuallyCreated)
+        }
+        return RemoteProject(id: r.project.id, connectorId: r.project.connectorId, name: r.project.name,
+                             workspacePath: r.project.workspacePath, pinned: r.project.pinned,
+                             activeSessionCount: r.project.activeSessionCount)
     }
 
     private func bulkAction(sessionIds: [String],

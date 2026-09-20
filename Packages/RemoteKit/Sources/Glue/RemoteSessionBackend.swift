@@ -170,6 +170,22 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
         try await requireAPI().projects.sessions(projectId, archived: archived, cursor: cursor)
     }
 
+    // Workspace files: one directory listing through the connector RPC boundary
+    // （官方 V2WorkspaceFilesService.directory 同款；home 解析与目录浏览共用）。
+    func workspaceDirectory(connectorId: V2ConnectorID, root: String, path: String) async throws -> V2WorkspaceDirectoryResponse {
+        try await requireAPI().connectors.listWorkspaceFiles(
+            connectorId: connectorId,
+            request: V2WorkspaceFilesListRequest(root: root, path: path)
+        )
+    }
+
+    // Project creation（官方 V2WorkspaceProjectResolver 的创建步）。
+    func createProject(name: String, connectorId: V2ConnectorID, workspacePath: String, manuallyCreated: Bool) async throws -> V2ProjectResponse {
+        try await requireAPI().projects.create(V2ProjectCreateRequest(
+            name: name, connectorId: connectorId, workspacePath: workspacePath, manuallyCreated: manuallyCreated
+        ))
+    }
+
     func runtimeTypes(connectorId: V2ConnectorID) async throws -> V2RuntimeTypeListResponse {
         try await requireAPI().connectors.runtimeTypes(connectorId: connectorId)
     }

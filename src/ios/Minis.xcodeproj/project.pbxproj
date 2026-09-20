@@ -557,6 +557,7 @@
 		D05AF00E000000000000B1E1 /* RemoteSessionIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E1 /* RemoteSessionIcon.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1E2 /* RemoteSessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E2 /* RemoteSessionListView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1E6 /* RemoteDeviceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E6 /* RemoteDeviceDetailView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1EF /* ProjectWorkspacePath.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1EF /* ProjectWorkspacePath.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1ED /* ChatHeaderStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1ED /* ChatHeaderStatus.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1EE /* RemoteChatPageToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1EE /* RemoteChatPageToolbar.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1E8 /* RemoteNewSessionReveal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1E8 /* RemoteNewSessionReveal.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
@@ -1336,6 +1337,7 @@
 		D05AF00E000000000000A1E1 /* RemoteSessionIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionIcon.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1E2 /* RemoteSessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionListView.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1E6 /* RemoteDeviceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteDeviceDetailView.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1EF /* ProjectWorkspacePath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspacePath.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1ED /* ChatHeaderStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHeaderStatus.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1EE /* RemoteChatPageToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteChatPageToolbar.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1E8 /* RemoteNewSessionReveal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteNewSessionReveal.swift; sourceTree = "<group>"; };
@@ -2593,6 +2595,7 @@
 				D05AF00E000000000000A1E4 /* PairDeviceSheet.swift */,
 				D05AF00E000000000000A1E5 /* RemoteSheets.swift */,
 				D05AF00E000000000000A1E6 /* RemoteDeviceDetailView.swift */,
+			D05AF00E000000000000A1EF /* ProjectWorkspacePath.swift */,
 			D05AF00E000000000000A1ED /* ChatHeaderStatus.swift */,
 			D05AF00E000000000000A1EE /* RemoteChatPageToolbar.swift */,
 			D05AF00E000000000000A1E8 /* RemoteNewSessionReveal.swift */,
@@ -3651,6 +3654,7 @@
 				D05AF00E000000000000B1E4 /* PairDeviceSheet.swift in Sources */,
 				D05AF00E000000000000B1E5 /* RemoteSheets.swift in Sources */,
 				D05AF00E000000000000B1E6 /* RemoteDeviceDetailView.swift in Sources */,
+			D05AF00E000000000000B1EF /* ProjectWorkspacePath.swift in Sources */,
 			D05AF00E000000000000B1ED /* ChatHeaderStatus.swift in Sources */,
 			D05AF00E000000000000B1EE /* RemoteChatPageToolbar.swift in Sources */,
 			D05AF00E000000000000B1E8 /* RemoteNewSessionReveal.swift in Sources */,

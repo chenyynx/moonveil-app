@@ -224,6 +224,10 @@ struct RemoteNewSessionWorkspaceSheet: View {
                     }
                 }
                 Section("项目") {   // 官方 key「这台设备上的项目」的 zh-Hans 显示值
+                    // 官方 ProjectSelectionSheet：home 未被项目覆盖时显示 Home 目录行。
+                    if homeProject == nil {
+                        homeRow
+                    }
                     ForEach(model.availableProjects) { project in
                         Button {
                             model.selectProject(project)
@@ -271,10 +275,40 @@ struct RemoteNewSessionWorkspaceSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { SheetCloseToolbar { dismiss() } }
             .refreshable { await model.refresh(service: service) }
+            .task(id: model.selectedConnectorId) { await model.resolveHome(service: service) }
         }
         .appSheetPresentation(.compact)
         .sheet(isPresented: $showsProjectEditor) {
             RemoteProjectEditorSheet(service: service)
         }
+    }
+
+    /// 官方 ProjectSelectionSheet.homeProject：projects 中匹配 home 路径的项目。
+    private var homeProject: RemoteProject? {
+        guard let homePath = model.homePath, let connector = model.selectedConnector else { return nil }
+        return ProjectWorkspacePath.project(in: model.availableProjects, connectorID: connector.id,
+                                            path: homePath, deviceOS: connector.deviceOs)
+    }
+
+    /// 官方 ProjectSelectionSheet.homeRow 逐字（model 访问适配）。
+    private var homeRow: some View {
+        Button {
+            if let path = model.homePath, model.selectWorkspace(path) { dismiss() }
+        } label: {
+            HStack(spacing: 12) {
+                AppSymbol("house")
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Home 目录").foregroundStyle(.primary)
+                    Text(model.homePath ?? "正在解析设备家目录…")
+                        .font(.system(.footnote, design: .monospaced)).foregroundStyle(.secondary).lineLimit(2)
+                }
+                Spacer(minLength: 8)
+                if let id = model.selectedConnectorId, model.loadingHomes.contains(id) {
+                    ProgressView().controlSize(.small)
+                } else if model.isHome {
+                    AppSymbol("checkmark")
+                }
+            }.padding(.vertical, 6)
+        }.buttonStyle(.plain).disabled(model.homePath == nil)
     }
 }

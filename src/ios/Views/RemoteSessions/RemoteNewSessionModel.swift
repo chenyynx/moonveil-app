@@ -28,6 +28,21 @@ final class RemoteNewSessionModel: ObservableObject {
     @Published var selectedRuntimeType: String?
     /// 运行时拉取代际令牌：快速切换设备时丢弃过期响应。
     private var runtimeLoadToken = 0
+    // 家目录解析（官方 NewSessionModel.resolveHome 语义；files service 现接）
+    @Published private(set) var homePaths: [String: String] = [:]
+    @Published private(set) var loadingHomes: Set<String> = []
+    private var resolvedHomes: Set<String> = []
+    /// 手动选择的工作目录（官方 model.workspace：非项目路径，如 Home 目录）。
+    @Published private(set) var manualWorkspacePath: String?
+
+    /// 当前设备的家目录（解析后；官方 homePath）。
+    var homePath: String? { selectedConnectorId.flatMap { homePaths[$0] } }
+
+    /// 当前工作目录是否 = 家目录（官方 isHome）。
+    var isHome: Bool {
+        guard let homePath, !workspacePath.isEmpty else { return false }
+        return workspacePath == homePath
+    }
     // 草稿与提交
     @Published var text = ""
     @Published private(set) var isCreating = false
@@ -56,23 +71,27 @@ final class RemoteNewSessionModel: ObservableObject {
         text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// 官方 gate：设备在线 + 选中项目 + 选中运行时 + 任务非空白；提交中锁死。
+    /// 官方 gate：设备在线 + 工作目录已定 + 选中运行时 + 任务非空白；提交中锁死。
+    /// （项目在 create 时由 resolver 解析——官方语义：home/任意目录可直接开始。）
     var canCreate: Bool {
         (selectedConnector?.isOnline ?? false)
-            && selectedProject != nil
+            && !workspacePath.isEmpty
             && selectedRuntime != nil
             && !trimmedContent.isEmpty
             && !isCreating
     }
 
-    /// 工作目录行显示名：项目名 → 「Home 目录」（官方 workspaceName 语义）。
+    /// 工作目录行显示名（官方 workspaceName）：项目名 → Home 目录 → 路径末段。
     var workspaceName: String {
-        selectedProject?.name ?? "Home 目录"
+        if let project = selectedProject { return project.name }
+        let path = workspacePath
+        if path.isEmpty || path == homePath { return "Home 目录" }
+        return ProjectWorkspacePath.name(path)
     }
 
-    /// 工作目录路径副行（未选项目 = 空，不假造）。
+    /// 工作目录路径：手动选择（Home/任意目录）→ 项目路径 → 空。
     var workspacePath: String {
-        selectedProject?.workspacePath ?? ""
+        manualWorkspacePath ?? selectedProject?.workspacePath ?? ""
     }
 
     /// 顶栏目标胶囊：运行时显示名 · 设备名。
@@ -174,6 +193,8 @@ final class RemoteNewSessionModel: ObservableObject {
             connectorsError = error.localizedDescription
         }
         connectorsLoaded = true
+        // 官方 load 链：async let home: Void = resolveHome()
+        await resolveHome(service: service)
     }
 
     private func loadProjects(service: RemoteService) async {
@@ -220,6 +241,29 @@ final class RemoteNewSessionModel: ObservableObject {
         runtimesLoaded = true
     }
 
+    /// 官方 NewSessionModel.resolveHome：files.directory(root: "~", path: ".")
+    /// 解析设备家目录；成功后作为默认工作目录（未选项目/无手动路径时兜底）。
+    func resolveHome(service: RemoteService) async {
+        guard let device = selectedConnectorId,
+              let connector = selectedConnector, connector.isOnline,
+              !resolvedHomes.contains(device) else { return }
+        loadingHomes.insert(device)
+        defer { loadingHomes.remove(device) }
+        do {
+            let directory = try await service.workspaceDirectory(connectorId: device, root: "~", path: ".")
+            guard directory.targetType == nil || directory.targetType == "directory",
+                  !directory.path.isEmpty else { return }
+            homePaths[device] = directory.path
+            resolvedHomes.insert(device)
+            // 官方：workspace 无效时用 home 兜底（本仓：未选项目且无手动路径）。
+            if manualWorkspacePath == nil, selectedProjectId == nil {
+                manualWorkspacePath = directory.path
+            }
+        } catch {
+            // 官方 homeErrors[device] 记录；homeRow 保持"正在解析"占位（不假造）。
+        }
+    }
+
     func selectConnector(_ connector: RemoteConnector, service: RemoteService) async {
         guard connector.id != selectedConnectorId else { return }
         selectedConnectorId = connector.id
@@ -228,11 +272,24 @@ final class RemoteNewSessionModel: ObservableObject {
            projects.first(where: { $0.id == sid })?.connectorId != connector.id {
             selectedProjectId = nil
         }
+        // 手动工作目录属于旧设备语义——清空后由新设备的 home 兜底
+        manualWorkspacePath = nil
         await refreshRuntimes(for: connector, service: service)
+        await resolveHome(service: service)
     }
 
     func selectProject(_ project: RemoteProject) {
         selectedProjectId = project.id
+        manualWorkspacePath = nil
+    }
+
+    /// 官方 selectWorkspace：把工作目录设为任意路径（如 Home 目录）。
+    @discardableResult
+    func selectWorkspace(_ path: String) -> Bool {
+        guard !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        manualWorkspacePath = path
+        selectedProjectId = nil
+        return true
     }
 
     // MARK: - 目标选择（SessionTargetSheet 应用入口）
@@ -255,7 +312,6 @@ final class RemoteNewSessionModel: ObservableObject {
     func create(service: RemoteService) async -> String? {
         guard canCreate,
               let connector = selectedConnector,
-              let project = selectedProject,
               let runtime = selectedRuntimeType
         else { return nil }
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
@@ -264,13 +320,19 @@ final class RemoteNewSessionModel: ObservableObject {
         error = nil
         defer { isCreating = false }
         do {
+            // 官方 V2WorkspaceProjectResolver：工作目录 resolve 成项目（没有即创建
+            // ——home / 任意目录模式由此成立；服务端 projectId 必填非空）。
+            let project = try await resolveProject(
+                connectorId: connector.id, path: workspacePath,
+                deviceOS: connector.deviceOs, service: service
+            )
             let result = try await service.startSession(
                 connectorId: connector.id,
                 projectId: project.id,
                 runtime: runtime,
                 runtimeId: nil,
                 title: nil,
-                cwd: workspacePath.isEmpty ? nil : workspacePath,
+                cwd: project.workspacePath.isEmpty ? nil : project.workspacePath,
                 content: trimmedContent,
                 clientMessageId: UUID().uuidString
             )
@@ -279,5 +341,33 @@ final class RemoteNewSessionModel: ObservableObject {
             self.error = error.localizedDescription
             return nil
         }
+    }
+
+    /// 官方 V2WorkspaceProjectResolver.resolve 的 remote 等价（本地匹配 → 拉新
+    /// 列表匹配 → 创建；availableName 预避命名冲突）。
+    private func resolveProject(connectorId: String, path: String, deviceOS: String?,
+                                service: RemoteService) async throws -> RemoteProject {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !connectorId.isEmpty, ProjectWorkspacePath.key(trimmed, deviceOS: deviceOS) != nil else {
+            throw RemoteServiceError.rejected(code: nil, message: "请输入设备上的完整绝对路径。")
+        }
+        if let existing = ProjectWorkspacePath.project(in: projects, connectorID: connectorId,
+                                                       path: trimmed, deviceOS: deviceOS) {
+            return existing
+        }
+        let fresh = (try? await service.listProjects()) ?? projects
+        projects = fresh
+        if let existing = ProjectWorkspacePath.project(in: fresh, connectorID: connectorId,
+                                                       path: trimmed, deviceOS: deviceOS) {
+            return existing
+        }
+        let created = try await service.createProject(
+            connectorId: connectorId,
+            workspacePath: trimmed,
+            name: ProjectWorkspacePath.availableName(ProjectWorkspacePath.name(trimmed), projects: fresh),
+            manuallyCreated: false
+        )
+        projects.append(created)
+        return created
     }
 }
