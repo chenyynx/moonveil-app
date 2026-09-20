@@ -92,8 +92,14 @@ struct RemoteSessionListView: View {
     @State private var showsPairSheet = false
     @State private var showsProjectEditor = false
     @State private var showsNewSession = false
-    @State private var showsSessionDetail = false
-    @State private var selectedSessionId: String?
+    /// P1-CHAT：会话聊天页 push（官方由 ChatShellView 的 selection 承担，本仓导航 =
+    /// NavigationStack → navigationDestination）。
+    @State private var showsChat = false
+    @State private var chatSessionId: String?
+    /// 官方 ChatShellView:198 `appState.connectors.first { $0.id == connectorID }?.name`
+    /// 的本仓等价物：无常驻 connectors 镜像 → 就绪时拉一次，供聊天页副标题与文件页标题。
+    @State private var connectorNames: [String: String] = [:]
+    @Environment(\.dismiss) private var dismiss
     // 底栏搜索（与本机同款交互：即时过滤标题、键盘收起三出口）
     @State private var searchText = ""
     @FocusState private var searchFocused: Bool
@@ -139,19 +145,40 @@ struct RemoteSessionListView: View {
             .sheet(isPresented: $showsArchives) {
                 RemoteArchivedSessionsSheet(service: service)
             }
-            .sheet(isPresented: $showsSessionDetail) {
-                if let id = selectedSessionId {
-                    RemoteSessionDetailSheet(service: service, sessionId: id)
-                }
-            }
             .onAppear {
                 guard service.state == .ready else { return }
                 loader.load(service: service, filter: archiveFilter)
                 loader.loadArchived(service: service)
+                Task { await refreshConnectorNames() }
             }
             .onChange(of: archiveFilter) { _, newFilter in
                 loader.load(service: service, filter: newFilter, force: true)
             }
+    }
+
+    /// 设备名镜像（一次性；配对/改名后的刷新随设备页批走）。失败静默：
+    /// 聊天页副标题按官方回退链使用 connectorId。
+    private func refreshConnectorNames() async {
+        guard let connectors = try? await service.listConnectors() else { return }
+        connectorNames = Dictionary(connectors.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// P1-CHAT：聊天页目的地。`service.chat`（组合根）未就绪（未登录/未 bootstrap）
+    /// 时列表本身不可点（state != .ready），此处仍做真实判空而非强解包。
+    @ViewBuilder private var chatDestination: some View {
+        if let id = chatSessionId, let services = service.chat {
+            let session = services.sessionRepository.session(id: id)
+            SessionChatView(session: session, services: services,
+                            deviceName: connectorNames[session.metadata?.connectorId ?? ""],
+                            onMenu: { dismiss() })
+                .task(id: id) {
+                    // 官方 AppState.makeV2Services → services.restoreCache(selection:)：
+                    // 进页面先把本地缓存铺进仓库（离线可见），网络回来再覆盖。
+                    await services.restoreCache(selection: .session(id))
+                }
+        } else {
+            Color.clear
+        }
     }
 
     private var content: some View {
@@ -256,6 +283,10 @@ struct RemoteSessionListView: View {
         // REMOTE-DEVICE-1：设备详情页（长按终端卡进入）
         .navigationDestination(isPresented: $showsDeviceDetail) {
             RemoteDeviceDetailView(service: service)
+        }
+        // P1-CHAT：会话聊天页（官方 ChatShell selection 的本仓导航等价物）
+        .navigationDestination(isPresented: $showsChat) {
+            chatDestination
         }
         .onChange(of: agentSetup.presentedConnector?.id) { _, id in
             // 官方：configured 设备由 ChatShellView 消费 presentedConnector 弹出
@@ -604,9 +635,9 @@ struct RemoteSessionListView: View {
     private func openSession(_ item: RemoteSessionItem) {
         // 打开即标记已读（AA 官方语义；写失败不阻断查看）
         loader.markRead([item.id], service: service)
-        // 会话页接线在聊天页批；本批列表骨架 + 弹窗。
-        selectedSessionId = item.id
-        showsSessionDetail = true
+        // P1-CHAT：进入官方聊天页（push 目的地，数据面走组合根 sessionRepository）
+        chatSessionId = item.id
+        showsChat = true
     }
 
     private func startNewSession() {

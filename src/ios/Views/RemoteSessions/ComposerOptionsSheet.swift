@@ -1,9 +1,11 @@
 // ComposerOptionsSheet.swift — AA 官方 Views/Chat/Composer/ComposerOptionsSheet.swift
 // 逐字搬运。文案为官方 zh-Hans 显示值。
 //
-// 适配（官方依赖本仓不存在的能力，明示+排期）：官方 `sessionChat: SessionChatModel?`
-// 参数与「接管会话」区属「会话聊天页」子系统（SessionChatModel 随该批搬运，Qoder P1）。
-// 本批移除该参数/区块与 SessionTakeoverConfirmation modifier；聊天页批恢复。
+// 适配历史（COMPOSER-FULL 批）：`sessionChat` 参数、「接管会话」区与
+// SessionTakeoverConfirmation modifier 当时因会话聊天页子系统缺位未接；
+// P1-CHAT 批已按官方逐字恢复（本文件重新与官方等值）。
+// 文案保持本仓 NEWSESSION-COPY 批选定的官方 zh-Hans 显示值（官方源码该处是 key
+// 字面，与 xcstrings 值不同，行内字据原样保留），非本批改动。
 
 import SwiftUI
 
@@ -19,6 +21,8 @@ struct ComposerOptionsSheet: View {
     var onReload: () async -> Void = {}
     var onApply: () async -> Bool = { true }
     var applyError: () -> String? = { nil }
+    var sessionChat: SessionChatModel?
+    @State private var pendingTakeover: Bool?
     @State private var isApplying = false
     @State private var showsApplyError = false
     @State private var path: [Page] = []
@@ -60,6 +64,24 @@ struct ComposerOptionsSheet: View {
                         .disabled(isLoading || !canSelectPermission || settings.catalog.permissions.isEmpty)
                     }
                     .background { ComposerOptionSurface() }
+                    if let chat = sessionChat, let meta = chat.session.metadata {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Toggle(isOn: Binding(get: { meta.takeover }, set: { pendingTakeover = $0 })) {
+                                Label(String(localized: "接管会话"), appSymbol: "hand.raised")
+                            }
+                            .toggleStyle(.switch).tint(nil).accentColor(nil)
+                            .disabled(!chat.canChangeTakeover)
+                            Text(meta.takeover ? String(localized: "已开启，可从 Agents Anywhere 继续操作。") : String(localized: "只读模式，开启接管后可以继续发送消息。"))
+                                .font(.footnote).foregroundStyle(.secondary)
+                            if let error = chat.takeoverError {
+                                Text(error).font(.footnote).foregroundStyle(.secondary)
+                            }
+                            if chat.takeoverUncertain || !chat.session.runtime.isFresh {
+                                Button(String(localized: "刷新接管状态")) { Task { await chat.refreshTakeover() } }
+                                    .font(.footnote).disabled(chat.isWorking || chat.session.network.availability == .offline)
+                            }
+                        }.padding(16).background { ComposerOptionSurface() }
+                    }
                 }
                 .padding(20)
             }
@@ -80,6 +102,9 @@ struct ComposerOptionsSheet: View {
         .appSheetPresentation(.compact)
         .disabled(isApplying)
         .interactiveDismissDisabled(isApplying)
+        .modifier(SessionTakeoverConfirmation(pending: $pendingTakeover) { enabled in
+            if let chat = sessionChat { _ = await chat.setTakeover(enabled) }
+        })
         .alert(String(localized: "无法更新模型或权限。"), isPresented: $showsApplyError) {
             Button(String(localized: "好的"), role: .cancel) {}
         } message: { Text(applyError() ?? String(localized: "无法更新模型或权限。")) }

@@ -659,6 +659,14 @@ public final class RemoteService: ObservableObject {
     /// 当前服务器地址（配对命令与 claim 的 serverUrl 参数；upstream AppState.serverURL 语义）。
     public var serverURLValue: URL? { engine.serverURL }
 
+    /// 会话聊天页组合根（官方 AppState→services.sessionRepository 消费路径的本仓等价物）。
+    /// internal：单模块设计下视图直接可见，不收 public API 面。
+    /// accountID 是离线缓存分区键（官方 profile.userId）；profile 在 bootstrap 之后
+    /// 异步补fetch，首访未达时以 "official-account" 稳定值分区——同一 token 的
+    /// keychain + UserDefaults 登录态跨启动不变，缓存不漂移；profile 到达后
+    /// bootstrap/sign-out 重建时自然取到真实 userId。
+    var chat: V2RemoteChatServices? { engine.chatServices }
+
     /// 创建配对凭证（官方 createDevice：空名拒绝 → POST /connectors）。
     public func createConnector(name: String) async throws -> RemoteConnectorCreateResponse {
         let normalizedName = name.trimmingCharacters(in: .whitespacesAndNewlines)

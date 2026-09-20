@@ -42,6 +42,18 @@ let package = Package(
                 "AAV2/Domain/Attachment",
                 "AAV2/Network",
                 "AAV2/Business",
+                "AAV2/Business/V2SessionPreparationService.swift", // wired 2026-09-20: Xcode 侧目录展开漏编的显式登记（iOS Build 124f73d forensics）
+                // P1-CHAT (2026-09-20): 组合根 V2RemoteChatServices（Glue）的依赖闭包补全 —
+                // Repositories（scope/restoration/dashboard repo，V2SessionRepository 的同伴）
+                // + Models/Session（V2SessionModel，聊天页数据主语）+ Models/Devices
+                // （WorkspaceDirectoryModel，官方文件页数据层，SessionChatView 文件按钮依赖）。
+                "AAV2/Repositories",
+                "AAV2/Models/Session",
+                "AAV2/Models/Devices",
+                // batch9 (2026-09-20): chat timeline/model layer (SessionChatModel + Timeline 全家
+                // + Notice/Toast/Attachment stores + Markdown sizing) — Foundation/Observation-only,
+                // 0 iOS18/26 API (verified by scan); consumed by P1 SessionChatView port
+                "AAV2/Models/Chat",
                 // batch3 (2026-09-15): API/V2 transport-facing layer + WS client
                 // (closure of V2APIClient composition root; no UI deps — verified)
                 "AAV2/API/V2",

@@ -17,7 +17,20 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
     private var tokenProvider: MutableAuthTokenProvider?
     private var api: V2APIClient?
     private var creationService: V2SessionCreationService?
+    private var chatServicesStore: V2RemoteChatServices?
+    private var chatServicesAPIRef: V2APIClient?
     private var lastServerURL: URL?
+
+    /// 组合根（官方 V2ClientServices 等价物）。单实例挂在 backend 上，
+    /// accountID 取 profile.userId（未取到退 official-account，见 RemoteService.chat 注释）。
+    var chatServices: V2RemoteChatServices? {
+        guard let api else { return nil }
+        if let store = chatServicesStore, chatServicesAPIRef === api { return store }
+        let services = V2RemoteChatServices(api: api, accountID: profile?.userId ?? "official-account")
+        chatServicesStore = services
+        chatServicesAPIRef = api
+        return services
+    }
 
     /// Facade 用：配对命令与 claim 的 serverUrl（upstream AppState.serverURL）。
     var serverURL: URL? { lastServerURL }
@@ -279,6 +292,11 @@ final class RemoteSessionBackend: ObservableObject, RemoteSessionServing {
         // Zero the token before dropping refs (best effort; the provider is
         // the only holder of the secret inside this module).
         tokenProvider?.update(nil)
+        // Official shutdown(removingCache:) before refs drop (V2ClientServices.shutdown).
+        let services = (chatServicesAPIRef === api) ? chatServicesStore : nil
+        services?.shutdown(removingCache: false)
+        chatServicesStore = nil
+        chatServicesAPIRef = nil
         authClient = nil
         tokenProvider = nil
         api = nil

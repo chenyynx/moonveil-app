@@ -1,9 +1,9 @@
 // ChatComposerDock.swift — AA 官方 Views/Chat/Composer/ChatComposerDock.swift
 // 逐字搬运（含 ImportedChatFile）。文案为官方 zh-Hans 显示值。
 //
-// 适配（官方依赖本仓不存在的能力，明示+排期）：官方 `sessionChat: SessionChatModel?`
-// 属「会话聊天页」子系统（SessionChatModel 随该批搬运，Qoder P1）。本批移除该参数
-// 与向下传递；聊天页批恢复（options sheet 的 takeover 区同批）。
+// 适配历史（COMPOSER-FULL 批）：官方 `sessionChat: SessionChatModel?` 曾随「会话聊天页」
+// 子系统缺位而移除；P1-CHAT 批（2026-09-20 晚）已恢复该参数与向下传递（含 options sheet
+// 的 takeover 区），本文件重新与官方等值。
 
 import SwiftUI
 import PhotosUI
@@ -27,6 +27,7 @@ struct ChatComposerDock: View {
     var placeholder = String(localized: "描述任务...")
     var isLoadingSettings = false
     var settingsError: String?
+    var sessionChat: SessionChatModel?
     let onSend: (String) async -> Void
     var onStop: () async -> Void = {}
     var onLoadSettings: () async -> Void = {}
@@ -67,7 +68,7 @@ struct ChatComposerDock: View {
                 canAttach: canAttach && draft.attachments.count < 5 && importCount == 0,
                 canSelectModel: canSelectModel, canSelectPermission: canSelectPermission,
                 isLoading: isLoadingSettings, loadingError: settingsError,
-                onReload: onLoadSettings, onApply: onApplySettings, applyError: applyError)
+                onReload: onLoadSettings, onApply: onApplySettings, applyError: applyError, sessionChat: sessionChat)
                 .task(id: "\(canSelectModel):\(canSelectPermission)") { await onLoadSettings() }
         }
         .onChange(of: photos) { _, items in importPhotos(items) }

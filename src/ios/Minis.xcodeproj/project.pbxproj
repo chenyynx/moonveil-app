@@ -568,6 +568,31 @@
 		D05AF00E000000000000B1FA /* InlineSelectionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1FA /* InlineSelectionRow.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1FB /* ConversationSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1FB /* ConversationSettings.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1FC /* ComposerOptionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1FC /* ComposerOptionsSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1FD /* ChatErrorToasts.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1FD /* ChatErrorToasts.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1FE /* ChatMessageAttachments.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1FE /* ChatMessageAttachments.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B1FF /* ChatPageContentColumn.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1FF /* ChatPageContentColumn.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B200 /* ChatPageScrollEdge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A200 /* ChatPageScrollEdge.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B201 /* ChatTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A201 /* ChatTimelineView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B202 /* CompletionFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A202 /* CompletionFeedback.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B203 /* RemoteGlassIfAvailable.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A203 /* RemoteGlassIfAvailable.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B204 /* RemoteSelectableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A204 /* RemoteSelectableText.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B205 /* SessionChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A205 /* SessionChatView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B206 /* SessionDetailsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A206 /* SessionDetailsSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B207 /* SessionInteractionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A207 /* SessionInteractionCard.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B208 /* SessionInteractionContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A208 /* SessionInteractionContent.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B209 /* SessionInteractionDetailsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A209 /* SessionInteractionDetailsSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B20A /* SessionInteractionDock.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A20A /* SessionInteractionDock.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B20B /* SessionNoticesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A20B /* SessionNoticesSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B20C /* SessionTakeoverConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A20C /* SessionTakeoverConfirmation.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B20D /* SessionTimelineEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A20D /* SessionTimelineEventView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B20E /* SessionTimelineRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A20E /* SessionTimelineRow.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B20F /* SessionTurnActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A20F /* SessionTurnActions.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B210 /* SessionTurnReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A210 /* SessionTurnReviewSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B211 /* SidebarDrawerEnvironmentKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A211 /* SidebarDrawerEnvironmentKeys.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B212 /* WorkspaceFilesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A212 /* WorkspaceFilesSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B213 /* WorkspaceFilePreviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A213 /* WorkspaceFilePreviewSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B214 /* WorkspaceFileExportPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A214 /* WorkspaceFileExportPicker.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B215 /* WorkspacePreviewDownloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A215 /* WorkspacePreviewDownloads.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1F1 /* AgentSetupCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F1 /* AgentSetupCoordinator.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1F0 /* V2PairingCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1F0 /* V2PairingCommand.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B1EF /* ProjectWorkspacePath.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A1EF /* ProjectWorkspacePath.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
@@ -601,6 +626,53 @@
 		RK30E248D71DC1E723A32BC9 /* V2RuntimeCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK050A422F90A278039C51D2 /* V2RuntimeCatalog.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RK3ABEBA10EB582DB7A2466F /* V2SessionCreationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK2A0D84D995C1476CD63E64 /* V2SessionCreationService.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RK8AC74AC6B53B433C84CD8EA6 /* V2SessionPreparationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK5960122CA5834F3BAF7827E8 /* V2SessionPreparationService.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK36B71D302909AB0179ED4E50 /* V2AccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK12FCB5E004FE490E5C806126 /* V2AccountService.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKE660A40380E3CA48A49C0A32 /* V2AttachmentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK3449BB69065384EF0C418589 /* V2AttachmentService.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK7A0ED1C092F7A0E4FEA75461 /* V2DashboardService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK9A29A2856CA0B977A7C1E15D /* V2DashboardService.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK69E918EA8D7A171BCC497FE2 /* V2DeviceManagementService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK3DE84A25375A14392F4C7FE4 /* V2DeviceManagementService.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK237ED8F314BBD17CEBC3F1D3 /* V2DevicePairingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK862C1BE2B236A691CC88BC72 /* V2DevicePairingService.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK18214112DFE12101C5CE2C95 /* V2RuntimeInteractionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK2E6CBC66DD901217D912C4C2 /* V2RuntimeInteractionService.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKA1CBA5430822B3ED0FFF271B /* V2SessionDetailService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK9EE9CDA0B88F1DDA8628F656 /* V2SessionDetailService.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK9EE651E330A2DA76877CC123 /* V2SessionExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK2FC73896864601F30826A1CD /* V2SessionExportService.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKF2F4E58C98B7200B3CA6DDF5 /* V2WorkspaceFilesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK7A6BEC1FF451C88559B61B35 /* V2WorkspaceFilesService.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK510BF6677B2632D167DE29C7 /* ChatAttachmentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK1C6417836380F1CC5CE6608E /* ChatAttachmentStore.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKB18E958AE93C34EAEA02B699 /* ChatShellSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK27A26D4B9BE571416255AF47 /* ChatShellSelection.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK8670F6D6B9658D05683E8744 /* NewSessionSubmission.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK7DD01CF8F17A71611250486D /* NewSessionSubmission.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK9F6BC91CA782FEF1FBE15E7F /* ProjectSidebarPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKFE536E84FF3027D6657E3BCD /* ProjectSidebarPreferences.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK7C9658C5A4564992AD18F8F3 /* V2LocalArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKCE5698B6817DC2EF353793DA /* V2LocalArchive.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKAF15CB83F6F82220D8B62915 /* V2LocalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK6325E58A38BFD818FFFC7229 /* V2LocalStore.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK2219957A94399D57BEEE08B4 /* V2SessionProjection.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKB47EA2450FF3E01E76B88EB4 /* V2SessionProjection.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK7F180776D86BB942B3343146 /* V2SessionRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK353DE5375718468C8874D37F /* V2SessionRepository.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK81DDF63441672F59993E45F0 /* V2SessionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKF62BB41549518DFF21A4A88F /* V2SessionModel.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKC83E2DC059C052D4F831C963 /* V2SessionReadCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKF6D2DD04A260BF312C7F499F /* V2SessionReadCoordinator.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK0937DB467E727B1BEFA08B86 /* ChatToastStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK1ECB3E0CEBF6970E66576AA4 /* ChatToastStore.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKBBD24B7EDF5174A7D445321C /* MarkdownBlockSizing.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK313688F8F9F8877E60BE7F45 /* MarkdownBlockSizing.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK89DBD7478C30E0F12108A287 /* MarkdownBlocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKFE84E92A1F59D4C02EF746D5 /* MarkdownBlocks.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK002B2042C3F29EA7592539EF /* NoticeActionForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK706399F18395E3F6666DEA18 /* NoticeActionForm.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKA861BA83FC199786BB5A3692 /* NoticeActionPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK1FF178BDC0922AE11372A36B /* NoticeActionPresentation.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKBED23ABFD486F5CD93D54DD9 /* NoticeInputForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK42923F94BB787C0FC1AC22E0 /* NoticeInputForm.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK679657606AFE25C1AF51CE2F /* SessionChatModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK78FF758BA2556009E4422259 /* SessionChatModel.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK46F4089F38300C494A6EF7B3 /* V2RemoteChatServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK82041650767F57DFF6207E6D /* V2RemoteChatServices.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK5714FD9A156D562952E68311 /* V2DeviceManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK87B734A96344B5A4EEA1C55B /* V2DeviceManagement.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK686F2D177BE21716D4B9F2C3 /* WorkspaceDirectoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKC07527EAAD81436909EFBBF7 /* WorkspaceDirectoryModel.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK75C54B81A6B1EABB90BD7B2F /* SessionFileReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK7820AAB90BA1DFFB6A5D741D /* SessionFileReference.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK5EF535F7D1638F4DD3D5A9C1 /* SessionNoticeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKDC2648F5C5B49EF8D9C80A6E /* SessionNoticeStore.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK741A7E4629C442F131AB851C /* SessionTimelineExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKDEDE3A9F8E20A3F29682E138 /* SessionTimelineExport.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKE77F65E55B7CFACBE5E15D3F /* SessionTimelinePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKA9927E769297BFB41FC2F686 /* SessionTimelinePresentation.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKEDAD641F34015D47FAD29838 /* TimelineDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK4B9EE834824A6AF751DA6688 /* TimelineDiff.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKECD36D451A6F47DD33B33785 /* TimelineEntryPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK824D030662E882452768E32B /* TimelineEntryPresentation.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKD3994D579954009C05C3AB43 /* TimelineGrouping.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK035D3E0DF5F6FD87EF73B587 /* TimelineGrouping.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK0B0C482033ADD4FA99BFB248 /* TimelineHistoryPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK7022667442680F144DD7CE06 /* TimelineHistoryPosition.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK1375B0E5F14023639D616266 /* TimelineHistoryPull.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK81CE77889D36248635FA2647 /* TimelineHistoryPull.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK2C0F0E2861F01D37460414C7 /* TimelineRowStructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKECD7D4817AC79159D6387595 /* TimelineRowStructure.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK00757DA2E3BA665037472081 /* TimelineScrollState.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK83E313F7593301045E0AA72D /* TimelineScrollState.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK3639475C7B45E3086F4A73A9 /* TimelineTurnActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKEFAD61606AB6A7A50DB3B4F8 /* TimelineTurnActions.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKEFC3DF6E7F9B58A66896A376 /* TimelineTurnReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK06FE4731F9A589A5ABDB6EC2 /* TimelineTurnReview.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK9781CDA26EA5A46295A7631B /* TimelineViewport.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK77CFC6D995BE04C34065E933 /* TimelineViewport.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK198CD0BE70508FE1249ADFD3 /* V2ConnectivityMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKD15BCEF949D8D553205A007E /* V2ConnectivityMonitor.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK37D2A0410ECA9342ECD3C03C /* V2ClientScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK993473AC6A8DFFC662B4217B /* V2ClientScope.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RK553994CF25FF872EA39429E0 /* V2DashboardRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK3F7A10F9359E0011BDF1D9A2 /* V2DashboardRepository.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		RKD1777B714366F09B93DD74E2 /* V2RestorationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK63A7A29E41E7FCEF620F5A86 /* V2RestorationStore.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RK3E123EAE3B6A194BEEB9DE /* V2Connector.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKC10E00CD4B4D5693FDF777 /* V2Connector.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RK4586C3552A2D15DD0C25F9 /* V2WorkspaceFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK2ECDB143D1432442D1808C /* V2WorkspaceFiles.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RK4E256035471AF2EEF870A3 /* RemoteSessionServing.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK94D4EAF6CF4C89609010C3 /* RemoteSessionServing.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
@@ -1362,6 +1434,31 @@
 		D05AF00E000000000000A1FA /* InlineSelectionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineSelectionRow.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1FB /* ConversationSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSettings.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1FC /* ComposerOptionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerOptionsSheet.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1FD /* ChatErrorToasts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatErrorToasts.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1FE /* ChatMessageAttachments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageAttachments.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A1FF /* ChatPageContentColumn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPageContentColumn.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A200 /* ChatPageScrollEdge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPageScrollEdge.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A201 /* ChatTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatTimelineView.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A202 /* CompletionFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionFeedback.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A203 /* RemoteGlassIfAvailable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteGlassIfAvailable.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A204 /* RemoteSelectableText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSelectableText.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A205 /* SessionChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionChatView.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A206 /* SessionDetailsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDetailsSheet.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A207 /* SessionInteractionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionInteractionCard.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A208 /* SessionInteractionContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionInteractionContent.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A209 /* SessionInteractionDetailsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionInteractionDetailsSheet.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A20A /* SessionInteractionDock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionInteractionDock.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A20B /* SessionNoticesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionNoticesSheet.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A20C /* SessionTakeoverConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTakeoverConfirmation.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A20D /* SessionTimelineEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTimelineEventView.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A20E /* SessionTimelineRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTimelineRow.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A20F /* SessionTurnActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTurnActions.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A210 /* SessionTurnReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTurnReviewSheet.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A211 /* SidebarDrawerEnvironmentKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarDrawerEnvironmentKeys.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A212 /* WorkspaceFilesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFilesSheet.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A213 /* WorkspaceFilePreviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFilePreviewSheet.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A214 /* WorkspaceFileExportPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFileExportPicker.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A215 /* WorkspacePreviewDownloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspacePreviewDownloads.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1F1 /* AgentSetupCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSetupCoordinator.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1F0 /* V2PairingCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2PairingCommand.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A1EF /* ProjectWorkspacePath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspacePath.swift; sourceTree = "<group>"; };
@@ -1390,6 +1487,53 @@
 		RK25D135219623EB2AA7CE6A /* V2SessionTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionTimeline.swift; sourceTree = "<group>"; };
 		RK2A0D84D995C1476CD63E64 /* V2SessionCreationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionCreationService.swift; sourceTree = "<group>"; };
 		RK5960122CA5834F3BAF7827E8 /* V2SessionPreparationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionPreparationService.swift; sourceTree = "<group>"; };
+		RK12FCB5E004FE490E5C806126 /* V2AccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2AccountService.swift; sourceTree = "<group>"; };
+		RK3449BB69065384EF0C418589 /* V2AttachmentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2AttachmentService.swift; sourceTree = "<group>"; };
+		RK9A29A2856CA0B977A7C1E15D /* V2DashboardService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2DashboardService.swift; sourceTree = "<group>"; };
+		RK3DE84A25375A14392F4C7FE4 /* V2DeviceManagementService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2DeviceManagementService.swift; sourceTree = "<group>"; };
+		RK862C1BE2B236A691CC88BC72 /* V2DevicePairingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2DevicePairingService.swift; sourceTree = "<group>"; };
+		RK2E6CBC66DD901217D912C4C2 /* V2RuntimeInteractionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RuntimeInteractionService.swift; sourceTree = "<group>"; };
+		RK9EE9CDA0B88F1DDA8628F656 /* V2SessionDetailService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionDetailService.swift; sourceTree = "<group>"; };
+		RK2FC73896864601F30826A1CD /* V2SessionExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionExportService.swift; sourceTree = "<group>"; };
+		RK7A6BEC1FF451C88559B61B35 /* V2WorkspaceFilesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2WorkspaceFilesService.swift; sourceTree = "<group>"; };
+		RK1C6417836380F1CC5CE6608E /* ChatAttachmentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatAttachmentStore.swift; sourceTree = "<group>"; };
+		RK27A26D4B9BE571416255AF47 /* ChatShellSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatShellSelection.swift; sourceTree = "<group>"; };
+		RK7DD01CF8F17A71611250486D /* NewSessionSubmission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewSessionSubmission.swift; sourceTree = "<group>"; };
+		RKFE536E84FF3027D6657E3BCD /* ProjectSidebarPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectSidebarPreferences.swift; sourceTree = "<group>"; };
+		RKCE5698B6817DC2EF353793DA /* V2LocalArchive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2LocalArchive.swift; sourceTree = "<group>"; };
+		RK6325E58A38BFD818FFFC7229 /* V2LocalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2LocalStore.swift; sourceTree = "<group>"; };
+		RKB47EA2450FF3E01E76B88EB4 /* V2SessionProjection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionProjection.swift; sourceTree = "<group>"; };
+		RK353DE5375718468C8874D37F /* V2SessionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionRepository.swift; sourceTree = "<group>"; };
+		RKF62BB41549518DFF21A4A88F /* V2SessionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionModel.swift; sourceTree = "<group>"; };
+		RKF6D2DD04A260BF312C7F499F /* V2SessionReadCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionReadCoordinator.swift; sourceTree = "<group>"; };
+		RK1ECB3E0CEBF6970E66576AA4 /* ChatToastStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatToastStore.swift; sourceTree = "<group>"; };
+		RK313688F8F9F8877E60BE7F45 /* MarkdownBlockSizing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockSizing.swift; sourceTree = "<group>"; };
+		RKFE84E92A1F59D4C02EF746D5 /* MarkdownBlocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlocks.swift; sourceTree = "<group>"; };
+		RK706399F18395E3F6666DEA18 /* NoticeActionForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoticeActionForm.swift; sourceTree = "<group>"; };
+		RK1FF178BDC0922AE11372A36B /* NoticeActionPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoticeActionPresentation.swift; sourceTree = "<group>"; };
+		RK42923F94BB787C0FC1AC22E0 /* NoticeInputForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoticeInputForm.swift; sourceTree = "<group>"; };
+		RK78FF758BA2556009E4422259 /* SessionChatModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionChatModel.swift; sourceTree = "<group>"; };
+		RK82041650767F57DFF6207E6D /* V2RemoteChatServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RemoteChatServices.swift; sourceTree = "<group>"; };
+		RK87B734A96344B5A4EEA1C55B /* V2DeviceManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2DeviceManagement.swift; sourceTree = "<group>"; };
+		RKC07527EAAD81436909EFBBF7 /* WorkspaceDirectoryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDirectoryModel.swift; sourceTree = "<group>"; };
+		RK7820AAB90BA1DFFB6A5D741D /* SessionFileReference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionFileReference.swift; sourceTree = "<group>"; };
+		RKDC2648F5C5B49EF8D9C80A6E /* SessionNoticeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionNoticeStore.swift; sourceTree = "<group>"; };
+		RKDEDE3A9F8E20A3F29682E138 /* SessionTimelineExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTimelineExport.swift; sourceTree = "<group>"; };
+		RKA9927E769297BFB41FC2F686 /* SessionTimelinePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTimelinePresentation.swift; sourceTree = "<group>"; };
+		RK4B9EE834824A6AF751DA6688 /* TimelineDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineDiff.swift; sourceTree = "<group>"; };
+		RK824D030662E882452768E32B /* TimelineEntryPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineEntryPresentation.swift; sourceTree = "<group>"; };
+		RK035D3E0DF5F6FD87EF73B587 /* TimelineGrouping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineGrouping.swift; sourceTree = "<group>"; };
+		RK7022667442680F144DD7CE06 /* TimelineHistoryPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineHistoryPosition.swift; sourceTree = "<group>"; };
+		RK81CE77889D36248635FA2647 /* TimelineHistoryPull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineHistoryPull.swift; sourceTree = "<group>"; };
+		RKECD7D4817AC79159D6387595 /* TimelineRowStructure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineRowStructure.swift; sourceTree = "<group>"; };
+		RK83E313F7593301045E0AA72D /* TimelineScrollState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineScrollState.swift; sourceTree = "<group>"; };
+		RKEFAD61606AB6A7A50DB3B4F8 /* TimelineTurnActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineTurnActions.swift; sourceTree = "<group>"; };
+		RK06FE4731F9A589A5ABDB6EC2 /* TimelineTurnReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineTurnReview.swift; sourceTree = "<group>"; };
+		RK77CFC6D995BE04C34065E933 /* TimelineViewport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineViewport.swift; sourceTree = "<group>"; };
+		RKD15BCEF949D8D553205A007E /* V2ConnectivityMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2ConnectivityMonitor.swift; sourceTree = "<group>"; };
+		RK993473AC6A8DFFC662B4217B /* V2ClientScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2ClientScope.swift; sourceTree = "<group>"; };
+		RK3F7A10F9359E0011BDF1D9A2 /* V2DashboardRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2DashboardRepository.swift; sourceTree = "<group>"; };
+		RK63A7A29E41E7FCEF620F5A86 /* V2RestorationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2RestorationStore.swift; sourceTree = "<group>"; };
 		RK2E1A4F0317161CE8AEA74E /* V2SessionData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2SessionData.swift; sourceTree = "<group>"; };
 		RK2ECDB143D1432442D1808C /* V2WorkspaceFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2WorkspaceFiles.swift; sourceTree = "<group>"; };
 		RK3F64C2DFF3744F87C6BE91 /* ServerNetworkPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerNetworkPolicy.swift; sourceTree = "<group>"; };
@@ -2645,6 +2789,31 @@
 			D05AF00E000000000000A1EB /* RemoteNewSessionView.swift */,
 			D05AF00E000000000000A1EC /* RemoteNewSessionSheets.swift */,
 			D05AF00E000000000000A1E7 /* RemoteSessionLoader.swift */,
+				D05AF00E000000000000A1FD /* ChatErrorToasts.swift */,
+				D05AF00E000000000000A1FE /* ChatMessageAttachments.swift */,
+				D05AF00E000000000000A1FF /* ChatPageContentColumn.swift */,
+				D05AF00E000000000000A200 /* ChatPageScrollEdge.swift */,
+				D05AF00E000000000000A201 /* ChatTimelineView.swift */,
+				D05AF00E000000000000A202 /* CompletionFeedback.swift */,
+				D05AF00E000000000000A203 /* RemoteGlassIfAvailable.swift */,
+				D05AF00E000000000000A204 /* RemoteSelectableText.swift */,
+				D05AF00E000000000000A205 /* SessionChatView.swift */,
+				D05AF00E000000000000A206 /* SessionDetailsSheet.swift */,
+				D05AF00E000000000000A207 /* SessionInteractionCard.swift */,
+				D05AF00E000000000000A208 /* SessionInteractionContent.swift */,
+				D05AF00E000000000000A209 /* SessionInteractionDetailsSheet.swift */,
+				D05AF00E000000000000A20A /* SessionInteractionDock.swift */,
+				D05AF00E000000000000A20B /* SessionNoticesSheet.swift */,
+				D05AF00E000000000000A20C /* SessionTakeoverConfirmation.swift */,
+				D05AF00E000000000000A20D /* SessionTimelineEventView.swift */,
+				D05AF00E000000000000A20E /* SessionTimelineRow.swift */,
+				D05AF00E000000000000A20F /* SessionTurnActions.swift */,
+				D05AF00E000000000000A210 /* SessionTurnReviewSheet.swift */,
+				D05AF00E000000000000A211 /* SidebarDrawerEnvironmentKeys.swift */,
+				D05AF00E000000000000A212 /* WorkspaceFilesSheet.swift */,
+				D05AF00E000000000000A213 /* WorkspaceFilePreviewSheet.swift */,
+				D05AF00E000000000000A214 /* WorkspaceFileExportPicker.swift */,
+				D05AF00E000000000000A215 /* WorkspacePreviewDownloads.swift */,
 			);
 			path = RemoteSessions;
 			sourceTree = "<group>";
@@ -2680,6 +2849,15 @@
 				RKF693C48379EBEA047D26D8 /* V2BusinessError.swift */,
 				RK5960122CA5834F3BAF7827E8 /* V2SessionPreparationService.swift */,
 				RK2A0D84D995C1476CD63E64 /* V2SessionCreationService.swift */,
+				RK12FCB5E004FE490E5C806126 /* V2AccountService.swift */,
+				RK3449BB69065384EF0C418589 /* V2AttachmentService.swift */,
+				RK9A29A2856CA0B977A7C1E15D /* V2DashboardService.swift */,
+				RK3DE84A25375A14392F4C7FE4 /* V2DeviceManagementService.swift */,
+				RK862C1BE2B236A691CC88BC72 /* V2DevicePairingService.swift */,
+				RK2E6CBC66DD901217D912C4C2 /* V2RuntimeInteractionService.swift */,
+				RK9EE9CDA0B88F1DDA8628F656 /* V2SessionDetailService.swift */,
+				RK2FC73896864601F30826A1CD /* V2SessionExportService.swift */,
+				RK7A6BEC1FF451C88559B61B35 /* V2WorkspaceFilesService.swift */,
 			);
 			path = "Business";
 			sourceTree = "<group>";
@@ -2718,6 +2896,7 @@
 				RKB9EE2C1582D4CC31B57C8C /* V2DevicePairing.swift */,
 				RKD0DC0B92A5DF751DC1AFD2 /* V2RuntimeInventory.swift */,
 				RK2ECDB143D1432442D1808C /* V2WorkspaceFiles.swift */,
+				RK87B734A96344B5A4EEA1C55B /* V2DeviceManagement.swift */,
 			);
 			path = "Connector";
 			sourceTree = "<group>";
@@ -2755,6 +2934,29 @@
 			path = "Session";
 			sourceTree = "<group>";
 		};
+		RK9DBA043DD2004077FEEC7675 /* Session */ = {
+			isa = PBXGroup;
+			children = (
+				RKF62BB41549518DFF21A4A88F /* V2SessionModel.swift */,
+				RKF6D2DD04A260BF312C7F499F /* V2SessionReadCoordinator.swift */,
+			);
+			path = "Session";
+			sourceTree = "<group>";
+		};
+		RK766200174DBEE9EA27D41BD5 /* Repositories */ = {
+			isa = PBXGroup;
+			children = (
+				RK353DE5375718468C8874D37F /* V2SessionRepository.swift */,
+				RKB47EA2450FF3E01E76B88EB4 /* V2SessionProjection.swift */,
+				RK6325E58A38BFD818FFFC7229 /* V2LocalStore.swift */,
+				RKCE5698B6817DC2EF353793DA /* V2LocalArchive.swift */,
+				RK993473AC6A8DFFC662B4217B /* V2ClientScope.swift */,
+				RK3F7A10F9359E0011BDF1D9A2 /* V2DashboardRepository.swift */,
+				RK63A7A29E41E7FCEF620F5A86 /* V2RestorationStore.swift */,
+			);
+			path = "Repositories";
+			sourceTree = "<group>";
+		};
 		RKAbaa150760584216f3837e /* Domain */ = {
 			isa = PBXGroup;
 			children = (
@@ -2778,12 +2980,55 @@
 			path = "Auth";
 			sourceTree = "<group>";
 		};
+		RK464177ACDD09BACD42428053 /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+				RKFE536E84FF3027D6657E3BCD /* ProjectSidebarPreferences.swift */,
+				RK7DD01CF8F17A71611250486D /* NewSessionSubmission.swift */,
+				RK1C6417836380F1CC5CE6608E /* ChatAttachmentStore.swift */,
+				RK27A26D4B9BE571416255AF47 /* ChatShellSelection.swift */,
+				RK1ECB3E0CEBF6970E66576AA4 /* ChatToastStore.swift */,
+				RK313688F8F9F8877E60BE7F45 /* MarkdownBlockSizing.swift */,
+				RKFE84E92A1F59D4C02EF746D5 /* MarkdownBlocks.swift */,
+				RK706399F18395E3F6666DEA18 /* NoticeActionForm.swift */,
+				RK1FF178BDC0922AE11372A36B /* NoticeActionPresentation.swift */,
+				RK42923F94BB787C0FC1AC22E0 /* NoticeInputForm.swift */,
+				RK78FF758BA2556009E4422259 /* SessionChatModel.swift */,
+				RK7820AAB90BA1DFFB6A5D741D /* SessionFileReference.swift */,
+				RKDC2648F5C5B49EF8D9C80A6E /* SessionNoticeStore.swift */,
+				RKDEDE3A9F8E20A3F29682E138 /* SessionTimelineExport.swift */,
+				RKA9927E769297BFB41FC2F686 /* SessionTimelinePresentation.swift */,
+				RK4B9EE834824A6AF751DA6688 /* TimelineDiff.swift */,
+				RK824D030662E882452768E32B /* TimelineEntryPresentation.swift */,
+				RK035D3E0DF5F6FD87EF73B587 /* TimelineGrouping.swift */,
+				RK7022667442680F144DD7CE06 /* TimelineHistoryPosition.swift */,
+				RK81CE77889D36248635FA2647 /* TimelineHistoryPull.swift */,
+				RKECD7D4817AC79159D6387595 /* TimelineRowStructure.swift */,
+				RK83E313F7593301045E0AA72D /* TimelineScrollState.swift */,
+				RKEFAD61606AB6A7A50DB3B4F8 /* TimelineTurnActions.swift */,
+				RK06FE4731F9A589A5ABDB6EC2 /* TimelineTurnReview.swift */,
+				RK77CFC6D995BE04C34065E933 /* TimelineViewport.swift */,
+			);
+			path = "Chat";
+			sourceTree = "<group>";
+		};
+		RKB3BFC08AF53120416ED0E229 /* Devices */ = {
+			isa = PBXGroup;
+			children = (
+				RKC07527EAAD81436909EFBBF7 /* WorkspaceDirectoryModel.swift */,
+			);
+			path = "Devices";
+			sourceTree = "<group>";
+		};
 		RKA3ed161d143721424caf13 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				RK9DBA043DD2004077FEEC7675 /* Session */,
 				RKAfe59e93955aca3c934afb /* Auth */,
 				RK089DC91BA04ECE02D41ABF /* APIModels.swift */,
 				RK7D837B12117150ED5E72DF /* WorkspaceDownloadedFile.swift */,
+				RK464177ACDD09BACD42428053 /* Chat */,
+				RKB3BFC08AF53120416ED0E229 /* Devices */,
 			);
 			path = "Models";
 			sourceTree = "<group>";
@@ -2800,6 +3045,7 @@
 				RK963035789D4C045D9730D7 /* HTTPRequest.swift */,
 				RK78995D07BC6795AD242C64 /* HTTPTransport.swift */,
 				RK506B3B7AD2080FAFC22C2D /* WebSocketTransport.swift */,
+				RKD15BCEF949D8D553205A007E /* V2ConnectivityMonitor.swift */,
 			);
 			path = "Network";
 			sourceTree = "<group>";
@@ -2846,6 +3092,7 @@
 				RKAb1e129a7518c09312e669 /* Network */,
 				RKAf14426b294158d02cc38d /* Services */,
 				RKA5d42ed3097b4222882350 /* Stores */,
+				RK766200174DBEE9EA27D41BD5 /* Repositories */,
 				RKA177a7c0783715bd70e150 /* Views */,
 			);
 			path = "AAV2";
@@ -2858,6 +3105,7 @@
 				RK51378A9A3646786BF43394 /* RemoteKit.swift */,
 				RKF56CFD8F4EE56B21FE3CAB /* RemoteSessionBackend.swift */,
 				RK94D4EAF6CF4C89609010C3 /* RemoteSessionServing.swift */,
+				RK82041650767F57DFF6207E6D /* V2RemoteChatServices.swift */,
 			);
 			path = "Glue";
 			sourceTree = "<group>";
@@ -3707,6 +3955,31 @@
 			D05AF00E000000000000B1FA /* InlineSelectionRow.swift in Sources */,
 			D05AF00E000000000000B1FB /* ConversationSettings.swift in Sources */,
 			D05AF00E000000000000B1FC /* ComposerOptionsSheet.swift in Sources */,
+				D05AF00E000000000000B1FD /* ChatErrorToasts.swift in Sources */,
+				D05AF00E000000000000B1FE /* ChatMessageAttachments.swift in Sources */,
+				D05AF00E000000000000B1FF /* ChatPageContentColumn.swift in Sources */,
+				D05AF00E000000000000B200 /* ChatPageScrollEdge.swift in Sources */,
+				D05AF00E000000000000B201 /* ChatTimelineView.swift in Sources */,
+				D05AF00E000000000000B202 /* CompletionFeedback.swift in Sources */,
+				D05AF00E000000000000B203 /* RemoteGlassIfAvailable.swift in Sources */,
+				D05AF00E000000000000B204 /* RemoteSelectableText.swift in Sources */,
+				D05AF00E000000000000B205 /* SessionChatView.swift in Sources */,
+				D05AF00E000000000000B206 /* SessionDetailsSheet.swift in Sources */,
+				D05AF00E000000000000B207 /* SessionInteractionCard.swift in Sources */,
+				D05AF00E000000000000B208 /* SessionInteractionContent.swift in Sources */,
+				D05AF00E000000000000B209 /* SessionInteractionDetailsSheet.swift in Sources */,
+				D05AF00E000000000000B20A /* SessionInteractionDock.swift in Sources */,
+				D05AF00E000000000000B20B /* SessionNoticesSheet.swift in Sources */,
+				D05AF00E000000000000B20C /* SessionTakeoverConfirmation.swift in Sources */,
+				D05AF00E000000000000B20D /* SessionTimelineEventView.swift in Sources */,
+				D05AF00E000000000000B20E /* SessionTimelineRow.swift in Sources */,
+				D05AF00E000000000000B20F /* SessionTurnActions.swift in Sources */,
+				D05AF00E000000000000B210 /* SessionTurnReviewSheet.swift in Sources */,
+				D05AF00E000000000000B211 /* SidebarDrawerEnvironmentKeys.swift in Sources */,
+				D05AF00E000000000000B212 /* WorkspaceFilesSheet.swift in Sources */,
+				D05AF00E000000000000B213 /* WorkspaceFilePreviewSheet.swift in Sources */,
+				D05AF00E000000000000B214 /* WorkspaceFileExportPicker.swift in Sources */,
+				D05AF00E000000000000B215 /* WorkspacePreviewDownloads.swift in Sources */,
 			D05AF00E000000000000B1F1 /* AgentSetupCoordinator.swift in Sources */,
 			D05AF00E000000000000B1F0 /* V2PairingCommand.swift in Sources */,
 			D05AF00E000000000000B1EF /* ProjectWorkspacePath.swift in Sources */,
@@ -3731,6 +4004,53 @@
 				RKD33B2E987B21CF60A8F24D /* V2BusinessError.swift in Sources */,
 				RK8AC74AC6B53B433C84CD8EA6 /* V2SessionPreparationService.swift in Sources */,
 				RK3ABEBA10EB582DB7A2466F /* V2SessionCreationService.swift in Sources */,
+				RK36B71D302909AB0179ED4E50 /* V2AccountService.swift in Sources */,
+				RKE660A40380E3CA48A49C0A32 /* V2AttachmentService.swift in Sources */,
+				RK7A0ED1C092F7A0E4FEA75461 /* V2DashboardService.swift in Sources */,
+				RK69E918EA8D7A171BCC497FE2 /* V2DeviceManagementService.swift in Sources */,
+				RK237ED8F314BBD17CEBC3F1D3 /* V2DevicePairingService.swift in Sources */,
+				RK18214112DFE12101C5CE2C95 /* V2RuntimeInteractionService.swift in Sources */,
+				RKA1CBA5430822B3ED0FFF271B /* V2SessionDetailService.swift in Sources */,
+				RK9EE651E330A2DA76877CC123 /* V2SessionExportService.swift in Sources */,
+				RKF2F4E58C98B7200B3CA6DDF5 /* V2WorkspaceFilesService.swift in Sources */,
+				RK510BF6677B2632D167DE29C7 /* ChatAttachmentStore.swift in Sources */,
+				RKB18E958AE93C34EAEA02B699 /* ChatShellSelection.swift in Sources */,
+				RK8670F6D6B9658D05683E8744 /* NewSessionSubmission.swift in Sources */,
+				RK9F6BC91CA782FEF1FBE15E7F /* ProjectSidebarPreferences.swift in Sources */,
+				RK7C9658C5A4564992AD18F8F3 /* V2LocalArchive.swift in Sources */,
+				RKAF15CB83F6F82220D8B62915 /* V2LocalStore.swift in Sources */,
+				RK2219957A94399D57BEEE08B4 /* V2SessionProjection.swift in Sources */,
+				RK7F180776D86BB942B3343146 /* V2SessionRepository.swift in Sources */,
+				RK81DDF63441672F59993E45F0 /* V2SessionModel.swift in Sources */,
+				RKC83E2DC059C052D4F831C963 /* V2SessionReadCoordinator.swift in Sources */,
+				RK0937DB467E727B1BEFA08B86 /* ChatToastStore.swift in Sources */,
+				RKBBD24B7EDF5174A7D445321C /* MarkdownBlockSizing.swift in Sources */,
+				RK89DBD7478C30E0F12108A287 /* MarkdownBlocks.swift in Sources */,
+				RK002B2042C3F29EA7592539EF /* NoticeActionForm.swift in Sources */,
+				RKA861BA83FC199786BB5A3692 /* NoticeActionPresentation.swift in Sources */,
+				RKBED23ABFD486F5CD93D54DD9 /* NoticeInputForm.swift in Sources */,
+				RK679657606AFE25C1AF51CE2F /* SessionChatModel.swift in Sources */,
+				RK46F4089F38300C494A6EF7B3 /* V2RemoteChatServices.swift in Sources */,
+				RK5714FD9A156D562952E68311 /* V2DeviceManagement.swift in Sources */,
+				RK686F2D177BE21716D4B9F2C3 /* WorkspaceDirectoryModel.swift in Sources */,
+				RK75C54B81A6B1EABB90BD7B2F /* SessionFileReference.swift in Sources */,
+				RK5EF535F7D1638F4DD3D5A9C1 /* SessionNoticeStore.swift in Sources */,
+				RK741A7E4629C442F131AB851C /* SessionTimelineExport.swift in Sources */,
+				RKE77F65E55B7CFACBE5E15D3F /* SessionTimelinePresentation.swift in Sources */,
+				RKEDAD641F34015D47FAD29838 /* TimelineDiff.swift in Sources */,
+				RKECD36D451A6F47DD33B33785 /* TimelineEntryPresentation.swift in Sources */,
+				RKD3994D579954009C05C3AB43 /* TimelineGrouping.swift in Sources */,
+				RK0B0C482033ADD4FA99BFB248 /* TimelineHistoryPosition.swift in Sources */,
+				RK1375B0E5F14023639D616266 /* TimelineHistoryPull.swift in Sources */,
+				RK2C0F0E2861F01D37460414C7 /* TimelineRowStructure.swift in Sources */,
+				RK00757DA2E3BA665037472081 /* TimelineScrollState.swift in Sources */,
+				RK3639475C7B45E3086F4A73A9 /* TimelineTurnActions.swift in Sources */,
+				RKEFC3DF6E7F9B58A66896A376 /* TimelineTurnReview.swift in Sources */,
+				RK9781CDA26EA5A46295A7631B /* TimelineViewport.swift in Sources */,
+				RK198CD0BE70508FE1249ADFD3 /* V2ConnectivityMonitor.swift in Sources */,
+				RK37D2A0410ECA9342ECD3C03C /* V2ClientScope.swift in Sources */,
+				RK553994CF25FF872EA39429E0 /* V2DashboardRepository.swift in Sources */,
+				RKD1777B714366F09B93DD74E2 /* V2RestorationStore.swift in Sources */,
 				RKADEA4BF291842ED0CD3B43 /* V2AccountModels.swift in Sources */,
 				RKF73F37D7D31F51FBE85BDE /* V2AttachmentModels.swift in Sources */,
 				RKCFA4E834C10DA48B171E0D /* JSONValue.swift in Sources */,
