@@ -142,7 +142,7 @@ struct RemoteSessionListView: View {
                 projectHeader
                 if !projectsCollapsed {
                     ForEach(projectItems) { item in
-                        sessionRow(item, inset: true)
+                        sessionRow(item)
                     }
                     if projectItems.isEmpty {
                         // 搜索无结果 ≠ 没有项目——文案分开，保持诚实
@@ -171,10 +171,12 @@ struct RemoteSessionListView: View {
 
     // MARK: - 会话行（REMOTE-REDESIGN-1：本机 ContentView.SessionRow 完整结构，
     // 唯一差异 = 头像为无底裸 lucide message-square-quote，pp 2026-09-20 定稿）
+    // 无左缩进（pp 10:4x 装机反馈「卡片左边空一大截」）：36pt 项目缩进随旧板块结构一并移除，
+    // 与本机卡同款对称 horizontal 16pt。
     // 状态映射进头像槽位：运行中 → 外圈转圈（SpinningRing 同款）；未读 → 头像右上
     // 红点；等待批准 → 头像右下 mint 角标。字级走 App Base 缩放（scaledApp）。
 
-    private func sessionRow(_ item: RemoteSessionItem, inset: Bool = false) -> some View {
+    private func sessionRow(_ item: RemoteSessionItem) -> some View {
         Button {
             openSession(item)
         } label: {
@@ -202,8 +204,7 @@ struct RemoteSessionListView: View {
                     }
                 }
             }
-            .padding(.leading, inset ? 36 : 16)
-            .padding(.trailing, 16)
+            .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .contentShape(Rectangle())
         }
@@ -211,7 +212,7 @@ struct RemoteSessionListView: View {
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
         // 行背景对齐本机：平色 systemBackground（RemoteRowCardBackground 已随之删除）
-        .listRowBackground(inset ? Color.clear : Color(.systemBackground))
+        .listRowBackground(Color(.systemBackground))
         .contextMenu {
             RemoteSessionContextMenu(item: item) { action in
                 handleMenuAction(action, for: item)

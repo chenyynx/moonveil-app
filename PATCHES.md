@@ -1188,4 +1188,5 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
   - D 删除 previewBanner（pp：去掉）；搜索过滤扩到摘要行（卡片可见内容可搜）；RemoteStatusIndicator 视图删除，四态语义保留为 RemoteSessionIndicator 枚举；空态按钮文案随「配对新设备」。
 - **死隔离**：只动 RemoteSessions 两文件 + PATCHES；ContentView / RemoteKit / AA 弹窗（PairDevice/ProjectEditor/详情/归档/新会话抽屉）零改动（转圈用复制件不改共享可见性）；不新增文件（零 pbxproj）；冻结区（顶栏/新会话胶囊/搜索栏）零改动。
 - **回归项**：① 设备行在线/离线两态视觉与徽章文案 ② 配对入口弹 PairDeviceSheet（AA 视觉不变）③ 待处理计数行出现条件与计数正确 ④ 项目头折叠/…菜单/+新建行为不变 ⑤ 会话行三状态渲染位正确（转圈/红点/mint 角标）⑥ 搜索命中标题与摘要 ⑦ 长按菜单/左滑三动作不回归 ⑧ 深色模式全套 ⑨ 字号档位跟随 App Base ⑩ CI 门禁（import-scan/pbxproj-audit/freeze）全绿。
+- **补（同日 10:4x 装机反馈）**：删会话行 36pt 左缩进（inset 参数整体移除，签名/调用/行背景三处闭合）——pp：「会话卡片左边怎么空这么大一截」；与本机卡同款对称 horizontal 16pt。
 - **验证**：本机无 Swift 工具链；静态（括号平衡 + 删除符号全库无引用 + 新增符号引用闭合）；**编译与回归 ①–⑩ 需 CI + 装机**。
