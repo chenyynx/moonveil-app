@@ -50,6 +50,10 @@ struct RemoteNewSessionView: View {
                 ToolbarItem(placement: .topBarTrailing) { targetButton }
             }
         }
+        // 官方 ChatDetailNavigation 同款：整页 tint = primaryControlBackground
+        // （黑/白）。系统工具栏玻璃与控件据此呈中性色（pp 指出的紫色胶囊
+        // 即缺此覆盖时系统对 accent 染色所致）。
+        .tint(AppTheme.primaryControlBackground(colorScheme))
         .sheet(isPresented: $showsTarget) {
             RemoteNewSessionTargetSheet(model: model, service: service)
         }
@@ -128,14 +132,11 @@ struct RemoteNewSessionView: View {
     // MARK: - 顶栏（关闭 + 目标胶囊）
 
     private var closeButton: some View {
+        // 官方工具栏按钮同款：裸字形，系统负责玻璃圆与按压态。
         Button { dismiss() } label: {
-            AppSymbol("xmark", size: 15)
+            AppSymbol("xmark", size: 17)
                 .foregroundStyle(.primary)
-                .frame(width: 32, height: 32)
-                .background(Color(.secondarySystemBackground), in: Circle())
-                .contentShape(Circle())
         }
-        .buttonStyle(.plain)
         .accessibilityLabel("关闭")
     }
 
@@ -146,6 +147,9 @@ struct RemoteNewSessionView: View {
                                             to: nil, from: nil, for: nil)
             showsTarget = true
         } label: {
+            // 官方 targetButton 同款：裸内容，无自定义背景/内边距——胶囊由
+            // iOS 26 系统工具栏玻璃自动呈现（pp「为什么要改颜色」教训：
+            // 自画 background 会让系统玻璃与颜色表现全部偏离官方）。
             HStack(spacing: 8) {
                 HStack(spacing: 4) {
                     Text(model.targetRuntimeName)
@@ -156,14 +160,9 @@ struct RemoteNewSessionView: View {
                 }
                 .font(.subheadline)
                 .lineLimit(1)
-                AppSymbol("chevron.down", size: 12).foregroundStyle(.secondary)
+                AppSymbol("chevron.down", size: 12)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(Color(.secondarySystemBackground), in: Capsule())
-            .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
         .disabled(model.isCreating)
         .accessibilityLabel("选择设备和 Agent")
         .accessibilityValue([model.targetRuntimeName, model.targetDeviceName].joined(separator: " · "))
