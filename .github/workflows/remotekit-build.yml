@@ -24,7 +24,12 @@ jobs:
           # into the job summary so `gh api check-runs/<id>/output` always yields it.
           set +o pipefail   # PIPESTATUS capture stays reachable (ios-build.yml ritual)
           rc=0
-          swift build 2>&1 | tee /tmp/rk-build.log | tail -80 || rc=${PIPESTATUS[0]}
+          # [CIFIX-RK-GATE 2026-09-21] 原写法 `pipeline || rc=${PIPESTATUS[0]}` 在
+          # pipefail 关闭下永不触发（管道 exit = tail 的 0）→ rc 恒 0 → swift build
+          # 失败也绿（假门禁，V2DashboardRepository 缺符号类型错误即被吞）。
+          # 改为管道后无条件读 PIPESTATUS[0]。
+          swift build 2>&1 | tee /tmp/rk-build.log | tail -80
+          rc=${PIPESTATUS[0]}
           if [ "$rc" != 0 ]; then
             {
               echo '### swift build errors'

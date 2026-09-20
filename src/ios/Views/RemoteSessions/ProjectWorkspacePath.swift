@@ -24,6 +24,20 @@ nonisolated enum ProjectWorkspacePath {
         return String(parts.last!)
     }
 
+    // [CIFIX-DASHBOARD 2026-09-21] 官方 V2Project 重载：官方逐字冻结件
+    // V2DashboardRepository:172 以 [V2Project] 调用（单模块解析需此签名）；
+    // RemoteProject 版保留给 app 层 facade 调用方（RemoteNewSessionModel resolver）。
+    // 逻辑与 RemoteProject 版逐字同构（官方原版逻辑，字段同构）。
+    static func availableName(_ name: String, projects: [V2Project], ignoring id: String? = nil) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let base = String((trimmed.isEmpty ? "Workspace" : trimmed).unicodeScalars.prefix(255))
+        let names = Set(projects.filter { $0.id != id }.map(\.name))
+        guard names.contains(base) else { return base }
+        var index = 2
+        while names.contains("\(base) \(index)") { index += 1 }
+        return "\(base) \(index)"
+    }
+
     static func availableName(_ name: String, projects: [RemoteProject], ignoring id: String? = nil) -> String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let base = String((trimmed.isEmpty ? "Workspace" : trimmed).unicodeScalars.prefix(255))
@@ -77,6 +91,10 @@ nonisolated enum ProjectWorkspacePath {
 }
 
 struct ProjectReuseRequired: LocalizedError {
-    let project: RemoteProject
+    // [CIFIX-DASHBOARD 2026-09-21] 字段类型回归官方原版 V2Project（官方
+    // Models/Chat/ProjectWorkspacePath.swift:72）。FILES-HOME 批适配成 RemoteProject
+    // 属过度适配——唯一 throw 点是官方逐字冻结件 V2DashboardRepository:168（传
+    // V2Project），app 层无任何调用方。errorDescription 只消费 .name，两型同构。
+    let project: V2Project
     var errorDescription: String? { String(localized: "这个目录已属于项目「\(project.name)」。") }
 }

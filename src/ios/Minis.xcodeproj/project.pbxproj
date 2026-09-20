@@ -588,7 +588,7 @@
 		D05AF00E000000000000B20E /* SessionTimelineRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A20E /* SessionTimelineRow.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B20F /* SessionTurnActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A20F /* SessionTurnActions.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B210 /* SessionTurnReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A210 /* SessionTurnReviewSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
-		D05AF00E000000000000B211 /* SessionFileReferenceLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A211 /* SessionFileReferenceLinks.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B230 /* SessionFileReferenceLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A230 /* SessionFileReferenceLinks.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B211 /* SidebarDrawerEnvironmentKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A211 /* SidebarDrawerEnvironmentKeys.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B212 /* WorkspaceFilesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A212 /* WorkspaceFilesSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B213 /* WorkspaceFilePreviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A213 /* WorkspaceFilePreviewSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
@@ -1455,7 +1455,7 @@
 		D05AF00E000000000000A20E /* SessionTimelineRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTimelineRow.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A20F /* SessionTurnActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTurnActions.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A210 /* SessionTurnReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTurnReviewSheet.swift; sourceTree = "<group>"; };
-		D05AF00E000000000000A211 /* SessionFileReferenceLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionFileReferenceLinks.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A230 /* SessionFileReferenceLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionFileReferenceLinks.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A211 /* SidebarDrawerEnvironmentKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarDrawerEnvironmentKeys.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A212 /* WorkspaceFilesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFilesSheet.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A213 /* WorkspaceFilePreviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFilePreviewSheet.swift; sourceTree = "<group>"; };
@@ -2811,7 +2811,7 @@
 				D05AF00E000000000000A20E /* SessionTimelineRow.swift */,
 				D05AF00E000000000000A20F /* SessionTurnActions.swift */,
 				D05AF00E000000000000A210 /* SessionTurnReviewSheet.swift */,
-			D05AF00E000000000000A211 /* SessionFileReferenceLinks.swift */,
+			D05AF00E000000000000A230 /* SessionFileReferenceLinks.swift */,
 				D05AF00E000000000000A211 /* SidebarDrawerEnvironmentKeys.swift */,
 				D05AF00E000000000000A212 /* WorkspaceFilesSheet.swift */,
 				D05AF00E000000000000A213 /* WorkspaceFilePreviewSheet.swift */,
@@ -3978,7 +3978,7 @@
 				D05AF00E000000000000B20E /* SessionTimelineRow.swift in Sources */,
 				D05AF00E000000000000B20F /* SessionTurnActions.swift in Sources */,
 				D05AF00E000000000000B210 /* SessionTurnReviewSheet.swift in Sources */,
-				D05AF00E000000000000B211 /* SessionFileReferenceLinks.swift in Sources */,
+				D05AF00E000000000000B230 /* SessionFileReferenceLinks.swift in Sources */,
 				D05AF00E000000000000B211 /* SidebarDrawerEnvironmentKeys.swift in Sources */,
 				D05AF00E000000000000B212 /* WorkspaceFilesSheet.swift in Sources */,
 				D05AF00E000000000000B213 /* WorkspaceFilePreviewSheet.swift in Sources */,
