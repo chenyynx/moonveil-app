@@ -39,15 +39,40 @@ struct SessionTimelineGroupView: View {
     }
     private var agentGroup: Bool { if case .agents = group.kind { true } else { false } }
     private var rows: some View {
+        // [BATCH-A/A1]（STREAMING-LOOP-FIX 同族补漏，017334e 只合并了
+        // SessionInteractionDock 与 ChatTimelineContent 两处，本处是漏掉的第三处热路径）
+        // 旧实现对每个 row 都对全量 notices 重跑一次 filter（每次重跑都要读一遍
+        // isVisible / blocks() 背后的 @Observable 属性），一个 body pass 的代价是
+        // O(rows × notices) 次全量扫描。SSE 流式高频投递时 pass 数本身就多（pp
+        // 2026-09-22 装机：主线程 hang 2.7s、内存 57→520MB、前台被杀），每 pass
+        // 再乘这个倍数就是主线程饱和。
+        // 修的口径要说准：省的是**每 pass 的 CPU 与属性访问次数**，不是失效拓扑——
+        // @Observable 同一 pass 内重复读同一属性不会多登记一次，读发生在 action
+        // 回调里时更没有 tracking 上下文、根本不登记。
+        // 修法同那两处：本 body 求值顶部算一次 [timelineTargetID: 匹配通知] 分桶
+        // （谓词逐字保持 isVisible && !blocks(chat.session.id)，桶内维持原数组
+        // 相对顺序；timelineTargetID == row.id 且 row.id 非空 ⇔ 落在 row.id 桶），
+        // 各 row 查字典。分桶点选在本 view（而非 ChatTimelineContent 传入）：
+        // notices 与 row 集合在此层同时可见，不新增 props 层级，改动面最小。
+        // 粒度残余：本 view 是 SessionTimelineGroupView，分桶按**分组**各跑一次
+        // （ChatTimelineView.swift:399 按组构造），故每 pass 总代价 O(组数 × notices)，
+        // 相对旧的 O(行数 × notices) 是数量级改善而非归零。
+        let noticesByTarget = Self.noticesByTimelineTarget(chat: chat)
         VStack(alignment: .leading, spacing: 8) {
             ForEach(group.rows) { row in
                 SessionTimelineRow(row: row, chat: chat, onAttachment: onAttachment, cwd: chat.session.metadata?.cwd,
                     disclosures: chat.disclosures, onFile: onFile)
-                ForEach(chat.session.notices.notices.filter {
-                    $0.isVisible && !$0.blocks(chat.session.id) && $0.timelineTargetID == row.id
-                }) { notice in SessionInteractionCard(item: notice, chat: chat) }
+                ForEach(noticesByTarget[row.id] ?? []) { notice in SessionInteractionCard(item: notice, chat: chat) }
             }
         }
+    }
+    /// 按 timelineTargetID 分桶（仅收录 isVisible && !blocks(session.id) 的通知）。
+    static func noticesByTimelineTarget(chat: SessionChatModel) -> [String: [SessionNoticeModel]] {
+        var buckets: [String: [SessionNoticeModel]] = [:]
+        for notice in chat.session.notices.notices where notice.isVisible && !notice.blocks(chat.session.id) {
+            if let target = notice.timelineTargetID { buckets[target, default: []].append(notice) }
+        }
+        return buckets
     }
 }
 

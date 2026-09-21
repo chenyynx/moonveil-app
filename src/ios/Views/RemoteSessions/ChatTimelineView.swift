@@ -58,12 +58,22 @@ private struct ChatTimelineOrchestrationView: View {
     @Environment(\.sidebarDrawerObscuresDetail) private var sidebarObscuresDetail
     @ScaledMetric(relativeTo: .caption) private var returnPillHeight: CGFloat = 32
 
-    private var hasInteractions: Bool {
-        model.session.notices.notices.contains { $0.isVisible && $0.notice.type == "interaction" }
-    }
     private var viewport: TimelineViewport { viewportSample.value ?? scrolling.viewport }
     private var navigationIsSuspended: Bool { sidebarIsTransitioning || sidebarObscuresDetail }
     var body: some View {
+        // [BATCH-A/A4]（STREAMING-LOOP-FIX 同族补漏）旧 hasInteractions 计算属性在
+        // 一次 body pass 里被求值多次（onChange(of:) 的 of 值 + initial 首发 + 两处
+        // 事件回调内读取），每次都全量扫一遍 notices。修法：body 顶部算一次局部常量，
+        // 三处引用（旧 :164/:169/:173）全部走它；计算属性已删除避免死代码二义。
+        // 口径说准：本改动省的是**重复全量扫描的 CPU** + 同一 pass 内三处取值一致性，
+        // **不减少依赖登记、不改变重渲染次数**——旧实现每 pass 只有 of 值那一次读发生在
+        // tracking 上下文里，两处 action 回调内的读本就不登记。真正的流式风暴根因在
+        // hugSize 副作用（017334e 已修）与 A1，不在此处。
+        // 新增语义前提：let 是本次 body pass 的快照，action 回调读到的是"触发本次回调
+        // 的那一版 body"的值——依赖 SwiftUI 在回调前已用最新状态重建视图值，无脏读。
+        // 与 ChatTimelineContent 的 visibleNotices 无法共用：那是另一个 view 的另一次
+        // body 求值，跨层传递要新增 props 层级，改动面更大（同 A1 决策）。
+        let hasInteractions = model.session.notices.notices.contains { $0.isVisible && $0.notice.type == "interaction" }
         // A sibling overlay receives taps independently of the scroll view's
         // deceleration recognizer. The explicit return intent survives its callbacks.
         ZStack(alignment: .bottom) {

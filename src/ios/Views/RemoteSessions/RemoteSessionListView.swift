@@ -367,11 +367,21 @@ struct RemoteSessionListView: View {
         // 取、删除回调走组合根 removeConnector、.id(connectorId) 官方 190 行）。
         .navigationDestination(isPresented: $showsDeviceDetail) {
             if let connector = deviceConnector, let services = service.chat {
-                RemoteDeviceDetailView(service: service, connector: connector) { id in
-                    services.removeConnector(connectorId: id)
-                    showsDeviceDetail = false
-                }
-                .id(connector.id)
+                // [BATCH-A/A3-同族] 传上 :41 预留的变化信号：设备页三条归档写路径
+                // （archiveAll 无项目分支 / 项目分支 archiveProject / 批量选中
+                // setSessionsArchived）成功后都会推进服务端与仓库状态，但本页数据源是
+                // loader.items（与仓库并存的第二缓存），不接信号 → 列表页滞后到下次手动
+                // 刷新。回调里强制重拉当前筛选 + 归档面。
+                RemoteDeviceDetailView(service: service, connector: connector,
+                    onDeleted: { id in
+                        services.removeConnector(connectorId: id)
+                        showsDeviceDetail = false
+                    },
+                    onSessionsChanged: {
+                        loader.load(service: service, filter: archiveFilter, force: true)
+                        loader.loadArchived(service: service, force: true)
+                    })
+                    .id(connector.id)
             } else {
                 deviceDetailPending
             }

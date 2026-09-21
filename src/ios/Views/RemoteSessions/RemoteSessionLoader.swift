@@ -6,7 +6,9 @@
 // 读：listSessions(archived:) 三态（.all = 活跃+已归档两路并发合并）+
 //     listProjects() 项目名字典；归档页/设备页用 archivedItems（独立加载）。
 // 写：patchSessionMeta（置顶/标题）+ archive/unarchive/markRead 批量——
-//     乐观更新 + 服务端写回 + 失败回滚，错误进 writeError 供 UI 诚实展示。
+//     乐观更新 + 服务端写回 + 失败回滚，错误进 writeError 供 UI 诚实展示；
+//     写成功后另触发 dashboardRepository 重读回写（[BATCH-A/A3]，见
+//     syncDashboardAfterWrite 字据）。
 // 重命名与删除（服务端无删除端点）仍为占位，见 PATCHES 台账。
 
 import SwiftUI
@@ -288,6 +290,7 @@ final class RemoteSessionLoader: ObservableObject {
             do {
                 let updated = try await service.patchSessionMeta(sessionId: id, pinned: newValue)
                 replaceItem(Self.map(updated))
+                syncDashboardAfterWrite(service)
             } catch {
                 if let ridx = items.firstIndex(where: { $0.id == id }) {
                     items[ridx].isPinned = !newValue
@@ -310,6 +313,7 @@ final class RemoteSessionLoader: ObservableObject {
                     archivedItems.append(m)
                 }
                 archivedItems.sort { $0.sortDate > $1.sortDate }
+                syncDashboardAfterWrite(service)
             } catch {
                 items.append(contentsOf: removed)
                 resort()
@@ -330,6 +334,7 @@ final class RemoteSessionLoader: ObservableObject {
                     items.append(m)
                 }
                 resort()
+                syncDashboardAfterWrite(service)
             } catch {
                 archivedItems.append(contentsOf: removed)
                 archivedItems.sort { $0.sortDate > $1.sortDate }
@@ -343,7 +348,35 @@ final class RemoteSessionLoader: ObservableObject {
         for i in items.indices where ids.contains(items[i].id) {
             items[i].isUnread = false
         }
-        Task { _ = try? await service.markRead(sessionIds: ids) }
+        Task {
+            if (try? await service.markRead(sessionIds: ids)) != nil {
+                syncDashboardAfterWrite(service)
+            }
+        }
+    }
+
+    /// [BATCH-A/A3] 写面 REST 成功后的仓库回写。根因：本仓写面此前只改
+    /// loader.items/archivedItems，不回写 dashboardRepository——
+    /// RemoteChatView / RemoteDeviceDetailView 读的是 repository → 双事实源，
+    /// 列表页归档/置顶/已读后，设备页/聊天页滞后到下次 refresh
+    /// （官方 AppState.setSessionsArchived 是 REST + 回写 repository 两件事一起做）。
+    /// 为什么是「写成功后重读一发」而不是官方逐条 upsert：facade 写面
+    /// （RemoteService.patchSessionMeta/archive/unarchive/markRead）回传的
+    /// RemoteSessionMeta 是 V2SessionMeta 的有损公开镜像（丢 updatedSeq/takeover/
+    /// sourceAvailability 等参与 mergeSessions revision fence 的字段），且
+    /// V2SessionMeta.pinned/archived 为 let，无法就地翻旗；拿有损镜像 upsert 会
+    /// 覆盖仓库权威字段或被 fence 错拒。修根需要改 seam 层 facade 的写面回传
+    /// （seam 归属文件，本批不动）→ 已写进交付报告交回决策。
+    /// repository.refresh() 与官方 dashboard 事件流同一落地通道，自带 isValid / offline
+    /// 守门；组合根未就绪（未登录）时整体 no-op。
+    /// 「重复触发安全」要说准：安全指不会崩、不会打串，不指必然收敛——refresh() 的
+    /// !isLoading 是**丢弃式**守门（V2DashboardRepository.swift:56-57），若写之前发起的
+    /// 一发还在途，本次回写信号会被无声吞掉，滞后窗口延续到下一次触发（列表 onAppear /
+    /// 手动下拉都有兜底）。不排队不合并是有意取舍：这几条路径的正确性要求是"最终会一致"
+    /// 而非"这一发必到"，加队列的复杂度换不到用户可感知的收益。
+    private func syncDashboardAfterWrite(_ service: RemoteService) {
+        guard service.chat?.dashboardRepository != nil else { return }
+        Task { await service.chat?.dashboardRepository.refresh() }
     }
 
     /// 详情页标题（缓存命中即返回，不阻塞、不假造）。

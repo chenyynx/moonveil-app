@@ -37,8 +37,16 @@ struct RemoteDeviceDetailView: View {
     /// 本仓由调用方执行组合根 removeConnector 并 pop 本页。
     let onDeleted: (V2ConnectorID) -> Void
     /// 官方 onSessionsUpdated（archiveAll 后回写）——本仓直调组合根 updateSessions，
-    /// 保留闭包位仅用于强制列表页刷新（可选）。
-    var onSessionsUpdated: (([V2SessionMeta]) -> Void)?
+    /// 这个闭包位只用于「远端会话集合可能已变，列表页请重拉」。
+    /// 为什么不带官方那种 [V2SessionMeta] payload：本页四条写路径里只有 archiveAll 的
+    /// 无项目分支能拿到完整 meta（dashboard.archiveSessions 直返）；两条项目归档走
+    /// V2DashboardRepository.archiveProject（返回 Void，且该文件属 AAV2 冻结区不可改）、
+    /// 批量选中走组合根 setSessionsArchived（回写仓库但只返 Bool，要透传得改 Glue 写面）。
+    /// 传不了真值的 payload 就是假数据，故统一降级为「变化信号 + 调用方重拉」。
+    /// 注意：这只摘掉本闭包位的一处 V2SessionMeta 引用，该类型在本文件
+    /// allSessions / sessionRow / scopeSubtitle / stateMark 仍在用，
+    /// 故不构成 import-scan 深扫违规数下降。
+    var onSessionsChanged: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
 
@@ -209,7 +217,13 @@ struct RemoteDeviceDetailView: View {
                 let deletesProject = projectActionIsDeletion
                 perform {
                     if deletesProject { try await dashboard?.deleteProject(project.id) }
-                    else { try await dashboard?.archiveProject(project.id, archived: true) }
+                    else {
+                        try await dashboard?.archiveProject(project.id, archived: true)
+                        // 项目归档会改「范围内全部会话」的归档态，列表页 loader.items
+                        // 不知道 → 发变化信号。deleteProject 分支不触发：官方语义是
+                        // 只能删掉没有会话的项目，会话集合不变。
+                        onSessionsChanged?()
+                    }
                 }
             }
         } message: {
@@ -588,6 +602,7 @@ struct RemoteDeviceDetailView: View {
             defer { busy = false }
             if await services.setSessionsArchived(sessionIds: ids, archived: archived) {
                 model.stopSelectingSessions()
+                onSessionsChanged?()
             }
             sessionActionError = services.sessionActionError
         }
@@ -598,14 +613,17 @@ struct RemoteDeviceDetailView: View {
         guard canManage, let services else { return }
         if let id = model.projectID {
             let archived = model.sessionFilter != .archived
-            perform { try await dashboard?.archiveProject(id, archived: archived) }
+            perform {
+                try await dashboard?.archiveProject(id, archived: archived)
+                onSessionsChanged?()
+            }
         } else {
             Task {
                 if let sessions = await model.archiveSessions(connectorId: connector.id,
                     archived: model.sessionFilter != .archived,
                     service: services.deviceManagement) {
                     services.updateSessions(sessions)
-                    onSessionsUpdated?(sessions)
+                    onSessionsChanged?()
                 }
             }
         }

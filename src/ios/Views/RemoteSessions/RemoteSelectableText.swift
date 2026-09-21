@@ -92,7 +92,10 @@ struct ChatSelectableText: UIViewRepresentable {
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: ChatSelectableTextView, context: Context) -> CGSize? {
         guard !uiView.ownsContentWidth else { return nil }
         let proposed = proposal.width ?? .infinity
-        let maxWidth = proposed.isFinite ? proposed : UIView.layoutFittingExpandedSize.width
+        // [BATCH-A/A2] isFinite 只拦非有限值，有限的负宽度 proposal 会直通到
+        // ShadowMeasurer（负 container.size → usedRect 回垃圾值 → 负尺寸回传
+        // SwiftUI）。入口钳非负：非有限（含 NaN）仍走 expanded 兜底，正常正值不变。
+        let maxWidth = proposed.isFinite ? max(proposed, 0) : UIView.layoutFittingExpandedSize.width
         return uiView.hugSize(maxWidth: maxWidth)
     }
 }
@@ -134,13 +137,16 @@ private final class ShadowMeasurer {
         if let hit = cache[key] { return hit }
         if cache.count >= cacheLimit { cache.removeAll() }
 
-        let capped = min(maxWidth, 10_000)
+        // [BATCH-A/A2] 纵深防御（入口已在 sizeThatFits 钳过，这里保证 measure 任何
+        // 调用方都不会把负宽写进离屏 container）：宽度入口钳非负后再封顶，
+        // 出口对宽高钳 >= 0。正常正值输入下 min/max 两步均为恒等变换，结果不变。
+        let capped = min(max(maxWidth, 0), 10_000)
         container.size = CGSize(width: capped, height: CGFloat.greatestFiniteMagnitude)
         storage.replaceCharacters(in: NSRange(location: 0, length: storage.length), with: text)
         storage.addAttribute(.font, value: font, range: NSRange(location: 0, length: storage.length))
         layoutManager.ensureLayout(for: container)
         let used = layoutManager.usedRect(for: container)
-        let result = CGSize(width: min(ceil(used.width), maxWidth), height: ceil(used.height))
+        let result = CGSize(width: max(min(ceil(used.width), maxWidth), 0), height: max(ceil(used.height), 0))
         cache[key] = result
         return result
     }
