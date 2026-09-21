@@ -599,7 +599,7 @@ actor ISHExecutionCoordinator {
     }
 
     /// One entry in an external-folder mount snapshot.
-    nonisolated struct ExternalMountSpec: Sendable {
+    struct ExternalMountSpec: Sendable {
         let linuxDir: String
         let hostPath: String
         /// When true, iSH will expose this mount as a read-only directory

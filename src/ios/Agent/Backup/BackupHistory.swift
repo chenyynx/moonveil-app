@@ -33,7 +33,7 @@ final class BackupHistory: ObservableObject {
     }
 
     /// One line of the run's log.
-    nonisolated struct LogEntry: Codable, Identifiable, Sendable {
+    struct LogEntry: Codable, Identifiable, Sendable {
         var id: UUID = UUID()
         var at: Date
         var message: String
@@ -72,7 +72,7 @@ final class BackupHistory: ObservableObject {
     }
 
     /// One file left out of a package by the per-file size cap.
-    nonisolated struct SkippedEntry: Codable, Identifiable, Sendable {
+    struct SkippedEntry: Codable, Identifiable, Sendable {
         var id: String { path }
         /// Package-relative logical path, e.g. `chats/<sessionId>/uploads/a.mp4`.
         var path: String
@@ -89,7 +89,7 @@ final class BackupHistory: ObservableObject {
     /// exact; this only bounds the list.
     static let maxStoredSkippedPaths = 500
 
-    nonisolated struct DestinationOutcome: Codable, Identifiable, Sendable {
+    struct DestinationOutcome: Codable, Identifiable, Sendable {
         var id: UUID = UUID()
         var name: String
         var succeeded: Bool
@@ -133,7 +133,7 @@ final class BackupHistory: ObservableObject {
         }
     }
 
-    nonisolated struct Record: Codable, Identifiable, Sendable {
+    struct Record: Codable, Identifiable, Sendable {
         var id: UUID = UUID()
         /// The exporter's own backupId, so a record can be tied to the package
         /// it produced (and to a resumed run).

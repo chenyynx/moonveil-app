@@ -64,7 +64,7 @@ struct RawTableCell: Hashable {
     let content: [InlineNode]
 }
 
-nonisolated enum InlineNode: Hashable, Sendable {
+enum InlineNode: Hashable, Sendable {
     case text(String)
     case softBreak
     case lineBreak

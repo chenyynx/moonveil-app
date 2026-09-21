@@ -235,7 +235,7 @@ enum RcloneTransfer {
     // MARK: - Reading back
 
     /// A backup package on a remote.
-    nonisolated struct RemotePackage: Identifiable, Sendable {
+    struct RemotePackage: Identifiable, Sendable {
         var id: String { key }
         /// Path used to fetch it, relative to the remote's fs root.
         let key: String
@@ -279,7 +279,7 @@ enum RcloneTransfer {
     /// [T-restore-browse-tree] Carries directories as well as packages: the
     /// restore browser now walks the remote a level at a time instead of
     /// listing one configured folder, so it needs both.
-    nonisolated struct RemoteEntry: Identifiable, Sendable {
+    struct RemoteEntry: Identifiable, Sendable {
         var id: String { path }
         /// Path relative to the remote root, as rclone wants it.
         let path: String

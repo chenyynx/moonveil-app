@@ -149,7 +149,7 @@ struct ThinkingResolveTrace {
 /// EMPTY IS THE SAFE DEFAULT: an instance absent from the cache resolves against the
 /// built-in registry alone, which is exactly the Phase 1 behaviour. A cache miss can
 /// therefore never produce a wrong request shape — only a less-customised one.
-final nonisolated class ThinkingRuleCache: @unchecked Sendable {
+final class ThinkingRuleCache: @unchecked Sendable {
     static let shared = ThinkingRuleCache()
 
     private let lock = NSLock()

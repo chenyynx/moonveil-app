@@ -654,7 +654,7 @@ final class BrowserUseManager: NSObject, ObservableObject {
     /// One-shot guard so exactly one of {eval-completion, timeout} resumes the
     /// continuation. `@unchecked Sendable` + a lock because the two racers land
     /// on different threads (WebKit callback thread vs the detached timer).
-    private final nonisolated class ContinuationBox: @unchecked Sendable {
+    private final class ContinuationBox: @unchecked Sendable {
         private let lock = NSLock()
         private var done = false
         var cont: CheckedContinuation<Any?, Error>?

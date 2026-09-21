@@ -28,7 +28,7 @@ protocol CorrectionStrategy: Sendable {
 /// don't ask for it). Not `#if DEBUG`: the type is trivial and keeping it unconditional
 /// avoids `#if` noise around the parameter at each call site — only the trace that
 /// consumes it is DEBUG-only.
-final nonisolated class PromptDiagnosticsSink: @unchecked Sendable {
+final class PromptDiagnosticsSink: @unchecked Sendable {
     /// Typed-vocabulary terms that fit the 400-char block, in the order presented.
     var vocabTerms: [String] = []
     /// Confusion lines ("Linux→minis（用户已手动纠正2次）") that fit the 800-char block.
@@ -38,7 +38,7 @@ final nonisolated class PromptDiagnosticsSink: @unchecked Sendable {
     init() {}
 }
 
-nonisolated struct CorrectionOutcome: Sendable {
+struct CorrectionOutcome: Sendable {
     let correctedText: String
     /// The model group we actually reached ("sub" / "primary") — surfaced by
     /// `debug.voiceCorrection.runCorrection` so a bad correction can be traced to a model.

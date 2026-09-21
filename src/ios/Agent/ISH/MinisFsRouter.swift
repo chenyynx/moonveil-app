@@ -13,7 +13,7 @@
 
 import Foundation
 
-final nonisolated class MinisFsRouter: @unchecked Sendable {
+final class MinisFsRouter: @unchecked Sendable {
     static let shared = MinisFsRouter()
 
     /// Guest path prefixes that route per-session. Anything under one of these

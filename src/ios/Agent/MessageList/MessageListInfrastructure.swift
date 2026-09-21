@@ -18,7 +18,7 @@ import UIKit
 /// Item identifier for the diffable data source.
 /// Assistant messages are split into header + individual blocks + footer
 /// so each block is its own small cell with a stable height.
-nonisolated enum MessageListItem: Hashable {
+enum MessageListItem: Hashable {
     /// A complete user message, compact divider, or system info message.
     case wholeMessage(UUID)
     /// The "sparkles Moonveil" label row at the top of an assistant turn.

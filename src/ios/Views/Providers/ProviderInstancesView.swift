@@ -312,7 +312,7 @@ struct ProviderInstancesView: View {
 /// write/delete) makes invalidation exact: the UI still updates immediately after
 /// the user adds or removes a key. The TTL is only a backstop for credential
 /// changes that happen outside the app (Keychain iCloud sync).
-final nonisolated class ProviderRowCredentialCache: @unchecked Sendable {
+final class ProviderRowCredentialCache: @unchecked Sendable {
     static let shared = ProviderRowCredentialCache()
 
     struct Display {

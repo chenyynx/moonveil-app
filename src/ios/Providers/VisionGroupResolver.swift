@@ -77,7 +77,7 @@ enum VisionGroupResolver {
         _ = isConfigured
     }
 
-    private final nonisolated class ConfiguredMirror: @unchecked Sendable {
+    private final class ConfiguredMirror: @unchecked Sendable {
         static let shared = ConfiguredMirror()
         private let lock = NSLock()
         private var value = false
@@ -488,7 +488,7 @@ enum VisionGroupResolver {
     /// Tiny lock-free flag shared between the timeout task and the awaiting
     /// caller. Both touch it from arbitrary executors, so it can't be a plain
     /// captured `var`.
-    private final nonisolated class TimeoutFlag: @unchecked Sendable {
+    private final class TimeoutFlag: @unchecked Sendable {
         private let lock = NSLock()
         private var value = false
         func set() { lock.lock(); value = true; lock.unlock() }

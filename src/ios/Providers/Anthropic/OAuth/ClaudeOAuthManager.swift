@@ -428,7 +428,7 @@ struct OAuthCallbackResult {
 }
 
 /// Minimal HTTP server on localhost that listens for the OAuth callback.
-final nonisolated class OAuthCallbackServer: @unchecked Sendable {
+final class OAuthCallbackServer: @unchecked Sendable {
 
     private let port: UInt16
     private let callbackPath: String

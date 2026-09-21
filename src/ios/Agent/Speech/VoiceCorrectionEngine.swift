@@ -31,7 +31,7 @@ actor VoiceCorrectionEngine {
 
     // MARK: - Result
 
-    nonisolated struct Suggestion: Sendable {
+    struct Suggestion: Sendable {
         let original: String
         let corrected: String
         /// False when the model returned the text unchanged, or we rejected its output.

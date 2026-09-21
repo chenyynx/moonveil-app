@@ -152,7 +152,7 @@ enum RareContentScorer {
 /// `rareTermsDigest` (the rarest terms across those messages, ≤200 chars).
 /// The legacy two-field form is kept as a fallback so hand-built contexts
 /// (debug RPC, older tests) keep working unchanged.
-nonisolated struct ConversationContext: Sendable, Equatable {
+struct ConversationContext: Sendable, Equatable {
     var lastUserMessage: String?
     var lastAgentReply: String?
     /// Rare-content digest ("top 200 字") from `CorrectionContextBuilder`.
@@ -168,9 +168,9 @@ nonisolated struct ConversationContext: Sendable, Equatable {
     /// never part of what the context IS. Folding it into equality would make two
     /// identical prompts compare unequal because one was built from more scanned
     /// messages — and `ConversationContext: Equatable` is what the unit tests assert on.
-    nonisolated struct Mining: Sendable {
-        nonisolated struct DigestTerm: Sendable { let term: String; let score: Int; let count: Int }
-        nonisolated struct ExcerptMeta: Sendable {
+    struct Mining: Sendable {
+        struct DigestTerm: Sendable { let term: String; let score: Int; let count: Int }
+        struct ExcerptMeta: Sendable {
             let role: String; let newestIndex: Int; let kind: String; let chars: Int
         }
         var digestScores: [DigestTerm] = []
@@ -200,8 +200,8 @@ nonisolated struct ConversationContext: Sendable, Equatable {
 /// without ChatStore types. `text` is expected to be ALREADY stripped of
 /// attachment markup — the caller owns that (it has TypedVocabularyBuilder in
 /// scope; this file deliberately doesn't, for test-target independence).
-nonisolated struct CorrectionSourceMessage: Sendable {
-    nonisolated enum Role: String, Sendable { case user = "用户", assistant = "AI" }
+struct CorrectionSourceMessage: Sendable {
+    enum Role: String, Sendable { case user = "用户", assistant = "AI" }
     let role: Role
     let text: String
 }

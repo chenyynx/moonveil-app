@@ -2,7 +2,7 @@
 import Darwin
 import Foundation
 
-final nonisolated class DebugServer: @unchecked Sendable {
+final class DebugServer: @unchecked Sendable {
 
     private let acceptQueue = DispatchQueue(label: "debug.server.accept")
     private var listenSocket: Int32 = -1

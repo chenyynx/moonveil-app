@@ -339,7 +339,7 @@ struct ProviderInstance: Identifiable, Codable, Hashable {
 /// hit `invalidate(_:)` / `invalidateAll()` on every credential-affecting event.
 /// The `ttl` is a backstop only — if some future write path forgets to
 /// invalidate, a stale entry self-heals within 15s rather than sticking forever.
-final nonisolated class ProviderCredentialCache: @unchecked Sendable {
+final class ProviderCredentialCache: @unchecked Sendable {
     static let shared = ProviderCredentialCache()
 
     /// Backstop TTL. Deliberately far shorter than a single new-session resolve

@@ -574,7 +574,7 @@ final class BrowserTabPool: ObservableObject {
         let token = nextSerialToken
         nextSerialToken &+= 1
 
-        final nonisolated class GateBox: @unchecked Sendable {
+        final class GateBox: @unchecked Sendable {
             private var lock = os_unfair_lock()
             private var resume: (() -> Void)?
             private var preFired = false
@@ -1016,7 +1016,7 @@ final class BrowserTabPool: ObservableObject {
     /// two racers land on different threads (a Task vs a GCD timer queue), hence
     /// the lock + `@unchecked Sendable`. `finish` may be called before `attach`
     /// (timer wins instantly), so a pending result is buffered until attach.
-    private final nonisolated class RaceBox: @unchecked Sendable {
+    private final class RaceBox: @unchecked Sendable {
         private let lock = NSLock()
         private var done = false
         private var cont: CheckedContinuation<BrowserActionResult, Error>?

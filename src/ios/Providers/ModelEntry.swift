@@ -6,7 +6,7 @@ import Foundation
 /// (which reflects API truth). `ModelEntry.model` computes the effective view by
 /// overlaying these fields. New editable fields should be added here — no other
 /// layer needs to change to make them survive API refreshes.
-nonisolated struct ModelOverrides: Codable, Hashable, Sendable {
+struct ModelOverrides: Codable, Hashable, Sendable {
     var displayName: String?
     var maxOutputTokens: Int?
     /// User-set modality override. Wins over `baseModel.modalityOverride`

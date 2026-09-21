@@ -173,7 +173,7 @@ final class SyncLogStore: ObservableObject {
 
 /// Thread-safe container for pre-built CKRecords, shared between MainActor and nonisolated delegate callbacks.
 @available(iOS 17.0, *)
-final nonisolated class PendingRecordChanges: @unchecked Sendable {
+final class PendingRecordChanges: @unchecked Sendable {
     private let lock = NSLock()
     private var records: [CKRecord] = []
     private var deleteIDs: [CKRecord.ID] = []

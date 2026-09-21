@@ -156,7 +156,7 @@ final class CapturedVoiceInput {
 /// Thread-safe, bounded (last 5) ring of voice-transcription inputs, mirroring
 /// `AgentRequestTrace` / `LastAPIRequestBody`. `#if DEBUG` only; no disk, no
 /// effect on the realtime transcription path beyond one lock-guarded append.
-final nonisolated class VoiceInputCapture: @unchecked Sendable {
+final class VoiceInputCapture: @unchecked Sendable {
     static let shared = VoiceInputCapture()
 
     private let lock = NSLock()
