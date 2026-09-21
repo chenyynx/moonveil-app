@@ -128,6 +128,21 @@ jobs:
           cd build
           zip -qr "Moonveil-unsigned-${GITHUB_SHA::7}.ipa" Payload
 
+      - name: Whole-module typecheck (complete error surface)
+        # INFORMATIONAL ONLY — never gates this job (see script header for why).
+        # The build above dies on the first failing file, so each 15-minute cycle
+        # only ever reveals the next dependency layer; that is what made this repo
+        # burn 14 straight red runs. This step replays the app target's OWN logged
+        # swiftc invocation as one whole-module -typecheck, which reports every
+        # remaining error in a single pass. Results land in the step summary and as
+        # annotations, i.e. the two channels that survived the blob-log EOF outages.
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 35
+        run: |
+          set -uo pipefail
+          python3 scripts/swift-full-typecheck.py --log /tmp/ios-build.log \
+            --out /tmp/full-typecheck.log || echo "[full-typecheck] pass did not complete (see verdict line above)"
       - name: Upload full build log (blob-log EOF insurance)
         # Actions blob log storage intermittently undownloadable (2026-09-15 x2,
         # 2026-09-20 again): keep the WHOLE xcodebuild log as an artifact so
