@@ -18,6 +18,12 @@ struct ChatPageToolbar: ViewModifier {
     var subtitle: String?
     var status: ChatHeaderStatus?
     var alignsTitleLeading = false
+    /// [CHAT-LEADING-FENCE] 是否显示官方侧栏 ≡ 按钮。官方 ≡ = 打开侧栏
+    /// （drawer 体系，本仓无侧栏）；聊天页由 NavigationStack push 进入，
+    /// 系统已提供返回箭头，且本仓 onMenu 的语义就是 dismiss —— 与返回箭头
+    /// 重复（pp 2026-09-22 装机：左上角两颗按钮叠着，≡ 多余）。push 型
+    /// 调用点传 false 只留系统返回；默认 true 保持官方形状供其他调用点。
+    var showsSidebarButton = true
     let onMenu: () -> Void
 
     @ViewBuilder
@@ -41,11 +47,13 @@ struct ChatPageToolbar: ViewModifier {
 
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            // 官方 label 是「打开侧栏」；本仓此键位语义为关闭（无侧栏），
-            // 读屏文案随实际动作（必要语义适配）。
-            Button(action: onMenu) { SidebarMenuIcon() }
-                .accessibilityLabel(String(localized: "关闭"))
+        if showsSidebarButton {
+            ToolbarItem(placement: .topBarLeading) {
+                // 官方 label 是「打开侧栏」；本仓此键位语义为关闭（无侧栏），
+                // 读屏文案随实际动作（必要语义适配）。
+                Button(action: onMenu) { SidebarMenuIcon() }
+                    .accessibilityLabel(String(localized: "关闭"))
+            }
         }
         if alignsTitleLeading {
             if #available(iOS 26.0, *) {

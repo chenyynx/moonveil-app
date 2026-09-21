@@ -136,7 +136,7 @@ struct SessionChatView: View, Equatable {
         .modifier(ChatPageToolbar(title: session.metadata?.title ?? String(localized: "会话"),
             subtitle: [session.metadata?.runtimeName ?? session.metadata?.runtime ?? String(localized: "代理"),
                 deviceName ?? session.metadata?.connectorId].compactMap { $0 }.joined(separator: " · "),
-            status: model.headerStatus, alignsTitleLeading: true, onMenu: onMenu))
+            status: model.headerStatus, alignsTitleLeading: true, showsSidebarButton: false, onMenu: onMenu))
         .toolbar { toolbarBody }
         .modifier(SessionTakeoverConfirmation(pending: $pendingTakeover) { enabled in
             model.error = nil
