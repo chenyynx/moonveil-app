@@ -35,17 +35,17 @@ final class ChatSelectableTextView: UITextView {
 
     /// 官方 `InlineText` 的宽度语义：在给定上限内按文本实际排版宽度收拢。
     /// 不能用 `sizeThatFits` 的返回值当宽度——UITextView 在该路径回传的是约束
-    /// 宽度而非用字宽度（气泡会被拉满整行、文字左靠，pp 2026-09-21 装机截图），
-    /// 故临时把 textContainer 撑到上限后取 `usedRect`，量完立即还原；
-    /// `widthTracksTextView` 保持 true，下一次布局仍按 bounds 复位容器宽度。
+    /// 宽度而非用字宽度（气泡会被拉满整行、文字左靠，pp 2026-09-21 装机截图）。
+    ///
+    /// [STREAMING-LOOP-FIX] 旧实现在 `sizeThatFits` 同步路径里直接改本 view 自己的
+    /// `textContainer.size` + `ensureLayout`。SwiftUI 一次布局 pass 会用不同 proposal
+    /// 对同一视图测多遍，每遍都动 container 状态 → TextKit invalidation → SwiftUI
+    /// 重新布局 → 乒乓（pp 2026-09-22 装机：agent 流式回复时 881 次重复 setSize、
+    /// 主线程 hang 2.7s、内存 57→520MB、前台被杀）。官方 `InlineText` 是纯 SwiftUI
+    /// Text，measure 无副作用，本仓 UITextView 件必须靠**影子测量**补齐这个差异：
+    /// 用一套完全独立的离屏 TextKit 组件量宽度，绝不碰 uiView 自己的容器状态。
     func hugSize(maxWidth: CGFloat) -> CGSize {
-        let container = textContainer
-        let saved = container.size
-        container.size = CGSize(width: maxWidth, height: .greatestFiniteMagnitude)
-        layoutManager.ensureLayout(for: container)
-        let used = layoutManager.usedRect(for: container)
-        container.size = saved
-        return CGSize(width: min(ceil(used.width), maxWidth), height: ceil(used.height))
+        ShadowMeasurer.shared.measure(text, font: font, maxWidth: maxWidth)
     }
 }
 
@@ -91,6 +91,54 @@ struct ChatSelectableText: UIViewRepresentable {
 }
 
 /// 调用点常用的两组等值样式（官方 SwiftUI 字级 → UIFont）。
+/// 离屏文本测量器（[STREAMING-LOOP-FIX]）：供 `hugSize` 在 SwiftUI 的
+/// `sizeThatFits` 同步路径里安全地量"用字宽度"，完全不触碰任何屏幕上的
+/// NSTextContainer/NSLayoutManager 状态，因而不会触发 invalidation → 布局乒乓。
+/// UITextView 的 `sizeThatFits` 回传的是约束宽度（不是用字宽度），所以必须自己
+/// 用 `usedRect` 量；把 TextKit 三件套按 (text, font) 缓存复用，避免每帧重建。
+private final class ShadowMeasurer {
+    static let shared = ShadowMeasurer()
+
+    private struct Key: Hashable {
+        let text: String
+        let font: UIFont
+        let maxWidth: CGFloat
+    }
+
+    private var cache: [Key: CGSize] = [:]
+    private var storage = NSTextStorage()
+    private var layoutManager = NSLayoutManager()
+    private var container: NSTextContainer!
+
+    /// 流式回复时每个 token 都是新文本，缓存命中率为 0 却会无限堆积（正是本批要修的
+    /// 内存膨胀面）。设上限：超过即整体清空——静态历史消息重算的代价远小于泄漏。
+    private let cacheLimit = 64
+
+    private init() {
+        container = NSTextContainer(size: CGSize(width: 0, height: .greatestFiniteMagnitude))
+        container.widthTracksTextView = false
+        container.lineFragmentPadding = 0
+        storage.addLayoutManager(layoutManager)
+        layoutManager.addTextContainer(container)
+    }
+
+    func measure(_ text: String, font: UIFont, maxWidth: CGFloat) -> CGSize {
+        let key = Key(text: text, font: font, maxWidth: maxWidth)
+        if let hit = cache[key] { return hit }
+        if cache.count >= cacheLimit { cache.removeAll() }
+
+        let capped = min(maxWidth, 10_000)
+        container.size = CGSize(width: capped, height: .greatestFiniteMagnitude)
+        storage.replaceCharacters(in: NSRange(location: 0, length: storage.length), with: text)
+        storage.addAttribute(.font, value: font, range: NSRange(location: 0, length: storage.length))
+        layoutManager.ensureLayout(for: container)
+        let used = layoutManager.usedRect(for: container)
+        let result = CGSize(width: min(ceil(used.width), maxWidth), height: ceil(used.height))
+        cache[key] = result
+        return result
+    }
+}
+
 enum ChatSelectableTextStyle {
     /// 官方 `.font(.body)`（用户气泡）。
     static let body = UIFont.preferredFont(forTextStyle: .body)

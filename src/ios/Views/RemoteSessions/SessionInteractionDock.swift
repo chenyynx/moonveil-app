@@ -32,6 +32,15 @@ struct SessionInteractionDock: View {
     }
 
     var body: some View {
+        // [STREAMING-LOOP-FIX] 旧实现在一次 body 求值里访问 `items` 计算属性 5 次
+        // （!isEmpty / ForEach / count×2 / onChange），每次都对全部 notices 跑一遍
+        // filter，而 blocks() 内部访问 @Observable 的 submission/notice 属性 →
+        // 读一次注册一次依赖。SSE 高频投递时 update() 的 notice=next 赋值
+        // （@Observable 不做相等性短路）反复使依赖失效 → body 重算 → 循环
+        // （pp 2026-09-22 装机：agent 流式回复时主线程 hang 2.7s、内存 57→520MB、
+        // 前台被杀）。在此算一次局部常量，body 内全部引用走它：filter 只跑一遍，
+        // 依赖只注册一轮（依赖数随 notices 数量而非访问次数增长）。
+        let items = chat.session.notices.notices.filter { $0.blocks(chat.session.id) }
         let motionReduced = reduceMotion
         if !items.isEmpty {
             ScrollView(.vertical) {

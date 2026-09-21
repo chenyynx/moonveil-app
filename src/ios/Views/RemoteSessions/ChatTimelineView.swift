@@ -53,6 +53,7 @@ private struct ChatTimelineOrchestrationView: View {
     @State private var latestLoadRequest: Int?
     @State private var nativePhase = TimelineScrollState.Phase.idle
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @Environment(\.sidebarDrawerIsTransitioning) private var sidebarIsTransitioning
     @Environment(\.sidebarDrawerObscuresDetail) private var sidebarObscuresDetail
     @ScaledMetric(relativeTo: .caption) private var returnPillHeight: CGFloat = 32
@@ -348,8 +349,15 @@ private struct ChatTimelineContent: View, Equatable {
             && lhs.keepsOlderPrompt == rhs.keepsOlderPrompt && lhs.historyAnchor == rhs.historyAnchor
     }
     var body: some View {
-        let groups = TimelineGrouping.groups(model.timeline.rows, interactionTargets: Set(model.session.notices.notices
-            .filter(\.isVisible).compactMap(\.timelineTargetID)))
+        // [STREAMING-LOOP-FIX] 一次 body 求值内只对 notices 遍历一遍：三个 filter
+        // （interactionTargets / 可见通知卡 / 分组去重）合并到开头的两个局部常量。
+        // 旧实现对每个 ForEach 各 filter 一次，blocks()/isVisible 访问 @Observable
+        // 属性注册依赖；SSE 高频投递时 update() 的 notice=next 赋值（@Observable
+        // 不做相等性短路）反复使依赖失效 → body 重算 → 循环（pp 2026-09-22 装机：
+        // agent 流式回复时主线程 hang 2.7s、内存 57→520MB、前台被杀）。
+        let visibleNotices = model.session.notices.notices.filter(\.isVisible)
+        let groups = TimelineGrouping.groups(model.timeline.rows,
+            interactionTargets: Set(visibleNotices.compactMap(\.timelineTargetID)))
         let actions = TimelineTurnActions.build(groups: groups, suppressLatest: model.isRunning || model.session.hasNewerItems,
             hasPendingUserMessage: !model.session.hasNewerItems && (!model.timeline.pendingMessages.isEmpty || !model.session.pendingMessages.isEmpty))
         // Prefer a message whose start cannot move into a prefixed tool group.
@@ -399,8 +407,9 @@ private struct ChatTimelineContent: View, Equatable {
                         }
                     }
             }
-            ForEach(model.session.notices.notices.filter { notice in
-                notice.isVisible && !notice.blocks(model.session.id)
+            // [STREAMING-LOOP-FIX] 复用开头的 visibleNotices，不再二次 filter。
+            ForEach(visibleNotices.filter { notice in
+                !notice.blocks(model.session.id)
                     && !model.timeline.rows.contains(where: { $0.id == notice.timelineTargetID })
             }) { item in SessionInteractionCard(item: item, chat: model) }
             ForEach(model.timeline.pendingMessages) { pending in
