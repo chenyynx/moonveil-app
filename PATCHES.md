@@ -1261,7 +1261,7 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **落地**：
   - A 新文件 `RemoteDeviceDetailView.swift`：Agent Runtime 区（零行 + 刷新 + 黑玻璃添加按钮）→ 设备内容 segmented（项目/会话）→ 项目 tab（N 个项目 + ＋；目录行 = folder + 名称 + N 会话 + [文件(禁)/新会话] + 上下文菜单；工作目录模式空态）→ 会话 tab（范围 picker + ⋯（选择/批量归档，禁）+ 新会话 + 活跃/已归档/全部 segmented + 会话行：标题/项目名/状态标/日期；行 tap → 会话详情 sheet）。含 `RemoteAddAgentSheet`（官方空态文案）。
   - B 入口：终端卡长按 → `navigationDestination` push（pp 指定）；顶栏 title = host + 连接描述；右上 … = 设备菜单（新会话/复制设备 ID 可用；重命名/轮换/删除按官方 !canManage 禁用）。
-  - C push 页交互收口：`RootTabRouter.remoteAtRoot`（详情页 onAppear/onDisappear 上报）；页切手势远端线同规则（B16-SWIPE-SCOPE 预留位）；固定栏 ☰ 远端 push 时收起（与本地一致）。
+  - C push 页交互收口：`RootTabRouter.remoteAtRoot`（~~详情页 onAppear/onDisappear 上报~~ → **已被 [DEV-DETAIL-EMPTY] 取代：写主上移到调用方 push 状态**）；页切手势远端线同规则（B16-SWIPE-SCOPE 预留位）；固定栏 ☰ 远端 push 时收起（与本地一致）。
   - D pbxproj：克隆兄弟条目挂载（ids A1E6/B1E6，含 `-default-isolation MainActor` 编译旗标）。
 - **Staged（带期，随数据面批交付）**：agents inventory / 工作目录列表（RemoteService runtime 面）；项目管理写操作（重命名/置顶/归档/删除）；设备管理写操作（重命名/轮换/删除）；会话多选 + 批量归档 dock + 范围 ⋯ 实作；文件浏览（files service）。以上均按官方禁用态呈现（非死开关）。
 - **死隔离**：新增 1 文件 + 改 RemoteSessionListView/RootTabRouter/RootModeTabsView（各最小接线）；ContentView/RemoteKit/AA 弹窗零改动。
@@ -1397,3 +1397,21 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **死隔离确认**：`git diff --stat ab4d088~1 -- src/ios/{Agent,Debug,Providers,Shared,Views/Providers,WebApp}` 输出为空 = 本机线逐字节回到绷带前；`git diff ab4d088~1 -- src/ios | grep '^+.*nonisolated'` 计数 0。AAV2 冻结区本批 0 文件触碰。
 - **未交付项**：pp 已批准「分原子 commit 提交并推送」，但本仓 hook 拦截 qoder 提交（pp 2026-09-20 晚定门禁：需 Doris 全链路复审 + 对抗性复审两轮通过后由 Doris `--no-verify` 提交）。未绕门禁、未 `--no-verify`。待提交计划（4 个原子 commit）：① 轨 G 门禁+CI ② 轨 S body 拆分 ③ 轨 C pbxproj 配置对+撤绷带 ④ PATCHES.md 单独。
 
+
+## DEV-DETAIL-EMPTY — 终端卡点进去白屏（三症状一根因）+ remoteAtRoot 写主上移（2026-09-21，pp 装机反馈「白屏 / 右滑切到本地页 / 左上角那颗要改成返回键」）
+
+- **根因**：`dashboardRepository.connectors` 冷启动永远是 `[]`。`V2DashboardRepository.connectors` 初值空且 `private(set)`，全仓唯一的填充入口是 `refresh()` / `apply(snapshot)`；而改动前 `refresh()` 的可达调用点只有 ①详情页自己的 `refreshable`（详情页根本没 appear 过）②`AgentSetupSheet` 配对完成回调。官方侧 `AppState:126`（恢复会话后）/ `:181`（登录成功后）都紧跟 `refreshDashboard()`，`ChatShellView:211` 的下拉刷新也含它——**本仓 AppState 等价物（Glue）漏搬这一接线**。冷启动 `RemoteService.init` 用 keychain 同步恢复把 `state` 直接设成 `.ready`（`PublicRemoteService.swift:291-292` 注释所写的防闪屏优化），于是终端卡显示 CONNECTED 且允许点，但 `RemoteSessionListView.deviceConnector` 仍是 nil → `.navigationDestination` 走 `else { Color.clear }`。
+- **三症状为何是同一件事**：`Color.clear` = 白屏字面量；详情页没渲染 → 它的 `onAppear` 从未执行 → `remoteAtRoot` 停在 `true` → ①`RootModeTabsView:168` 的 `guard router.remoteAtRoot else { return }` 不退出，横滑切页照旧吃手势；②`gearVisible`（`:258-261`，远端线即 `remoteAtRoot`）仍为 true → 外壳 `:84-85` `.overlay(alignment: .topLeading)` 那颗 44pt 齿轮浮在导航栏条带正中，把系统返回箭头连 hit-testing 一起盖住。**pp 要求的「左上角改返回键」不需要新造按钮**：数据源修好 + 栅栏正确落下，齿轮隐藏、系统返回箭头自然露出（已确认全仓无 `navigationBarBackButtonHidden`）。
+- **改动（5 文件 +80/−5，全部落 Glue + src/ios，AAV2 冻结区 0 字节）**：
+  - `Glue/PublicRemoteService.swift`：`syncState()` 加「仅在跃迁到 `.ready` 的那一次」`Task { @MainActor in await engine.chatServices?.dashboardRepository.refresh() }`。边沿触发而非每个 mutation point 都发，形状对齐官方 `AppState:126/181`；`Task { @MainActor in self.engine... }` 与本文件 `restoreSession` 既有写法同构。
+  - `Glue/V2RemoteChatServices.swift`：`connectivity.onChange` 加「离线→在线」边沿补拉（新增 `lastAvailability` 私有态）。补掉残余缺口：`repository.refresh()` 在 `.offline` 时直接 no-op，装机首启若正好没网则三发全灭、之后无人补，用户只能靠下拉自救。
+  - `RemoteSessionListView.swift`：① `.onAppear` 兜底一发 refresh（首放失败可恢复；`refresh()` 自带 `isValid` / `!isLoading` 守门，不会打串）② 下拉刷新 `refresh()` 先 `await dashboardRepository.refresh()` 再刷 loader —— 官方 `ChatShellView:211` 逐字同语义，原实现只刷会话 loader，connectors 修不回来 ③ `else { Color.clear }` → 新增 `deviceDetailPending`（读 `repository.error` / `isLoading`，失败显示原因 + 放开重试，不静默转圈；守本仓远端线「空态诚实」惯例）。
+  - `RemoteDeviceDetailView.swift`：删除 `.onAppear/.onDisappear` 自报 `remoteAtRoot` 两行（**单一写主**，见下）。
+  - `RemoteSessionListView.swift` + `RemoteRootView.swift`：`remoteAtRoot` 写主由「详情页自报」改为「列表的 push 状态」`.onChange(of: showsDeviceDetail) { remoteAtRoot = !pushed }`；复位兜底挂在**活着的壳** `RemoteRootView.onChange(of: service.state)`，`== .pairing` 时复原。
+- 🔴 **为何复位不留在列表里**（对抗审查抓出来的必修项）：`RemoteRootView.content` 按 `service.state` 分支，进 `.pairing` 会把整棵 `RemoteSessionListView` 换成 `pairingPending` —— 被销毁的子树里 `onChange` 不保证 fire，写在列表里等于没写。`.idle`/`.degraded` 仍渲染列表，故只有 `.pairing` 需要复位。**旧写法靠 `onDisappear` 恰好覆盖了这条路径，搬写主时差点把它丢了。**
+- **写主拓扑（终态）**：正常路径 1 个写主（列表 push 态）+ 拆卸路径 1 个兜底（壳的 state 边沿），两者互斥不抢标志位；`.id(connector.id)` 换设备不再触发 disappear/appear 抢序。
+- **官方等价物优先自查**：三处接线（syncState 拉 dashboard / 下拉刷新含 dashboard / principal 与 topBarTrailing 布局）均有官方行号对照；`deviceDetailPending` 与离线边沿补拉无官方对照——官方不存在该缺陷，属本仓缺陷修复而非新发明。
+- **死隔离四问**：①本机线零改动（`ContentView` / 本机列表 / ChatStore 未触碰），三症状全部只在远端线复现；②共享文件仅 `RootTabRouter.remoteAtRoot`，该字段是远端线专用（本机线走 `localAtRoot`），写主搬迁在同一条线内部，未跨线；③官方等价物见上；④回归项见下 ①–⑨。
+- **验证边界（诚实口径）**：本地 5 门全绿 rc=0（`swift-parse-check` 581 文件 fail=0 / `swift-spelling-check` suspects=0 / `aav2-freeze-check` OK / `import-scan` OK / `pbxproj-strict-check` OK）；4 个改动文件括号/花脚/方括号平衡均 0；`remoteAtRoot` 全仓写主 grep 已核。**但 Linux 侧无编译器，type-check 与真机行为未验证** —— `@Observable` 经 `service.chat` 间接链能否保住追踪（决定 pending 会不会永久停住）静态推理判定为能，需装机实测一次「点卡 → 转圈 → 自动翻真页」。
+- **回归项（需装机）**：① 冷启动点终端卡 → 真页（或短暂 pending 后自动翻真页，不停在白屏）② push 页内右滑**不**切本机 tab ③ push 页左上角 = 系统返回箭头、可点，齿轮不在其上 ④ 返回列表后齿轮回归 + 根部横滑切 tab 恢复 ⑤ 下拉刷新转圈时长可接受（多一次 dashboard 往返）⑥ 断网冷启动 → 恢复网络后自动补拉、无需手动下拉 ⑦ 删除设备 → pop 回列表 + 标志复位 ⑧ 配对流程中（`.pairing`）拆卸后回远端根部，横滑与齿轮均正常 ⑨ 深色模式 + 离线态 pending 文案可读。
+- **同批未做（另开票，待 pp 定）**：G-1 `showsChat` push 疑似有相同的两处缺口（对抗审查静态推出：远端聊天页横滑仍切 tab；齿轮压住 `RemoteChatPageToolbar` 自绘的 topBarLeading 关闭钮）—— 🔴 **已被 pp 2026-09-21 装机实测推翻：「远端聊天页不会切 tab」**。静态推理漏了聊天页这条路径上必然有别的机制在管（`SessionChatView` 侧），未复现即不改，留此字据防后人照本去"修"一个不存在的问题；若日后复现，先查清聊天页靠什么挡住了手势再动手。G-2 `chatDestination` 的 `else` 仍是 `Color.clear`（`.ready` 下近似不可达，但与新的 pending 处理不一致）；G-4 `RemoteSessionBackend.bootstrap` 从不设 `lastAccessToken`，而 `fetchProfile()` 以它为门槛 → 恢复路径的 profile 永远拉不到、`chatServices.accountID` 恒为 `"official-account"`（分区键确定、缓存不漂移，无用户可见错误，但注释宣称的「profile 到达后取真实 userId」在恢复路径上是死代码）。
