@@ -1496,4 +1496,16 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **Linux 8 门**：parse --changed files=1 fail=0 divergence=0 / spelling suspects=0 / aav2-freeze OK / import-scan OK / pbxproj objects=1681 OK / registration orphans=0 / project-inputs missing=0 / aa-assets 93 referenced，rc=0。**未做**：本地 `swift build` 全链（Apple SDK 缺失，见上）。
 - **真机未验证**：需装机看 ①用户气泡（body 字体）右靠 hug、长消息换行不溢出 ②code / diff 面板（captionMonospace）**测量字体正确**——本批把测量字体源从"UITextView 实际字体"换成"与 representable 同步的 `measurementFont`"，若某调用点绕过 `updateUIView` 自己改 `view.font`，字体就会与测量脱钩（全仓 `ChatSelectableTextView(` 仅 `makeUIView` 一处构造、3 个调用点全经 representable，无绕过路径）。
 - **死隔离四问**：①改动 1 文件，`Packages/RemoteKit/**` 0 字节、AAV2 冻结区 0 字节、本机线 `AIChatView` 私有 `SelectableTextView` 未触碰；②该视图消费者全在远端链（`SessionTimelineRow` / `SessionTimelineEventView`）；③本批无新机制（只是把既有 `measure` 签名喂对）；④回归项 = 上两条真机项 + 远端聊天气泡行为与 `6d05d9f` 一致。
-- **相邻缺口登记（不代写）**：`017334e` 的 [STREAMING-LOOP-FIX] 批次尚未在本台账登记，归 **Doris** 自己补；本条只收编译挂点。
+- **🔴 自审补记（同日下一轮 CI 后追加，纠正本条目的一处判断错误）**：上文"CI whole-module typecheck 报告的错误面里**只有这一条真错**"是**错的**。摘掉 `:48` 后，下一轮 CI 在同一文件又报出 `:125:69 error: ambiguous use of 'greatestFiniteMagnitude'`（`git blame` 证明该行属 `017334e`，非本批引入）。也就是说 **step 名字里的 "complete error surface" 在同一编译单元内不成立**——一个成员类型检查失败会掩护同文件后面的错，"错误面完整"只能推到"同一文件内也不保证"这一层。教训：判"只有一条错"时，必须区分"编译器报了几条"和"编译器能报出几条"；前者是观测，后者才是真值。详见下条 HUG-CGFM-AMBIGUOUS。
+- **相邻缺口登记（不代写）**：`017334e` 的 [STREAMING-LOOP-FIX] 批次尚未在本台账登记，归 **Doris** 自己补；本条只收编译挂点。**截至 2026-09-22 已确知该批在本文件留了两处编译错**（`hugSize` 的 `UIFont?` + `ShadowMeasurer` 的裸 `.greatestFiniteMagnitude`），两处都已由 Qoder 收口。
+
+## HUG-CGFM-AMBIGUOUS — 第二轮：`ShadowMeasurer` 裸写隐式成员 `.greatestFiniteMagnitude` 在 macOS 被判二义（Qoder, 2026-09-22，pp「又挂了」）
+- **现场**：`a1b17f8` 摘掉 `:48` 后 iOS Build 仍红（run `35642491014`，12m30s）；门禁步 `Build (unsigned) + package ipa` 报**新的一条**：
+  `src/ios/Views/RemoteSessions/RemoteSelectableText.swift:125:69: error: ambiguous use of 'greatestFiniteMagnitude'`
+  候选两个：`CoreFoundation.CGFloat.greatestFiniteMagnitude` 与 `Swift.Double.greatestFiniteMagnitude`。
+- **归属**：`git blame` = `017334e`（Doris STREAMING-LOOP-FIX），**非 HUG-OPTIONAL-FONT 引入**；该行行号未被我改动，只是整体下移 6 行。挂点是"上一错掩护下一错"（见上条自审补记）。
+- **根因**：`CGSize(width: 0, height: .greatestFiniteMagnitude)` 里 `width:` 槽收 **Int 字面量**、`height:` 槽收**无类型上下文托底的隐式成员**，两个槽的解算互相污染后，`.greatestFiniteMagnitude` 落到"CGFloat 与 Double 都是候选"。macOS 上 `CGFloat` 是**独立 struct**（自带同名 static）才有此二义。
+- **为什么不能定性成"裸写一律有毒"（先查再动手）**：全仓同形裸写至少 20+ 处且都在 Release iOS 构建里长期绿——`MarkdownRenderView:138/207`、`ChatInputBar:1094/1121/1473/1476`、`SelectableMarkdownView:2368/2871/3534/8685…`，其中 `SelectableMarkdownView:3534` 与本行同为 `NSTextContainer(size: CGSize(...))` 也只因前面是 `bounds.width`（CGFloat 变量）而幸免。故这是**该处参数形状（Int 字面量 + 裸隐式成员）触发的解算二义**，不是一次全仓清理任务；按最小改动原则**不顺手扩大范围**。
+- **改动 1 文件 2 处**（`ShadowMeasurer` 内，同批同形一次改净，不留"修了一处漏一处"）：`:125` 与 `:138` 的 `height: .greatestFiniteMagnitude` → `height: CGFloat.greatestFiniteMagnitude`。限定类型名与本文件 `:38`、以及仓内既有写法（`NativeComposerEditor:74` 一路）**同一口径**；表达式求值不变，**零行为变化**。
+- **验证边界（诚实口径）**：本地 swiftc **证不了这类**——Linux 上 `CGFloat` 是 `Double` 的 typealias，只有单一候选，歧义在原理上不可本地复现（已试：夹具 rc=0 无诊断）。Linux 门：parse --changed files=1 fail=0 divergence=0 / spelling suspects=0，rc=0。**权威面仍是 macOS CI**。
+- **下一轮预警**：同文件若还有被掩护的错，会在这一错摘掉后再露出来（本轮已是第二次验证该现象）。判"错误面干净"的唯一可靠信号 = **门禁步 `Build (unsigned) + package ipa` 本身绿**，不是 informational 的 typecheck step 没报错。
