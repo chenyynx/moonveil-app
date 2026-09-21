@@ -48,14 +48,29 @@ jobs:
           python3 scripts/audit-swift-registration.py
       - name: swift-case-spelling
         run: python3 scripts/swift-spelling-check.py
+      - name: Cache Linux Swift toolchain
+        # ~700 MB tarball; ci job is otherwise a 20s job. Cache the extracted dir.
+        uses: actions/cache@v4
+        with:
+          path: ~/swift-dist
+          key: swiftdist-${{ runner.os }}-swift-6.0.3-RELEASE-ubuntu24.04
       - name: swift-syntax-parse
         run: |
           set -euo pipefail
-          SWV=swift-6.0.3-RELEASE-ubuntu24.04
-          if [ ! -x "$HOME/swift-dist/$SWV/usr/bin/swiftc" ]; then
-            curl -sSfL --retry 3 "https://download.swift.org/swift-6.0.3-release/ubuntu2404/$SWV/$SWV.tar.gz" -o /tmp/swift.tgz
-            mkdir -p "$HOME/swift-dist"
-            tar -xzf /tmp/swift.tgz -C "$HOME/swift-dist"
+          REL=swift-6.0.3-RELEASE
+          DEST="$HOME/swift-dist"
+          # Locate swiftc by shape, never by a guessed directory name: run 35552014592
+          # 404'd because the archive path is <REL>/<REL>-ubuntu24.04.tar.gz while the
+          # extracted top dir keeps the -ubuntu24.04 suffix (two different strings).
+          SWIFTC=$(find "$DEST" -path '*/usr/bin/swiftc' -type f 2>/dev/null | head -1 || true)
+          if [ -z "$SWIFTC" ]; then
+            curl -sSfL --retry 3 \
+              "https://download.swift.org/swift-6.0.3-release/ubuntu2404/${REL}/${REL}-ubuntu24.04.tar.gz" \
+              -o /tmp/swift.tgz
+            mkdir -p "$DEST"
+            tar -xzf /tmp/swift.tgz -C "$DEST"
             rm -f /tmp/swift.tgz
+            SWIFTC=$(find "$DEST" -path '*/usr/bin/swiftc' -type f | head -1)
           fi
-          SWIFTC="$HOME/swift-dist/$SWV/usr/bin/swiftc" bash scripts/swift-parse-check.sh
+          echo "toolchain: $SWIFTC"
+          SWIFTC="$SWIFTC" bash scripts/swift-parse-check.sh
