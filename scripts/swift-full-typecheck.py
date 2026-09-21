@@ -40,11 +40,16 @@ DROP_EXACT = {"-c", "-no-color-diagnostics", "-wmo", "-enable-batch-mode",
               "-save-optimization-record", "-incremental", "-Onone", "-O", "-Osize",
               "-g", "-profile-generate", "-profile-coverage-mapping",
               "-emit-dependencies", "-emit-localized-strings", "-emit-objc-header",
-              "-emit-const-values", "-experimental-emit-module-separately"}
+              "-emit-const-values", "-experimental-emit-module-separately",
+              # -emit-module / -emit-symbol-map are BOOLEAN in the driver (the
+              # logged shape is `-emit-module -emit-module-path <p>`). Listing
+              # them as value-taking makes them eat the following real flag and
+              # orphans <p> as a positional input -> "unexpected input file".
+              "-emit-module", "-emit-symbol-map"}
 DROP_WITH_VALUE = {"-o", "-emit-module-path", "-emit-dependencies-path",
                    "-emit-reference-dependencies-path", "-emit-localized-strings-path",
                    "-output-file-map", "-index-store-path", "-module-cache-path",
-                   "-num-threads", "-j", "-emit-module", "-emit-symbol-map",
+                   "-num-threads", "-j",
                    "-save-optimization-record-path", "-target-variant", "-vfsoverlay",
                    "-serialize-diagnostics-path", "-embed-bitcode-marker-files",
                    "-enable-testable-code-for-profile", "-profile-generate-lines-coverage",
