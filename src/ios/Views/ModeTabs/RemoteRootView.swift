@@ -43,6 +43,15 @@ struct RemoteRootView: View {
             let n = SoulStore.cachedMetadata.name
             soulName = n.isEmpty ? "Moonveil" : n
         }
+        // 子树拆卸兜底：content 按 service.state 分支，.pairing 会把整棵
+        // RemoteSessionListView 换成 pairingPending——它的 @State 随葬，详情页 push
+        // 期间由该列表 `.onChange(of: showsDeviceDetail)` 维护的 remoteAtRoot 就再也
+        // 没人复位（标志永久卡 false：远端根部横滑切 tab 报废 + 齿轮回不来）。
+        // 复位必须挂在活着的壳上，不能挂回被销毁的子树。
+        // .idle/.degraded 仍渲染列表（同 switch），故只有 .pairing 需要。
+        .onChange(of: service.state) { _, newState in
+            if newState == .pairing { tabRouter.remoteAtRoot = true }
+        }
         // 官方 RootView.swift:52 逐字同源：全局 tint = 主文本色（黑/白），官方
         // Assets 无 AccentColor、仅靠这行把 Menu/Label 图标/裸 Button 全染黑。
         // 漏搬导致「全部项目/新设备/创建项目」显示系统蓝（pp 官方截图 2026-09-21 定案）。

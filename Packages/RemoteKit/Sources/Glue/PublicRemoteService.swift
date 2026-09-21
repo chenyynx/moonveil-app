@@ -410,11 +410,23 @@ public final class RemoteService: ObservableObject {
     /// Poll-free state sync helper: engine state is @Published; we mirror on
     /// every public mutation point rather than importing Combine plumbing.
     private func syncState() {
+        let wasReady = state == .ready
         switch engine.connectionState {
         case .idle:             state = .idle
         case .pairing:          state = .pairing
         case .ready:            state = .ready
         case .degraded(let r):  state = .degraded(r)
+        }
+        // 官方 AppState:126（恢复会话后）/ :181（登录成功后）都紧跟一句
+        // refreshDashboard()。本仓漏搬：`dashboardRepository.connectors` 初值 []
+        // 且无人拉，而它是设备详情页唯一的身份源（RemoteSessionListView.
+        // deviceConnector）→ 冷启动 keychain 恢复把 state 同步设成 .ready 后，
+        // 终端卡显示 CONNECTED 可点，进去却是空目的地（pp 2026-09-21 白屏）。
+        // 只在跃迁到 .ready 时拉，避免每个 mutation point 重复打网络。
+        if !wasReady, state == .ready {
+            Task { @MainActor in
+                await self.engine.chatServices?.dashboardRepository.refresh()
+            }
         }
     }
 

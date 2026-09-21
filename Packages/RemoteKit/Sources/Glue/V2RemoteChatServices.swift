@@ -34,6 +34,8 @@ final class V2RemoteChatServices {
     private let api: V2APIClient
     let connectivity = V2ConnectivityMonitor()
     var onConnectivityChange: ((V2NetworkStatus) -> Void)?
+    /// 上一次网络可用性，用于识别「离线→在线」边沿（见 connectivity.onChange）。
+    private var lastAvailability: V2NetworkStatus.Availability = .unknown
     let localStore: V2LocalStore
     let scope: V2ClientScope
     let sessionRepository: V2SessionRepository
@@ -96,6 +98,8 @@ final class V2RemoteChatServices {
         dashboardRepository.reconcile = { [weak self] in self?.sessionReads.ingest($0) ?? $0 }
         connectivity.onChange = { [weak self] status in
             guard let self else { return }
+            let wasOffline = self.lastAvailability == .offline
+            self.lastAvailability = status.availability
             self.sessionRepository.updateConnectivity(status)
             self.dashboardRepository.updateNetwork(status)
             // P2：官方 V2ClientServices:97 —— 网络变化推给缓存的 DeviceAgentModel
@@ -103,6 +107,13 @@ final class V2RemoteChatServices {
             // 官方 AppState:331：网络变化同步给已读编排
             self.sessionReads.updateConnectivity(status)
             self.onConnectivityChange?(status)
+            // 离线→在线边沿补拉一次 dashboard。必要性：repository.refresh() 在
+            // .offline 时直接 no-op，而 connectors 是设备详情页唯一的身份源——
+            // 装机首启若正好没网，冷启动那一发落地不了，之后没有任何机制补，
+            // 用户只能靠下拉刷新自救（pp 2026-09-21 白屏批的残余缺口）。
+            if wasOffline, status.availability != .offline {
+                Task { @MainActor in await self.dashboardRepository.refresh() }
+            }
         }
         connectivity.start()
     }

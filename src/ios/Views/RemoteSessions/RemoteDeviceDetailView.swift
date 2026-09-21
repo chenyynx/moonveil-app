@@ -23,8 +23,9 @@
 //   • 错误面 = ChatToastStore 四源（agents/device/sync/action，官方 61/125/126/233 行）
 //     + sessionActionError alert（官方 ChatShellView:176-181 形状）。
 //
-// 页切栅栏：onAppear/onDisappear 上报 RootTabRouter.remoteAtRoot（远端 push 页不参与
-// 横滑切 tab——B16-SWIPE-SCOPE 的远端线同规则）。
+// 页切栅栏：本页不再自报 remoteAtRoot；唯一写主 = 调用方 RemoteSessionListView 的
+// `.onChange(of: showsDeviceDetail)`（远端 push 页不参与横滑切 tab——B16-SWIPE-SCOPE
+// 的远端线同规则；同一个开关兼作外壳 topLeading 齿轮的隐藏条件）。
 
 import SwiftUI
 import UIKit
@@ -222,8 +223,9 @@ struct RemoteDeviceDetailView: View {
         )) {
             Button("好的", role: .cancel) { sessionActionError = nil; services?.dismissSessionActionError() }
         }
-        .onAppear { RootTabRouter.shared.remoteAtRoot = false }
-        .onDisappear { RootTabRouter.shared.remoteAtRoot = true }
+        // 页切栅栏/顶栏齿轮的唯一写主已上移到调用方的 push 状态
+        // （RemoteSessionListView `.onChange(of: showsDeviceDetail)`）。本页不再自报：
+        // 留两个写主会抢同一标志位，且目的地渲染不出内容时整条上报链失效（pp 2026-09-21 白屏）。
     }
 
     /// 官方 202-206 connectionDescription（逐字语义，中文键落地）

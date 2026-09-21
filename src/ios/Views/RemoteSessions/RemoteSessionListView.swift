@@ -178,6 +178,10 @@ struct RemoteSessionListView: View {
                 loader.load(service: service, filter: archiveFilter)
                 loader.loadArchived(service: service)
                 Task { await refreshConnectorNames() }
+                // dashboard 兜底：RemoteService.syncState 只在跃迁到 .ready 时拉一次，
+                // 那一发若因网络失败落地，connectors 仍是空 → 终端卡点进去没有设备身份。
+                // repository.refresh 自带 isValid / !isLoading 守门，重复调用不会打串。
+                Task { await service.chat?.dashboardRepository.refresh() }
             }
             .onChange(of: archiveFilter) { _, newFilter in
                 loader.load(service: service, filter: newFilter, force: true)
@@ -353,8 +357,16 @@ struct RemoteSessionListView: View {
                 }
                 .id(connector.id)
             } else {
-                Color.clear
+                deviceDetailPending
             }
+        }
+        // 页切栅栏 + 顶栏齿轮的归属从「详情页 onAppear 自报」改成「push 状态」：
+        // 原写法把 remoteAtRoot 挂在 RemoteDeviceDetailView.onAppear 上，目的地
+        // 一旦渲染不出内容（pp 2026-09-21 白屏那次根本没 appear），横滑漏切本机
+        // 和外壳 topLeading 齿轮压住系统返回箭头这两个问题就一起复发。
+        // 系统返回箭头与齿轮共用这一个开关：push 中 → 齿轮隐藏 → 导航栏露出返回键。
+        .onChange(of: showsDeviceDetail) { _, pushed in
+            RootTabRouter.shared.remoteAtRoot = !pushed
         }
         // P1-CHAT：会话聊天页（官方 ChatShell selection 的本仓导航等价物）
         .navigationDestination(isPresented: $showsChat) {
@@ -389,6 +401,31 @@ struct RemoteSessionListView: View {
     private var deviceConnector: V2Connector? {
         let connectors = service.chat?.dashboardRepository.connectors ?? []
         return connectors.first { $0.status == .online } ?? connectors.first
+    }
+
+    /// 设备身份还没到位时的目的地可见态（替掉原 `Color.clear`——纯透明铺在
+    /// 系统白底上就是 pp 看到的白屏，且没有任何可操作出口）。
+    /// 空态诚实：直接读仓库的 error / isLoading，失败时显示失败原因并放开重试，
+    /// 而不是无限转圈静默（本仓远端线空态惯例；读法同 RemoteDeviceDetailView 的
+    /// `dashboard?.error`）。dashboard 未落地 / 首发放失败 / 失败后等待重试都走这里。
+    private var deviceDetailPending: some View {
+        let error = service.chat?.dashboardRepository.error
+        let loading = service.chat?.dashboardRepository.isLoading == true
+        return VStack(spacing: 14) {
+            if loading { ProgressView() }
+            Text(error ?? "正在同步设备信息…")
+                .font(.system(size: 13))
+                .foregroundStyle(RemotePalette.body)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button("重试") {
+                Task { await service.chat?.dashboardRepository.refresh() }
+            }
+            .font(.system(size: 14, weight: .medium))
+            .disabled(loading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(RemotePalette.canvas.ignoresSafeArea())
     }
 
     /// 会话区内的状态行（加载 / 错误）——保持页面骨架完整，不替换整页
@@ -765,6 +802,10 @@ struct RemoteSessionListView: View {
     }
 
     private func refresh() async {
+        // 官方 ChatShellView:211：下拉刷新先 `await appState.refreshDashboard()`
+        // 再回读 connectors —— 本仓原实现只刷会话 loader，connectors 永远停在首发
+        // 那一发（或其失败后的空态），设备详情页身份源因此修不回来。
+        await service.chat?.dashboardRepository.refresh()
         await loader.refresh(service: service, filter: archiveFilter)
     }
 
