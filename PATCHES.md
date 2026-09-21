@@ -1481,3 +1481,19 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
   - `src/ios/Views/RemoteSessions/RemoteNewSessionModel.swift`：头注释「成功回调 sessionId（由页面 dismiss 回列表）」是旧设计的字面固化，按新语义改写。
 - **官方语义差异（诚实标注）**：官方 `if case .newSession = selection { openSession(...) }` 有一道"用户当前确实在新会话页"的守卫；本仓新会话页是 cover，创建成功即必然处于该页，守卫无对应物，未搬。
 - **验证边界（诚实口径）**：Linux 8 门全绿 rc=0（freeze / isolation / parse 581 fail=0 / spelling / pbxproj / registration orphans=0 / project-inputs missing=0 / aa-assets）。**type-check 与真机未验证**：`chat?.updateSession` 落在 `@MainActor` 类内、`chat` 与 `startSession` 同类（`RemoteService` :300-），静态判定可编译，仍需 RemoteKit Build（macOS）确认；真机需验「新会话发完 → cover 关闭 → 直接落在聊天页 → 首屏有内容（不白屏）→ 返回按钮回列表且新会话已在列表顶部」。
+
+## HUG-OPTIONAL-FONT — iOS Build 挂点收口：`hugSize` 把 `UIFont?` 传给要非可选的 `ShadowMeasurer.measure`（Qoder, 2026-09-22，pp「moonveil build 挂了」→「你弄吧」）
+- **现场**：`017334e`（[doris] STREAMING-LOOP-FIX）触发 iOS Build 红，上一笔 `6d05d9f` 绿；同 run 的 `ci` 绿。CI whole-module typecheck 报告的错误面里**只有这一条真错**：
+  `src/ios/Views/RemoteSessions/RemoteSelectableText.swift:48:51: error: value of optional type 'UIFont?' must be unwrapped to a value of type 'UIFont'`
+- **根因（名字撞车，非逻辑错）**：`hugSize` 挂在 `ChatSelectableTextView: UITextView` 上，函数体里的 `font` 解析到 **`UITextView.font`（`UIFont?`）**；struct `ChatSelectableText` 那个非可选 `var font: UIFont` 是**另一个类型**的成员，帮不上。`ShadowMeasurer.measure(font:)` 必须非可选——`storage.addAttribute(.font, value:)` 收到 nil 会 trap。
+- **为什么 `??` 兜底不采纳**：CI 自己的 note 建议 coalesce，但那等于悄悄拿错字体去量宽度（code / diff 面板走 `ChatSelectableTextStyle.captionMonospace` 等宽字体），兜底分支实际不可达（`updateUIView` 每次赋值）却会掩护"以后字体不一致了看不出来"。改法 = **把可选性消掉**而非处理它。
+- **改动 1 文件 3 处（+8/−1）**：
+  - `ChatSelectableTextView` 新增 `measurementFont: UIFont = .preferredFont(forTextStyle: .body)`（默认值与 representable `:54` 逐字一致；同写法先例 `NativeComposerEditor.swift:74`）。
+  - `updateUIView` 补 `view.measurementFont = font`（与 representable 的非可选 `font` 同步）。
+  - `hugSize` 传 `measurementFont`。测量值与原意图一致（同一字体对象），**不改 BUBBLE-HUG 的 hug 行为**。
+  - `intrinsicContentSize` 的 `sizeThatFits(...)` 是 UITextView 自己的方法路径，不经 `ShadowMeasurer`，未动。
+- **验证口径升级（本批新增事实，后续批次可直接引用）**：本机 `/home/ubuntu/swift-6.0.3`（Linux x86_64, 6.0.3；`swift-parse-check.sh` 报的 `toolchain=` 就是它）**有工具链但没有 Apple SDK**——`usr/lib/swift/linux` 只有 Foundation/dispatch/os，无 UIKit/CoreGraphics，`ls /usr/lib/swift` 无任何 iPhoneOS SDK。结论不变：**iOS 全模块 typecheck 的权威面只有 macOS CI**（`swift-full-typecheck.py` 靠复用 xcodebuild 已记录的真实命令 + 真 `-sdk` 回放，Linux 无从伪造）。**增量**：以前这类可选性/返回值形状错只能等 CI 一轮一轮暴露；本批用最小夹具在本地 swiftc 真复现出与 CI **逐字同形**的诊断（`value of optional type 'Font?' must be unwrapped to a value of type 'Font'`，rc=1），改后夹具 rc=0 零诊断——"这个错为什么出现 + 这么改是否真消除它"当场证到，只是证不到 iOS 全模块。
+- **Linux 8 门**：parse --changed files=1 fail=0 divergence=0 / spelling suspects=0 / aav2-freeze OK / import-scan OK / pbxproj objects=1681 OK / registration orphans=0 / project-inputs missing=0 / aa-assets 93 referenced，rc=0。**未做**：本地 `swift build` 全链（Apple SDK 缺失，见上）。
+- **真机未验证**：需装机看 ①用户气泡（body 字体）右靠 hug、长消息换行不溢出 ②code / diff 面板（captionMonospace）**测量字体正确**——本批把测量字体源从"UITextView 实际字体"换成"与 representable 同步的 `measurementFont`"，若某调用点绕过 `updateUIView` 自己改 `view.font`，字体就会与测量脱钩（全仓 `ChatSelectableTextView(` 仅 `makeUIView` 一处构造、3 个调用点全经 representable，无绕过路径）。
+- **死隔离四问**：①改动 1 文件，`Packages/RemoteKit/**` 0 字节、AAV2 冻结区 0 字节、本机线 `AIChatView` 私有 `SelectableTextView` 未触碰；②该视图消费者全在远端链（`SessionTimelineRow` / `SessionTimelineEventView`）；③本批无新机制（只是把既有 `measure` 签名喂对）；④回归项 = 上两条真机项 + 远端聊天气泡行为与 `6d05d9f` 一致。
+- **相邻缺口登记（不代写）**：`017334e` 的 [STREAMING-LOOP-FIX] 批次尚未在本台账登记，归 **Doris** 自己补；本条只收编译挂点。
