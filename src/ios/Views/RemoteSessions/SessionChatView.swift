@@ -11,6 +11,19 @@
 //   • `traceChatLayout` 诊断修饰剥离（本仓无该基建）。
 //   • `sidebarDrawer*` 两个环境值在本仓恒 false（键声明见 SidebarDrawerEnvironmentKeys.swift），
 //     官方「侧栏动画期间推迟开页」分支保留并自然短路。
+//   • body 拆分（本仓独作，官方为单条表达式）：原 `var body` 内 GeometryReader 内容
+//     连同 4 个 overlay/inset 提取为 `rootSurface(geometryHeight:)`，其 safeAreaInset 内容
+//     提取为 `composerDock(geometryHeight:)`、topLeading overlay 内容提取为 `topLeadingOverlay`、
+//     首个 overlay 内容提取为 `emptyHintOverlay`；`.toolbar` 内容提取为 `toolbarBody`
+//     （@ToolbarContentBuilder，先例 7577a7d RemoteDeviceDetailView）、`.sheet(item:)` 内容
+//     提取为 `sheetContent(_:)`；外层 34 个修饰器按原顺序分入 `chatSurface`（GeometryReader +
+//     toolbar/takeover/completionFeedback）、`presentationSurface`（task×2 + sheet + openURL）
+//     与 `body`（quickLook + onChange/onDisappear）三段。Why：`SessionChatView.swift:72`
+//     「the compiler is unable to type-check this expression in reasonable time」（CI 实测）。
+//     Semantics：视图树、修饰器顺序与参数、条件表达式、`@State/@Environment/@ScaledMetric`
+//     用法零改动；`geometry` 仅被 `maximumEditorHeight: min(160, max(72, geometry.size.height * 0.30))`
+//     消费，改由 `GeometryReader` 闭包把 `geometry.size.height` 作实参逐层传入，表达式原样保留，
+//     求值时机同一次 body 求值内（GeometryReader 尺寸变化必然重跑其闭包），等价。
 // 差异/落地说明补充：
 //   • 文案：本文件 String(localized:) 键为官方源键，取值已按官方 Localizable.xcstrings
 //     的 zh-Hans 显示值落地（先例 COMPOSER-FULL / NEWSESSION-COPY；官方源键与其 en/zh
@@ -70,78 +83,25 @@ struct SessionChatView: View, Equatable {
         lhs.sessionIdentity === rhs.sessionIdentity && lhs.deviceName == rhs.deviceName
     }
     var body: some View {
-        GeometryReader { geometry in
-            Group {
-                if hasStartedLoading {
-                    ChatTimelineView(model: model,
-                        onAttachment: openAttachment, onFile: openFile)
-                } else {
-                    Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-                .overlay {
-                    if model.isOpeningReady && model.timeline.rows.isEmpty && model.timeline.pendingMessages.isEmpty {
-                        VStack(spacing: 12) {
-                            Text(String(localized: "在这里继续你的任务")).foregroundStyle(.secondary)
-                        }.allowsHitTesting(false)
-                    }
-                }
-                .overlay { if !model.isOpeningReady { openingMask } }
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    VStack(spacing: 0) {
-                        SessionInteractionDock(chat: model,
-                            onShowAll: { expandedNoticeID = $0; sheet = .notices })
-                        ChatComposerDock(draft: session.composer, settings: model.settings,
-                            maximumEditorHeight: min(160, max(72, geometry.size.height * 0.30)), controls: controls,
-                            canSend: session.canSend, canAttach: model.canAttach,
-                            canSelectModel: session.runtime.allows("catalog.model"),
-                            canSelectPermission: session.runtime.allows("catalog.permission"),
-                            isStreaming: model.isRunning, canStop: session.runtime.allows("session.interrupt"),
-                            isBusy: model.isWorking || !model.isOpeningReady, placeholder: requiresTakeover ? String(localized: "请先接管") : String(localized: "描述任务..."),
-                            isLoadingSettings: model.isLoadingSettings,
-                            settingsError: model.settingsError, sessionChat: model,
-                            onSend: model.send, onStop: model.interrupt, onLoadSettings: model.loadSettings,
-                            onApplySettings: model.applySettings, applyError: { model.settingsError })
-                    }
-                    .frame(maxWidth: ChatControlMetrics.maximumContentWidth).frame(maxWidth: .infinity)
-                    // Native safe-area layout owns both the visible scroll
-                    // region and the dock's space; do not add a second margin.
-                }
-                .overlay(alignment: .topLeading) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        // Metadata can arrive after history. Transient controls
-                        // float below the header instead of resizing its inset.
-                        if requiresTakeover {
-                            takeoverPill.frame(maxWidth: .infinity, alignment: .center)
-                        }
-                        ChatErrorToasts(store: toasts, isRetrying: session.isLoading, onRetry: { _ in await session.refresh() })
-                    }.padding(.top, 8)
-                }
+        presentationSurface
+        .quickLookPreview($previewURL)
+        .onChange(of: previewURL) { _, url in if url == nil { cleanPreview() } }
+        .onDisappear { if previewURL == nil { cleanPreview() } }
+        .onChange(of: session.composer.text) { _, _ in model.repository.draftDidChange() }
+        .onChange(of: session.composer.attachments) { _, _ in model.repository.draftDidChange() }
+        .onChange(of: session.failure, initial: true) { _, failure in
+            toasts.update(source: "session", failure: failure, canRetry: failure?.kind != .authentication)
         }
-        .modifier(ChatPageToolbar(title: session.metadata?.title ?? String(localized: "会话"),
-            subtitle: [session.metadata?.runtimeName ?? session.metadata?.runtime ?? String(localized: "代理"),
-                deviceName ?? session.metadata?.connectorId].compactMap { $0 }.joined(separator: " · "),
-            status: model.headerStatus, alignsTitleLeading: true, onMenu: onMenu))
-        .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Button { sheet = .files } label: { AppSymbol("folder") }
-                    .accessibilityLabel(String(localized: "文件"))
-                    .disabled(session.metadata?.cwd?.isEmpty != false)
-                Menu {
-                    Button(String(localized: "会话详情与导出"), systemImage: "info.circle") { sheet = .details }
-                    Button(String(localized: "复制会话 ID"), systemImage: "number") { UIPasteboard.general.string = session.id }
-                } label: { AppSymbol("ellipsis") }
-                .accessibilityLabel(String(localized: "会话选项"))
-            }
+        .onChange(of: model.error, initial: true) { _, message in
+            toasts.update(source: "operation", failure: message.map { V2ClientFailure(kind: .rejected, message: $0) })
         }
-        .modifier(SessionTakeoverConfirmation(pending: $pendingTakeover) { enabled in
-            model.error = nil
-            if !(await model.setTakeover(enabled)), let error = model.takeoverError { model.error = error }
-        })
-        .completionFeedback(trigger: model.isRunning) { wasRunning, isRunning in
-            wasRunning && !isRunning && model.isOpeningReady && session.runtime.isFresh
-                && session.runtime.state?.status == .idle
+        .onChange(of: model.openingError, initial: true) { _, message in
+            toasts.update(source: "opening", failure: message.map { V2ClientFailure(kind: .unavailable, message: $0) })
         }
+    }
+
+    private var presentationSurface: some View {
+        chatSurface
         .task(id: defersOpening) {
             guard !hasStartedLoading, !defersOpening else { return }
             // Show feedback immediately, but let the drawer's completed
@@ -159,24 +119,7 @@ struct SessionChatView: View, Equatable {
             guard !Task.isCancelled else { return }
             await model.timeline.run(sessionID: session.id, repository: model.repository)
         }
-        .sheet(item: $sheet) { destination in
-            switch destination {
-            case .notices: SessionNoticesSheet(model: model, initialNoticeID: expandedNoticeID)
-            case .details: SessionDetailsSheet(chat: model, service: detailService)
-            case .files:
-                if let meta = session.metadata, let cwd = meta.cwd {
-                    WorkspaceFilesSheet(connectorId: meta.connectorId,
-                        deviceName: deviceName ?? meta.connectorId,
-                        workspace: V2DeviceWorkspace(path: cwd, name: String(localized: "文件"), sessionCount: 1, lastActiveAt: nil),
-                        service: fileService, session: session)
-                }
-            case .preview(let reference, let root):
-                if let meta = session.metadata {
-                    WorkspaceFilePreviewSheet(connectorId: meta.connectorId, root: root ?? meta.cwd ?? ".", path: reference.path,
-                        service: fileService, session: session, location: reference)
-                }
-            }
-        }
+        .sheet(item: $sheet) { destination in sheetContent(destination) }
         .environment(\.openURL, OpenURLAction { url in
             if let reference = SessionFileReference.reference(from: url) {
                 if session.isValid { sheet = .preview(reference) }
@@ -184,19 +127,111 @@ struct SessionChatView: View, Equatable {
             }
             return ["https", "http", "mailto"].contains(url.scheme?.lowercased() ?? "") ? .systemAction : .discarded
         })
-        .quickLookPreview($previewURL)
-        .onChange(of: previewURL) { _, url in if url == nil { cleanPreview() } }
-        .onDisappear { if previewURL == nil { cleanPreview() } }
-        .onChange(of: session.composer.text) { _, _ in model.repository.draftDidChange() }
-        .onChange(of: session.composer.attachments) { _, _ in model.repository.draftDidChange() }
-        .onChange(of: session.failure, initial: true) { _, failure in
-            toasts.update(source: "session", failure: failure, canRetry: failure?.kind != .authentication)
+    }
+
+    private var chatSurface: some View {
+        GeometryReader { geometry in
+            rootSurface(geometryHeight: geometry.size.height)
         }
-        .onChange(of: model.error, initial: true) { _, message in
-            toasts.update(source: "operation", failure: message.map { V2ClientFailure(kind: .rejected, message: $0) })
+        .modifier(ChatPageToolbar(title: session.metadata?.title ?? String(localized: "会话"),
+            subtitle: [session.metadata?.runtimeName ?? session.metadata?.runtime ?? String(localized: "代理"),
+                deviceName ?? session.metadata?.connectorId].compactMap { $0 }.joined(separator: " · "),
+            status: model.headerStatus, alignsTitleLeading: true, onMenu: onMenu))
+        .toolbar { toolbarBody }
+        .modifier(SessionTakeoverConfirmation(pending: $pendingTakeover) { enabled in
+            model.error = nil
+            if !(await model.setTakeover(enabled)), let error = model.takeoverError { model.error = error }
+        })
+        .completionFeedback(trigger: model.isRunning) { wasRunning, isRunning in
+            wasRunning && !isRunning && model.isOpeningReady && session.runtime.isFresh
+                && session.runtime.state?.status == .idle
         }
-        .onChange(of: model.openingError, initial: true) { _, message in
-            toasts.update(source: "opening", failure: message.map { V2ClientFailure(kind: .unavailable, message: $0) })
+    }
+
+    private func rootSurface(geometryHeight: CGFloat) -> some View {
+        Group {
+            if hasStartedLoading {
+                ChatTimelineView(model: model,
+                    onAttachment: openAttachment, onFile: openFile)
+            } else {
+                Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+            .overlay { emptyHintOverlay }
+            .overlay { if !model.isOpeningReady { openingMask } }
+            .safeAreaInset(edge: .bottom, spacing: 0) { composerDock(geometryHeight: geometryHeight) }
+            .overlay(alignment: .topLeading) { topLeadingOverlay }
+    }
+
+    @ViewBuilder private var emptyHintOverlay: some View {
+        if model.isOpeningReady && model.timeline.rows.isEmpty && model.timeline.pendingMessages.isEmpty {
+            VStack(spacing: 12) {
+                Text(String(localized: "在这里继续你的任务")).foregroundStyle(.secondary)
+            }.allowsHitTesting(false)
+        }
+    }
+
+    private func composerDock(geometryHeight: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            SessionInteractionDock(chat: model,
+                onShowAll: { expandedNoticeID = $0; sheet = .notices })
+            ChatComposerDock(draft: session.composer, settings: model.settings,
+                maximumEditorHeight: min(160, max(72, geometryHeight * 0.30)), controls: controls,
+                canSend: session.canSend, canAttach: model.canAttach,
+                canSelectModel: session.runtime.allows("catalog.model"),
+                canSelectPermission: session.runtime.allows("catalog.permission"),
+                isStreaming: model.isRunning, canStop: session.runtime.allows("session.interrupt"),
+                isBusy: model.isWorking || !model.isOpeningReady, placeholder: requiresTakeover ? String(localized: "请先接管") : String(localized: "描述任务..."),
+                isLoadingSettings: model.isLoadingSettings,
+                settingsError: model.settingsError, sessionChat: model,
+                onSend: model.send, onStop: model.interrupt, onLoadSettings: model.loadSettings,
+                onApplySettings: model.applySettings, applyError: { model.settingsError })
+        }
+        .frame(maxWidth: ChatControlMetrics.maximumContentWidth).frame(maxWidth: .infinity)
+        // Native safe-area layout owns both the visible scroll
+        // region and the dock's space; do not add a second margin.
+    }
+
+    private var topLeadingOverlay: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Metadata can arrive after history. Transient controls
+            // float below the header instead of resizing its inset.
+            if requiresTakeover {
+                takeoverPill.frame(maxWidth: .infinity, alignment: .center)
+            }
+            ChatErrorToasts(store: toasts, isRetrying: session.isLoading, onRetry: { _ in await session.refresh() })
+        }.padding(.top, 8)
+    }
+
+    @ToolbarContentBuilder private var toolbarBody: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button { sheet = .files } label: { AppSymbol("folder") }
+                .accessibilityLabel(String(localized: "文件"))
+                .disabled(session.metadata?.cwd?.isEmpty != false)
+            Menu {
+                Button(String(localized: "会话详情与导出"), systemImage: "info.circle") { sheet = .details }
+                Button(String(localized: "复制会话 ID"), systemImage: "number") { UIPasteboard.general.string = session.id }
+            } label: { AppSymbol("ellipsis") }
+            .accessibilityLabel(String(localized: "会话选项"))
+        }
+    }
+
+    @ViewBuilder private func sheetContent(_ destination: SessionSheet) -> some View {
+        switch destination {
+        case .notices: SessionNoticesSheet(model: model, initialNoticeID: expandedNoticeID)
+        case .details: SessionDetailsSheet(chat: model, service: detailService)
+        case .files:
+            if let meta = session.metadata, let cwd = meta.cwd {
+                WorkspaceFilesSheet(connectorId: meta.connectorId,
+                    deviceName: deviceName ?? meta.connectorId,
+                    workspace: V2DeviceWorkspace(path: cwd, name: String(localized: "文件"), sessionCount: 1, lastActiveAt: nil),
+                    service: fileService, session: session)
+            }
+        case .preview(let reference, let root):
+            if let meta = session.metadata {
+                WorkspaceFilePreviewSheet(connectorId: meta.connectorId, root: root ?? meta.cwd ?? ".", path: reference.path,
+                    service: fileService, session: session, location: reference)
+            }
         }
     }
 
