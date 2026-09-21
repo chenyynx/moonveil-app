@@ -18,7 +18,7 @@ private let logger = AppLogger(category: "AIChatVM")
 // that pipeline. Net behavior: one immediate retry on the same model; a second
 // stall falls back to the next model in the group; turn budget untouched.
 
-private final class StreamIteratorBox<T: Sendable>: @unchecked Sendable {
+private nonisolated final class StreamIteratorBox<T: Sendable>: @unchecked Sendable {
     private var iterator: AsyncThrowingStream<T, Error>.AsyncIterator
     init(_ stream: AsyncThrowingStream<T, Error>) {
         self.iterator = stream.makeAsyncIterator()
