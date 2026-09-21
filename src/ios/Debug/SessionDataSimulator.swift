@@ -484,13 +484,13 @@ final class SessionDataSimulator: ObservableObject {
                     private var collectionView: UICollectionView!
                     private var dataSource: UICollectionViewDiffableDataSource<Section, Item>!
 
-                    enum Section: Int, CaseIterable {
+                    nonisolated enum Section: Int, CaseIterable {
                         case featured
                         case regular
                         case compact
                     }
 
-                    struct Item: Hashable {
+                    nonisolated struct Item: Hashable {
                         let id = UUID()
                         let title: String
                         let subtitle: String
