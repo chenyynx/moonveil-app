@@ -1114,8 +1114,8 @@ struct ContentView: View {
     /// Controls sidebar visibility on iPad (automatic handles iPhone collapse).
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
-    /// Launch screen preference: 0=Auto, 1=Last Session, 2=New Chat.
-    @AppStorage("launchScreen") private var launchScreen: Int = 0
+    /// [LAUNCH-ROOT-ONLY] `@AppStorage("launchScreen")` 已删除——冷启动一律落列表根
+    /// （pp 2026-09-21 拍板），启动跳页只剩显式意图，该键不再有消费者。
     /// Mirror of `SyncV2Bootstrap.isEnabled` so SwiftUI re-evaluates
     /// the iCloud-gated menu entries (per-session Force Sync / Force
     /// Pull and the multi-select Force Sync) the moment the user
@@ -1414,6 +1414,11 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .moveInputToSession)) { note in
             guard let targetId = (note.userInfo as? [String: String])?["targetId"] else { return }
+            // [LOCAL-INTENT-TAB-ROUTE] 本机线的导航目的地，必须把 tab 也带到本机。
+            // ContentView 常驻（远端在前时 opacity 0 但 alive），只 push 不切 tab 会
+            // 出现「人已经在聊天页里、屏幕还在远端」——远端 tab 引入后才有的一类缺口。
+            // route(to:) 的 didSet 带 `oldValue != mode` 门，已在本机时是纯 no-op。
+            tabRouter.route(to: .local)
             // Skip navigation if the target session is already visible
             if isWideLayout {
                 guard selectedSessionId != targetId && newSessionRealId != targetId else { return }
@@ -1434,9 +1439,11 @@ struct ContentView: View {
             // [T-notification-tap-vs-launch-session] Warm path owns this
             // navigation: drop the cold-launch buffer copy and stamp the
             // handling time so an in-flight launch `.task` (the post can land
-            // during its `await listSessions()`) doesn't clobber the target
-            // session with the Launch Session default afterwards.
+            // during its `await listSessions()`) doesn't open the buffered copy
+            // a second time.（该分支原本还要防 Launch Session default 覆盖，
+            // [LAUNCH-ROOT-ONLY] 之后那条 default 已不存在，抑制仍必要。）
             NotificationNavigationStore.shared.markHandled()
+            tabRouter.route(to: .local)   // [LOCAL-INTENT-TAB-ROUTE] 见 .moveInputToSession 处注释
             // Skip navigation if the target session is already visible
             if isWideLayout {
                 guard selectedSessionId != sessionId && newSessionRealId != sessionId else { return }
@@ -1672,11 +1679,11 @@ struct ContentView: View {
             let shareAlreadyHandled = shareCoordinator.bufferVersion > 0
             // A Home Screen Quick Action that fired during launch will
             // open the right session itself via `quickActionRouter.newChatTrigger`.
-            // Skip the Launch Session logic so we don't open a second,
-            // conflicting session (the "last session" / "new chat"
-            // launchScreen branch races the shortcut and the user ends
-            // up watching one view replaced by the other).
-            // Two signals indicate a quick-action launch is in flight:
+            // Keep this branch ahead of the rest of the chain so the log says
+            // *why* launch navigation was suppressed ("quick action owns it")
+            // rather than falling through to the launch-root-only line.
+            // [LAUNCH-ROOT-ONLY] 之后这条不再需要对抗任何 launchScreen 分支（那些
+            // 分支已不存在），只剩诊断分级——两个信号仍照旧判定：
             //   1. Router bumped newChatTrigger but ContentView hasn't
             //      consumed it yet (race: .task runs before .onAppear).
             //   2. QuickActionWorkflow is past .idle — router already
@@ -1689,30 +1696,31 @@ struct ContentView: View {
                 return true
             }()
             let quickActionPending = quickActionRouter.newChatTrigger != consumedQuickActionTrigger || workflowActive
-            shareLog.info("[Share] .task: hasPendingShare=\(shareCoordinator.hasPendingShare) launchScreen=\(launchScreen) sessions=\(sessions.count) bufferVersion=\(shareCoordinator.bufferVersion) shareAlreadyHandled=\(shareAlreadyHandled) quickActionPending=\(quickActionPending) workflowActive=\(workflowActive)")
+            shareLog.info("[Share] .task: hasPendingShare=\(shareCoordinator.hasPendingShare) sessions=\(sessions.count) bufferVersion=\(shareCoordinator.bufferVersion) shareAlreadyHandled=\(shareAlreadyHandled) quickActionPending=\(quickActionPending) workflowActive=\(workflowActive)")
 
             // [T-notification-tap-vs-launch-session] A notification tap's
-            // explicit target session outranks every launch-screen default.
+            // explicit target session outranks every launch-time default.
             // Cold launch: didReceive fired before our .onReceive subscriber
             // existed, so the post was lost — the buffered copy is the only
             // surviving signal. Consume it and navigate. Warm-ish overlap: the
             // post arrived while this .task was awaiting listSessions() and
-            // .onReceive already navigated — handledRecently suppresses the
-            // launch-screen default so it can't clobber that navigation.
+            // .onReceive already navigated — handledRecently suppresses this
+            // buffered copy so the same tap can't open twice.
             if let notificationTarget = NotificationNavigationStore.shared.takePending() {
-                shareLog.info("[Share] .task: notification tap target=\(notificationTarget.prefix(8)) — overriding launchScreen logic")
+                shareLog.info("[Share] .task: notification tap target=\(notificationTarget.prefix(8)) — overriding the launch chain")
+                tabRouter.route(to: .local)   // [LOCAL-INTENT-TAB-ROUTE] 见 .moveInputToSession 处注释
                 var tx = Transaction()
                 tx.disablesAnimations = true
                 withTransaction(tx) { openSession(notificationTarget) }
             } else if NotificationNavigationStore.shared.handledRecently {
-                shareLog.info("[Share] .task: notification navigation just handled — skipping launchScreen logic")
+                shareLog.info("[Share] .task: notification navigation just handled — skipping launch navigation")
             } else if quickActionPending {
-                shareLog.info("[Share] .task: quick action pending — deferring launchScreen logic to QuickActionRouter")
+                shareLog.info("[Share] .task: quick action pending — QuickActionRouter owns launch navigation")
             } else if shareAlreadyHandled {
                 // onChange(hasPendingShare) already processed the share and
                 // opened a new session before .task ran. Skip normal launch
                 // screen logic so we don't clobber it with a different session.
-                shareLog.info("[Share] .task: share already handled by onChange — skipping launchScreen logic")
+                shareLog.info("[Share] .task: share already handled by onChange — skipping launch navigation")
             } else if shareCoordinator.hasPendingShare {
                 // onChange hasn't fired yet (e.g. onOpenURL arrived during await).
                 // Process share here and open a new session for it.
@@ -1724,12 +1732,14 @@ struct ContentView: View {
                 // navigation), so the "foreground session" the warm path looks
                 // for does not exist and a new session IS the right
                 // destination. It is still stamped onto the buffer, which is
-                // what stops a session restored moments later — e.g. the
-                // Launch-Session default, or a chat resuming an agent loop —
-                // from mounting first and swallowing the share.
+                // what stops a session restored moments later — e.g. a chat
+                // resuming an agent loop — from mounting first and swallowing
+                // the share.（[LAUNCH-ROOT-ONLY] 后 Launch-Session default 已不再
+                // 自动挂载，这条缓冲标记对 agent-loop 恢复仍然必要。）
                 let target = Self.makeNewSessionId()
                 shareCoordinator.setBufferTarget(target)
                 shareLog.info("[Share] .task: cold launch — opening new session \(target.prefix(16)) for share")
+                tabRouter.route(to: .local)   // [LOCAL-INTENT-TAB-ROUTE] 见 .moveInputToSession 处注释
                 var tx = Transaction()
                 tx.disablesAnimations = true
                 withTransaction(tx) { openSession(target) }
@@ -1747,48 +1757,25 @@ struct ContentView: View {
                 // intent, and a stale crash flag must not swallow them.
                 CrashReporter.shared.clearCrashLoopFlag()
                 shareLog.warning("[Share] .task: crash-loop detected — skipping session restore, landing on the session list")
-            } else if tabRouter.mode != .local {
-                // [LAUNCH-SESSION-TAB-GUARD] 启动会话默认只在本地 tab 生效
-                // （pp 2026-09-20「远端切页到本地回去是切的聊天页」+「设置里
-                // 启动会话功能是不是这个引起的冲突」）：lastTab 记忆为远端时，
-                // 启动偷偷把本地 push 到上次会话，用户切回本地就落在聊天页而
-                // 非列表。显式意图（通知 / 分享 / 快捷指令 / 崩溃循环保护）已在
-                // 上面先行分支，不受本守卫影响。
-                shareLog.info("[Share] .task: non-local tab active — skipping launchScreen default")
             } else {
-                // No share — normal launch screen behavior
-                switch launchScreen {
-                case 1:
-                    if let latest = sessions.first {
-                        var tx = Transaction()
-                        tx.disablesAnimations = true
-                        withTransaction(tx) { openSession(latest.id) }
-                    }
-                case 2:
-                    var tx = Transaction()
-                    tx.disablesAnimations = true
-                    withTransaction(tx) { openSession(Self.makeNewSessionId()) }
-                case 3:
-                    break
-                default:
-                    if !sessions.isEmpty,
-                       let latest = sessions.first,
-                       Date().timeIntervalSince(latest.updatedAt) > 15 * 60 {
-                        var tx = Transaction()
-                        tx.disablesAnimations = true
-                        withTransaction(tx) { openSession(Self.makeNewSessionId()) }
-                    } else if isWideLayout, let latest = sessions.first {
-                        var tx = Transaction()
-                        tx.disablesAnimations = true
-                        withTransaction(tx) { openSession(latest.id) }
-                    }
-                }
+                // [LAUNCH-ROOT-ONLY] pp 2026-09-21「退了后台再打开的是本地聊天页…
+                // 冷启动一律落列表根」：原 launchScreen 的 1=Last Session / 2=New Chat /
+                // 0=Auto(>15min 新建) 三档在冷启动时一律不再自动 push 聊天页，该设置项
+                // 与其 ConfigRegistry 注册已同步删除（本分支是这条链的终态）。
+                // 聊天页只由显式意图进入（上面四条分支：通知 / 分享 / 快捷指令 /
+                // 崩溃保护后的用户自选），或用户在列表里点一行。
+                // 取代 [LAUNCH-SESSION-TAB-GUARD]（2026-09-20）：那条守卫只挡
+                // `mode != .local`，而 lastTab 会被远端 push 页泄漏的横滑手势写成
+                // .local（见 DEV-DETAIL-EMPTY），守卫被 poisoning 绕过 → 症状复现。
+                // 本分支不看 mode，从源头不再自动跳页，poisoning 无从生效。
+                shareLog.info("[Share] .task: launch-root-only — no automatic session navigation")
             }
-            // iPad split launch: every launchScreen branch above has resolved
-            // by now, so if the restored selection lives inside a collapsed
-            // folder, expand that folder (accordion — closes the others) so
-            // the selected row is actually visible in the sidebar instead of
-            // hidden behind a collapsed card.
+            // iPad split launch: the explicit-intent branches above (notification /
+            // share / quick action) have resolved by now, so if the session they
+            // selected lives inside a collapsed folder, expand that folder
+            // (accordion — closes the others) so the selected row is actually
+            // visible in the sidebar instead of hidden behind a collapsed card.
+            // [LAUNCH-ROOT-ONLY] 之后 selectedSessionId 只可能由这三条显式意图置上。
             if isWideLayout, let sid = selectedSessionId,
                let fid = sessions.first(where: { $0.id == sid })?.folderId,
                collapsedFolderIds.contains(fid) {
@@ -2014,6 +2001,9 @@ struct ContentView: View {
                         let target = Self.makeNewSessionId()
                         shareCoordinator.setBufferTarget(target)
                         shareLog.info("[Share] onChange: no session on screen — opening new session \(target.prefix(16)) for share")
+                        // 只在这个 else 分支路由：上面的 foreground 路径不导航，
+                        // 无目的地可跟，切 tab 反而是无端跳转。
+                        tabRouter.route(to: .local)   // [LOCAL-INTENT-TAB-ROUTE]
                         var tx = Transaction()
                         tx.disablesAnimations = true
                         withTransaction(tx) { openSession(target) }
@@ -3540,6 +3530,11 @@ struct ContentView: View {
         // app, the pop-then-push dance got interrupted, etc).
         pendingNewChatAfterPop = false
         pendingNewChatTargetId = nil
+        // [LOCAL-INTENT-TAB-ROUTE] 快捷指令「新会话」是本机线意图，三个出口（下面的
+        // ensuringHome 早退 / wide openSession / compact push）的目的地全在本机线，
+        // 所以 tab 也必须在分支之前就带回来。放在函数顶部而非各出口：早退路径同样
+        // 需要切 tab，否则「ensuringHome + 远端在前」会弹了远端看不见的本机页。
+        tabRouter.route(to: .local)
         // If a workflow is mid-flight in ensuringHome, ContentView's
         // observers (`onChange(navigationPath)` / `onChange(selectedSessionId)`)
         // drive the home-then-open sequence. Otherwise this call came
@@ -3605,6 +3600,11 @@ struct ContentView: View {
     /// can match.
     fileprivate func openSessionForPendingQuickAction() {
         guard case .pendingDispatch = QuickActionWorkflow.shared.state else { return }
+        // [LOCAL-INTENT-TAB-ROUTE] 本函数不止 `handleNewChatRequest` 一条来路：
+        // `QuickActionWorkflow.$state` 的 observer 会让上一次启动残留的 `ensuringHome`
+        // 超时在本轮独立触发这里（见 [T-share-vs-shortcut-state] 对该 stranded 状态的
+        // 描述）。那条来路没有经过 `handleNewChatRequest` 的路由，故这里必须自带。
+        tabRouter.route(to: .local)
         let newId = Self.makeNewSessionId()
         if isWideLayout {
             openSession(newId)
@@ -6909,7 +6909,6 @@ private struct AppearanceSettingsView: View {
     @AppStorage("appearanceMode") private var appearanceMode: Int = 0
     @AppStorage("appIconMode") private var appIconMode: Int = 0
     @AppStorage("appLanguage") private var appLanguage: String = ""
-    @AppStorage("launchScreen") private var launchScreen: Int = 0  // 0=Auto, 1=Last Session, 2=New Chat, 3=Home
     @AppStorage("toolPreviewEnabled") private var toolPreviewEnabled: Bool = true
     /// [tool-render-replication H1] Raw Int backing for the Tool Rendering
     /// picker. 0 = classic capsules, 1 = new activity skin. Default = new.
@@ -6981,18 +6980,9 @@ private struct AppearanceSettingsView: View {
                 Text("聊天区背景: 默认(系统) / Claude(官方实测 #FCFCFB 浅 · #151515 深)。")
             }
 
-            Section {
-                Picker("Launch Session", selection: $launchScreen) {
-                    Text("Auto").tag(0)
-                    Text("Last Session").tag(1)
-                    Text("New Chat").tag(2)
-                    Text("Home").tag(3)
-                }
-            } header: {
-                Text("Launch Session")
-            } footer: {
-                Text("Choose what to show when the app starts. \"Auto\" opens a new chat if the last session is older than 15 minutes.")
-            }
+            // [LAUNCH-ROOT-ONLY] 「Launch Session」四档选择器随本批删除：pp 2026-09-21
+            // 拍板冷启动一律落列表根，三档自动跳页逻辑已移除，这行控件点了没反应。
+            // tab 的自动记忆是另一套东西（RootTabRouter.mode / app.rootSourceMode），未受影响。
 
             // Auto-grouping default is OFF on principle: it costs nothing
             // extra (it rides the title-generation call), but it moves user

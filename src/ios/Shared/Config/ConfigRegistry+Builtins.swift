@@ -1083,14 +1083,8 @@ extension ConfigRegistry {
             defaultValue: "",
             maxLength: 16
         ))
-        r.register(AppStorageIntCodedEnumField(
-            path: "appearance.launchScreen",
-            displayName: "Launch screen",
-            description: "Which screen the app opens to.",
-            userDefaultsKey: "launchScreen",
-            cases: ["auto", "last", "new", "home"],
-            defaultIndex: 0
-        ))
+        // [LAUNCH-ROOT-ONLY] appearance.launchScreen 已删除：冷启动一律落列表根
+        // （pp 2026-09-21 拍板），该键不再有任何消费者。
         // Global UI font scale (settings labels, list rows, etc.).
         // Backed by FontSettings.shared.appBaseScale — do NOT touch
         // UserDefaults directly: the @Published setter posts a

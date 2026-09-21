@@ -33,9 +33,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // [T-notification-tap-vs-launch-session] The UNUserNotificationCenter
         // delegate must be in place BEFORE didFinishLaunching returns, or iOS
         // never delivers a cold-launch notification tap to didReceive — the
-        // app then falls through to the Launch Session preference and opens
-        // the wrong (new) session. The .onAppear registration in MinisApp
-        // remains as an idempotent backstop.
+        // tapped session is then simply lost（当时表现为落到 Launch Session
+        // 默认页；该偏好已随 [LAUNCH-ROOT-ONLY] 删除，注册本身仍然是必需的）。
+        // The .onAppear registration in MinisApp remains as an idempotent backstop.
         ShortcutNotificationDelegate.shared.register()
 
         // Refresh the dynamic shortcut list every cold launch. The

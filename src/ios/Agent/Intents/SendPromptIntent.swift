@@ -369,12 +369,12 @@ enum ShortcutNotification {
 /// [T-notification-tap-vs-launch-session] Cold-launch handoff for a
 /// notification-tap navigation. On a cold launch the delegate's `didReceive`
 /// fires before ContentView has mounted its `.onReceive(.openSessionFromIntent)`
-/// subscriber, so the posted NotificationCenter event is simply lost — and the
-/// Launch Session preference (e.g. "New Chat") then opens a fresh session
-/// instead of the tapped one. The delegate buffers the target here;
+/// subscriber, so the posted NotificationCenter event is simply lost — the
+/// tapped session never opens. The delegate buffers the target here;
 /// ContentView's launch `.task` consumes it with top priority, and the warm
-/// path (`.onReceive` did navigate) marks it handled so the launch-screen
-/// logic yields either way.
+/// path (`.onReceive` did navigate) marks it handled so the same tap can't
+/// replay a second time.（原注释里"落到 Launch Session 默认页"那半句已随
+/// [LAUNCH-ROOT-ONLY] 失效——该偏好被删，启动不再自动跳页；缓冲本身照旧必需。）
 @MainActor
 final class NotificationNavigationStore {
     static let shared = NotificationNavigationStore()
@@ -401,16 +401,17 @@ final class NotificationNavigationStore {
 
     /// Warm path: `.onReceive` navigated directly — drop the buffered copy so
     /// a later launch can't replay it, and remember when it happened so an
-    /// in-flight launch `.task` (post arrived during its await) doesn't
-    /// clobber the navigation with the Launch Session default.
+    /// in-flight launch `.task` (post arrived during its await) doesn't open
+    /// the buffered copy a second time.
     func markHandled() {
         pendingSessionId = nil
         pendingSetAt = nil
         handledAt = Date()
     }
 
-    /// True when a notification navigation happened moments ago — the
-    /// launch-screen logic must not override it.
+    /// True when a notification navigation happened moments ago — the launch
+    /// `.task` chain must not let a later branch (share / quick action) replay
+    /// over that navigation.
     var handledRecently: Bool {
         guard let t = handledAt else { return false }
         return Date().timeIntervalSince(t) < 10
