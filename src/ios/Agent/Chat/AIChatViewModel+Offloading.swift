@@ -788,7 +788,7 @@ extension AIChatViewModel {
     /// `target` is nil for entries that failed activation (stale bookmark,
     /// permission denied, contents unavailable) — those get their leftover
     /// symlink removed so FileBrowserView doesn't show a broken entry.
-    struct MountedFolderSymlinkSpec: Sendable {
+    nonisolated struct MountedFolderSymlinkSpec: Sendable {
         let name: String
         let targetPath: String?
     }

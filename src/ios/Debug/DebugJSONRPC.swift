@@ -8,7 +8,7 @@ import SQLite3
 
 /// In-memory ring buffer of screenshots for time-correlated debugging.
 /// Captures are tagged with timestamp and optional label. Max 20 entries (~2MB at 0.5x scale).
-final class DebugScreenshotBuffer: @unchecked Sendable {
+final nonisolated class DebugScreenshotBuffer: @unchecked Sendable {
     static let shared = DebugScreenshotBuffer()
 
     struct Entry {
@@ -95,7 +95,7 @@ final class DebugScreenshotBuffer: @unchecked Sendable {
     }
 }
 
-final class DebugJSONRPC: @unchecked Sendable {
+final nonisolated class DebugJSONRPC: @unchecked Sendable {
 
     private let inspector: DebugViewInspector
 

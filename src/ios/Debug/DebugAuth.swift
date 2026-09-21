@@ -14,7 +14,7 @@ import UIKit
 ///    encrypt-then-MAC, per-request random nonce, ±120s timestamp window,
 ///    nonce replay LRU. Responses are encrypted with a separate direction key.
 ///  - Token expiry is idle-based: 30 days since last successful use.
-final class DebugAuthenticator: @unchecked Sendable {
+final nonisolated class DebugAuthenticator: @unchecked Sendable {
 
     static let shared = DebugAuthenticator()
 

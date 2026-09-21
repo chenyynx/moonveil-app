@@ -3,7 +3,7 @@ import Foundation
 /// Where the user-added HTML lives in our sandbox. Encoded into the DB so we
 /// can re-resolve the host path at launch time, even after iOS rotates the
 /// random container UUID across reinstalls.
-enum WebAppPathScope: String, Codable, Hashable, Sendable {
+nonisolated enum WebAppPathScope: String, Codable, Hashable, Sendable {
     /// `<sessionRoot>/attachments/...` — files dropped into a chat as
     /// attachments by the user or by the agent.
     case sessionAttachment = "session_attachment"
@@ -25,7 +25,7 @@ enum WebAppPathScope: String, Codable, Hashable, Sendable {
 ///   - `html` — the icon was extracted from the page's
 ///     `<link rel="apple-touch-icon">` / `<link rel="icon">` and saved
 ///     into the icon cache; `iconCachePath` will be set on the row too.
-enum WebAppIconRef: Codable, Hashable, Sendable {
+nonisolated enum WebAppIconRef: Codable, Hashable, Sendable {
     case preset(String)
     case file(String)
     case htmlExtracted
@@ -63,7 +63,7 @@ private extension String {
 /// One persisted entry per HTML the user has "Added to Home Screen".
 /// The pinned home-screen tile fires `OpenWebAppIntent` with `webAppShortcutId`,
 /// which loads this row and resolves the HTML's host URL via WebAppPathResolver.
-struct WebAppShortcut: Identifiable, Codable, Hashable, Sendable {
+nonisolated struct WebAppShortcut: Identifiable, Codable, Hashable, Sendable {
     let id: String
     /// Sandbox-relative path of the HTML file (relative to whatever base
     /// `pathScope` resolves to at launch time). Stored without scheme.

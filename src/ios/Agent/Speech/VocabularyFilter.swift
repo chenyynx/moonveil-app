@@ -154,7 +154,7 @@ enum StopWords {
 /// recognising the common words is what matters, and being absent from a *short* list is a
 /// weaker signal than being absent from a big one — which only makes the rule more
 /// conservative (more terms look "rare"), never more reckless.
-final class BackgroundWordFrequency: @unchecked Sendable {
+final nonisolated class BackgroundWordFrequency: @unchecked Sendable {
     static let shared = BackgroundWordFrequency()
 
     private var ranks: [String: Int] = [:]

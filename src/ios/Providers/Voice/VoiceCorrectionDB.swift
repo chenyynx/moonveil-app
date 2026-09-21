@@ -825,7 +825,7 @@ actor VoiceCorrectionDB {
 
 // MARK: - Row types
 
-struct ConfusionRow: Sendable {
+nonisolated struct ConfusionRow: Sendable {
     let id: String
     let phoneticKey: String
     let variants: [String]
@@ -839,7 +839,7 @@ struct ConfusionRow: Sendable {
     var source: String = "asr_transcript"
 }
 
-struct VocabularyRow: Sendable {
+nonisolated struct VocabularyRow: Sendable {
     let id: String
     let term: String
     let phoneticKey: String

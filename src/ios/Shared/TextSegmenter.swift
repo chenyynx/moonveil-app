@@ -8,7 +8,7 @@ import NaturalLanguage
 /// and the jieba dictionary lives behind `JiebaWrapper.shared`, which is loaded once
 /// under `dispatch_once` and only read afterwards. So `shared` is safe to touch from
 /// any thread/actor.
-public final class TextSegmenter: Sendable {
+public final nonisolated class TextSegmenter: Sendable {
 
     public static let shared = TextSegmenter()
     private init() {}

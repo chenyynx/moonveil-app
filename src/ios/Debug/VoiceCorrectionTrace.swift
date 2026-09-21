@@ -45,7 +45,7 @@ actor VoiceCorrectionTrace {
 
     // MARK: - Entry
 
-    struct ScoredTerm: Sendable {
+    nonisolated struct ScoredTerm: Sendable {
         let term: String
         let score: Int
         /// Occurrences within the scanned window (digest terms), else nil.
@@ -54,7 +54,7 @@ actor VoiceCorrectionTrace {
         let backgroundRank: Int?
     }
 
-    struct CandidateInfo: Sendable {
+    nonisolated struct CandidateInfo: Sendable {
         let token: String
         let phoneticKey: String
         let term: String
@@ -65,7 +65,7 @@ actor VoiceCorrectionTrace {
         let evidence: String
     }
 
-    struct MessageExcerpt: Sendable {
+    nonisolated struct MessageExcerpt: Sendable {
         let role: String
         /// 0 = newest.
         let newestIndex: Int
@@ -74,7 +74,7 @@ actor VoiceCorrectionTrace {
         let chars: Int
     }
 
-    struct Entry: Sendable {
+    nonisolated struct Entry: Sendable {
         let id: Int
         let at: Date
         let trigger: String            // "manual" | "auto" | "debug"
@@ -199,7 +199,7 @@ actor VoiceCorrectionTrace {
     /// only lengths, per T-log-noise-privacy, and nothing reaches the DB), yet a
     /// legitimate ASR fix being misjudged as a "rewrite" is one of the likelier reasons
     /// the confusion table stays at 4 rows while the user keeps fixing things by hand.
-    struct ManualEdit: Sendable {
+    nonisolated struct ManualEdit: Sendable {
         let id: Int
         let at: Date
         let source: String          // "asr_transcript" | "text_input" | debug

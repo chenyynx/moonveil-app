@@ -20,7 +20,7 @@ import Foundation
 ///
 /// Eviction is driven ONLY by real interface-type changes in `NetworkMonitor`
 /// (not every path tick), so steady-state requests are never disturbed.
-final class LLMSessionRegistry: @unchecked Sendable {
+final nonisolated class LLMSessionRegistry: @unchecked Sendable {
     static let shared = LLMSessionRegistry()
 
     private let lock = NSLock()

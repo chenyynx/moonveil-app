@@ -61,7 +61,7 @@ struct AnySyncableTypeMetadata {
 /// init path; reads happen from any actor. We use a plain dictionary +
 /// an internal lock — the write-once pattern means contention is
 /// effectively zero after startup.
-final class SyncableTypeRegistry: @unchecked Sendable {
+final nonisolated class SyncableTypeRegistry: @unchecked Sendable {
     static let shared = SyncableTypeRegistry()
     private init() {}
 

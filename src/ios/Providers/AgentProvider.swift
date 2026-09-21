@@ -53,7 +53,7 @@ enum AgentParamType: String {
 // MARK: - Agent Messages
 
 /// A single content part in agent messages — provider-agnostic.
-enum AgentContentPart: @unchecked Sendable {
+nonisolated enum AgentContentPart: @unchecked Sendable {
     case text(String)
     case toolUse(id: String, name: String, input: [String: Any])
     /// `imageLinuxPath` — iSH-visible linux path the image bytes were
@@ -78,7 +78,7 @@ enum AgentContentPart: @unchecked Sendable {
 /// (e.g. gpt-5.5 → deepseek) can be detected and the encrypted payload
 /// stripped — encrypted_content is model-specific and meaningless to a
 /// different model family.
-struct ReasoningEcho: @unchecked Sendable {
+nonisolated struct ReasoningEcho: @unchecked Sendable {
     /// Stable provider family tag; matches `OpenAIAgentProvider.responsesAPIProviderKind`
     /// etc. Different families never share schemas.
     let providerKind: String
@@ -91,15 +91,15 @@ struct ReasoningEcho: @unchecked Sendable {
     /// (Responses API rejects out-of-order reasoning items).
     let items: [Item]
 
-    enum Item: @unchecked Sendable {
+    nonisolated enum Item: @unchecked Sendable {
         /// OpenAI Responses API reasoning item.
         case openaiReasoning(id: String, encryptedContent: String?, summary: [String])
     }
 }
 
 /// A message in the agent conversation.
-struct AgentMessage: @unchecked Sendable {
-    enum Role: String, Sendable { case user, assistant }
+nonisolated struct AgentMessage: @unchecked Sendable {
+    nonisolated enum Role: String, Sendable { case user, assistant }
     let role: Role
     var parts: [AgentContentPart]
     /// True when this assistant message was interrupted mid-stream (e.g. network drop).
@@ -124,7 +124,7 @@ struct AgentMessage: @unchecked Sendable {
 // MARK: - Stream Events
 
 /// Stream events from an agent provider — unified across Anthropic/Gemini.
-enum AgentStreamEvent: @unchecked Sendable {
+nonisolated enum AgentStreamEvent: @unchecked Sendable {
     /// A new content block started (text or tool).
     case contentBlockStart(AgentBlockStart)
     /// Incremental text delta.
@@ -148,12 +148,12 @@ enum AgentStreamEvent: @unchecked Sendable {
     case done(stopReason: AgentStopReason)
 }
 
-enum AgentBlockStart: Sendable {
+nonisolated enum AgentBlockStart: Sendable {
     case text
     case toolUse(id: String, name: String)
 }
 
-enum AgentStopReason: Sendable {
+nonisolated enum AgentStopReason: Sendable {
     case endTurn
     case toolUse
     case maxTokens
@@ -167,7 +167,7 @@ enum AgentStopReason: Sendable {
 }
 
 /// Provider-specific metadata attached to a tool call (e.g. Gemini thought signatures).
-struct ToolCallMetadata: @unchecked Sendable {
+nonisolated struct ToolCallMetadata: @unchecked Sendable {
     let thoughtSignature: String?
 }
 

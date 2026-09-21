@@ -55,7 +55,7 @@ final class OAuthHTTPClient: HTTPClient {
 
 /// Thread-safe storage for the last HTTP error body from the Anthropic API.
 /// The URLProtocol captures it; `AnthropicProvider.mapError()` reads it.
-final class LastAPIErrorBody: @unchecked Sendable {
+final nonisolated class LastAPIErrorBody: @unchecked Sendable {
     static let shared = LastAPIErrorBody()
     private let lock = NSLock()
     private var _body: String?
@@ -244,7 +244,7 @@ final class CapturedAPIRequest {
 /// Sticky slots are scoped per-tag and only ever hold the LATEST entry for
 /// that tag, so they never grow unbounded. They surface alongside ring
 /// entries via `getAll()` (with `tag` set).
-final class LastAPIRequestBody: @unchecked Sendable {
+final nonisolated class LastAPIRequestBody: @unchecked Sendable {
     static let shared = LastAPIRequestBody()
     private let lock = NSLock()
     // [T-ios-llmcapture-giant-body] 5 is plenty for debugging the recent
@@ -449,7 +449,7 @@ final class LastAPIRequestBody: @unchecked Sendable {
 
 // MARK: - Thread-safe token provider container
 
-private final class TokenBox: @unchecked Sendable {
+private final nonisolated class TokenBox: @unchecked Sendable {
     private let lock = NSLock()
     private var _provider: (@Sendable () async throws -> String)?
 
@@ -489,7 +489,7 @@ private final class TokenBox: @unchecked Sendable {
 /// Thread-safe global registry mapping UUID → TokenBox.
 /// Each OAuthHTTPClient registers its own TokenBox so that the URLProtocol
 /// can look up the correct token provider per-request.
-private final class TokenBoxRegistry: @unchecked Sendable {
+private final nonisolated class TokenBoxRegistry: @unchecked Sendable {
     static let shared = TokenBoxRegistry()
     private let lock = NSLock()
     private var boxes: [String: TokenBox] = [:]

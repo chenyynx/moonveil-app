@@ -1,7 +1,7 @@
 import Foundation
 
 /// How a model group routes requests across its members.
-enum RoutingStrategy: String, Codable, Hashable, Sendable {
+nonisolated enum RoutingStrategy: String, Codable, Hashable, Sendable {
     /// Try models in order; advance to next on failure.
     case fallback
     /// Distribute sessions across models deterministically.
@@ -9,7 +9,7 @@ enum RoutingStrategy: String, Codable, Hashable, Sendable {
 }
 
 /// When to trigger fallback to the next model in a fallback group.
-enum FallbackStrategy: String, Codable, Hashable, Sendable {
+nonisolated enum FallbackStrategy: String, Codable, Hashable, Sendable {
     /// Default behavior: only fallback on provider-level errors (rate limit, invalid key,
     /// provider rejection). Network and transient errors are retried on the current model first.
     case limited

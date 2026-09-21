@@ -4,7 +4,7 @@ import os.log
 
 /// Singleton BPE tokenizer using cl100k_base vocabulary.
 /// Ported from tiktoken — performs exact BPE token counting.
-final class BPETokenizer: @unchecked Sendable {
+final nonisolated class BPETokenizer: @unchecked Sendable {
     static let shared = BPETokenizer()
 
     private let logger = AppLogger(category: "BPETokenizer")

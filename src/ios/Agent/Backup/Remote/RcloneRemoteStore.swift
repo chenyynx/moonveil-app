@@ -26,7 +26,7 @@ private let logger = AppLogger(category: "Rclone")
 enum RcloneRemoteStore {
 
     /// A configured remote, minus its secret.
-    struct Remote: Codable, Identifiable, Equatable, Sendable {
+    nonisolated struct Remote: Codable, Identifiable, Equatable, Sendable {
         var id: String { name }
         /// rclone remote name — also the Keychain account key.
         var name: String

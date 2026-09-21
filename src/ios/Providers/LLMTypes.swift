@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Model Capability Metadata
 
-struct ModelModality: OptionSet, Sendable, Codable, Hashable {
+nonisolated struct ModelModality: OptionSet, Sendable, Codable, Hashable {
     let rawValue: Int
     // Input
     static let textInput      = ModelModality(rawValue: 1 << 0)
@@ -32,19 +32,19 @@ struct ModelModality: OptionSet, Sendable, Codable, Hashable {
     static let fullMultimodal: ModelModality = .fullMultimodalInput
 }
 
-enum ProviderAuthMethod: String, Sendable, Codable, Hashable {
+nonisolated enum ProviderAuthMethod: String, Sendable, Codable, Hashable {
     case apiKey
     case oauth
 }
 
-struct ModelCapabilities: Sendable, Codable, Hashable {
+nonisolated struct ModelCapabilities: Sendable, Codable, Hashable {
     let supportedModalities: ModelModality
     let supportedAuth: Set<ProviderAuthMethod>
 }
 
 // MARK: - LLMModel
 
-struct LLMModel: Equatable, Hashable, Identifiable, Sendable, Codable {
+nonisolated struct LLMModel: Equatable, Hashable, Identifiable, Sendable, Codable {
     let id: String
     let displayName: String
     let provider: String
@@ -947,14 +947,14 @@ struct SessionInferenceConfig: Codable, Hashable {
 
 // MARK: - LLM Messages
 
-struct LLMMessage: Sendable {
-    enum Role: String, Sendable {
+nonisolated struct LLMMessage: Sendable {
+    nonisolated enum Role: String, Sendable {
         case user
         case assistant
     }
 
     /// An inline image attachment for multimodal messages.
-    struct ImageAttachment: Sendable {
+    nonisolated struct ImageAttachment: Sendable {
         let mimeType: String   // e.g. "image/png"
         let data: Data         // raw image bytes
     }
@@ -963,7 +963,7 @@ struct LLMMessage: Sendable {
     /// Kept as the base64 string from the caller — audio payloads can be
     /// megabytes, and every current consumer (OpenAI input_audio blocks)
     /// wants base64 back, so decode/re-encode would be pure churn.
-    struct AudioAttachment: Sendable {
+    nonisolated struct AudioAttachment: Sendable {
         let format: String     // e.g. "wav", "mp3" (OpenAI input_audio.format)
         let base64Data: String // base64-encoded audio bytes
     }
@@ -977,8 +977,8 @@ struct LLMMessage: Sendable {
 }
 
 /// A media attachment in an LLM response (e.g. generated image, audio).
-struct LLMMediaAttachment: Sendable {
-    enum MediaType: String, Sendable {
+nonisolated struct LLMMediaAttachment: Sendable {
+    nonisolated enum MediaType: String, Sendable {
         case image
         case audio
         case video
@@ -990,7 +990,7 @@ struct LLMMediaAttachment: Sendable {
     let data: Data
 }
 
-struct LLMResponse: Sendable {
+nonisolated struct LLMResponse: Sendable {
     let text: String
     let stopReason: String?
     let usage: LLMUsage?
@@ -998,14 +998,14 @@ struct LLMResponse: Sendable {
     var mediaAttachments: [LLMMediaAttachment] = []
 }
 
-enum LLMStreamChunk: Sendable {
+nonisolated enum LLMStreamChunk: Sendable {
     case started
     case text(String)
     case usage(LLMUsage)
     case finished(stopReason: String?)
 }
 
-struct LLMUsage: Sendable {
+nonisolated struct LLMUsage: Sendable {
     let inputTokens: Int
     let outputTokens: Int
     let cacheCreationInputTokens: Int?

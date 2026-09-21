@@ -50,7 +50,7 @@ final class AgentRequestTraceEntry {
 }
 
 /// Thread-safe ring buffer of recent agent request traces.
-final class AgentRequestTrace: @unchecked Sendable {
+final nonisolated class AgentRequestTrace: @unchecked Sendable {
     static let shared = AgentRequestTrace()
 
     private let lock = NSLock()

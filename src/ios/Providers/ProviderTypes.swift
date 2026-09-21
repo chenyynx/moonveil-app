@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Provider Type
 
 /// The LLM provider backend.
-enum ProviderType: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum ProviderType: String, Codable, CaseIterable, Hashable, Sendable {
     case openAI
     case anthropic
     case gemini
@@ -109,7 +109,7 @@ enum ProviderType: String, Codable, CaseIterable, Hashable, Sendable {
 // MARK: - Credential Type
 
 /// How a provider instance authenticates.
-enum ProviderCredential: String, Codable, Hashable, Sendable {
+nonisolated enum ProviderCredential: String, Codable, Hashable, Sendable {
     case apiKey
     case oauth
 }

@@ -14,7 +14,7 @@ protocol CorrectionSignalSource: Sendable {
     func lookupCandidates(forPhoneticKeys keys: [String], locale: String, limit: Int) async -> [CorrectionCandidate]
 }
 
-struct CorrectionCandidate: Sendable {
+nonisolated struct CorrectionCandidate: Sendable {
     /// The phonetic key this candidate answers — lets the engine map candidates back to
     /// the transcript token that produced the key.
     let phoneticKey: String

@@ -32,7 +32,7 @@ enum BackupFormat {
 
 /// User-facing backup categories (§3). The raw value is the manifest key and
 /// the on-disk directory name, so renaming one is a format change.
-enum BackupCategory: String, Codable, CaseIterable, Sendable {
+nonisolated enum BackupCategory: String, Codable, CaseIterable, Sendable {
     case chats
     case sharedFiles = "shared_files"
     case skills
