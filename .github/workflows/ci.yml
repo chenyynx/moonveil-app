@@ -62,7 +62,11 @@ jobs:
           # Locate swiftc by shape, never by a guessed directory name: run 35552014592
           # 404'd because the archive path is <REL>/<REL>-ubuntu24.04.tar.gz while the
           # extracted top dir keeps the -ubuntu24.04 suffix (two different strings).
-          SWIFTC=$(find "$DEST" -path '*/usr/bin/swiftc' -type f 2>/dev/null | head -1 || true)
+          # Do NOT add `-type f`: usr/bin/swiftc is a SYMLINK to swift-driver, so a
+          # regular-file filter returns nothing (run 35553111466, empty $SWIFTC ->
+          # gate correctly fail-closed). -x follows the link and proves it is runnable.
+          SWIFTC=$(find "$DEST" -path '*/usr/bin/swiftc' -xtype f 2>/dev/null | head -1 || true)
+          [ -n "$SWIFTC" ] && [ -x "$SWIFTC" ] || SWIFTC=""
           if [ -z "$SWIFTC" ]; then
             curl -sSfL --retry 3 \
               "https://download.swift.org/swift-6.0.3-release/ubuntu2404/${REL}/${REL}-ubuntu24.04.tar.gz" \
@@ -70,7 +74,12 @@ jobs:
             mkdir -p "$DEST"
             tar -xzf /tmp/swift.tgz -C "$DEST"
             rm -f /tmp/swift.tgz
-            SWIFTC=$(find "$DEST" -path '*/usr/bin/swiftc' -type f | head -1)
+            SWIFTC=$(find "$DEST" -path '*/usr/bin/swiftc' -xtype f 2>/dev/null | head -1 || true)
+          fi
+          if [ -z "$SWIFTC" ]; then
+            echo "::error::swift-syntax-parse found no runnable swiftc under $DEST — refusing to report a vacuous green"
+            find "$DEST" -maxdepth 4 -name 'swift*' 2>/dev/null | head -20
+            exit 3
           fi
           echo "toolchain: $SWIFTC"
           SWIFTC="$SWIFTC" bash scripts/swift-parse-check.sh
