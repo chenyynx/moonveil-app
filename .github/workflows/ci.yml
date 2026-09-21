@@ -25,6 +25,38 @@ jobs:
           /tmp/gitleaks detect --source . --config .gitleaks.toml --redact --verbose
       - name: import-direction
         run: bash scripts/import-scan.sh
+      - name: import-direction-deep-scan
+        # [BATCH-B 2026-09-22] The deep mode (full generated word list instead of the 6
+        # hardcoded names) existed but was never called by any workflow — a gate nobody
+        # runs. Wired here so the 23 violating symbols are visible in every PR log.
+        # KNOWN RED, PENDING DECISION (do not "fix" by deleting the step):
+        #   Scope as measured on 2026-09-22 (re-measure: RK_GATE_FULL_SCAN=1 bash
+        #   scripts/import-scan.sh): 23 distinct symbols, 54 hit lines, all under
+        #   src/ios/Views/RemoteSessions/ (20 files). 20 of the 23 are AAV2-internal
+        #   frozen types (V2Connector/V2Project/V2SessionMeta/JSONValue/...), 3 are the
+        #   sanctioned Glue facades (RemoteService/RemoteServiceError/
+        #   RemotePairingPayload) — the latter are word-list false positives.
+        #   Adding RemoteSessions to SEAM_DIRS would turn this step green by
+        #   construction (it is the only non-seam consumer), i.e. a gate that can never
+        #   fire — refused. Needs pp: either register RemoteSessions as a documented seam
+        #   with a facade-only allow list, or mirror the 20 types into Glue.
+        # Flip continue-on-error away once the seam question is settled AND the registry
+        # is refreshed (rk-registry-freshness below) — a refreshed list grows this to 83.
+        env:
+          RK_GATE_FULL_SCAN: "1"
+        continue-on-error: true
+        run: bash scripts/import-scan.sh
+      - name: rk-registry-freshness
+        # [BATCH-B 2026-09-22] scripts/rk-symbol-registry.txt is generated, and it had
+        # rotted: 211 committed vs 312 regenerated (+101 incl. ComposerDraft,
+        # V2WorkspaceEntry — both in real use). --check re-derives it read-only and exits
+        # 1 on drift.
+        # KNOWN RED, PENDING DISPOSITION: the list is stale today. Regenerating it is
+        # deliberately NOT part of this batch because a fresh list widens the deep scan
+        # above from 23 to 83 violating symbols; the two must land together with the
+        # RemoteSessions seam decision. Refresh = `python3 scripts/gen_rk_registry.py`.
+        continue-on-error: true
+        run: python3 scripts/gen_rk_registry.py --check
       - name: pbxproj-input-audit
         run: |
           python3 -m pip install --quiet openstep-parser
@@ -33,7 +65,38 @@ jobs:
         run: python3 scripts/audit-aa-assets.py
       - name: fork-point
         run: bash scripts/fork-point-audit.sh
-      - name: aav2-freeze
+      - name: aav2-freeze (structure + manifest)
+        # [BATCH-B 2026-09-22] --structure-only = disk⇔manifest bidirectional assertion +
+        # digest check. Blocks. It does NOT compare against upstream — see the baseline
+        # step below for that; this flag is a temporary crutch while those reds are open.
+        run: bash scripts/aav2-freeze-check.sh --structure-only
+      - name: aav2-freeze-baseline (vs pinned upstream v2.0.0)
+        # Real byte-level check that needs no official repo on the runner: it compares
+        # every frozen file against scripts/aav2-freeze-baseline.txt (upstream tag digests,
+        # committed in this repo; strong mode re-derives and audits that file locally).
+        # Previously CI silently downgraded to "manifest self-consistent" and printed OK.
+        # KNOWN RED — 2 files beyond approved transforms (raw-byte count against v2.0.0 is
+        # 3: Network/HTTPTransport.swift also differs, that one is the pp-signed
+        # AAV2-AWAIT-1 sed and is expected). Cause adjudicated 2026-09-22 = BASELINE LAG,
+        # not local edits:
+        #   Models/Chat/MarkdownBlockSizing.swift   (+20 lines: MarkdownMeasurementCache)
+        #   Models/Chat/TimelineHistoryPull.swift   (+Equatable, +explicit init)
+        #   Both entered this repo in one commit (6582129) and were never touched since; their
+        #   local bytes are provably EQUAL to upstream ios-ci tip 1bc11f45 (sha256 spot-checked
+        #   against $MV_CLOUD: 4f0a884b… / b7bd95b2…), i.e. Doris ported them from a state 27
+        #   commits past the v2.0.0 anchor. The manifest never held upstream bytes at all,
+        #   so nothing was "absorbed" — this step is what made the gap visible.
+        # Disposition needs pp (anchor choice, same weight as the pp-signed AAV2-AWAIT-1):
+        #   ① revert to v2.0.0 verbatim = compiler-red, proven: ChatTimelineView.swift needs
+        #     an explicit TimelineHistoryPull(edge:) initializer (used by the `.older` @State)
+        #     and Equatable (used by `if latest != latestPull`), neither exists in v2.0.0.
+        #   ② register as an approved local deviation (AAV2-AWAIT-1 style) = mislabels upstream
+        #     changes as our edits.
+        #   ③ raise the AAV2_BASE_TAG anchor to 1bc11f45 + regenerate the baseline = keeps full
+        #     byte-level coverage and lets the --structure-only crutch above be removed.
+        # Do NOT delete the manifest rows and do NOT re-sha256 the baseline from local files
+        # to make this green — the baseline must always be derived from $MV_CLOUD only.
+        continue-on-error: true
         run: bash scripts/aav2-freeze-check.sh
       # [GATE-SWIFT-LINUX 2026-09-21] Syntax-layer gates that used to be caught only
       # by 8-18min macOS iOS Build: strict pbxproj grammar (55x missing-';' class),
@@ -48,6 +111,16 @@ jobs:
           python3 scripts/audit-swift-registration.py
       - name: swift-case-spelling
         run: python3 scripts/swift-spelling-check.py
+      - name: port-surface-audit (informational)
+        # [BATCH-B 2026-09-22] audit-port-surface.py used to return 0 unconditionally and
+        # was wired nowhere. It stays a NON-GATE on purpose (its A check has an unfinished
+        # guard stub, its C check prints 298 heuristic hits — see the script header).
+        # What is fixed here: (1) it now exits 2 on a vacuous run (empty input surface),
+        # so it can no longer die while looking clean; (2) it runs on every CI pass so its
+        # early signal is actually visible. continue-on-error = it must never block a PR;
+        # a step failure here means "the tool broke / found new debts", human-triaged.
+        continue-on-error: true
+        run: python3 scripts/audit-port-surface.py
       - name: Cache Linux Swift toolchain
         # ~700 MB tarball; ci job is otherwise a 20s job. Cache the extracted dir.
         uses: actions/cache@v4

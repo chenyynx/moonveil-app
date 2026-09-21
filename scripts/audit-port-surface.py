@@ -8,6 +8,34 @@ one CI round per surprise. Three checks:
  C) capitalized identifiers referenced from ported files that are declared
     NOWHERE in the repo and are not known system types (the OAuthCallback /
     AppSymbolAssets class of bug).
+
+============================================================================
+NON-GATE / INFORMATIONAL ONLY — do not read its exit code as a verdict.
+[BATCH-B 2026-09-22, decision B4-②]
+ Why it is not a gate:
+   * check A's guard detection (check_available) is an unfinished stub — it always
+     returns an empty set, so "UNGUARDED" is really "we could not prove a guard".
+   * check C's KNOWN_SYS/prefix filter is a heuristic that both over-matches
+     (any name starting with UI/NS/CG/CA/SF/PK/IN/... is trusted) and under-matches
+     (298 UNRESOLVED lines on today's tree, most of them SwiftUI/UIKit members).
+   Turning either into a hard exit code would produce red CI on non-bugs, and the
+   first fix for that is always "loosen the checker" — a fake gate is worse than
+   none (it trains people to ignore it).
+ What actually gates this ground today:
+   * remote-line symbol/type errors -> RemoteKit Build CI (`swift build`) + iOS Build
+     (full compile) — authoritative, slow, but real.
+   * syntax class -> scripts/swift-parse-check.sh; registration class ->
+     scripts/audit-swift-registration.py; frozen-zone integrity ->
+     scripts/aav2-freeze-check.sh.
+ Contract for this script:
+   exit 0  = ran to completion. Findings may exist (printed above); they are advice.
+   exit 2  = the tool itself could not scan its input surface (vacuous run) — that is
+             an infrastructure failure, and ci.yml surfaces it as a failing (non-blocking)
+             step so the tool never dies silently while looking green.
+ In ci.yml it runs with continue-on-error: true on purpose.
+ TODO(disposition): if pp wants this promoted to a gate, check C must be re-based on
+   real Swift name resolution (swiftc -typecheck per file) instead of a regex word list.
+============================================================================
 """
 import re, os, sys, glob
 
@@ -18,6 +46,22 @@ for d in ("src/ios/Views/AuthAA", "src/ios/Views/SettingsSkin", "src/ios/Views/M
 GLUE = glob.glob(os.path.join(ROOT, "Packages/RemoteKit/Sources/Glue/*.swift"))
 RK = glob.glob(os.path.join(ROOT, "Packages/RemoteKit/Sources/AAV2/**/*.swift"), recursive=True)
 ALL_APP = glob.glob(os.path.join(ROOT, "src/ios/**/*.swift"), recursive=True)
+
+# vacuity guard: an empty input surface means the paths moved, not that the code is clean
+_missing = [n for n, v in (("PORTED", PORTED), ("GLUE", GLUE), ("AAV2/RK", RK), ("ALL_APP", ALL_APP)) if not v]
+if _missing:
+    print(f"[port-surface] FATAL: empty input surface: {', '.join(_missing)} — "
+          "scan paths no longer match the tree (informational tool, but a vacuous run is "
+          "indistinguishable from a clean one, so it exits non-zero)", file=sys.stderr)
+    sys.exit(2)
+print(f"[port-surface] INFORMATIONAL (non-gate) — inputs: ported={len(PORTED)} glue={len(GLUE)} "
+      f"aav2={len(RK)} app={len(ALL_APP)}")
+
+FIND = {"A": 0, "B": 0, "C": 0}
+def emit(kind, line):
+    FIND[kind] += 1
+    print(line)
+
 
 # ---------- A) availability audit ----------
 RISKY = {
@@ -58,7 +102,7 @@ for p in PORTED + GLUE:
             lines = open(p).read().splitlines()
             ctx = "\n".join(lines[max(0,ln-8):ln+1])
             if "#available" not in ctx:
-                print(f"  UNGUARDED {tag}: {p.replace(ROOT+'/','')}:{ln}: {lines[ln-1].strip()[:90]}")
+                emit("A", f"  UNGUARDED {tag}: {p.replace(ROOT+'/','')}:{ln}: {lines[ln-1].strip()[:90]}")
 
 # ---------- B) memberwise-init hazard ----------
 print("== B) structs with private non-@State stored props constructed cross-file:")
@@ -87,7 +131,7 @@ for name, files in declared.items():
         for q in PORTED + GLUE + ALL_APP:
             if q == p: continue
             for mm in re.finditer(name + r"\s*\(", open(q).read()):
-                print(f"  HAZARD {name}: private props {privs[:3]} constructed at {q.replace(ROOT+'/','')}")
+                emit("B", f"  HAZARD {name}: private props {privs[:3]} constructed at {q.replace(ROOT+'/','')}")
                 break
 
 # ---------- C) undefined capitalized refs ----------
@@ -127,4 +171,8 @@ for p in PORTED + GLUE:
         for i,l in enumerate(open(p).read().splitlines()):
             if re.search(r"(?<![\.\w])" + w + r"\b", strip_code(l) if l.strip().startswith("//")==False else ""):
                 ln = i+1; break
-        print(f"  UNRESOLVED {w}: {p.replace(ROOT+'/','')} first~:{ln}")
+        emit("C", f"  UNRESOLVED {w}: {p.replace(ROOT+'/','')} first~:{ln}")
+
+print(f"[port-surface] findings: A(availability)={FIND['A']} B(memberwise-init)={FIND['B']} "
+      f"C(unresolved)={FIND['C']} — informational, needs human triage, NOT a verdict")
+sys.exit(0)
