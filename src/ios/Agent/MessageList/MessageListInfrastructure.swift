@@ -1037,7 +1037,7 @@ final class MessageListViewController: UIViewController {
         view.backgroundColor = .clear
 
         messageListLayout = MessageListLayout()
-        messageListLayout.itemSpacing = (ToolRenderStyleStore.current == .new ? ToolSpacingSettings.blockSpacing() : 8)  // TOOLSPACING-2: new uses adjustable block spacing (default 22), classic frozen at 8
+        messageListLayout.itemSpacing = (ToolRenderStyleStore.current == .new ? ToolSpacingSettings.blockSpacing() : 8)  // TOOLSPACING-2: new uses adjustable block spacing (default 8 per the TOOLSPACING-2 same-day addendum final call; 22 was an interim value, see PATCHES.md), classic frozen at 8
         let cv = NoAnimationCollectionView(frame: view.bounds, collectionViewLayout: messageListLayout)
         cv.owningViewController = self
         collectionView = cv
