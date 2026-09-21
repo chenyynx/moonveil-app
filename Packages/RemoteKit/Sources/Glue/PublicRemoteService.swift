@@ -11,6 +11,8 @@ import Combine
 // methods land with batch7 (审批 UI) — engine already serves them internally.
 // Inventory trio (connectors / projects / runtimeTypes) delivered: the
 // new-session drawer's read-only lists.
+// [RUNTIME-ID] runtimes(connectorId:) delivered: 官方新建会话页真正用的运行实例
+// 清单（V2DeviceRuntime，带 runtimeId）；runtimeTypes 保留给其余调用点。
 // No stubs, no fake returns: every method delegates to the real engine.
 // ════════════════════════════════════════════════════════════════════
 
@@ -93,13 +95,31 @@ public struct RemoteProject: Sendable, Identifiable, Hashable {
     public let activeSessionCount: Int
 }
 
-/// Public mirror of V2RuntimeType. `runtimeType` is verbatim and feeds
-/// startSession's `runtime` param; no Identifiable (contract for the drawer).
-public struct RemoteRuntimeType: Sendable, Hashable {
-    public let runtimeType: String  // verbatim; feeds startSession's `runtime` param
+// [RUNTIME-ID] 旧 `RemoteRuntimeType`（V2RuntimeType 的 mirror）与其 public seam
+// 已删：新建会话页改走运行实例清单后，全仓消费者归零，留着即死码（本仓铁律）。
+// 类型清单端点本身仍在 engine 侧（RemoteSessionBackend.runtimeTypes）。
+
+/// [RUNTIME-ID] Public mirror of 官方 V2DeviceRuntime（AAV2 Domain/Connector/
+/// V2DevicePairing.swift:29，冻结区逐字）——新建会话页的运行实例清单，字段取官方
+/// NewSessionModel 真正用到的那些。`status` 是 V2DeviceRuntimeStatus rawValue
+/// verbatim（同 RemoteConnector.status 惯例，不外泄 AAV2 enum）；
+/// `unavailableReason` 由 Glue 的官方 sessionUnavailableReason extension
+/// （本文件 :917- 区）映射，公开层只做本地化透传。
+public struct RemoteDeviceRuntime: Sendable, Identifiable, Hashable {
+    public let runtimeId: String
+    public let runtimeType: String   // verbatim; feeds startSession's `runtime` param
+    public let name: String
     public let displayName: String
     public let available: Bool
-    public let recommended: Bool
+    public let reason: String?
+    public let configured: Bool
+    public let active: Bool
+    public let status: String             // V2DeviceRuntimeStatus rawValue verbatim
+    public let unavailableReason: String? // 官方 sessionUnavailableReason（Glue 映射）
+    public let isReadyForSession: Bool    // 官方 isReadyForSession（Glue 映射，见 mapDeviceRuntime）
+    public let sessionDisplayName: String // 官方 sessionDisplayName（Glue 映射）
+    /// 官方 V2DeviceRuntime.id { runtimeId } 逐字（V2DevicePairing.swift:54）。
+    public var id: String { runtimeId }
 }
 
 /// Public mirror of V2SessionMeta — the dashboard projection. Field names are
@@ -498,17 +518,13 @@ public final class RemoteService: ObservableObject {
         return .init(sessionId: r.session.id, sessionMetaJSON: try encode(r.session))
     }
 
-    /// 官方 V2SessionPreparationService.prepare 等价。moonveil 的运行时以 runtimeType
-    /// 为键（UI 模型），此处解析实例：listRuntimes → 匹配 runtimeType 且就绪的实例
-    /// → prepare(runtimeId)；catalog 只在 capability 允许时请求，本地化在此完成。
-    public func prepareSession(connectorId: String, runtimeType: String) async throws -> RemotePreparedSession {
-        let list = try await attempt { try await self.engine.listRuntimes(connectorId: connectorId) }
-        guard let runtime = list.runtimes.first(where: { $0.runtimeType == runtimeType && $0.isReadyForSession })
-                ?? list.runtimes.first(where: { $0.runtimeType == runtimeType }) else {
-            throw RemoteServiceError.rejected(code: nil, message: "Runtime is unavailable.")
-        }
+    /// 官方 V2SessionPreparationService.prepare 等价。[RUNTIME-ID] 批后 UI 层以运行
+    /// 实例（runtimeId）为键——官方 NewSessionModel.prepareTarget 就是
+    /// prepare(connectorId:runtimeId:) 直调，此处不再按 runtimeType 解析实例；
+    /// catalog 只在 capability 允许时请求，本地化在此完成。
+    public func prepareSession(connectorId: String, runtimeId: String) async throws -> RemotePreparedSession {
         let value = try await attempt {
-            try await self.engine.prepareSession(connectorId: connectorId, runtimeId: runtime.runtimeId)
+            try await self.engine.prepareSession(connectorId: connectorId, runtimeId: runtimeId)
         }
         return RemotePreparedSession(
             isReadyForSession: value.runtime.isReadyForSession,
@@ -749,12 +765,27 @@ public final class RemoteService: ObservableObject {
                           createdAt: s.createdAt)
     }
 
-    public func runtimeTypes(connectorId: String) async throws -> [RemoteRuntimeType] {
-        let r = try await attempt { try await self.engine.runtimeTypes(connectorId: connectorId) }
-        return r.runtimeTypes.map {
-            RemoteRuntimeType(runtimeType: $0.runtimeType, displayName: $0.displayName,
-                              available: $0.available, recommended: $0.recommended)
-        }
+    /// [RUNTIME-ID] 运行实例清单 seam（官方 V2DeviceManagementService.runtimes →
+    /// GET /connectors/{id}/runtimes；NewSessionModel.loadInventory :213-229 的
+    /// 数据面，engine 侧 RemoteSessionBackend.listRuntimes 早已就位）。与官方
+    /// loadInventory 一致：本方法不做 configured 过滤，调用方装载时
+    /// `filter(\.configured)`。旧的 runtimeTypes（类型清单）seam 保留不动。
+    public func runtimes(connectorId: String) async throws -> [RemoteDeviceRuntime] {
+        let r = try await attempt { try await self.engine.listRuntimes(connectorId: connectorId) }
+        return r.runtimes.map(Self.mapDeviceRuntime)
+    }
+
+    private static func mapDeviceRuntime(_ r: V2DeviceRuntime) -> RemoteDeviceRuntime {
+        // 三个派生值一律取自本文件底部的官方 verbatim extension（唯一真源），
+        // mirror 上不再重抄一遍表达式。
+        RemoteDeviceRuntime(runtimeId: r.runtimeId, runtimeType: r.runtimeType,
+                            name: r.name, displayName: r.displayName,
+                            available: r.available, reason: r.reason,
+                            configured: r.configured, active: r.active,
+                            status: r.status.rawValue,
+                            unavailableReason: r.sessionUnavailableReason,
+                            isReadyForSession: r.isReadyForSession,
+                            sessionDisplayName: r.sessionDisplayName)
     }
 
     // MARK: Out-seam
@@ -889,7 +920,7 @@ extension V2DeviceRuntime {
         if !configured { return String(localized: "尚未配置") }
         if !active { return String(localized: "未启用，请在设备管理中启动") }
         if let reason, !reason.isEmpty { return reason }
-        if status != .running { return String(localized: "尚未就绪 \(status.displayName)") }
+        if status != .running { return String(localized: "尚未就绪 · \(status.displayName)") }
         return available ? nil : String(localized: "当前不可用")
     }
     var sessionDisplayName: String { name.isEmpty ? displayName : name }

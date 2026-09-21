@@ -2,9 +2,14 @@
 // 的等价物；数据面走 RemoteService public facade，零第二 schema）。
 //
 // 行为对齐此前的 Form 版弹窗（已验证过的加载/提交语义——并行拉设备与项目、
-// 离线设备不发 runtimeTypes、默认选第一台在线设备 + recommended 运行时、
-// gate = 设备在线 + 项目 + 运行时 + 内容非空）：
+// 离线设备不发实例清单、默认选第一台在线设备 + 官方 refresh 收敛规则选第一个
+// 就绪实例、gate = 设备在线 + 项目 + 运行时 + 内容非空）：
 //   • refreshRuntimes 的代际令牌防快速切设备时后发先至串台（同旧实现）。
+//   • [RUNTIME-ID] 运行时选择链对齐官方 NewSessionModel：inventories[connectorId]
+//     存运行实例（RemoteDeviceRuntime，官方 V2DeviceRuntime 的 Glue mirror），
+//     selectedRuntimeId 选实例；装载 filter(\.configured)（官方 :217/:227）、
+//     选择把关 isReadyForSession（官方 :234）、create 传真实例 runtime.id
+//     （官方 :336-338）。
 //   • 提交走 startSession；成功回调 sessionId（由页面 dismiss 回列表）。
 
 import SwiftUI
@@ -21,11 +26,12 @@ final class RemoteNewSessionModel: ObservableObject {
     @Published private(set) var projectsLoaded = false
     @Published private(set) var projectsError: String?
     @Published var selectedProjectId: String?
-    // 运行时（按设备拉取，只列 available）
-    @Published private(set) var runtimes: [RemoteRuntimeType] = []
+    // 运行时实例清单（官方 NewSessionModel.inventories:28——key = connectorId，
+    // 装载即 filter(\.configured)；只列 available 的旧 runtimeTypes 语义已废弃）
+    @Published private(set) var inventories: [String: [RemoteDeviceRuntime]] = [:]
     @Published private(set) var runtimesLoaded = false
     @Published private(set) var runtimesError: String?
-    @Published var selectedRuntimeType: String?
+    @Published private(set) var selectedRuntimeId: String?
     /// 运行时拉取代际令牌：快速切换设备时丢弃过期响应。
     private var runtimeLoadToken = 0
     // 家目录解析（官方 NewSessionModel.resolveHome 语义；files service 现接）
@@ -78,8 +84,10 @@ final class RemoteNewSessionModel: ObservableObject {
         availableProjects.first { $0.id == selectedProjectId }
     }
 
-    var selectedRuntime: RemoteRuntimeType? {
-        runtimes.first { $0.runtimeType == selectedRuntimeType }
+    /// 官方 NewSessionModel.runtime:73 等价：选中实例永远从当前设备的已装载
+    /// inventory 里查（inventories[connectorID]?.first { $0.id == runtimeID }）。
+    var selectedRuntime: RemoteDeviceRuntime? {
+        inventories[selectedConnectorId ?? ""]?.first { $0.id == selectedRuntimeId }
     }
 
     private var trimmedContent: String {
@@ -87,12 +95,13 @@ final class RemoteNewSessionModel: ObservableObject {
     }
 
     /// 官方 gate（NewSessionModel:171-176 的 remote 等价，无 network 监视）：
-    /// 设备在线 + 工作目录已定 + 运行时就绪 + 准备完成 + 选择有效 + 草稿可发。
+    /// 设备在线 + 工作目录已定 + 运行实例就绪（官方 `runtime?.isReadyForSession
+    /// == true`）+ 准备完成 + 选择有效 + 草稿可发。
     /// （项目在 create 时由 resolver 解析——官方语义：home/任意目录可直接开始。）
     var canCreate: Bool {
         (selectedConnector?.isOnline ?? false)
             && !workspacePath.isEmpty
-            && selectedRuntime != nil
+            && selectedRuntime?.isReadyForSession == true
             && prepared
             && !isCreating
             && !settingsLoading
@@ -117,9 +126,9 @@ final class RemoteNewSessionModel: ObservableObject {
         manualWorkspacePath ?? selectedProject?.workspacePath ?? ""
     }
 
-    /// 顶栏目标胶囊：运行时显示名 · 设备名。
+    /// 顶栏目标胶囊：运行时显示名 · 设备名（官方实例展示用 sessionDisplayName）。
     var targetRuntimeName: String {
-        selectedRuntime?.displayName ?? "运行目标"
+        selectedRuntime?.sessionDisplayName ?? "运行目标"
     }
     var targetDeviceName: String {
         selectedConnector?.name ?? "新设备"
@@ -176,8 +185,8 @@ final class RemoteNewSessionModel: ObservableObject {
         if connectors.isEmpty { return .noDevices(error: connectorsError) }
         if let c = selectedConnector, !c.isOnline { return .deviceOffline }
         if !runtimesLoaded { return .loadingAgent }
-        if runtimes.isEmpty { return .noAgents }
-        if let r = selectedRuntime, !r.available { return .agentNotReady }
+        if (inventories[selectedConnectorId ?? ""] ?? []).isEmpty { return .noAgents }
+        if let r = selectedRuntime, !r.isReadyForSession { return .agentNotReady }
         return nil
     }
 
@@ -231,12 +240,14 @@ final class RemoteNewSessionModel: ObservableObject {
         projectsLoaded = true
     }
 
-    /// 离线设备不发 runtimeTypes（服务器必然报错）——置空态，提交 gate 本就锁离线。
+    /// 离线设备不发实例清单（服务器必然报错）——置空态，提交 gate 本就锁离线。
+    /// 官方 loadInventory :213-229 + refresh 收敛 :203-208 的等价（代际令牌代替
+    /// 官方 inventoryTasks 的 in-flight 合并）。
     func refreshRuntimes(for connector: RemoteConnector, service: RemoteService) async {
         guard connector.isOnline else {
             runtimeLoadToken += 1   // 作废在途请求
-            runtimes = []
-            selectedRuntimeType = nil
+            inventories[connector.id] = nil
+            selectedRuntimeId = nil
             runtimesError = nil
             runtimesLoaded = true
             return
@@ -245,11 +256,10 @@ final class RemoteNewSessionModel: ObservableObject {
         let token = runtimeLoadToken
         runtimesLoaded = false
         runtimesError = nil
-        runtimes = []
-        selectedRuntimeType = nil
-        let fetched: [RemoteRuntimeType]
+        inventories[connector.id] = nil
+        let fetched: [RemoteDeviceRuntime]
         do {
-            fetched = try await service.runtimeTypes(connectorId: connector.id)
+            fetched = try await service.runtimes(connectorId: connector.id)
         } catch {
             if token == runtimeLoadToken {
                 runtimesError = error.localizedDescription
@@ -258,27 +268,33 @@ final class RemoteNewSessionModel: ObservableObject {
             return
         }
         guard token == runtimeLoadToken else { return }   // 过期响应丢弃
-        runtimes = fetched.filter { $0.available }
-        // 默认选 recommended；无 recommended 则第一个 available
-        selectedRuntimeType = (runtimes.first(where: { $0.recommended }) ?? runtimes.first)?.runtimeType
+        // 官方装载把关：inventories[deviceID] = runtimes.filter(\.configured)（:217/:227）
+        let configured = fetched.filter(\.configured)
+        inventories[connector.id] = configured
+        // 官方 refresh 收敛：已选实例不在清单里（切设备/服务端删除）才重选
+        // 第一个就绪实例（本仓无 preference 持久化，saved 匹配分支省略）。
+        if !configured.contains(where: { $0.id == selectedRuntimeId }) {
+            selectedRuntimeId = configured.first(where: { $0.isReadyForSession })?.id
+        }
         runtimesLoaded = true
         // 官方 load 链：选中 runtime 后 prepare（catalogs / capabilities）
         await prepareTarget(service: service)
     }
 
     /// 官方 NewSessionModel.prepareTarget 的 remote 等价：runtime 准备快照
-    /// （状态 + capabilities + catalog）→ settings.replace。
+    /// （状态 + capabilities + catalog）→ settings.replace。官方守卫
+    /// `runtime?.isReadyForSession == true` 搬入（:250 区）。
     func prepareTarget(service: RemoteService) async {
         prepareToken += 1
         let version = prepareToken
         prepared = false
         if !isCreating { error = nil }
         guard let connector = selectedConnector, connector.isOnline,
-              let runtimeType = selectedRuntimeType else { return }
+              let runtime = selectedRuntime, runtime.isReadyForSession else { return }
         settingsLoading = true
         defer { if version == prepareToken { settingsLoading = false } }
         do {
-            let value = try await service.prepareSession(connectorId: connector.id, runtimeType: runtimeType)
+            let value = try await service.prepareSession(connectorId: connector.id, runtimeId: runtime.runtimeId)
             guard version == prepareToken, !Task.isCancelled else { return }
             prepared = true
             allowsAttachment = value.allowsAttachment
@@ -350,16 +366,22 @@ final class RemoteNewSessionModel: ObservableObject {
 
     // MARK: - 目标选择（SessionTargetSheet 应用入口）
 
-    /// 官方 selectTarget 等价的本地版：切设备 + 选 Agent，成功返回 true。
-    func selectTarget(connectorId: String, runtimeType: String, service: RemoteService) async -> Bool {
+    /// 官方 selectTarget :230-245 等价的本地版：切设备 + 选 Agent 实例，成功返回
+    /// true。官方把关（:234）：实例在已装载 inventory 里且 isReadyForSession。
+    func selectTarget(connectorId: String, runtimeId: String, service: RemoteService) async -> Bool {
         if let connector = connectors.first(where: { $0.id == connectorId }),
            connector.id != selectedConnectorId {
-            await selectConnector(connector, service: service)
+            await selectConnector(connector, service: service)   // 切设备并装载该设备 inventory
+        } else if inventories[connectorId] == nil,
+                  let connector = connectors.first(where: { $0.id == connectorId }),
+                  connector.isOnline {
+            await refreshRuntimes(for: connector, service: service)   // 官方：inventory 未装载先 loadInventory
         }
-        guard runtimes.contains(where: { $0.runtimeType == runtimeType && $0.available }) else {
+        guard inventories[connectorId]?.contains(where: { $0.id == runtimeId && $0.isReadyForSession }) == true else {
             return false
         }
-        selectedRuntimeType = runtimeType
+        selectedRuntimeId = runtimeId
+        await prepareTarget(service: service)   // 官方 selectTarget：换目标后重 prepare
         return true
     }
 
@@ -378,7 +400,7 @@ final class RemoteNewSessionModel: ObservableObject {
     ///     .uncertain 时官方会提示先查会话列表；本仓 facade 无创建中态模型，
     ///     不实现该提示，草稿照常回填。
     func restoreCreationDraft(connectorId: String, workspacePath: String?,
-                              projectId: String?, runtimeType: String?,
+                              projectId: String?, runtimeId: String?,
                               text: String, attachments: [ChatAttachment]) {
         // 官方草稿冲突守卫：已有其他草稿则保留原草稿并提示，不覆盖。
         if (!draft.text.isEmpty || !draft.attachments.isEmpty),
@@ -390,7 +412,9 @@ final class RemoteNewSessionModel: ObservableObject {
         selectedConnectorId = connectorId
         if let projectId { selectedProjectId = projectId; manualWorkspacePath = nil }
         else if let workspacePath, !workspacePath.isEmpty { _ = selectWorkspace(workspacePath) }
-        if let runtimeType { selectedRuntimeType = runtimeType }
+        // 官方 `runtimeID = meta.effectiveRuntimeId`（实例 id；旧坏数据 runtimeId
+        // 为 nil 时 effectiveRuntimeId 回落到 runtime——不在清单里，由 refresh 收敛重选）。
+        if let runtimeId { selectedRuntimeId = runtimeId }
         // 草稿回填
         draft.text = text
         draft.attachments = attachments
@@ -399,10 +423,15 @@ final class RemoteNewSessionModel: ObservableObject {
     func create(text: String, service: RemoteService) async -> String? {
         guard canCreate,
               let connector = selectedConnector,
-              let runtime = selectedRuntimeType
+              let runtime = selectedRuntime
         else { return nil }
         draft.text = text
         guard draft.canAttemptSend else { return nil }
+        // [RUNTIME-ID] 官方 create 的 staleness guard（NewSessionModel create 中
+        // `let target = (project.connectorId, runtime.id, project.id)` 发送前逐项
+        // 比对）的本地简化版：本仓 create 无中途 re-prepare，这里在 resolveProject
+        // 的 await 之后复核设备/实例选择未被并发改动。
+        let target = (connector.id, runtime.runtimeId)
         let files = draft.attachments
         isCreating = true
         error = nil
@@ -415,11 +444,15 @@ final class RemoteNewSessionModel: ObservableObject {
                 connectorId: connector.id, path: workspacePath,
                 deviceOS: connector.deviceOs, service: service
             )
+            guard selectedConnectorId == target.0, selectedRuntimeId == target.1 else {
+                error = String(localized: "项目或设备状态已变化，请检查运行目标后再次发送。草稿已保留。")
+                return nil
+            }
             let result = try await service.startSession(
                 connectorId: connector.id,
                 projectId: project.id,
-                runtime: runtime,
-                runtimeId: nil,
+                runtime: runtime.runtimeType,
+                runtimeId: runtime.runtimeId,   // 官方 :336-338：createAndStart 传真实例 id
                 title: nil,
                 cwd: project.workspacePath.isEmpty ? nil : project.workspacePath,
                 content: trimmedContent,

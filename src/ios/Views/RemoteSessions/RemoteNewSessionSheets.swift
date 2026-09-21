@@ -5,8 +5,9 @@
 //   • RemoteNewSessionWorkspaceSheet — 工作目录选择（官方 ProjectSelectionSheet 的
 //     本仓数据面等价：项目列表选择；文件系统浏览随文件批次）。
 //
-// 数据面：设备/运行时 inventory 走 RemoteService（runtimeTypes）；选择应用走
-// RemoteNewSessionModel.selectTarget（切设备 + 选 Agent）。
+// 数据面：设备清单 + 运行时实例 inventory 走 RemoteService（[RUNTIME-ID] 批后
+// 实例清单 runtimes，官方 V2DeviceRuntime 等价；类型清单 runtimeTypes 已退役）；
+// 选择应用走 RemoteNewSessionModel.selectTarget（切设备 + 选实例）。
 
 import SwiftUI
 
@@ -17,14 +18,15 @@ struct RemoteNewSessionTargetSheet: View {
     @State private var expandedDeviceId: String?
     @State private var applying: RemoteTargetSelection?
     @State private var selectionError: String?
-    /// 每设备 Agent inventory（runtimeTypes 缓存；展开时拉取）。
-    @State private var inventories: [String: [RemoteRuntimeType]] = [:]
+    /// 每设备 Agent inventory（运行实例清单缓存；展开时拉取，官方
+    /// loadInventory 语义——装载即 filter(\.configured)）。
+    @State private var inventories: [String: [RemoteDeviceRuntime]] = [:]
     @State private var loadingDevices: Set<String> = []
     @State private var inventoryErrors: [String: String] = [:]
 
     private struct RemoteTargetSelection: Equatable {
         let connectorId: String
-        let runtimeType: String
+        let runtimeId: String
     }
 
     private var devices: [RemoteConnector] {
@@ -123,40 +125,47 @@ struct RemoteNewSessionTargetSheet: View {
                 Button("刷新") { Task { await loadInventory(device.id) } }
                     .disabled(!device.isOnline)
             } else {
+                // 官方 SessionTargetSheet.instances(on:) 逐字：就绪优先，按
+                // sessionDisplayName + 实例 id 排。
                 let inventory = (inventories[device.id] ?? []).sorted {
-                    ($0.available ? 0 : 1, $0.displayName, $0.runtimeType)
-                        < ($1.available ? 0 : 1, $1.displayName, $1.runtimeType)
+                    ($0.isReadyForSession ? 0 : 1, $0.sessionDisplayName, $0.id)
+                        < ($1.isReadyForSession ? 0 : 1, $1.sessionDisplayName, $1.id)
                 }
                 if inventory.isEmpty, device.isOnline {
                     Text("还没有配置 Runtime。")
                         .font(.footnote).foregroundStyle(.secondary)
                         .padding(.vertical, 6)
                 }
-                ForEach(inventory, id: \.runtimeType) { runtime in
+                ForEach(inventory, id: \.id) { runtime in
                     Button {
                         apply(device: device, runtime: runtime)
                     } label: {
-                        HStack(spacing: 8) {
-                            Text(runtime.displayName)
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundStyle(runtime.available ? .primary : .secondary)
-                            if runtime.recommended {
-                                Text("推荐").font(.caption).foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 8) {
+                                Text(runtime.sessionDisplayName)
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(runtime.isReadyForSession ? .primary : .secondary)
+                                Spacer(minLength: 0)
+                                if applying == RemoteTargetSelection(connectorId: device.id, runtimeId: runtime.id) {
+                                    ProgressView().controlSize(.small)
+                                } else if model.selectedConnectorId == device.id,
+                                          model.selectedRuntimeId == runtime.id {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                }
                             }
-                            Spacer(minLength: 0)
-                            if applying == RemoteTargetSelection(connectorId: device.id, runtimeType: runtime.runtimeType) {
-                                ProgressView().controlSize(.small)
-                            } else if model.selectedConnectorId == device.id,
-                                      model.selectedRuntimeType == runtime.runtimeType {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(.secondary)
+                            // 官方 InlineSelectionButton detail = sessionUnavailableReason
+                            // （就绪实例为 nil 不占行）。
+                            if let reason = runtime.unavailableReason {
+                                Text(reason).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                             }
                         }
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .disabled(!device.isOnline || !runtime.available)
+                    // 官方把关（NewSessionModel:234）：未就绪实例不可选。
+                    .disabled(!device.isOnline || !runtime.isReadyForSession)
                 }
                 if !device.isOnline {
                     Text("目标设备离线").font(.footnote).foregroundStyle(.secondary)
@@ -179,23 +188,25 @@ struct RemoteNewSessionTargetSheet: View {
         loadingDevices.insert(id)
         inventoryErrors[id] = nil
         do {
-            let types = try await service.runtimeTypes(connectorId: id)
-            if !Task.isCancelled { inventories[id] = types }
+            // 官方 loadInventory :217/:227：装载即 filter(\.configured)。
+            let runtimes = try await service.runtimes(connectorId: id)
+            if !Task.isCancelled { inventories[id] = runtimes.filter(\.configured) }
         } catch {
             if !Task.isCancelled { inventoryErrors[id] = error.localizedDescription }
         }
         loadingDevices.remove(id)
     }
 
-    private func apply(device: RemoteConnector, runtime: RemoteRuntimeType) {
-        guard applying == nil, device.isOnline, runtime.available else { return }
-        let target = RemoteTargetSelection(connectorId: device.id, runtimeType: runtime.runtimeType)
+    private func apply(device: RemoteConnector, runtime: RemoteDeviceRuntime) {
+        // 官方 apply：connected + runtime.isReadyForSession 才发起应用。
+        guard applying == nil, device.isOnline, runtime.isReadyForSession else { return }
+        let target = RemoteTargetSelection(connectorId: device.id, runtimeId: runtime.id)
         applying = target
         selectionError = nil
         Task { @MainActor in
             let accepted = await model.selectTarget(
                 connectorId: target.connectorId,
-                runtimeType: target.runtimeType,
+                runtimeId: target.runtimeId,
                 service: service
             )
             applying = nil

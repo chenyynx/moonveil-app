@@ -104,7 +104,7 @@ struct RemoteNewSessionView: View {
                     connectorId: pending.0.connectorId,
                     workspacePath: pending.0.cwd,
                     projectId: pending.0.projectId,
-                    runtimeType: pending.0.runtimeType,
+                    runtimeId: pending.0.effectiveRuntimeId,   // 官方：runtimeID = meta.effectiveRuntimeId
                     text: pending.1.content,
                     attachments: pending.1.attachments)
             }
@@ -191,7 +191,7 @@ struct RemoteNewSessionView: View {
             HStack(spacing: 8) {
                 HStack(spacing: 4) {
                     // 官方 key「运行目标」的 zh-Hans 显示值 = 「设备和 Agent」
-                    Text(model.selectedRuntime?.displayName ?? String(localized: "设备和 Agent"))
+                    Text(model.selectedRuntime?.sessionDisplayName ?? String(localized: "设备和 Agent"))
                         .fontWeight(.semibold).layoutPriority(1)
                     if let device = model.selectedConnector {
                         Text(verbatim: "·").foregroundStyle(.secondary)
@@ -211,7 +211,7 @@ struct RemoteNewSessionView: View {
         }
         .disabled(model.isCreating)
         .accessibilityLabel(String(localized: "选择设备和 Agent"))
-        .accessibilityValue([model.selectedRuntime?.displayName, model.selectedConnector?.name].compactMap { $0 }.joined(separator: " · "))
+        .accessibilityValue([model.selectedRuntime?.sessionDisplayName, model.selectedConnector?.name].compactMap { $0 }.joined(separator: " · "))
         .accessibilityIdentifier("chat.new.target")
     }
 
