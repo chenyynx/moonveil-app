@@ -27,6 +27,12 @@ import SwiftUI
 final class ChatSelectableTextView: UITextView {
     var ownsContentWidth = false
 
+    /// 影子测量用字体。`UITextView.font` 是 `UIFont?`，而 `ShadowMeasurer.measure`
+    /// 要非可选（`addAttribute(.font, value:)` 收到 nil 会 trap）；不用 `?? 兜底`，
+    /// 因为兜底等于悄悄拿错字体量宽度（code / diff 面板是等宽字体）。由
+    /// `updateUIView` 与 representable 的 `font` 保持同步，默认值与那里逐字一致。
+    var measurementFont: UIFont = .preferredFont(forTextStyle: .body)
+
     override var intrinsicContentSize: CGSize {
         guard ownsContentWidth else { return super.intrinsicContentSize }
         let fit = sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
@@ -45,7 +51,7 @@ final class ChatSelectableTextView: UITextView {
     /// Text，measure 无副作用，本仓 UITextView 件必须靠**影子测量**补齐这个差异：
     /// 用一套完全独立的离屏 TextKit 组件量宽度，绝不碰 uiView 自己的容器状态。
     func hugSize(maxWidth: CGFloat) -> CGSize {
-        ShadowMeasurer.shared.measure(text, font: font, maxWidth: maxWidth)
+        ShadowMeasurer.shared.measure(text, font: measurementFont, maxWidth: maxWidth)
     }
 }
 
@@ -70,6 +76,7 @@ struct ChatSelectableText: UIViewRepresentable {
 
     func updateUIView(_ view: ChatSelectableTextView, context: Context) {
         view.font = font
+        view.measurementFont = font
         view.textColor = UIColor(color)
         view.ownsContentWidth = ownsContentWidth
         if view.text != text { view.text = text }
