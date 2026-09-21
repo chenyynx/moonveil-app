@@ -34,7 +34,11 @@ final class StreamingHangLogger {
     /// Cap each event's frame list when writing to the log so a single deep
     /// stack doesn't bloat one line into multiple KB. 20 frames still reaches
     /// well past the app→framework boundary that identifies a stall's owner.
-    private let maxFramesPerEvent: Int = 20
+    // [T-deep-recursion-diag] 20 frames from the leaf of a several-thousand-
+    // frame recursion never reaches app code; 64 still costs single-digit KB
+    // per event and reaches past the framework boundary in practice
+    // (moonveil 2026-09-22 stack-overflow investigation).
+    private let maxFramesPerEvent: Int = 64
     /// Flush cadence. Raised from 2s: these are batched writes of an already
     /// bounded buffer, so a longer interval costs nothing but far fewer wakeups.
     private let flushIntervalSeconds: Int = 10

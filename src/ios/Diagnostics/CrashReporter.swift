@@ -297,8 +297,18 @@ final class CrashReporter: NSObject, MXMetricManagerSubscriber {
         // crash-loop counter. May already have run if the launch path read
         // `shouldBypassSessionRestore` first — it is idempotent either way.
         evaluateCrashLoopIfNeeded()
-        try? FileManager.default.removeItem(at: Self.hangSnapshotURL)
-        try? FileManager.default.removeItem(at: Self.crashStackURL)
+        // [T-crash-evidence-ordering] Do NOT delete last_hang_snapshot.txt /
+        // last_crash_stack.txt at launch. writeReport() reads them to fill
+        // "Last HangDetector Stacks (before exit)", and it runs from TWO
+        // places: this launch's stale-marker check, AND MetricKit
+        // `didReceive` on the NEXT launch — the path that actually emits
+        // the report after a foreground crash. Deleting here won that race
+        // every time a hang preceded the crash, so every such report shipped
+        // with the section empty, precisely the case where the in-process,
+        // app-symbolicated freeze stack is the only usable evidence
+        // (moonveil 2026-09-22: remote chat page freeze→SIGSEGV; release
+        // inlining had eaten every app frame out of the .ips). Consumption
+        // is now writeReport()'s job — see the consume-once block there.
         writeLaunchMarker()
         // [T-crash-injected-dylib-tag] Scan + cache BEFORE registering the
         // MetricKit subscriber: `didReceive` delivers on a background queue
@@ -1055,6 +1065,11 @@ final class CrashReporter: NSObject, MXMetricManagerSubscriber {
             report += "\n--- Signal/Exception Crash Stack ---\n"
             report += crashStack + "\n"
         }
+        // Consume once the report is written: the snapshot has served its
+        // purpose, and leaving it would let a later unrelated report replay
+        // a stale hang ([T-crash-evidence-ordering]).
+        try? FileManager.default.removeItem(at: Self.hangSnapshotURL)
+        try? FileManager.default.removeItem(at: Self.crashStackURL)
 
         report += "\n--- MetricKit Call Stack ---\n"
         if let stack = callStack {
