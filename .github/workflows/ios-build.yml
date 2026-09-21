@@ -91,10 +91,13 @@ jobs:
             # the job summary so gh api check-runs/<id> always yields it.
             { echo '### xcodebuild error surface'; echo '```'; \
               grep -E 'error:' /tmp/ios-build.log | grep -v ' *|' | sort -u | head -60; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-            # Also emit as annotations: retrievable via check-runs/<id>/annotations
-            # even when the blob-log store is down (summary endpoint proved empty today).
-            grep -E 'error:' /tmp/ios-build.log | grep -v ' *|' | sort -u | head -25 | \
-              while IFS= read -r line; do echo "::error::${line:0:200}"; done
+            # Annotations: checks API hard-caps a check run at 50 annotations
+            # (docs.github.com REST checks/runs: "maximum of 50 annotations");
+            # head -50 takes exactly the retrievable budget, 700 chars keeps
+            # file:line:col + full diagnostic text on one line. Anything beyond
+            # that lives in the ios-build-log artifact (gh run download).
+            grep -E 'error:' /tmp/ios-build.log | grep -v ' *|' | sort -u | head -50 | \
+              while IFS= read -r line; do echo "::error::${line:0:700}"; done
             # [PROBE 2026-09-15] permitsRetry paradox: same 6.2 compiler, macOS
             # swift-build(v5-pinned)=green vs Xcode=red. What did the frontend ACTUALLY
             # receive? Emit histogram + effective settings via proven annotation channel.
@@ -102,11 +105,20 @@ jobs:
                 while IFS= read -r l; do echo "::error::PROBE version-histogram:${l}"; done; \
               grep -c 'permitsRetry' /tmp/ios-build.log | xargs -I{} echo "::error::PROBE permitsRetry-lines:{}"; \
               xcodebuild -showBuildSettings -project Minis.xcodeproj -target Minis \
-                -configuration Release 2>/dev/null | grep -E 'SWIFT_VERSION|STRICT_CONCURRENCY|SWIFT_UPCOMING_FEATURE' | \
+                -configuration Release 2>/dev/null | grep -E 'SWIFT_VERSION|STRICT_CONCURRENCY|SWIFT_UPCOMING_FEATURE|SWIFT_APPROACHABLE_CONCURRENCY|SWIFT_DEFAULT_ACTOR_ISOLATION' | \
                 sed 's/^ *//' | while IFS= read -r l; do echo "::error::PROBE setting:${l:0:120}"; done; \
             } | head -15
             exit 1
           fi
+          # [CONFIG-PROOF 2026-09-21] Track C rests on Xcode 26.2 honouring
+          # SWIFT_APPROACHABLE_CONCURRENCY. A green build alone cannot tell "key worked"
+          # from "key silently ignored" — echo resolved settings on EVERY run so one CI
+          # cycle is proof either way.
+          { echo '### resolved Swift concurrency settings (Minis/Release)'; echo '```'; \
+            xcodebuild -showBuildSettings -project Minis.xcodeproj -target Minis \
+              -configuration Release 2>/dev/null \
+              | grep -E 'SWIFT_APPROACHABLE_CONCURRENCY|SWIFT_DEFAULT_ACTOR_ISOLATION|SWIFT_VERSION|SWIFT_STRICT_CONCURRENCY' \
+              | sed 's/^ *//'; echo '```'; } >> "$GITHUB_STEP_SUMMARY" || true
           mkdir -p build/Payload
           cp -r build/DerivedData/Build/Products/Release-iphoneos/Minis.app build/Payload/
           # CFBundleVersion = run number (monotonic, clone-depth independent — claudio 2026-09-09).
@@ -115,6 +127,17 @@ jobs:
           echo "CFBundleVersion set to $BUILD_NO"
           cd build
           zip -qr "Moonveil-unsigned-${GITHUB_SHA::7}.ipa" Payload
+
+      - name: Upload full build log (blob-log EOF insurance)
+        # Actions blob log storage intermittently undownloadable (2026-09-15 x2,
+        # 2026-09-20 again): keep the WHOLE xcodebuild log as an artifact so
+        # `gh run download <id> -n ios-build-log` always yields the error surface.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log-${{ github.run_id }}
+          path: /tmp/ios-build.log
+          retention-days: 7
 
       - name: Upload ipa artifact
         uses: actions/upload-artifact@v4

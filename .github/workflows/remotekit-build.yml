@@ -37,7 +37,19 @@ jobs:
               grep -E 'error:' /tmp/rk-build.log | grep -v '`-' | sort -u | head -40
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
-            grep -E 'error:' /tmp/rk-build.log | grep -v '`-' | sort -u | head -25 | \
-              while IFS= read -r line; do echo "::error::${line:0:200}"; done
+            # Checks API caps a check run at 50 annotations (docs.github.com REST
+            # checks/runs); head -50 spends the full retrievable budget, 700 chars
+            # keeps file:line + the whole diagnostic on one line.
+            grep -E 'error:' /tmp/rk-build.log | grep -v '`-' | sort -u | head -50 | \
+              while IFS= read -r line; do echo "::error::${line:0:700}"; done
             exit 1
           fi
+      - name: Upload full build log (blob-log EOF insurance)
+        # Same 2026-09-15/09-20 blob-log EOF class as iOS Build: gh run download
+        # rk-build-log-<run_id> always yields the complete swift build log.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rk-build-log-${{ github.run_id }}
+          path: /tmp/rk-build.log
+          retention-days: 7

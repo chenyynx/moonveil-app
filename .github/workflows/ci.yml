@@ -35,3 +35,27 @@ jobs:
         run: bash scripts/fork-point-audit.sh
       - name: aav2-freeze
         run: bash scripts/aav2-freeze-check.sh
+      # [GATE-SWIFT-LINUX 2026-09-21] Syntax-layer gates that used to be caught only
+      # by 8-18min macOS iOS Build: strict pbxproj grammar (55x missing-';' class),
+      # disk->pbxproj registration (V2PreparedSession class), swiftc -parse sweep
+      # (syntax class), case-mirror symbol spelling (contentmodifier class).
+      - name: pbxproj-strict-syntax
+        run: python3 scripts/pbxproj-strict-check.py
+      - name: swift-reverse-registration
+        # dependency install mirrors the input-audit step; idempotent pip (<2s)
+        run: |
+          python3 -m pip install --quiet openstep-parser
+          python3 scripts/audit-swift-registration.py
+      - name: swift-case-spelling
+        run: python3 scripts/swift-spelling-check.py
+      - name: swift-syntax-parse
+        run: |
+          set -euo pipefail
+          SWV=swift-6.0.3-RELEASE-ubuntu24.04
+          if [ ! -x "$HOME/swift-dist/$SWV/usr/bin/swiftc" ]; then
+            curl -sSfL --retry 3 "https://download.swift.org/swift-6.0.3-release/ubuntu2404/$SWV/$SWV.tar.gz" -o /tmp/swift.tgz
+            mkdir -p "$HOME/swift-dist"
+            tar -xzf /tmp/swift.tgz -C "$HOME/swift-dist"
+            rm -f /tmp/swift.tgz
+          fi
+          SWIFTC="$HOME/swift-dist/$SWV/usr/bin/swiftc" bash scripts/swift-parse-check.sh
