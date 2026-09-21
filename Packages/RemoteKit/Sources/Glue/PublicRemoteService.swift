@@ -515,6 +515,12 @@ public final class RemoteService: ObservableObject {
                 }
             )
         }
+        // 官方 ChatShellView:207-210 `onCreated` 的第一半（`appState.updateSession(session)`
+        // → `dashboardRepository.upsert([session])`，官方 AppState:627-629）在本 seam 内
+        // 落地：`V2SessionMeta` 未声明 Sendable，进不了 `RemoteSessionCreated` 的公开面
+        // （故该结构仍带 `sessionMetaJSON` 直传载荷）。写库时序与官方一致：create 成功
+        // → 立刻写仓库 → 调用方再导航，聊天页/列表都从同一份 dashboard 投影取数。
+        chat?.updateSession(r.session)
         return .init(sessionId: r.session.id, sessionMetaJSON: try encode(r.session))
     }
 

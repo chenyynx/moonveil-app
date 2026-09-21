@@ -166,6 +166,12 @@ final class V2RemoteChatServices {
         updateAgentConnections()
     }
 
+    /// 官方 AppState.updateSession（627-629）：单条会话写回 dashboard 仓库
+    /// （官方新建会话成功回调 ChatShellView:207-210 用的就是这条，非批量版）。
+    func updateSession(_ updated: V2SessionMeta) {
+        dashboardRepository.upsert([updated])
+    }
+
     /// 官方 AppState.updateSessions（641）：批量会话写回 dashboard 仓库。
     func updateSessions(_ updated: [V2SessionMeta]) {
         dashboardRepository.upsert(updated)

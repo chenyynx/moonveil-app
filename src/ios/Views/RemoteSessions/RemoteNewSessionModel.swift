@@ -10,7 +10,8 @@
 //     selectedRuntimeId 选实例；装载 filter(\.configured)（官方 :217/:227）、
 //     选择把关 isReadyForSession（官方 :234）、create 传真实例 runtime.id
 //     （官方 :336-338）。
-//   • 提交走 startSession；成功回调 sessionId（由页面 dismiss 回列表）。
+//   • 提交走 startSession；成功回调 sessionId（官方 ChatShellView:207-210 语义：
+//     dashboard 写回在 Glue seam 内完成，列表页据 sessionId 关闭 cover 后 push 聊天页）。
 
 import SwiftUI
 

@@ -96,6 +96,11 @@ struct RemoteSessionListView: View {
     /// NavigationStack → navigationDestination）。
     @State private var showsChat = false
     @State private var chatSessionId: String?
+    /// [NEW-SESSION-OPEN] 新建会话成功后的待打开 sessionId：官方是原地换 selection
+    /// （ChatShellView:209 `openSession`），本仓新会话页是 fullScreenCover，必须等
+    /// cover 关掉再 push——与 dismiss 同一事务里改 NavigationStack 路径有被吞的先例
+    /// （[T-ios-stacknav-transition-attributegraph-race]）。
+    @State private var pendingChatSessionId: String?
     /// 官方 ChatShellView:198 `appState.connectors.first { $0.id == connectorID }?.name`
     /// 的本仓等价物：无常驻 connectors 镜像 → 就绪时拉一次，供聊天页副标题与文件页标题。
     @State private var connectorNames: [String: String] = [:]
@@ -159,10 +164,21 @@ struct RemoteSessionListView: View {
             .fullScreenCover(isPresented: $showsNewSession) {
                 // 新会话全屏页（AA 官方 NewSessionView 形态：欢迎区 glyph 揭示 +
                 // 目标胶囊 + 工作目录行 + 底部 composer；2026-09-20 pp「aa的打开
-                // 是这样的」）。创建成功 → 刷新列表；与项目头 + 是两个不同入口。
-                RemoteNewSessionView(service: service) { _ in
+                // 是这样的」）。创建成功 → 刷新列表 + 记下 sessionId 待 cover 关闭后
+                // push 聊天页（[NEW-SESSION-OPEN]，对齐官方 ChatShellView:207-210）；
+                // 与项目头 + 是两个不同入口。
+                RemoteNewSessionView(service: service) { id in
+                    pendingChatSessionId = id
                     loader.load(service: service, filter: archiveFilter, force: true)
                 }
+            }
+            // [NEW-SESSION-OPEN] 官方 onCreated 的第二半（`openSession(session.id)`）：
+            // cover 关闭事件到达后才 push，避免与 dismiss 抢同一次事务。
+            .onChange(of: showsNewSession) { _, presented in
+                guard !presented, let id = pendingChatSessionId else { return }
+                pendingChatSessionId = nil
+                chatSessionId = id
+                showsChat = true
             }
             .sheet(isPresented: $showsArchives) {
                 RemoteArchivedSessionsSheet(service: service)
@@ -371,6 +387,13 @@ struct RemoteSessionListView: View {
         // P1-CHAT：会话聊天页（官方 ChatShell selection 的本仓导航等价物）
         .navigationDestination(isPresented: $showsChat) {
             chatDestination
+        }
+        // 与上面 showsDeviceDetail 同款页切栅栏/顶栏齿轮开关（pp 2026-09-21：
+        // 聊天页左上角两个 ≡ 叠着）。聊天页 push 时没复位 remoteAtRoot，外壳
+        // topLeading 齿轮（RootModeTabsView gearVisible = remoteAtRoot）继续显示，
+        // 和 ChatPageToolbar 自己的 topBarLeading 返回键叠在一起。
+        .onChange(of: showsChat) { _, pushed in
+            RootTabRouter.shared.remoteAtRoot = !pushed
         }
         // PAIRING-FULL 收尾（P2-B）：官方 ChatShellView:39-45/53-59 形状——配对就绪的
         // 设备弹 AgentSetupSheet（原「跳设备详情页」过渡移除）；关闭 = finish + 刷 dashboard。

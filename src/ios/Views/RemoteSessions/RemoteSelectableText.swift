@@ -11,35 +11,41 @@
 // 不传导进 UITextView（iOS 17 无公开 Font→UIFont 转换），故字号/颜色由调用点显式
 // 传入，三处调用点各给与官方等值的样式（见各文件字据）。符号沿用官方名
 // `ChatSelectableText`，使搬运件的调用形状保持逐字。
+// 尺寸语义补齐（BUBBLE-HUG）：官方 `InlineText` 在 SwiftUI 里按文本用字宽度参与
+// 布局；UIViewRepresentable 默认不参与 → 必须自己实现 `sizeThatFits` 报 hug 宽度，
+// 否则官方 `UserMessageBubble` 的 `Spacer(minLength: 48)` 与本件平分宽度。
 //
 // 先例：本机线 AIChatView 内同法 `SelectableTextView`（private 不可复用）。
 
 import SwiftUI
 
 /// 两种尺寸模式：
-/// - 默认：宽度由 SwiftUI 容器给定，高度 = 该宽度下的排版高度（用户气泡）。
+/// - 默认：宽度 = 文本在容器上限内的实际排版宽度（hug，同官方 `InlineText`），
+///   高度 = 该宽度下的排版高度（用户气泡）。
 /// - `ownsContentWidth`：按内容宽度撑开（官方 code / diff 面板在横向 ScrollView
 ///   内用 `.fixedSize(horizontal: true, vertical: false)`）。
 final class ChatSelectableTextView: UITextView {
     var ownsContentWidth = false
-    private var lastHeight: CGFloat = 0
 
     override var intrinsicContentSize: CGSize {
-        if ownsContentWidth {
-            let fit = sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
-            return CGSize(width: ceil(fit.width), height: ceil(fit.height))
-        }
-        return CGSize(width: UIView.noIntrinsicMetric, height: lastHeight)
+        guard ownsContentWidth else { return super.intrinsicContentSize }
+        let fit = sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
+        return CGSize(width: ceil(fit.width), height: ceil(fit.height))
     }
 
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        guard !ownsContentWidth, bounds.width > 0 else { return }
-        let fit = sizeThatFits(CGSize(width: bounds.width, height: .greatestFiniteMagnitude))
-        let height = ceil(fit.height)
-        guard abs(height - lastHeight) > 0.5 else { return }
-        lastHeight = height
-        invalidateIntrinsicContentSize()
+    /// 官方 `InlineText` 的宽度语义：在给定上限内按文本实际排版宽度收拢。
+    /// 不能用 `sizeThatFits` 的返回值当宽度——UITextView 在该路径回传的是约束
+    /// 宽度而非用字宽度（气泡会被拉满整行、文字左靠，pp 2026-09-21 装机截图），
+    /// 故临时把 textContainer 撑到上限后取 `usedRect`，量完立即还原；
+    /// `widthTracksTextView` 保持 true，下一次布局仍按 bounds 复位容器宽度。
+    func hugSize(maxWidth: CGFloat) -> CGSize {
+        let container = textContainer
+        let saved = container.size
+        container.size = CGSize(width: maxWidth, height: .greatestFiniteMagnitude)
+        layoutManager.ensureLayout(for: container)
+        let used = layoutManager.usedRect(for: container)
+        container.size = saved
+        return CGSize(width: min(ceil(used.width), maxWidth), height: ceil(used.height))
     }
 }
 
@@ -69,6 +75,18 @@ struct ChatSelectableText: UIViewRepresentable {
         if view.text != text { view.text = text }
         view.invalidateIntrinsicContentSize()
         view.setNeedsLayout()
+    }
+
+    /// 默认模式的 SwiftUI 尺寸入口。不实现则 SwiftUI 落到 `intrinsicContentSize`
+    /// 的宽度 = `noIntrinsicMetric` → 本件在宽度上"可变"，会和同一 `HStack` 里的
+    /// `Spacer(minLength: 48)`（官方 `UserMessageBubble`）平分宽度，气泡被拉满。
+    /// `ownsContentWidth` 返回 nil：走 SwiftUI 默认（读 intrinsicContentSize），
+    /// 由调用点 `.fixedSize(horizontal: true, ...)` 决定宽度。
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: ChatSelectableTextView, context: Context) -> CGSize? {
+        guard !uiView.ownsContentWidth else { return nil }
+        let proposed = proposal.width ?? .infinity
+        let maxWidth = proposed.isFinite ? proposed : UIView.layoutFittingExpandedSize.width
+        return uiView.hugSize(maxWidth: maxWidth)
     }
 }
 
