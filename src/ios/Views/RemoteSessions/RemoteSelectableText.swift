@@ -122,7 +122,7 @@ private final class ShadowMeasurer {
     private let cacheLimit = 64
 
     private init() {
-        container = NSTextContainer(size: CGSize(width: 0, height: .greatestFiniteMagnitude))
+        container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
         container.widthTracksTextView = false
         container.lineFragmentPadding = 0
         storage.addLayoutManager(layoutManager)
@@ -135,7 +135,7 @@ private final class ShadowMeasurer {
         if cache.count >= cacheLimit { cache.removeAll() }
 
         let capped = min(maxWidth, 10_000)
-        container.size = CGSize(width: capped, height: .greatestFiniteMagnitude)
+        container.size = CGSize(width: capped, height: CGFloat.greatestFiniteMagnitude)
         storage.replaceCharacters(in: NSRange(location: 0, length: storage.length), with: text)
         storage.addAttribute(.font, value: font, range: NSRange(location: 0, length: storage.length))
         layoutManager.ensureLayout(for: container)
