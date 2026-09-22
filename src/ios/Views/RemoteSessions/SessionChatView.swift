@@ -122,17 +122,31 @@ struct SessionChatView: View, Equatable {
             // 按钮只挂在 notice 卡上，卡又依赖 runtime.notices，runtime 不新鲜
             // 时永远到不了，页面停在「正在同步 + 永不结束的回合」的 limbo
             // （2026-09-22 崩溃会话触发态；pp 实测：控制台处理掉待批准即不崩）。
-            // 打开时 runtime 陈旧就主动拉（有界 3 次，refresh 内部自吞错误），
+            // 打开时 runtime 陈旧先快速拉（随后由 [T-session-stale-retry] 常驻接管），
             // notice/runtime 到位后卡片与状态自然恢复；失败则维持官方同款
             // 「正在同步」显示，配合 [T-marker-shimmer-gate] 保证渲染扛住。
-            if !session.runtime.isFresh {
-                for _ in 0..<3 {
-                    await session.refresh()
-                    if session.runtime.isFresh || Task.isCancelled { break }
-                    do { try await Task.sleep(for: .seconds(5)) } catch { break }
-                }
-            }
             await model.timeline.run(sessionID: session.id, repository: model.repository)
+        }
+        // [T-session-stale-retry] 打开期间 stale 的有界退避重拉。pp 2026-09-22 实测：
+        // agent 端掉线后页面停在「正在同步 + 发送键灰」，而 selfheal 只在打开时拉
+        // 3 次——页面开着期间掉线必须退出重进才有机会恢复。改为常驻重试：stale 即
+        // 拉（fresh 即重置计数），指数退避 10s→20s→40s→封顶 60s，总尝试封顶 60 次
+        // （≈1 小时窗口）；页面关闭 / 切会话自动随 task 取消，agent 一恢复即自愈。
+        .task(id: hasStartedLoading) {
+            guard hasStartedLoading, session.isValid else { return }
+            var attempt = 0
+            while !Task.isCancelled {
+                if session.runtime.isFresh {
+                    attempt = 0
+                } else {
+                    await session.refresh()
+                    attempt += 1
+                }
+                if attempt >= 60 { break }
+                let delay = attempt == 0 ? 5.0
+                    : min(5.0 * pow(2.0, Double(min(attempt, 4))), 60.0)
+                do { try await Task.sleep(for: .seconds(delay)) } catch { break }
+            }
         }
         .sheet(item: $sheet) { destination in sheetContent(destination) }
         .environment(\.openURL, OpenURLAction { url in
