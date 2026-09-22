@@ -26,36 +26,27 @@ jobs:
       - name: import-direction
         run: bash scripts/import-scan.sh
       - name: import-direction-deep-scan
-        # [BATCH-B 2026-09-22] The deep mode (full generated word list instead of the 6
-        # hardcoded names) existed but was never called by any workflow — a gate nobody
-        # runs. Wired here so the 23 violating symbols are visible in every PR log.
-        # KNOWN RED, PENDING DECISION (do not "fix" by deleting the step):
-        #   Scope as measured on 2026-09-22 (re-measure: RK_GATE_FULL_SCAN=1 bash
-        #   scripts/import-scan.sh): 23 distinct symbols, 54 hit lines, all under
-        #   src/ios/Views/RemoteSessions/ (20 files). 20 of the 23 are AAV2-internal
-        #   frozen types (V2Connector/V2Project/V2SessionMeta/JSONValue/...), 3 are the
-        #   sanctioned Glue facades (RemoteService/RemoteServiceError/
-        #   RemotePairingPayload) — the latter are word-list false positives.
-        #   Adding RemoteSessions to SEAM_DIRS would turn this step green by
-        #   construction (it is the only non-seam consumer), i.e. a gate that can never
-        #   fire — refused. Needs pp: either register RemoteSessions as a documented seam
-        #   with a facade-only allow list, or mirror the 20 types into Glue.
-        # Flip continue-on-error away once the seam question is settled AND the registry
-        # is refreshed (rk-registry-freshness below) — a refreshed list grows this to 83.
+        # Deep mode = full generated word list instead of the 6 hardcoded names.
+        # [SEAM 2026-09-22] Registry refreshed 211 -> 312 words; the 83 symbols it
+        # exposed are 100% inside src/ios/Views/RemoteSessions (41 of its 58 files,
+        # ported AA components + remote-line pages). NO banned word removed, NO grep
+        # pattern narrowed.
+        # pp decision 2026-09-22: those 41 files are sanctioned individually via
+        # scripts/rk-seam-files.txt -- NOT by registering the directory, which would
+        # leave this step unable to ever fire for the one place that keeps growing
+        # RemoteKit references. New offender => new row => the diff is the review point.
         env:
           RK_GATE_FULL_SCAN: "1"
-        continue-on-error: true
         run: bash scripts/import-scan.sh
+      - name: remote-archive-payload-losslessness
+        # Structural backstop for the four archive write paths' lossless return:
+        # Bool/Void regressions die in iOS Build, silent empty-payload /
+        # argument-less-trigger degradations compile fine - this gate catches those.
+        run: bash scripts/remote-archive-payload-gate.sh
       - name: rk-registry-freshness
-        # [BATCH-B 2026-09-22] scripts/rk-symbol-registry.txt is generated, and it had
-        # rotted: 211 committed vs 312 regenerated (+101 incl. ComposerDraft,
-        # V2WorkspaceEntry — both in real use). --check re-derives it read-only and exits
-        # 1 on drift.
-        # KNOWN RED, PENDING DISPOSITION: the list is stale today. Regenerating it is
-        # deliberately NOT part of this batch because a fresh list widens the deep scan
-        # above from 23 to 83 violating symbols; the two must land together with the
-        # RemoteSessions seam decision. Refresh = `python3 scripts/gen_rk_registry.py`.
-        continue-on-error: true
+        # [SEAM-LOSSLESS 2026-09-22] Landed together with the seam registration above:
+        # list is 312 words and fresh; --check now hard-blocks future drift
+        # (teeth: deleting one line -> exit 1, verified locally).
         run: python3 scripts/gen_rk_registry.py --check
       - name: pbxproj-input-audit
         run: |
@@ -65,39 +56,32 @@ jobs:
         run: python3 scripts/audit-aa-assets.py
       - name: fork-point
         run: bash scripts/fork-point-audit.sh
-      - name: aav2-freeze (structure + manifest)
-        # [BATCH-B 2026-09-22] --structure-only = disk⇔manifest bidirectional assertion +
-        # digest check. Blocks. It does NOT compare against upstream — see the baseline
-        # step below for that; this flag is a temporary crutch while those reds are open.
-        run: bash scripts/aav2-freeze-check.sh --structure-only
-      - name: aav2-freeze-baseline (vs pinned upstream v2.0.0)
-        # Real byte-level check that needs no official repo on the runner: it compares
-        # every frozen file against scripts/aav2-freeze-baseline.txt (upstream tag digests,
-        # committed in this repo; strong mode re-derives and audits that file locally).
-        # Previously CI silently downgraded to "manifest self-consistent" and printed OK.
-        # KNOWN RED — 2 files beyond approved transforms (raw-byte count against v2.0.0 is
-        # 3: Network/HTTPTransport.swift also differs, that one is the pp-signed
-        # AAV2-AWAIT-1 sed and is expected). Cause adjudicated 2026-09-22 = BASELINE LAG,
-        # not local edits:
-        #   Models/Chat/MarkdownBlockSizing.swift   (+20 lines: MarkdownMeasurementCache)
-        #   Models/Chat/TimelineHistoryPull.swift   (+Equatable, +explicit init)
-        #   Both entered this repo in one commit (6582129) and were never touched since; their
-        #   local bytes are provably EQUAL to upstream ios-ci tip 1bc11f45 (sha256 spot-checked
-        #   against $MV_CLOUD: 4f0a884b… / b7bd95b2…), i.e. Doris ported them from a state 27
-        #   commits past the v2.0.0 anchor. The manifest never held upstream bytes at all,
-        #   so nothing was "absorbed" — this step is what made the gap visible.
-        # Disposition needs pp (anchor choice, same weight as the pp-signed AAV2-AWAIT-1):
-        #   ① revert to v2.0.0 verbatim = compiler-red, proven: ChatTimelineView.swift needs
-        #     an explicit TimelineHistoryPull(edge:) initializer (used by the `.older` @State)
-        #     and Equatable (used by `if latest != latestPull`), neither exists in v2.0.0.
-        #   ② register as an approved local deviation (AAV2-AWAIT-1 style) = mislabels upstream
-        #     changes as our edits.
-        #   ③ raise the AAV2_BASE_TAG anchor to 1bc11f45 + regenerate the baseline = keeps full
-        #     byte-level coverage and lets the --structure-only crutch above be removed.
-        # Do NOT delete the manifest rows and do NOT re-sha256 the baseline from local files
-        # to make this green — the baseline must always be derived from $MV_CLOUD only.
-        continue-on-error: true
+      - name: aav2-freeze (structure + manifest + pinned-upstream baseline)
+        # Byte-level verbatim gate vs upstream rev 1bc11f45. Anchor raised 2026-09-22
+        # from v2.0.0 (=10300fd5) after adjudicating the two files that looked like local
+        # edits but were BASELINE LAG: MarkdownBlockSizing.swift and
+        # TimelineHistoryPull.swift entered this repo in one commit (6582129), untouched
+        # since, and their bytes equal upstream 1bc11f45 (Doris ported them from a state
+        # 27 commits past v2.0.0). Reverting them to v2.0.0 verbatim is compiler-red
+        # (ChatTimelineView needs TimelineHistoryPull(edge:) + Equatable, absent there),
+        # and labelling upstream changes as our own approved deviation would be a lie --
+        # so the anchor moved instead, and the --structure-only crutch is gone.
+        # Default mode = disk<->manifest structure assertion + manifest digests + every
+        # file vs the committed upstream baseline (scripts/aav2-freeze-baseline.txt). The
+        # runner has no copy of the official repo, so that committed list IS the CI-side
+        # anchor; strong mode (MV_CLOUD set) additionally re-derives and audits it.
+        # Green at 1bc11f45: Network/HTTPTransport.swift is the pp-signed AAV2-AWAIT-1
+        # sed, normalized by expected_bytes(). The baseline must only ever be derived
+        # from $MV_CLOUD -- re-sha256ing it from local files is how this gate dies.
         run: bash scripts/aav2-freeze-check.sh
+      - name: authaa-freeze (verbatim AuthAA/SettingsSkin vs pinned upstream)
+        # Second zone of the shared freeze engine (scripts/freeze-check.sh): the 8
+        # byte-identical Agents-Anywhere files under src/ios/Views/AuthAA and
+        # src/ios/Views/SettingsSkin had ZERO gate coverage before 2026-09-22. Same
+        # anchor 1bc11f45. The 10 intentionally-skinned / no-upstream files are
+        # allow-listed in scripts/authaa-skin-allowlist.txt; any file in those dirs that
+        # is in neither list fails the structure assertion.
+        run: bash scripts/authaa-freeze-check.sh
       # [GATE-SWIFT-LINUX 2026-09-21] Syntax-layer gates that used to be caught only
       # by 8-18min macOS iOS Build: strict pbxproj grammar (55x missing-';' class),
       # disk->pbxproj registration (V2PreparedSession class), swiftc -parse sweep

@@ -1,0 +1,61 @@
+# import-scan.sh explicit seam file list (pp decision 2026-09-22: per-file, NOT whole-directory).
+#
+# Each file below is a sanctioned consumer of RemoteKit internals (AAV2/Glue non-public names).
+# A file that is NOT listed here fails the scan the moment it references a registry symbol --
+# including new files dropped into src/ios/Views/RemoteSessions/. That is the whole point:
+# registering the directory instead would make the deep scan unable to ever fire for the one
+# place that keeps growing RemoteKit references.
+#
+# To add a file: put its path here in the same commit that introduces the reference, so the
+# diff itself is the review point. Stale paths (listed but gone from disk) are a hard error.
+# Regenerate from scratch -- this mirrors import-scan.sh's own matching (absolute search
+# root, absolute SEAM_DIRS, \b at the word end, xcodeproj excluded, ROOT prefix stripped);
+# a relative-path version silently yields 0 files because SEAM_DIRS is absolute:
+#   ROOT=$(git rev-parse --show-toplevel)
+#   SEAM_DIRS="$ROOT/src/ios/Views/ModeTabs|$ROOT/src/ios/Views/AuthAA|$ROOT/Packages"
+#   for w in $(sed -e '/^#/d' -e '/^$/d' "$ROOT/scripts/rk-symbol-registry.txt"); do
+#     grep -rlE "(^|[^.[:alnum:]_])${w}\b" --include=*.swift "$ROOT/src" 2>/dev/null \
+#       | grep -Ev "$SEAM_DIRS" | grep -v "Minis.xcodeproj"
+#   done | sed "s|^$ROOT/||" | sort -u
+# Count: 41 files, 100% inside src/ios/Views/RemoteSessions (of 58 .swift files there).
+src/ios/Views/RemoteSessions/AddDeviceAgentSheet.swift
+src/ios/Views/RemoteSessions/AgentSetupCoordinator.swift
+src/ios/Views/RemoteSessions/ChatComposerAttachment.swift
+src/ios/Views/RemoteSessions/ChatComposerDock.swift
+src/ios/Views/RemoteSessions/ChatComposer.swift
+src/ios/Views/RemoteSessions/ChatHeaderStatus.swift
+src/ios/Views/RemoteSessions/ChatMessageAttachments.swift
+src/ios/Views/RemoteSessions/ChatTimelineView.swift
+src/ios/Views/RemoteSessions/ComposerOptionsSheet.swift
+src/ios/Views/RemoteSessions/ConnectorCredentialSheet.swift
+src/ios/Views/RemoteSessions/DeviceAgentSection.swift
+src/ios/Views/RemoteSessions/NativeComposerEditor.swift
+src/ios/Views/RemoteSessions/PairDeviceSheet.swift
+src/ios/Views/RemoteSessions/RemoteDeviceDetailView.swift
+src/ios/Views/RemoteSessions/RemoteNewSessionModel.swift
+src/ios/Views/RemoteSessions/RemoteNewSessionReveal.swift
+src/ios/Views/RemoteSessions/RemoteNewSessionSheets.swift
+src/ios/Views/RemoteSessions/RemoteNewSessionView.swift
+src/ios/Views/RemoteSessions/RemoteSessionListView.swift
+src/ios/Views/RemoteSessions/RemoteSessionLoader.swift
+src/ios/Views/RemoteSessions/RemoteSheets.swift
+src/ios/Views/RemoteSessions/RuntimeConfigurationFieldView.swift
+src/ios/Views/RemoteSessions/RuntimeConfigurationRowEditors.swift
+src/ios/Views/RemoteSessions/RuntimeConfigurationSheet.swift
+src/ios/Views/RemoteSessions/SessionChatView.swift
+src/ios/Views/RemoteSessions/SessionDetailsSheet.swift
+src/ios/Views/RemoteSessions/SessionFileReferenceLinks.swift
+src/ios/Views/RemoteSessions/SessionInteractionCard.swift
+src/ios/Views/RemoteSessions/SessionInteractionContent.swift
+src/ios/Views/RemoteSessions/SessionInteractionDetailsSheet.swift
+src/ios/Views/RemoteSessions/SessionInteractionDock.swift
+src/ios/Views/RemoteSessions/SessionNoticesSheet.swift
+src/ios/Views/RemoteSessions/SessionTimelineEventView.swift
+src/ios/Views/RemoteSessions/SessionTimelineRow.swift
+src/ios/Views/RemoteSessions/SessionTurnActions.swift
+src/ios/Views/RemoteSessions/SessionTurnReviewSheet.swift
+src/ios/Views/RemoteSessions/V2PairingCommand.swift
+src/ios/Views/RemoteSessions/WorkspaceFileExportPicker.swift
+src/ios/Views/RemoteSessions/WorkspaceFilePreviewSheet.swift
+src/ios/Views/RemoteSessions/WorkspaceFilesSheet.swift
+src/ios/Views/RemoteSessions/WorkspacePreviewDownloads.swift
