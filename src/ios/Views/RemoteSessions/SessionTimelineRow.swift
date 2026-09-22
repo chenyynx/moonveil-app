@@ -3,6 +3,8 @@
 //   • `ChatMarkdownView`（官方 Textual 渲染件）→ Moonveil `SelectableMarkdownView`（§0f）。
 //   • `ChatSelectableText` 保持符号与调用形状，实现换成本仓 UITextView 件
 //     （RemoteSelectableText.swift，§0f 禁 Textual）；字号改由调用点显式传入。
+//     （B9-FIX4 起该件实名 `LocalChatSelectableText`——官方同名件随 [T-remote-skin]
+//     Batch 1 落地，垫片让名。）
 //   • `.traceChatLayout(...)` 诊断修饰剥离（本仓无 ChatLayoutDiagnostics 基建，
 //     见差集表 A-1 末行）；官方 markdown 件上的 `.environment(\.chatLayoutTraceOwner,)`
 //     是同一诊断链的键（仅被 trace 读取，SwiftUI environment 亦不下传 UIViewRepresentable）
@@ -99,7 +101,7 @@ struct UserMessageBubble: View {
                     ChatMessageAttachments(files: attachments, onOpen: onAttachment, loadThumbnail: loadThumbnail)
                 }
                 if !text.isEmpty {
-                    ChatSelectableText(text: text, font: ChatSelectableTextStyle.body)
+                    LocalChatSelectableText(text: text, font: ChatSelectableTextStyle.body)
                         .padding(.horizontal, 17).padding(.vertical, 12)
                         .background(colorScheme == .dark ? Color(white: 0.13) : Color(white: 0.94), in: .rect(cornerRadius: 24))
                 }

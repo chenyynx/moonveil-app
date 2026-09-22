@@ -16,6 +16,11 @@
 // 否则官方 `UserMessageBubble` 的 `Spacer(minLength: 48)` 与本件平分宽度。
 //
 // 先例：本机线 AIChatView 内同法 `SelectableTextView`（private 不可复用）。
+//
+// B9-FIX4（2026-09-22）：符号更名 `ChatSelectableText` → `LocalChatSelectableText`——
+// [T-remote-skin] Batch 1 落地官方同名件（Markdown/ChatSelectableText.swift，Textual 版）
+// 后同模块重定义。§0f「沿用官方名」以官方名在本模块空闲为前提，前提已消失；
+// 类 `ChatSelectableTextView` 与 `ChatSelectableTextStyle` 官方无同名，未动。
 
 import SwiftUI
 
@@ -55,7 +60,7 @@ final class ChatSelectableTextView: UITextView {
     }
 }
 
-struct ChatSelectableText: UIViewRepresentable {
+struct LocalChatSelectableText: UIViewRepresentable {
     let text: String
     var font: UIFont = .preferredFont(forTextStyle: .body)
     var color: Color = .primary

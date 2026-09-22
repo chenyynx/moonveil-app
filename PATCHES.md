@@ -1619,3 +1619,13 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **改动**：①`src/ios/Minis.xcodeproj/project.pbxproj` E51000072/73 两行 `17.0→18.0`（全文件仅这两行 17.0，替换计数=2 实证）②`Packages/Textual/Package.swift` + `README.md` 回滚 B9-FIX2 的 `.v17` 偏差——**恢复与上游逐字一致**（app 已 18.0，补丁失去存在理由，逐字引入声明重新成立）。
 - **连带后果登记（本批不动手）**：app 层 11 文件各 1-2 处 `#available(iOS 18,*)` 守卫（RemoteGlassIfAvailable / RemoteNewSessionReveal / ChatTimelineView 等）在新 floor 下恒真=死分支，「iOS 17 降级外观」两条回归项（B16/设备页清单⑩）作废；按最小改动原则留待专项清理。pbxproj project 级与 widget/share target（16.0/16.2/26.2）未动——非本次挂因。
 - **验证**：strict-pbxproj OK（objects 不变、语法绿）、reverse-registration orphans=0、project-inputs missing=0、Textual Package.swift 与 cloud 原件 `diff` 归零。权威裁决=iOS Build。
+
+## B9-FIX4 — iOS Build 第三轮红：Batch 1 漏搬件 GlyphRevealLedger + 官方/垫片 ChatSelectableText 同名冲突（Qoder, 2026-09-22；[Qoder + 2026-09-22]）
+
+- **性质**：floor 抬升后 Textual 与兼容面全过（错误面已无 Textual/部署目标行），红点首次落到 Doris Batch 1 的 app 层接线——前两轮被包炸点遮蔽，本批是这条链的第一次真实编译。
+- **根因①（GlyphRevealLedger ×7 错误）**：官方 `Models/Chat/GlyphRevealLedger.swift`（54 行，定义 `GlyphRevealEffect`/`GlyphRevealLedger`）未被 Batch 1 搬运，而搬来的 `ChatMarkdownView`/`StreamingGlyphReveal` 均引用其符号。台账 22af4b1 自述"GitDirective 从官方 Models/Chat 就近放 app 层"——同层姊妹件漏了这一个。
+- **修复①**：照 GitDirective 先例逐字搬运 + 4 行出处头（`tail -n +5` 与官方 diff 归零实证），ruby `xcodeproj` gem 机械登记（MD00 组 + Minis Sources phase + `-default-isolation MainActor` 惯例旗标，fileRef=A326C466/buildFile=B6FC9EF2），不手编文本（0d12683/a8ea2e5 两连败的教训）。
+- **根因②（invalid redeclaration）**：§0f 时代垫片 `RemoteSelectableText.swift` 刻意沿用官方名 `ChatSelectableText`（"使搬运件调用形状逐字"）；Batch 1 真把官方同名件搬进来后同模块重定义。§0f 的让位方=垫片（其为"官方依赖本仓不存在"的替代物，前提已消失）。
+- **修复②**：垫片 struct 更名 `LocalChatSelectableText`，3 调用点（Row:102 + EventView:306/317）同步；官方件逐字未动；`ChatSelectableTextView` 类与 `ChatSelectableTextStyle` 枚举官方无同名、不改（最小改动）。三处头注释加让名字据。
+- **死隔离申报**：本批触碰 = Markdown/ 新增 1 件（纯追加）、RemoteSelectableText + 两桥接件（符号名替换 + 注释）、pbxproj（gem 机械 +2 对象）、台账。冻结区零触碰（aav2-freeze OK）；Textual 包未再动。
+- **验证**：Linux 门全绿 rc=0——parse --changed files=3 fail=0 / spelling suspects=0 / import-scan OK / freeze OK / strict-pbxproj OK / registration registered=609(+1) orphans=0 / project-inputs missing=0 / fork-point OK。**未验证**：官方皮肤真机渲染（GlyphReveal 动画路径首次激活）与 iOS 18 设备安装，待 CI + 装机。

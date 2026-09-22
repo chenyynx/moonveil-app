@@ -303,7 +303,7 @@ struct TimelineCodePanel: View {
                                 Text(line.sign).frame(width: 10)
                                 Text(line.oldLine.map(String.init) ?? "").frame(width: 34, alignment: .trailing)
                                 Text(line.newLine.map(String.init) ?? "").frame(width: 34, alignment: .trailing)
-                                ChatSelectableText(text: line.text.isEmpty ? " " : line.text,
+                                LocalChatSelectableText(text: line.text.isEmpty ? " " : line.text,
                                     font: ChatSelectableTextStyle.captionMonospace, ownsContentWidth: true)
                                     .fixedSize(horizontal: true, vertical: false)
                                 Spacer(minLength: 0)
@@ -314,7 +314,7 @@ struct TimelineCodePanel: View {
                         }
                     }.padding(.vertical, 8).fixedSize(horizontal: true, vertical: false)
                 } else {
-                    ChatSelectableText(text: displayCode, font: ChatSelectableTextStyle.captionMonospace,
+                    LocalChatSelectableText(text: displayCode, font: ChatSelectableTextStyle.captionMonospace,
                         ownsContentWidth: true)
                         .fixedSize(horizontal: true, vertical: false).padding(12).frame(maxWidth: .infinity, alignment: .leading)
                 }
