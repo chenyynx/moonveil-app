@@ -1636,3 +1636,10 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **定性**：Batch 1 自身缺陷，非本会话四批引入——该行自 `22af4b1` 原样存在（`git show 22af4b1:…` 实锤），前三轮被包炸点遮蔽未编译到。同批 EventView `content/rows` 均带旗标、`fbc51f6` 补过 `rows` 一处，本处为漏网第三例。
 - **修复**：`markdown` 属性加 `@ViewBuilder`（一行，与兄弟分派件惯例一致）。
 - **顺手排查**：Markdown/ 家族其余 `some View` 自定义属性（ChatGitBadge.capsule 等）为单表达式无分叉，无同型风险。
+
+## B9-FIX6 — TextPhraseSequence 漏搬件（穷举式缺口扫描收口，杜绝再一轮一轮剥）（Qoder, 2026-09-22；[Qoder + 2026-09-22]）
+
+- **方法论升级**：B9-FIX4/5 逐轮剥洋葱（CI 每轮只暴露当前编译点），本批改跑**权威缺口穷举**——「官方全集有定义 ∧ 本仓无定义 ∧ 被本仓 Markdown/Reveal 家族引用」三条件交集，结果只剩 `TextPhraseSequence` 一件（`Layout` 命中为噪音：官方是 ChatSidebarState 嵌套枚举，本仓引用的是 SwiftUI 协议同名）。
+- **修复**：官方 `Models/Chat/TextPhraseSequence.swift`（29 行，nonisolated enum，纯 Foundation 自包含）逐字搬运 + 4 行出处头 + 空行（`tail -n +6` diff 归零实证）；ruby xcodeproj 机械登记（fileRef=24A8924B/buildFile=F67814F9，MainActor 旗标惯例）。
+- **seam 判定**：不引词表符号，深扫绿，无需白名单行（与 GlyphRevealLedger 相反——那件引 ReplyPresentation）。
+- **验证**：swiftc -parse v5 OK / 深浅两扫 OK / registration 610(+1) orphans=0 / inputs missing=0 / strict-pbxproj OK。**预期**：本轮起 app 层引用完整性已穷举闭合；若再有错应为类型/并发面而非缺件。

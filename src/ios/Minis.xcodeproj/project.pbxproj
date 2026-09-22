@@ -612,6 +612,7 @@
 		F1W00061 /* PaginatedMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1W00060 /* PaginatedMarkdownView.swift */; };
 		F1W00101 /* PrintHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1W00100 /* PrintHelper.swift */; };
 		F1W0E101 /* WebLoadError.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1W0E100 /* WebLoadError.swift */; };
+		F67814F905194A567169C97D /* TextPhraseSequence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A8924B4B3C934760EE176B /* TextPhraseSequence.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		FDD896F80E0A14A7B60B12EF /* VoiceLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E23EA0E199D6D50EBC76F2 /* VoiceLog.swift */; };
 		LOC00001 /* AppLocalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOC00002 /* AppLocalization.swift */; };
 		RCL000010 /* Rclone.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = RCL000020 /* Rclone.xcframework */; };
@@ -827,6 +828,7 @@
 		0ED149397BEA7E0408C92688 /* GroupVoiceModelsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupVoiceModelsView.swift; sourceTree = "<group>"; };
 		0F5379380323FA8C6477708C /* GroupSlotPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupSlotPicker.swift; sourceTree = "<group>"; };
 		16FF3462D09402F14B610CD6 /* VoiceWaveformView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceWaveformView.swift; sourceTree = "<group>"; };
+		24A8924B4B3C934760EE176B /* TextPhraseSequence.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TextPhraseSequence.swift; sourceTree = "<group>"; };
 		28E23EA0E199D6D50EBC76F2 /* VoiceLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceLog.swift; sourceTree = "<group>"; };
 		2BB45FC87D39AE9AB4495BE9 /* VoiceProvider+Vendors.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "VoiceProvider+Vendors.swift"; sourceTree = "<group>"; };
 		424510790AF3FB2452D3CCE3 /* VoiceOutputPlayer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceOutputPlayer.swift; sourceTree = "<group>"; };
@@ -2001,6 +2003,7 @@
 				D05AF00E000000000000MD09 /* StreamingGlyphReveal.swift */,
 				D05AF00E000000000000MD10 /* GitDirective.swift */,
 				A326C466A054240EB9E0C65F /* GlyphRevealLedger.swift */,
+				24A8924B4B3C934760EE176B /* TextPhraseSequence.swift */,
 			);
 			path = Markdown;
 			sourceTree = "<group>";
@@ -4243,6 +4246,7 @@
 				RK4E256035471AF2EEF870A3 /* RemoteSessionServing.swift in Sources */,
 				RK7838A371121004E9034001 /* AppSymbolAssets.swift in Sources */,
 				B6FC9EF21C937E402B8C7FCD /* GlyphRevealLedger.swift in Sources */,
+				F67814F905194A567169C97D /* TextPhraseSequence.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
