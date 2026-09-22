@@ -67,7 +67,7 @@ struct SessionTimelineRow: View {
     }
 
     @AppStorage(RemoteChatSkinStore.userDefaultsKey) private var skinRaw = RemoteChatSkin.fallback.rawValue
-    private var markdown: some View {
+    @ViewBuilder private var markdown: some View {
         // §0f 渲染桥接 → [T-remote-skin] 皮肤分派（pp 2026-09-22 拍板三皮肤）：
         //  • aaOriginal：官方 ChatMarkdownView（Textual）原样，file:行号由官方在解析
         //    阶段挂 .link（ChatMarkdownView:44-52），resolvesFileReferences 同官方调用点。

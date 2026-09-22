@@ -1629,3 +1629,10 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **修复②**：垫片 struct 更名 `LocalChatSelectableText`，3 调用点（Row:102 + EventView:306/317）同步；官方件逐字未动；`ChatSelectableTextView` 类与 `ChatSelectableTextStyle` 枚举官方无同名、不改（最小改动）。三处头注释加让名字据。
 - **死隔离申报**：本批触碰 = Markdown/ 新增 1 件（纯追加）、RemoteSelectableText + 两桥接件（符号名替换 + 注释）、pbxproj（gem 机械 +2 对象）、台账。冻结区零触碰（aav2-freeze OK）；Textual 包未再动。
 - **验证**：Linux 门全绿 rc=0——parse --changed files=3 fail=0 / spelling suspects=0 / import-scan OK / freeze OK / strict-pbxproj OK / registration registered=609(+1) orphans=0 / project-inputs missing=0 / fork-point OK。**未验证**：官方皮肤真机渲染（GlyphReveal 动画路径首次激活）与 iOS 18 设备安装，待 CI + 装机。
+
+## B9-FIX5 — SessionTimelineRow.markdown 缺 @ViewBuilder（Batch 1 遗留第 3 处，fbc51f6 同族）（Qoder, 2026-09-22；[Qoder + 2026-09-22]）
+
+- **错误面单发**（full-typecheck 全量日志穷举仅此一条）：`markdown: some View` 的 if/else 两分支类型不同（`.id` vs `.id().frame`），非 body 自定义属性不带隐式 @ViewBuilder → 类型不收敛。
+- **定性**：Batch 1 自身缺陷，非本会话四批引入——该行自 `22af4b1` 原样存在（`git show 22af4b1:…` 实锤），前三轮被包炸点遮蔽未编译到。同批 EventView `content/rows` 均带旗标、`fbc51f6` 补过 `rows` 一处，本处为漏网第三例。
+- **修复**：`markdown` 属性加 `@ViewBuilder`（一行，与兄弟分派件惯例一致）。
+- **顺手排查**：Markdown/ 家族其余 `some View` 自定义属性（ChatGitBadge.capsule 等）为单表达式无分叉，无同型风险。
