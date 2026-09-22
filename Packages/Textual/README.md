@@ -18,10 +18,6 @@ empty-paragraph/layout-size fixes from the first two commits of
 [upstream PR 88](https://github.com/gonzalezreal/textual/pull/88)
 (`2b29f6e` and `9bc4036`). They are not released in 0.5.0.
 
-`Package.swift` deviates from upstream in one place: the iOS platform floor is
-`.v17` (upstream `.v18`), required because this app target's deployment target
-is 17.0 (DEP-17). See PATCHES.md B9-FIX2.
-
 Local additions apply the same validation to selected text, caret geometry,
 range traversal and layout reconciliation. Invalid positions yield an empty
 result instead of indexing a replaced layout. Traversal skips empty paragraphs,

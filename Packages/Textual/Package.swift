@@ -6,7 +6,7 @@ let package = Package(
   name: "textual",
   platforms: [
     .macOS(.v15),
-    .iOS(.v17), // B9-FIX2 (2026-09-22): .v18→.v17 — app target floor is 17.0 (DEP-17, pp-owned); no iOS-18-gated API in Sources (only @available(iOS 26) ×1). Same lever as RemoteKit's v17 floor (30cdd24). tvOS/watchOS/visionOS untouched: not integrated.
+    .iOS(.v18),
     .tvOS(.v18),
     .watchOS(.v11),
     .visionOS(.v2),

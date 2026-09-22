@@ -1611,3 +1611,11 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **处置（照 DEP-17 先例）**：`Packages/Textual/Package.swift` `.iOS(.v18)→.v17`，源文件零改动。安全证据：Textual Sources 扫描无任何 iOS 18 专属 API 依赖（`@available(iOS 18` 0 处，仅 1 处 `@iOS 26` 守卫）；两依赖本就 ≤17（concurrency-extras 13 / swiftui-math 17）。RemoteKit 同款先例（`30cdd24`）。
 - **诚实登记**： vendored 包自此与上游有 1 行已知偏差，README 出处段同步入册；tvOS/watchOS/visionOS 声明未动（不集成）。
 - **影响面**：Xcode 集成仅消费 iOS 平台声明；本地 `swift build`（Linux 无 SwiftUI，本不可用）行为零变化。Linux 门：package-inputs/spelling/parse 复跑见 commit message。
+
+## B9-FIX3 — pp 拍板方案 A：app target floor 17.0 → 18.0（Qoder, 2026-09-22；[Qoder + 2026-09-22]）
+
+- **拍板字据**：pp 对三选一（A 抬 app / B 补 Textual / C 运行时分皮肤）回「a」。DEP-17 的 17.0 floor 自此升档为 18.0，兼容口径续收缩一档（iOS 17 设备不可装），官方 cloud 工程 floor 26.5 为参照系。
+- **B9-FIX2 判错纠错（初稿方案已被本批推翻，原文保留在案）**：「`.v17` 降 floor + 源文件零改动」不成立——`@available(iOS 18` 计数=0 只证明"没标守卫"，证明不了"没用 18 专属 API"；真判据是 17 地板下的整包编译。CI 实锤 Textual 有 **3 处无守卫 iOS 18 硬依赖**：`BlockVStack.swift:23`（`Group(subviews:)`）、`TextBuilder.swift:25/37/40/49`（`CGSize: Hashable`）、`Overflow.swift:79`（`onScrollGeometryChange`）。教训：**vendored 包的平台声明是源码事实，不是可调参数**；要动 floor 必须先过一遍「该 API 在低版本是否存在」，不能只扫守卫。
+- **改动**：①`src/ios/Minis.xcodeproj/project.pbxproj` E51000072/73 两行 `17.0→18.0`（全文件仅这两行 17.0，替换计数=2 实证）②`Packages/Textual/Package.swift` + `README.md` 回滚 B9-FIX2 的 `.v17` 偏差——**恢复与上游逐字一致**（app 已 18.0，补丁失去存在理由，逐字引入声明重新成立）。
+- **连带后果登记（本批不动手）**：app 层 11 文件各 1-2 处 `#available(iOS 18,*)` 守卫（RemoteGlassIfAvailable / RemoteNewSessionReveal / ChatTimelineView 等）在新 floor 下恒真=死分支，「iOS 17 降级外观」两条回归项（B16/设备页清单⑩）作废；按最小改动原则留待专项清理。pbxproj project 级与 widget/share target（16.0/16.2/26.2）未动——非本次挂因。
+- **验证**：strict-pbxproj OK（objects 不变、语法绿）、reverse-registration orphans=0、project-inputs missing=0、Textual Package.swift 与 cloud 原件 `diff` 归零。权威裁决=iOS Build。
