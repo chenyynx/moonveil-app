@@ -64,6 +64,8 @@ src/ios/Views/RemoteSessions/WorkspacePreviewDownloads.swift
 # Views/Chat/Markdown 渲染家族逐字搬运（app 层 Markdown/），消费 AAV2 桥接数据
 # 结构（MarkdownBlockSnapshot/Sizing/MeasurementCache、SessionFileReference、
 # ReplyPresentation.settleDelay）——与既有远端行渲染同性质，入 per-file seam。
+# B9-FIX4（Qoder 2026-09-22）：GlyphRevealLedger 补搬件同引 ReplyPresentation.revealSeconds。
 src/ios/Views/RemoteSessions/Markdown/ChatMarkdownView.swift
 src/ios/Views/RemoteSessions/Markdown/MarkdownBlockLayout.swift
 src/ios/Views/RemoteSessions/Markdown/ChatMarkdownImage.swift
+src/ios/Views/RemoteSessions/Markdown/GlyphRevealLedger.swift
