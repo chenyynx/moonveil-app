@@ -1603,3 +1603,11 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **覆盖已冗余（摘它的前提，三条证据）**：①当年 permitsRetry 硬错已被 pp 签名的 AAV2-AWAIT-1 源码修复消化（`HTTPTransport.swift:56` `await retryPolicy.permitsRetry(error)`，台账 :184）；②Minis app target 在 pbxproj 内已自带 `SWIFT_VERSION=5.0 + SWIFT_APPROACHABLE_CONCURRENCY=YES + SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor`（E51000072/73，Track C 09-21），删覆盖后 app target 编译参数**逐字节不变**；③Textual 全包 v6 `-parse` 扫雷 0 错、app 层 Markdown 家族 10 文件 v5 `-parse` 0 错。
 - **改动**：`.github/workflows/ios-build.yml` 删两行（:84-85）；`ios-build-diag.yml` 的同步覆盖未动（诊断件、不跑主链，动它超授权）。
 - **风险与兜底**：唯一未证死的假设是 Xcode 26.2 对包 target 的语言模式裁决点（PBXProject 级 E51000070/71 无显式值）；若 CI 仍红且 Textual 错面不变=覆盖没进包、另有黑手，按红单继续查。RemoteKit 侧另有 Build CI 先行。
+
+## B9-FIX2 — iOS Build 第二轮红：Textual 包下限 .iOS(.v18) vs app target 17.0 → 降包 floor .v17（Qoder, 2026-09-22；[Qoder + 2026-09-22]）
+
+- **B9-FIX 判定兑现**：PROBE histogram 实测 `-swift-version 5 ×17（app+测试 target，pbxproj 自带）/ -swift-version 6 ×9（Textual 及依赖）`——删覆盖后语言模式落点与预期逐字一致；permitsRetry-lines=0。正则字面量错误面清零。
+- **新挂点（此前被正则炸点遮蔽的下一道门）**：`ChatMarkdownView.swift:6` `compiling for iOS 17.0, but module 'Textual' has a minimum deployment target of iOS 18.0`。官方 cloud 不炸因 app target 26.5；本仓 app floor 17.0 是产品决策（DEP-17 台账 + iOS 17 降级外观是既定回归项），不可抬。
+- **处置（照 DEP-17 先例）**：`Packages/Textual/Package.swift` `.iOS(.v18)→.v17`，源文件零改动。安全证据：Textual Sources 扫描无任何 iOS 18 专属 API 依赖（`@available(iOS 18` 0 处，仅 1 处 `@iOS 26` 守卫）；两依赖本就 ≤17（concurrency-extras 13 / swiftui-math 17）。RemoteKit 同款先例（`30cdd24`）。
+- **诚实登记**： vendored 包自此与上游有 1 行已知偏差，README 出处段同步入册；tvOS/watchOS/visionOS 声明未动（不集成）。
+- **影响面**：Xcode 集成仅消费 iOS 平台声明；本地 `swift build`（Linux 无 SwiftUI，本不可用）行为零变化。Linux 门：package-inputs/spelling/parse 复跑见 commit message。
