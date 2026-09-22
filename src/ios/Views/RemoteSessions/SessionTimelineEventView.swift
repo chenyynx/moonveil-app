@@ -174,9 +174,33 @@ private struct TimelineToolDetails: View {
 private struct TimelineMarkerShimmer: ViewModifier {
     let active: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // [T-marker-shimmer-gate] 官方此修饰器无条件 shimmer；本仓加会话活性
+    // 门控：runtime 不新鲜时不启动重复动画。理由：官方语义是「回合正在
+    // 走」，客户端拿不到会话状态时闪烁是在假装回合在动；且该 limbo 态
+    // （stale + 永不结束的回合 + 零 notice）是 2026-09-22 主线程栈溢出
+    // （AG 自递归 679 层 + _makeViewList 61 层）的唯一已知触发态，卡死
+    // 现场栈（Hang 2622ms）的构图指纹即本行 TimelineMarkerRow 的
+    // contentShape/accessibility 链。fresh 时恢复官方行为，逐字节不变。
+    // pp 2026-09-22 实测：控制台处理掉待批准（回合一完成）即不再崩——
+    // 本门控 + SessionChatView 的 [T-session-limbo-selfheal] 是不依赖
+    // 服务端处理的客户端侧修复。
+    @Environment(\.sessionRuntimeLive) private var runtimeLive
     func body(content: Content) -> some View {
-        if active && !reduceMotion { content.modifier(ActiveMarkerShimmer()) }
+        if active && !reduceMotion && runtimeLive { content.modifier(ActiveMarkerShimmer()) }
         else { content }
+    }
+}
+
+/// [T-marker-shimmer-gate] 会话活性（runtime 是否新鲜）。默认 true：未挂
+/// 门控的宿主（iOS 17 降级壳等）保持官方无条件 shimmer 行为。
+private struct SessionRuntimeLiveKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    var sessionRuntimeLive: Bool {
+        get { self[SessionRuntimeLiveKey.self] }
+        set { self[SessionRuntimeLiveKey.self] = newValue }
     }
 }
 
@@ -198,6 +222,11 @@ private struct ActiveMarkerShimmer: ViewModifier {
             }
         }
         .onAppear {
+            // [T-marker-shimmer-gate] 重入加固：官方实现每次 onAppear 都重置
+            // 并重开 repeatForever 事务，身份抖动（limbo 态高频重建）会让每次
+            // appearance 都嵌一个动画事务。改为幂等：动画在跑就不重开；
+            // onDisappear 仍清零，正常消失后再出现行为不变。
+            guard !sweeps else { return }
             sweeps = false
             withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) { sweeps = true }
         }

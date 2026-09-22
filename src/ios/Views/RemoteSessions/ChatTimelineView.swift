@@ -462,6 +462,11 @@ private struct ChatTimelineContent: View, Equatable {
         }
         .modifier(ChatPageContentColumn())
         .coordinateSpace(name: "chat.timeline.content")
+        // [T-marker-shimmer-gate] 下传会话活性：runtime 不新鲜（正在同步/设备
+        // 离线）时标记行不做 shimmer。官方无条件 shimmer 的前提是其保鲜链路
+        // 保证几乎总是 fresh；本仓 limbo 态正是 2026-09-22 栈溢出的触发态，
+        // 门控字据见 SessionTimelineEventView.swift。
+        .environment(\.sessionRuntimeLive, model.session.runtime.isFresh)
     }
 
 }

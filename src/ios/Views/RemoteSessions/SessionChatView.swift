@@ -117,6 +117,21 @@ struct SessionChatView: View, Equatable {
             // Reattaching a loaded detail only resumes observation.
             await model.prepareOpening()
             guard !Task.isCancelled else { return }
+            // [T-session-limbo-selfheal] 官方 AppState 的会话保鲜链路本仓只搬了
+            // 一半（登记过的缺口）：本页原本没有 runtime 自愈通道——「刷新」
+            // 按钮只挂在 notice 卡上，卡又依赖 runtime.notices，runtime 不新鲜
+            // 时永远到不了，页面停在「正在同步 + 永不结束的回合」的 limbo
+            // （2026-09-22 崩溃会话触发态；pp 实测：控制台处理掉待批准即不崩）。
+            // 打开时 runtime 陈旧就主动拉（有界 3 次，refresh 内部自吞错误），
+            // notice/runtime 到位后卡片与状态自然恢复；失败则维持官方同款
+            // 「正在同步」显示，配合 [T-marker-shimmer-gate] 保证渲染扛住。
+            if !session.runtime.isFresh {
+                for _ in 0..<3 {
+                    await session.refresh()
+                    if session.runtime.isFresh || Task.isCancelled { break }
+                    do { try await Task.sleep(for: .seconds(5)) } catch { break }
+                }
+            }
             await model.timeline.run(sessionID: session.id, repository: model.repository)
         }
         .sheet(item: $sheet) { destination in sheetContent(destination) }
