@@ -1,0 +1,14 @@
+# AuthAA / SettingsSkin verbatim freeze manifest.
+# Row grammar: '<64-hex sha256(local bytes)>  <local-path>@<upstream-relpath-under-IOS_SUB>'.
+# The '@' upstream mapping is explicit because these verbatim files were lifted from
+# scattered upstream subpaths (Views/Components, Views/Auth, Services, Resources/Fonts);
+# basename alone cannot recover it. Check + regenerate baseline via:
+#   bash scripts/authaa-freeze-check.sh [--write-baseline|--structure-only]
+fdafbbdeadf1c27fae09088c8400dbe073dcd6b14733f31f8a2b7641c9d32cd9  src/ios/Views/AuthAA/AAWordmark.swift@Views/Components/AAWordmark.swift
+eb96c3fed882ee6496da3c6604489ce4dbcb00c8c2d3d8a8e76394ab37d2caf2  src/ios/Views/AuthAA/AppSheetPresentation.swift@Views/Components/AppSheetPresentation.swift
+4e80906c017fb88fc213f6b865da2d13ef099dfdadbddabdbcba85745d86fd40  src/ios/Views/AuthAA/AppTheme.swift@Views/AppTheme.swift
+262aae8fd9b71e97513ba7b71596cfd4db0ddec02de820eafb56420d479b593a  src/ios/Views/AuthAA/AuthLayout.swift@Views/Auth/AuthLayout.swift
+51b9ef16ab31b07f62e153f8f0637cd2bf67ea164180a3ec9db05500d35fe92c  src/ios/Views/AuthAA/OAuthLoginCoordinator.swift@Services/OAuthLoginCoordinator.swift
+c909b73159701a36a20b8f0ebf22a80bc8c4bf26ab98a93b8f6214d824173cd1  src/ios/Views/AuthAA/QRCodeScannerView.swift@Views/Auth/QRCodeScannerView.swift
+0bdb6b660482d31531b3945849fba5916b3ef8695da7024a9e6b9ee3c4157988  src/ios/Views/AuthAA/caveat_wght.ttf@Resources/Fonts/caveat_wght.ttf
+4a704c91f53e8066c0c3253aca6d8a2143ce80bdefbe9d81127a49d21f8550a0  src/ios/Views/SettingsSkin/AppSymbol.swift@Views/Components/AppSymbol.swift

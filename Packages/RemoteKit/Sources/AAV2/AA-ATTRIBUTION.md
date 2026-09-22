@@ -1,22 +1,30 @@
 # AAV2 — official Agents Anywhere iOS V2 layer (MIT, verbatim port)
 
-Source: `github.com/anywhere-labs/Agents-Anywhere` @ tag **v2.0.0**
-(mirror: **chenyynx/moonveil-cloud**, branch `moonveil`, tag `v2.0.0`; upstream remote read-only).
+Source: `github.com/anywhere-labs/Agents-Anywhere`, read via our read-only mirror
+**chenyynx/moonveil-cloud**. Freeze anchor pinned at rev **`1bc11f45`**
+(`1bc11f4524e00bbcfd5bac912acfa597d99ecc2e`, tip of the `ios-ci` branch in the mirror,
+dated 2026-09-13; `git describe --tags` there yields `ipa-latest-27-g1bc11f45` —
+27 commits past the `ipa-latest` tag, which shares its distance with `v2.0.0`,
+so treat any "-N-g1bc11f45" suffix as describe output, not part of the identity).
+Historical note: this zone was **initially ported from tag `v2.0.0`** (`10300fd5`);
+the anchor was raised to `1bc11f45` on 2026-09-22 after an independent three-way
+recompute confirmed zero locally-authored bytes were laundered by the bump.
 License: upstream README「开源许可」declares **MIT** — note the repo ships **no root LICENSE file**
 (only third-party subpackages carry their own); see `LICENSE-UPSTREAM.md` beside this file.
 
 ## Policy (D4 门1 / 架构 v1 §3 北极星默认判据)
-- Every file in this dir is a **verbatim copy** of the tag. **Edits are forbidden** —
-  adaptation belongs in `Sources/Glue/`, never here.
+- Every file in this dir is a **verbatim copy** of the pinned rev (initially tag `v2.0.0`).
+  **Edits are forbidden** — adaptation belongs in `Sources/Glue/`, never here.
 - Freeze gate: `scripts/aav2-freeze-check.sh`
   - strong (local exec env): `MV_CLOUD=/path/to/moonveil-cloud bash scripts/aav2-freeze-check.sh`
-    → per-file byte diff against `git show v2.0.0:ios/Agents Anywhere/Agents Anywhere/<path>`;
+    → per-file byte diff against `git show 1bc11f45:ios/Agents Anywhere/Agents Anywhere/<path>`;
   - CI: recompute sha256 vs `FREEZE-MANIFEST.txt`.
 - **Wiring ledger** = the `sources:` whitelist in `Package.swift`. A file may exist in this
   dir yet be uncompilable-as-part-of-RemoteKit (its closure not ported). Compiled set is
   verified every push by the RemoteKit Build workflow (`swift build`).
-- Upgrade flow: AA ships new tag → re-copy seeds → regenerate manifest → review `git diff`
-  → bump `AAV2_BASE_TAG` (gate script) + this file → contracts fixtures 对拍 before prod.
+- Upgrade flow: AA ships new rev → re-copy seeds → regenerate manifest → review `git diff`
+  → bump `FREEZE_BASE_TAG` (gate engine; legacy alias `AAV2_BASE_TAG`) + this file →
+  contracts fixtures 对拍 before prod.
 
 ## Batch 1 (2026-09-15, G3) — 6 seed files, 1,245 lines
 Upstream path root = `ios/Agents Anywhere/Agents Anywhere/`:
