@@ -77,6 +77,7 @@ struct SessionTimelineGroupView: View {
 }
 
 struct SessionTimelineEventView: View {
+    @AppStorage(RemoteChatSkinStore.userDefaultsKey) private var skinRaw = RemoteChatSkin.fallback.rawValue
     let row: ChatTimelineRowModel
     let cwd: String?
     let disclosures: TimelineDisclosureState
@@ -91,10 +92,14 @@ struct SessionTimelineEventView: View {
                 TimelineMarkerRow(title: value.title, symbol: value.symbol, status: row.value.status)
             } else {
                 TimelineFold(id: row.id, title: value.title, symbol: value.symbol, status: row.value.status, disclosures: disclosures) {
-                    // §0f 渲染桥接：官方 ChatMarkdownView（Textual）→ Moonveil SelectableMarkdownView。
-                    // §0f：file:行号 可点化（官方在解析阶段挂 .link，本仓送渲染前重写）
-                    SelectableMarkdownView(markdown: SessionFileReferenceLinks.rewrite(row.text))
-                        .id(row.layoutGeneration).padding(.leading, 24).foregroundStyle(.secondary)
+                    // [T-remote-skin] 皮肤分派（字据同 SessionTimelineRow.markdown）。
+                    if skinRaw == RemoteChatSkin.aaOriginal.rawValue {
+                        ChatMarkdownView(text: row.text, isStreaming: row.value.isStreamingText, resolvesFileReferences: true)
+                            .id(row.layoutGeneration).padding(.leading, 24).foregroundStyle(.secondary)
+                    } else {
+                        SelectableMarkdownView(markdown: SessionFileReferenceLinks.rewrite(row.text))
+                            .id(row.layoutGeneration).padding(.leading, 24).foregroundStyle(.secondary)
+                    }
                 }
             }
         case .compact:

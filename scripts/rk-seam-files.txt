@@ -59,3 +59,11 @@ src/ios/Views/RemoteSessions/WorkspaceFileExportPicker.swift
 src/ios/Views/RemoteSessions/WorkspaceFilePreviewSheet.swift
 src/ios/Views/RemoteSessions/WorkspaceFilesSheet.swift
 src/ios/Views/RemoteSessions/WorkspacePreviewDownloads.swift
+
+# [T-remote-skin] AA 原版皮肤批（pp 2026-09-22 拍板三皮肤/引 Textual）：官方
+# Views/Chat/Markdown 渲染家族逐字搬运（app 层 Markdown/），消费 AAV2 桥接数据
+# 结构（MarkdownBlockSnapshot/Sizing/MeasurementCache、SessionFileReference、
+# ReplyPresentation.settleDelay）——与既有远端行渲染同性质，入 per-file seam。
+src/ios/Views/RemoteSessions/Markdown/ChatMarkdownView.swift
+src/ios/Views/RemoteSessions/Markdown/MarkdownBlockLayout.swift
+src/ios/Views/RemoteSessions/Markdown/ChatMarkdownImage.swift

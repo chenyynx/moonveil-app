@@ -7034,6 +7034,13 @@ private struct AppearanceSettingsView: View {
                     Text(AppLocalized("Classic")).tag(ToolRenderStyle.classic.rawValue)
                     Text(AppLocalized("New")).tag(ToolRenderStyle.new.rawValue)
                 }
+                Picker("远端聊天渲染", selection: Binding(
+                    get: { RemoteChatSkinStore.current.rawValue },
+                    set: { RemoteChatSkinStore.set(RemoteChatSkin(rawValue: $0) ?? .fallback) }
+                )) {
+                    Text("本地渲染").tag(RemoteChatSkin.local.rawValue)
+                    Text("AA 原版").tag(RemoteChatSkin.aaOriginal.rawValue)
+                }
                 Toggle(AppLocalized("Tool Preview Window"), isOn: $toolPreviewEnabled)
                 Toggle(AppLocalized("Glass Toolbar"), isOn: $floatingToolBarEnabled)
                 VStack(alignment: .leading, spacing: 6) {

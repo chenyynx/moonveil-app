@@ -64,13 +64,22 @@ struct SessionTimelineRow: View {
         // A row-wide context menu would intercept them and highlight the item.
     }
 
+    @AppStorage(RemoteChatSkinStore.userDefaultsKey) private var skinRaw = RemoteChatSkin.fallback.rawValue
     private var markdown: some View {
-        // §0f 渲染桥接：官方 ChatMarkdownView（Textual）→ Moonveil SelectableMarkdownView。
-        // 官方在解析阶段给「文件引用型 inline code」挂 .link（ChatMarkdownView:44-52）；
-        // 本仓解析器不跑那趟 → 送渲染前先重写成 markdown 链接（见 SessionFileReferenceLinks）。
-        SelectableMarkdownView(markdown: SessionFileReferenceLinks.rewrite(row.text))
-            .id(row.layoutGeneration)
-            .frame(minHeight: row.value.isStreamingText ? lineHeight : nil, alignment: .topLeading)
+        // §0f 渲染桥接 → [T-remote-skin] 皮肤分派（pp 2026-09-22 拍板三皮肤）：
+        //  • aaOriginal：官方 ChatMarkdownView（Textual）原样，file:行号由官方在解析
+        //    阶段挂 .link（ChatMarkdownView:44-52），resolvesFileReferences 同官方调用点。
+        //  • local（默认，现状）：Moonveil SelectableMarkdownView；本仓解析器不跑挂链
+        //    那趟 → 送渲染前先重写成 markdown 链接（见 SessionFileReferenceLinks）。
+        // isStreaming 用本行现役流式标记（与 §0f 桥接前的一致语义）。
+        if skinRaw == RemoteChatSkin.aaOriginal.rawValue {
+            ChatMarkdownView(text: row.text, isStreaming: row.value.isStreamingText, resolvesFileReferences: true)
+                .id(row.layoutGeneration)
+        } else {
+            SelectableMarkdownView(markdown: SessionFileReferenceLinks.rewrite(row.text))
+                .id(row.layoutGeneration)
+                .frame(minHeight: row.value.isStreamingText ? lineHeight : nil, alignment: .topLeading)
+        }
     }
 }
 

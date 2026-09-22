@@ -7,6 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D05AF00E000000000000MD11 /* ChatMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD01 /* ChatMarkdownView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
+		D05AF00E000000000000MD12 /* ChatGitBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD02 /* ChatGitBadge.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
+		D05AF00E000000000000MD13 /* ChatMarkdownCodeBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD03 /* ChatMarkdownCodeBlock.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
+		D05AF00E000000000000MD14 /* ChatMarkdownImagePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD04 /* ChatMarkdownImagePreview.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
+		D05AF00E000000000000MD15 /* ChatMarkdownImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD05 /* ChatMarkdownImage.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
+		D05AF00E000000000000MD16 /* ChatMarkdownTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD06 /* ChatMarkdownTable.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
+		D05AF00E000000000000MD17 /* ChatSelectableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD07 /* ChatSelectableText.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
+		D05AF00E000000000000MD18 /* MarkdownBlockLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD08 /* MarkdownBlockLayout.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
+		D05AF00E000000000000MD19 /* StreamingGlyphReveal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD09 /* StreamingGlyphReveal.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
+		D05AF00E000000000000SK02 /* RemoteChatSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000SK01 /* RemoteChatSkin.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
+		E5T000032 /* Textual in Frameworks */ = {isa = PBXBuildFile; productRef = E5T000031 /* Textual */; };
 		D05AF00F0000000000000010 /* AppSymbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00F0000000000000000 /* AppSymbol.swift */; };
 		D05AF00F0000000000000011 /* SettingsKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00F0000000000000001 /* SettingsKit.swift */; };
 		21FED4B7BB6F6D9476C9992E /* VoiceProvider+System.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88993FC8E3F0199C6638F664 /* VoiceProvider+System.swift */; };
@@ -811,6 +822,16 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		D05AF00E000000000000MD01 /* ChatMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatMarkdownView.swift"; sourceTree = "<group>"; };
+		D05AF00E000000000000MD02 /* ChatGitBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatGitBadge.swift"; sourceTree = "<group>"; };
+		D05AF00E000000000000MD03 /* ChatMarkdownCodeBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatMarkdownCodeBlock.swift"; sourceTree = "<group>"; };
+		D05AF00E000000000000MD04 /* ChatMarkdownImagePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatMarkdownImagePreview.swift"; sourceTree = "<group>"; };
+		D05AF00E000000000000MD05 /* ChatMarkdownImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatMarkdownImage.swift"; sourceTree = "<group>"; };
+		D05AF00E000000000000MD06 /* ChatMarkdownTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatMarkdownTable.swift"; sourceTree = "<group>"; };
+		D05AF00E000000000000MD07 /* ChatSelectableText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSelectableText.swift"; sourceTree = "<group>"; };
+		D05AF00E000000000000MD08 /* MarkdownBlockLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownBlockLayout.swift"; sourceTree = "<group>"; };
+		D05AF00E000000000000MD09 /* StreamingGlyphReveal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StreamingGlyphReveal.swift"; sourceTree = "<group>"; };
+		D05AF00E000000000000SK01 /* RemoteChatSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteChatSkin.swift; sourceTree = "<group>"; };
 		D05AF00F0000000000000000 /* AppSymbol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSymbol.swift; sourceTree = "<group>"; };
 		D05AF00F0000000000000001 /* SettingsKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsKit.swift; sourceTree = "<group>"; };
 		0ED149397BEA7E0408C92688 /* GroupVoiceModelsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupVoiceModelsView.swift; sourceTree = "<group>"; };
@@ -1661,6 +1682,7 @@
 				AA26CCC32F31090100AECF2D /* libresolv.tbd in Frameworks */,
 				AA26CCC12F31090000AECF2D /* SystemConfiguration.framework in Frameworks */,
 				E52000005 /* SwiftAnthropic in Frameworks */,
+				E5T000032 /* Textual in Frameworks */,
 				E5M000001 /* cmark-gfm in Frameworks */,
 				E5M000002 /* cmark-gfm-extensions in Frameworks */,
 				E5S000005 /* CloudKit.framework in Frameworks */,
@@ -2788,10 +2810,28 @@
 			path = AuthAA;
 			sourceTree = "<group>";
 		};
+		D05AF00E000000000000MD00 /* Markdown */ = {
+			isa = PBXGroup;
+			children = (
+				D05AF00E000000000000MD01 /* ChatMarkdownView.swift */,
+				D05AF00E000000000000MD02 /* ChatGitBadge.swift */,
+				D05AF00E000000000000MD03 /* ChatMarkdownCodeBlock.swift */,
+				D05AF00E000000000000MD04 /* ChatMarkdownImagePreview.swift */,
+				D05AF00E000000000000MD05 /* ChatMarkdownImage.swift */,
+				D05AF00E000000000000MD06 /* ChatMarkdownTable.swift */,
+				D05AF00E000000000000MD07 /* ChatSelectableText.swift */,
+				D05AF00E000000000000MD08 /* MarkdownBlockLayout.swift */,
+				D05AF00E000000000000MD09 /* StreamingGlyphReveal.swift */,
+			);
+			path = Markdown;
+			sourceTree = "<group>";
+		};
 		D05AF00E000000000000G100 /* RemoteSessions */ = {
 			isa = PBXGroup;
 			children = (
 				D05AF00E000000000000A1E1 /* RemoteSessionIcon.swift */,
+				D05AF00E000000000000MD00 /* Markdown */,
+				D05AF00E000000000000SK01 /* RemoteChatSkin.swift */,
 				D05AF00E000000000000A1E2 /* RemoteSessionListView.swift */,
 				D05AF00E000000000000A1E3 /* RemoteSessionComponents.swift */,
 				D05AF00E000000000000A1E4 /* PairDeviceSheet.swift */,
@@ -3240,6 +3280,7 @@
 				E5M000022 /* cmark-gfm-extensions */,
 				E5X000021 /* SwiftMath */,
 				C42120806C66A2C804F89620 /* RealTimeCutVADLibrary */,
+				E5T000031 /* Textual */,
 			);
 			productName = Minis;
 			productReference = E51000010 /* Minis.app */;
@@ -3342,6 +3383,7 @@
 				E52000020 /* XCRemoteSwiftPackageReference "SwiftAnthropic" */,
 				E5M000020 /* XCRemoteSwiftPackageReference "swift-cmark" */,
 				E5X000020 /* XCRemoteSwiftPackageReference "SwiftMath" */,
+				E5T000030 /* XCLocalSwiftPackageReference "Textual" */,
 				B318C2F47DB3F301A17E49BE /* XCRemoteSwiftPackageReference "RealTimeCutVADLibrary" */,
 			);
 			productRefGroup = E51000032 /* Products */;
@@ -3982,6 +4024,16 @@
 				D05AF00E000000000000B10C /* ServiceEntryView.swift in Sources */,
 				D05AF00E000000000000B10D /* SheetCloseButton.swift in Sources */,
 				D05AF00E000000000000B1E1 /* RemoteSessionIcon.swift in Sources */,
+				D05AF00E000000000000MD11 /* ChatMarkdownView.swift in Sources */,
+				D05AF00E000000000000MD12 /* ChatGitBadge.swift in Sources */,
+				D05AF00E000000000000MD13 /* ChatMarkdownCodeBlock.swift in Sources */,
+				D05AF00E000000000000MD14 /* ChatMarkdownImagePreview.swift in Sources */,
+				D05AF00E000000000000MD15 /* ChatMarkdownImage.swift in Sources */,
+				D05AF00E000000000000MD16 /* ChatMarkdownTable.swift in Sources */,
+				D05AF00E000000000000MD17 /* ChatSelectableText.swift in Sources */,
+				D05AF00E000000000000MD18 /* MarkdownBlockLayout.swift in Sources */,
+				D05AF00E000000000000MD19 /* StreamingGlyphReveal.swift in Sources */,
+				D05AF00E000000000000SK02 /* RemoteChatSkin.swift in Sources */,
 				D05AF00E000000000000B1E2 /* RemoteSessionListView.swift in Sources */,
 				D05AF00E000000000000B1E3 /* RemoteSessionComponents.swift in Sources */,
 				D05AF00E000000000000B1E4 /* PairDeviceSheet.swift in Sources */,
@@ -4827,6 +4879,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		E5T000030 /* XCLocalSwiftPackageReference "Textual" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../Packages/Textual;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		B318C2F47DB3F301A17E49BE /* XCRemoteSwiftPackageReference "RealTimeCutVADLibrary" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -4863,6 +4922,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		E5T000031 /* Textual */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E5T000030 /* XCLocalSwiftPackageReference "Textual" */;
+			productName = Textual;
+		};
 		C42120806C66A2C804F89620 /* RealTimeCutVADLibrary */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = B318C2F47DB3F301A17E49BE /* XCRemoteSwiftPackageReference "RealTimeCutVADLibrary" */;
