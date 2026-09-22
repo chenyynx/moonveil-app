@@ -3240,7 +3240,6 @@
 				E5M000022 /* cmark-gfm-extensions */,
 				E5X000021 /* SwiftMath */,
 				C42120806C66A2C804F89620 /* RealTimeCutVADLibrary */,
-				E5SHM0021 /* Shimmer */,
 			);
 			productName = Minis;
 			productReference = E51000010 /* Minis.app */;
@@ -3344,7 +3343,6 @@
 				E5M000020 /* XCRemoteSwiftPackageReference "swift-cmark" */,
 				E5X000020 /* XCRemoteSwiftPackageReference "SwiftMath" */,
 				B318C2F47DB3F301A17E49BE /* XCRemoteSwiftPackageReference "RealTimeCutVADLibrary" */,
-				E5SHM0020 /* XCRemoteSwiftPackageReference "SwiftUI-Shimmer" */,
 			);
 			productRefGroup = E51000032 /* Products */;
 			projectDirPath = "";
@@ -4863,14 +4861,6 @@
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
-		E5SHM0020 /* XCRemoteSwiftPackageReference "SwiftUI-Shimmer" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/markiv/SwiftUI-Shimmer.git";
-			requirement = {
-				kind = exactVersion;
-				version = 1.5.1;
-			};
-		};
 
 /* Begin XCSwiftPackageProductDependency section */
 		C42120806C66A2C804F89620 /* RealTimeCutVADLibrary */ = {
@@ -4899,11 +4889,6 @@
 			productName = SwiftMath;
 		};
 /* End XCSwiftPackageProductDependency section */
-		E5SHM0021 /* Shimmer */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E5SHM0020 /* XCRemoteSwiftPackageReference "SwiftUI-Shimmer" */;
-			productName = Shimmer;
-		};
 	};
 	rootObject = E51000060 /* Project object */;
 }
