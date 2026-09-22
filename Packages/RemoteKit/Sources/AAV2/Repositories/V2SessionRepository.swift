@@ -172,7 +172,25 @@ final class V2SessionRepository {
         entry.historyTask?.cancel()
         entry.historyTask = nil
         defer { if isCurrent(entry) { start(entry) } }
-        return try await hydrate(entry)
+        let data = try await hydrate(entry)
+        // [T-session-freshness-valve · 冻结区 divergence · 同批字据] 官方 refresh 只拉
+        // 快照，而快照路径按设计不授予 liveStateIsFresh（新鲜只由实时态拉取授予）→
+        // 刷新永远救不回 stale（pp 实测：打开时的自动重试对着此状态空转）。修复：
+        // meta 为 online 时补拉一次实时态，走官方 reconcile 同款授予路径；失败不回滚
+        // 快照（页面仍可读），stale 留给 SessionChatView 的 [T-session-stale-retry] 轮询。
+        if entry.projection?.data.session.connectorStatus == .online {
+            do {
+                let live = try await detail.liveState(sessionId: entry.id)
+                guard isCurrent(entry) else { return data }
+                entry.projection?.applyLive(live)
+                NSLog("[Freshness] refresh liveState done session=\(entry.id) fresh=\(entry.projection?.data.liveStateIsFresh ?? false)")
+                emit(entry)
+                return entry.projection?.data ?? data
+            } catch {
+                NSLog("[Freshness] refresh liveState failed session=\(entry.id): \(error)")
+            }
+        }
+        return data
     }
 
     func loadOlder(sessionId: V2SessionID, limit: Int = 100) async throws -> V2SessionData {
@@ -522,6 +540,18 @@ final class V2SessionRepository {
             }
             entry.projection?.markStale()
             invalidateCatalogs(entry)
+            // [T-session-freshness-valve · 冻结区 divergence · 2026-09-22 pp 批准修 bug]
+            // 官方门卫直接读缓存 meta 的 connectorStatus，判负即跳过实时拉取且零重试
+            // → 一次掉线窗口存进来的 offline 被永久沿用（pp 实测：官方客户端几秒恢复、
+            // 本 app 永久「正在同步/离线」、杀 app/刷新均救不回）。修复：判负先补拉一次
+            // 全量快照（快照端点 GET /snapshot 按 presence 实时计算 status），再用刷新后
+            // 的状态过闸；闸通过后的实时拉取与授予路径逐字不动。
+            if entry.projection?.data.session.connectorStatus != .online {
+                NSLog("[Freshness] reconcile gate blocked: connectorStatus=\(String(describing: entry.projection?.data.session.connectorStatus)) -> refetch snapshot")
+                _ = try await hydrate(entry)
+                try requireCurrent(entry)
+                guard entry.connectionID == version else { throw CacheError.invalidated }
+            }
             if entry.projection?.data.session.connectorStatus == .online {
                 // Frames received before this read must not overwrite its newer live projection.
                 let barrier = now()
@@ -530,6 +560,9 @@ final class V2SessionRepository {
                     try requireCurrent(entry)
                     guard entry.connectionID == version else { throw CacheError.invalidated }
                     entry.projection?.applyLive(live)
+                    // [T-session-freshness-valve 诊断补桩] 拉取 200 之后 fresh 仍为
+                    // false = 被 applyLive 守卫静默吃掉，此行直接指认。
+                    NSLog("[Freshness] reconcile liveState done session=\(entry.id) fresh=\(entry.projection?.data.liveStateIsFresh ?? false)")
                     entry.projectionBarrier = barrier
                     entry.error = nil
                 } catch {
@@ -538,6 +571,10 @@ final class V2SessionRepository {
                     entry.error = V2ClientFailure(error)
                     throw error
                 }
+            } else {
+                // [T-session-freshness-valve 诊断补桩] 补拉快照后仍非 online：
+                // 服务端真报 offline（连接器不在线窗口），或快照端点未回实时值。
+                NSLog("[Freshness] reconcile gate STILL blocked after refetch: connectorStatus=\(String(describing: entry.projection?.data.session.connectorStatus)) — live fetch skipped")
             }
             emit(entry)
         }

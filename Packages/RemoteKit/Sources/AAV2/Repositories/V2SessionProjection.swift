@@ -40,8 +40,15 @@ struct V2SessionProjection {
     mutating func markStale() { data.liveStateIsFresh = false }
 
     mutating func applyLive(_ live: V2SessionLiveState) {
+        // [T-session-freshness-valve · 冻结区 divergence · 2026-09-22 pp 批准修 bug]
+        // 官方守卫在比对失败时静默 return——HTTP 200 的实时态也会在这里被吃掉，
+        // fresh 永远 false 且零痕迹（诊断盲区，pp 批的补桩）。守卫语义不变，失败
+        // 时打出比对三元组供定位；成功路径逐字不动。
         guard live.state.sessionId == data.session.id,
-              (live.state.runtimeId ?? live.state.runtime) == data.session.effectiveRuntimeId else { return }
+              (live.state.runtimeId ?? live.state.runtime) == data.session.effectiveRuntimeId else {
+            NSLog("[Freshness] applyLive guard REJECTED: sessionIdOk=\(live.state.sessionId == data.session.id) liveRuntime=\(live.state.runtimeId ?? live.state.runtime) sessionEffective=\(data.session.effectiveRuntimeId)")
+            return
+        }
         data.state = live.state
         data.capabilities = live.capabilities
         data.notices = live.notices
