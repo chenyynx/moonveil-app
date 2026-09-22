@@ -38,7 +38,7 @@ struct SessionTimelineGroupView: View {
         }
     }
     private var agentGroup: Bool { if case .agents = group.kind { true } else { false } }
-    private var rows: some View {
+    @ViewBuilder private var rows: some View {
         // [BATCH-A/A1]（STREAMING-LOOP-FIX 同族补漏，017334e 只合并了
         // SessionInteractionDock 与 ChatTimelineContent 两处，本处是漏掉的第三处热路径）
         // 旧实现对每个 row 都对全量 notices 重跑一次 filter（每次重跑都要读一遍
