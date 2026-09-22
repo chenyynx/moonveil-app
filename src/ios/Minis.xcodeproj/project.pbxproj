@@ -7,16 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		D05AF00E000000000000MD11 /* ChatMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD01 /* ChatMarkdownView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
-		D05AF00E000000000000MD12 /* ChatGitBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD02 /* ChatGitBadge.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
-		D05AF00E000000000000MD13 /* ChatMarkdownCodeBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD03 /* ChatMarkdownCodeBlock.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
-		D05AF00E000000000000MD14 /* ChatMarkdownImagePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD04 /* ChatMarkdownImagePreview.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
-		D05AF00E000000000000MD15 /* ChatMarkdownImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD05 /* ChatMarkdownImage.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
-		D05AF00E000000000000MD16 /* ChatMarkdownTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD06 /* ChatMarkdownTable.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
-		D05AF00E000000000000MD17 /* ChatSelectableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD07 /* ChatSelectableText.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
-		D05AF00E000000000000MD18 /* MarkdownBlockLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD08 /* MarkdownBlockLayout.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
-		D05AF00E000000000000MD19 /* StreamingGlyphReveal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD09 /* StreamingGlyphReveal.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
-		D05AF00E000000000000SK02 /* RemoteChatSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000SK01 /* RemoteChatSkin.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; }; };
+		D05AF00E000000000000MD11 /* ChatMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD01 /* ChatMarkdownView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000MD12 /* ChatGitBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD02 /* ChatGitBadge.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000MD13 /* ChatMarkdownCodeBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD03 /* ChatMarkdownCodeBlock.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000MD14 /* ChatMarkdownImagePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD04 /* ChatMarkdownImagePreview.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000MD15 /* ChatMarkdownImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD05 /* ChatMarkdownImage.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000MD16 /* ChatMarkdownTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD06 /* ChatMarkdownTable.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000MD17 /* ChatSelectableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD07 /* ChatSelectableText.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000MD18 /* MarkdownBlockLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD08 /* MarkdownBlockLayout.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000MD19 /* StreamingGlyphReveal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD09 /* StreamingGlyphReveal.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000SK02 /* RemoteChatSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000SK01 /* RemoteChatSkin.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000MD20 /* GitDirective.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD10 /* GitDirective.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		E5T000032 /* Textual in Frameworks */ = {isa = PBXBuildFile; productRef = E5T000031 /* Textual */; };
 		D05AF00F0000000000000010 /* AppSymbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00F0000000000000000 /* AppSymbol.swift */; };
 		D05AF00F0000000000000011 /* SettingsKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00F0000000000000001 /* SettingsKit.swift */; };
@@ -832,6 +833,7 @@
 		D05AF00E000000000000MD08 /* MarkdownBlockLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownBlockLayout.swift"; sourceTree = "<group>"; };
 		D05AF00E000000000000MD09 /* StreamingGlyphReveal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StreamingGlyphReveal.swift"; sourceTree = "<group>"; };
 		D05AF00E000000000000SK01 /* RemoteChatSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteChatSkin.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000MD10 /* GitDirective.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitDirective.swift; sourceTree = "<group>"; };
 		D05AF00F0000000000000000 /* AppSymbol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSymbol.swift; sourceTree = "<group>"; };
 		D05AF00F0000000000000001 /* SettingsKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsKit.swift; sourceTree = "<group>"; };
 		0ED149397BEA7E0408C92688 /* GroupVoiceModelsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupVoiceModelsView.swift; sourceTree = "<group>"; };
@@ -2822,6 +2824,7 @@
 				D05AF00E000000000000MD07 /* ChatSelectableText.swift */,
 				D05AF00E000000000000MD08 /* MarkdownBlockLayout.swift */,
 				D05AF00E000000000000MD09 /* StreamingGlyphReveal.swift */,
+				D05AF00E000000000000MD10 /* GitDirective.swift */,
 			);
 			path = Markdown;
 			sourceTree = "<group>";
@@ -4034,6 +4037,7 @@
 				D05AF00E000000000000MD18 /* MarkdownBlockLayout.swift in Sources */,
 				D05AF00E000000000000MD19 /* StreamingGlyphReveal.swift in Sources */,
 				D05AF00E000000000000SK02 /* RemoteChatSkin.swift in Sources */,
+				D05AF00E000000000000MD20 /* GitDirective.swift in Sources */,
 				D05AF00E000000000000B1E2 /* RemoteSessionListView.swift in Sources */,
 				D05AF00E000000000000B1E3 /* RemoteSessionComponents.swift in Sources */,
 				D05AF00E000000000000B1E4 /* PairDeviceSheet.swift in Sources */,
