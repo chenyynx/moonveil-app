@@ -173,14 +173,27 @@ final class V2RemoteChatServices {
     }
 
     /// 官方 AppState.updateSessions（641）：批量会话写回 dashboard 仓库。
-    func updateSessions(_ updated: [V2SessionMeta]) {
+    /// 回传公开镜像而非 Void：列表页数据源是与仓库并存的 loader 镜像，增量更新
+    /// 需要真实变更集；跨 seam 值一律走 Glue 拥有的 RemoteSessionMeta，
+    /// 调用方不必（也不应）自己碰 V2SessionMeta。
+    /// 调用点（设备页 archiveAll 无项目分支）传入的 sessions 即服务端
+    /// connectors/{id}/sessions/archive-all 回传的变更集，该端点的 sessions
+    /// 恒等于全量受影响集，字据见 archiveProject 注释（同一响应模型）。
+    func updateSessions(_ updated: [V2SessionMeta]) -> [RemoteSessionMeta] {
         dashboardRepository.upsert(updated)
+        return updated.map(RemoteService.mapSession)
     }
 
     /// 官方 AppState.setSessionsArchived（396-418）：批量归档/取消归档，
     /// 成功回写每个更新会话，失败落 sessionActionError。本仓组合根即数据面宿主，
     /// 无官方 `cachedServices === services` 换代守卫（单一组合根、无替换）。
-    func setSessionsArchived(sessionIds: [V2SessionID], archived: Bool) async -> Bool {
+    /// 与官方的差异只在回传形态：官方无返回（UI 靠仓库 Observable 驱动），本仓
+    /// 列表页要拿真实变更集做增量更新 → 成功返回公开镜像数组，失败返回 nil
+    /// （错误文案仍走 sessionActionError，与官方一致）。批量端点回传即权威变更
+    /// 集：请求的每个 id 要么进 sessions 要么进 notFound，无第三条路
+    /// （moonveil-cloud @ a070c658：server/agent_server/api/sessions.py:574-594、
+    /// infra/repositories/sessions.py:1392 起，全量 in_ 更新后按 id 回读）。
+    func setSessionsArchived(sessionIds: [V2SessionID], archived: Bool) async -> [RemoteSessionMeta]? {
         sessionActionError = nil
         do {
             let updatedSessions = if archived {
@@ -191,11 +204,38 @@ final class V2RemoteChatServices {
             for updated in updatedSessions {
                 dashboardRepository.upsert([updated])
             }
-            return true
+            return updatedSessions.map(RemoteService.mapSession)
         } catch {
             sessionActionError = error.localizedDescription
-            return false
+            return nil
         }
+    }
+
+    /// 项目范围内全部归档/取消归档。写侧唯一写主仍是冻结区
+    /// V2DashboardRepository.archiveProject（requireWritable 守卫、revision
+    /// fence、变更会话 upsert、项目计数刷新都在它内部；该文件不可改，其签名
+    /// 返回 Void）。回传集在冻结调用返回后从仓库快照派生：archiveProject 已把
+    /// 服务端回传的变更会话 upsert 进仓库，按 projectId 过滤即真实变更集。
+    /// local: 草稿不上服务端列表，排除之，避免幽灵行注入列表页镜像。
+    /// 「无损」是相对 a070c658 这版服务端契约而言的，不是绝对保证：契约变了
+    /// （分页、采样、部分失败）这段派生逻辑就跟着失效，字据见下。
+    /// 「服务端回传即全量受影响集」的上游字据（moonveil-cloud @ a070c658，
+    /// 2026-09-22 取证）：项目端点 projects/{id}/sessions/archive-all 返回
+    /// sessions=受影响行全集、affected=len(sessions)
+    /// （server/agent_server/api/projects.py:228-231）；store 侧对命中 id 一次
+    /// 性全量 update 后按同一批 id 回读，无 limit/采样
+    /// （server/agent_server/infra/repositories/projects.py:499-560）；连接器端
+    /// 同型（server/agent_server/api/connectors.py:246-270、
+    /// infra/repositories/sessions.py:1453 起）；在线态覆写逐条一一对应、不增删
+    /// （server/agent_server/services/connector_presence.py:54-69）。
+    /// 注：本方法派生集按 projectId 过滤仓库快照，相对「本次真正翻转的会话」
+    /// 可能 over-inclusive（含项目内原本已是目标归档态的行），但这些行的值同样
+    /// 来自服务端权威写回，消费侧按 id 幂等并入，多并无害。
+    func archiveProject(id: String, archived: Bool) async throws -> [RemoteSessionMeta] {
+        try await dashboardRepository.archiveProject(id, archived: archived)
+        return dashboardRepository.sessions
+            .filter { $0.projectId == id && !$0.id.hasPrefix("local:") }
+            .map { RemoteService.mapSession($0) }
     }
 
     func dismissSessionActionError() {

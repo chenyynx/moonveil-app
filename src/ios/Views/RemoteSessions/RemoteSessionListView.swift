@@ -367,19 +367,24 @@ struct RemoteSessionListView: View {
         // 取、删除回调走组合根 removeConnector、.id(connectorId) 官方 190 行）。
         .navigationDestination(isPresented: $showsDeviceDetail) {
             if let connector = deviceConnector, let services = service.chat {
-                // [BATCH-A/A3-同族] 传上 :41 预留的变化信号：设备页三条归档写路径
-                // （archiveAll 无项目分支 / 项目分支 archiveProject / 批量选中
-                // setSessionsArchived）成功后都会推进服务端与仓库状态，但本页数据源是
-                // loader.items（与仓库并存的第二缓存），不接信号 → 列表页滞后到下次手动
-                // 刷新。回调里强制重拉当前筛选 + 归档面。
+                // [BATCH-A/A3-同族][SEAM-LOSSLESS] 设备页四条归档写路径无损回传真实
+                // 变更集（[RemoteSessionMeta]）：服务端与 dashboard 仓库在写路径内部
+                // 已推进（setSessionsArchived/archiveProject/updateSessions 均回写
+                // 仓库），这里只把变更集增量并入 loader 镜像——不再整表 force 重拉，
+                // 因为 force 重拉把 phase 打到 .loading，返回列表页时闪一帧
+                // 「正在加载远程会话…」骨架。「无损」的上游字据（archive-all 的
+                // sessions 恒等于全量受影响集）见 V2RemoteChatServices.archiveProject
+                // 注释；在途 load 与增量合并的竞态由 RemoteSessionLoader.changeLog
+                // 的有界重放收敛（快照落地后把晚于请求起点、且仍在日志窗口内的
+                // 变更集重新并入；超出 changeLogCap 被丢的条目不重放，其行由下
+                // 一次全量拉取纠正）。
                 RemoteDeviceDetailView(service: service, connector: connector,
                     onDeleted: { id in
                         services.removeConnector(connectorId: id)
                         showsDeviceDetail = false
                     },
-                    onSessionsChanged: {
-                        loader.load(service: service, filter: archiveFilter, force: true)
-                        loader.loadArchived(service: service, force: true)
+                    onSessionsChanged: { changed in
+                        loader.applyRemoteChange(changed)
                     })
                     .id(connector.id)
             } else {

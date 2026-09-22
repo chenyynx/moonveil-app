@@ -36,17 +36,15 @@ struct RemoteDeviceDetailView: View {
     /// 官方 onConnectorDeleted（ChatShell：appState.removeConnector + 出栈）——
     /// 本仓由调用方执行组合根 removeConnector 并 pop 本页。
     let onDeleted: (V2ConnectorID) -> Void
-    /// 官方 onSessionsUpdated（archiveAll 后回写）——本仓直调组合根 updateSessions，
-    /// 这个闭包位只用于「远端会话集合可能已变，列表页请重拉」。
-    /// 为什么不带官方那种 [V2SessionMeta] payload：本页四条写路径里只有 archiveAll 的
-    /// 无项目分支能拿到完整 meta（dashboard.archiveSessions 直返）；两条项目归档走
-    /// V2DashboardRepository.archiveProject（返回 Void，且该文件属 AAV2 冻结区不可改）、
-    /// 批量选中走组合根 setSessionsArchived（回写仓库但只返 Bool，要透传得改 Glue 写面）。
-    /// 传不了真值的 payload 就是假数据，故统一降级为「变化信号 + 调用方重拉」。
-    /// 注意：这只摘掉本闭包位的一处 V2SessionMeta 引用，该类型在本文件
-    /// allSessions / sessionRow / scopeSubtitle / stateMark 仍在用，
-    /// 故不构成 import-scan 深扫违规数下降。
-    var onSessionsChanged: (() -> Void)?
+    /// 官方 onSessionsUpdated（archiveAll 后回写）——本仓列表页数据源是
+    /// RemoteSessionLoader（与 dashboard 仓库并存的镜像），增量更新需要真实变更集，
+    /// payload 用公开镜像 RemoteSessionMeta（Glue 拥有），视图不自取 V2SessionMeta。
+    /// 四条归档写路径全部无损回传：批量选中走组合根 setSessionsArchived（成功返回
+    /// 更新后的公开镜像，失败 nil）；两条项目归档走组合根 archiveProject 包装
+    /// （写主仍是冻结区 V2DashboardRepository.archiveProject，变更集在其回写仓库后
+    /// 从快照派生——冻结签名返回 Void 不可改，派生读是该边界内的合规补偿）；
+    /// archiveAll 无项目分支直接映射 model.archiveSessions 的服务端返回。
+    var onSessionsChanged: (([RemoteSessionMeta]) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
 
@@ -216,13 +214,14 @@ struct RemoteDeviceDetailView: View {
                 guard let project = pendingProject else { return }; pendingProject = nil
                 let deletesProject = projectActionIsDeletion
                 perform {
-                    if deletesProject { try await dashboard?.deleteProject(project.id) }
-                    else {
-                        try await dashboard?.archiveProject(project.id, archived: true)
-                        // 项目归档会改「范围内全部会话」的归档态，列表页 loader.items
-                        // 不知道 → 发变化信号。deleteProject 分支不触发：官方语义是
-                        // 只能删掉没有会话的项目，会话集合不变。
-                        onSessionsChanged?()
+                    if deletesProject {
+                        try await dashboard?.deleteProject(project.id)
+                    } else if let services {
+                        // 项目归档会改「范围内全部会话」的归档态 → 无损回传真实
+                        // 变更集，列表页增量收口。deleteProject 分支不触发：官方
+                        // 语义是只能删掉没有会话的项目，会话集合不变。
+                        let changed = try await services.archiveProject(id: project.id, archived: true)
+                        onSessionsChanged?(changed)
                     }
                 }
             }
@@ -600,9 +599,10 @@ struct RemoteDeviceDetailView: View {
         guard !ids.isEmpty, canManage, let services else { return }; busy = true
         Task {
             defer { busy = false }
-            if await services.setSessionsArchived(sessionIds: ids, archived: archived) {
+            // 成功返回真实变更集（公开镜像），失败 nil（错误走 sessionActionError alert）
+            if let changed = await services.setSessionsArchived(sessionIds: ids, archived: archived) {
                 model.stopSelectingSessions()
-                onSessionsChanged?()
+                onSessionsChanged?(changed)
             }
             sessionActionError = services.sessionActionError
         }
@@ -614,16 +614,17 @@ struct RemoteDeviceDetailView: View {
         if let id = model.projectID {
             let archived = model.sessionFilter != .archived
             perform {
-                try await dashboard?.archiveProject(id, archived: archived)
-                onSessionsChanged?()
+                // 冻结区 archiveProject 返回 Void 不可改；组合根包装在冻结写主回写
+                // 仓库后从快照派生变更集 → 无损回传，见 V2RemoteChatServices.archiveProject
+                let changed = try await services.archiveProject(id: id, archived: archived)
+                onSessionsChanged?(changed)
             }
         } else {
             Task {
                 if let sessions = await model.archiveSessions(connectorId: connector.id,
                     archived: model.sessionFilter != .archived,
                     service: services.deviceManagement) {
-                    services.updateSessions(sessions)
-                    onSessionsChanged?()
+                    onSessionsChanged?(services.updateSessions(sessions))
                 }
             }
         }
