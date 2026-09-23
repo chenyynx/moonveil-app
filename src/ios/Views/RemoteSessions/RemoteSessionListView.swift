@@ -608,7 +608,10 @@ struct RemoteSessionListView: View {
         .padding(.horizontal, 22)
         .padding(.top, 8)
         .padding(.bottom, 24)
-        .background(alignment: .bottom) { BottomBarFadeView() }
+        // [BOTTOM-FADE-PAGE] pp 2026-09-24 暗黑适配批：远端画布是暖纸/暖黑
+        // （RemotePalette.canvas），与本机 systemBackground 不同 → 收口色注入本页
+        // 画布，否则暖黑页面上会收在纯黑（色温错位，同灰膜病根）。
+        .background(alignment: .bottom) { BottomBarFadeView(pageColor: RemotePalette.canvas) }
         .offset(y: searchFocused ? 0 : 30)
     }
 

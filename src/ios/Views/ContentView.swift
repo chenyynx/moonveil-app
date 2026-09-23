@@ -269,10 +269,35 @@ struct SearchBarSurface: ViewModifier {
 /// FADE-GAP-FIX 堵安全区缺口）；stops [透明@0, 透明@0.35, 实心@0.80] → 淡化带 =
 /// 屏底-190 起淡、屏底-60 淡尽（对齐参照图二）。材质：`.ultraThinMaterial` 毛玻璃 +
 /// mask 渐隐（pp「渐隐用顶部的那种模糊效果吧」→ 同 folderMiniBar 材质语言）。
+///
+/// [BOTTOM-FADE-PAGE] pp 2026-09-24「搜索栏的遮罩没做暗黑模式适配吗」→「为啥底部
+/// 的那个最底下模糊感要比顶部强」：带的实心端原本停在**材质本身**——ultraThinMaterial
+/// 暗色渲染是灰调，≠ 页面黑 → 灰膜显形（pp 观感＝没适配）；且 mask 只降 alpha
+/// 不降模糊半径，alpha=1 处＝纯材质面 → 屏底雾感堆到最浓（顶部 mini bar 不显：
+/// 背后有列表内容做纹理、且被描边+阴影框成「物件」）。修法＝在 fill 与 mask 之间
+/// 叠一层**随主题的页面色渐变**（与 mask 同步 0.35→0.80）：亮色 白≈材质零视觉差；
+/// 暗色 灰膜被页面黑吃掉、屏底过浓的雾被实色盖掉 → 收口＝页面色。
+/// pageColor 由调用方注入（两页画布不同）：本机默认 systemBackground（FolderSurface
+/// 实测字据：暗色纯黑 24 点零方差 / 亮色白）；远端 = RemotePalette.canvas（暖纸/
+/// 暖黑）。
 struct BottomBarFadeView: View {
+    var pageColor: Color = Color(UIColor.systemBackground)
+
     var body: some View {
         Rectangle()
             .fill(.ultraThinMaterial)
+            // [BOTTOM-FADE-PAGE] 收口层：clear→页面色，位置与下方 mask 同步。
+            .overlay {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .clear, location: 0.35),
+                        .init(color: pageColor, location: 0.80),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
             .mask(
                 LinearGradient(
                     stops: [
