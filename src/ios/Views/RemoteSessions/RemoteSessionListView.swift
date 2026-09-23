@@ -201,6 +201,17 @@ struct RemoteSessionListView: View {
                 guard let services = service.chat else { return }
                 services.setAppInBackground(phase == .background)
             }
+            // [SWIPE-ROOT-RESET] pp 2026-09-24「滑到本地页再滑回远端页是远端聊天页？」：
+            // 页切语义 = 两条线各自的根列表页互切（B16-SWIPE-SCOPE），push 态不该劫持
+            // 返回落点——聊天/设备详情开着时切走远端线，滑回来会落在残留的聊天页上。
+            // 切走即弹回根列表（capsule 与横滑同规则，都经 router.mode 变化触发）；
+            // showsChat/详情复位经既有 onChange 链连带 remoteAtRoot=true，齿轮/返回键
+            // 状态随之归位。仅远端线——本机线是 upstream 本体（死隔离），待 pp 表态对称。
+            .onChange(of: tabRouter.mode) { _, mode in
+                guard mode != .remote else { return }
+                if showsChat { showsChat = false }
+                if showsDeviceDetail { showsDeviceDetail = false }
+            }
             .onAppear {
                 guard service.state == .ready else { return }
                 loader.load(service: service, filter: archiveFilter)
