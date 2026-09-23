@@ -1,4 +1,8 @@
 import SwiftUI
+// [SEARCH-BEAM] 本地 SPM 包，vendored 自 libraries.dev border-beam 的官方 iOS
+// 移植（`packages/border-beam/ports/ios/BorderBeamKit`，上游 MIT）。只挂在本机
+// 搜索栏；远端列表同款栏是 AA 冻结件不碰。
+import BorderBeamKit
 
 private let shareLog = AppLogger(category: "Share")
 private let draftLog = AppLogger(category: "DraftSession")
@@ -4383,6 +4387,19 @@ struct ContentView: View {
         // 51.3pt 均已对齐）。56 → 47 对齐参照高度。
         .frame(maxWidth: .infinity)
         .frame(height: 47)
+        // [SEARCH-BEAM] pp 2026-09-23「搜索栏大小的位置不要动」「常在」：要的是
+        // libraries.dev/beam 官方 Search 胶囊那款 = **line family**（r2 demo 的
+        // `beam-travel 3.1s` 从左到右横扫 + breathe 4.0s + 双轨 spike + edge-fade，
+        // 不是 r0 大输入框的 rotate 环绕 1.96s）；colorVariant 取默认 colorful、
+        // theme .auto 跟随系统深浅。borderRadius 必须显式 23.5 —— beam-spec 的
+        // sizePresets.line 默认 16，不传光带会画在错误弧度上（＝光跑错位置）。
+        // 挂在 SearchBarSurface **内侧**：BorderBeam 只加 .background/.overlay，
+        // 二者不参与父视图测量 → 高 47 / 位置零改动；shader 的光带是
+        // `outerCov - innerCov` 向内 1pt（BeamShaders.metal:141-144），整条都在
+        // bounds 内侧，不会被玻璃层的 capsule clip 切掉，且能跟 .interactive()
+        // 的按压缩放同步。热区由 .contentShape(.capsule) 决定，两层
+        // allowsHitTesting(false) 不接管点击。
+        .borderBeam(.line, theme: .auto, active: true, borderRadius: 23.5)
         .modifier(SearchBarSurface())
         // [T-ios-search-bar-glass-hit-hole] `glassEffect(in:)` renders a capsule
         // but contributes no hit region of its own; this row sits in a

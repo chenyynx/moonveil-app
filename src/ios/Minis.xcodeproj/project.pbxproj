@@ -578,6 +578,7 @@
 		E5X000001 /* SwiftMathRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5X000011 /* SwiftMathRenderer.swift */; };
 		E5Y000001 /* MathRenderScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5Y000011 /* MathRenderScheduler.swift */; };
 		E5Z900032 /* Textual in Frameworks */ = {isa = PBXBuildFile; productRef = E5Z900031 /* Textual */; };
+		E5BB00032 /* BorderBeamKit in Frameworks */ = {isa = PBXBuildFile; productRef = E5BB00031 /* BorderBeamKit */; };
 		E6A000001 /* AntigravityProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A000011 /* AntigravityProvider.swift */; };
 		E6A000002 /* AntigravityModelsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A000012 /* AntigravityModelsAPI.swift */; };
 		E6A000003 /* AntigravityOAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A000013 /* AntigravityOAuthManager.swift */; };
@@ -1720,6 +1721,7 @@
 				AA26CCC12F31090000AECF2D /* SystemConfiguration.framework in Frameworks */,
 				E52000005 /* SwiftAnthropic in Frameworks */,
 				E5Z900032 /* Textual in Frameworks */,
+				E5BB00032 /* BorderBeamKit in Frameworks */,
 				E5M000001 /* cmark-gfm in Frameworks */,
 				E5M000002 /* cmark-gfm-extensions in Frameworks */,
 				E5S000005 /* CloudKit.framework in Frameworks */,
@@ -3321,6 +3323,7 @@
 				E5X000021 /* SwiftMath */,
 				C42120806C66A2C804F89620 /* RealTimeCutVADLibrary */,
 				E5Z900031 /* Textual */,
+				E5BB00031 /* BorderBeamKit */,
 			);
 			productName = Minis;
 			productReference = E51000010 /* Minis.app */;
@@ -3424,6 +3427,7 @@
 				E5M000020 /* XCRemoteSwiftPackageReference "swift-cmark" */,
 				E5X000020 /* XCRemoteSwiftPackageReference "SwiftMath" */,
 				E5Z900030 /* XCLocalSwiftPackageReference "Textual" */,
+				E5BB00030 /* XCLocalSwiftPackageReference "BorderBeamKit" */,
 				B318C2F47DB3F301A17E49BE /* XCRemoteSwiftPackageReference "RealTimeCutVADLibrary" */,
 			);
 			productRefGroup = E51000032 /* Products */;
@@ -4927,6 +4931,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../Packages/Textual;
 		};
+		E5BB00030 /* XCLocalSwiftPackageReference "BorderBeamKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../Packages/BorderBeamKit;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -4994,6 +5002,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E5Z900030 /* XCLocalSwiftPackageReference "Textual" */;
 			productName = Textual;
+		};
+		E5BB00031 /* BorderBeamKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E5BB00030 /* XCLocalSwiftPackageReference "BorderBeamKit" */;
+			productName = BorderBeamKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
