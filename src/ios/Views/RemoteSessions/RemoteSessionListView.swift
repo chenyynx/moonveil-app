@@ -2,7 +2,9 @@
 //
 // 形态（pp 2026-09-20 定稿，REMOTE-REDESIGN-4 = 方案 B「Claude 设计语言」落地）：
 // 暖奶油画布 → 深色终端窗卡（设备）→ 液态玻璃操作 → 13pt tertiary 项目头 → 暖卡堆
-// 会话（琥珀待批准 / teal running / 珊瑚未读点）；冻结三件（顶栏/新会话/搜索栏）原样；
+// 会话（琥珀待批准 / teal running / 珊瑚未读点）；冻结三件（顶栏/新会话/搜索栏）原样
+//   ——[SEARCH-BEAM] pp 2026-09-24「远端也加」显式修订：搜索栏追加 border-beam 光束
+//   （参数与本机栏一致，见 searchBarCapsule 处注释）；顶栏 / 新会话仍原样；
 // AA 视觉只出现在点进去的弹窗页（PairDeviceSheet / ProjectEditor / 详情 / 归档）。
 // 数据源只走 RemoteKit 的 public facade（RemoteService / RemotePairingPayload），
 // 不读 ChatStore、不碰 ContentView 的 stackList（死隔离：远端列表与本机列表文件级零交集）。
@@ -27,6 +29,9 @@
 //   • 重命名 UI（AA RenameSheet）：写端点 patchSessionMeta(title:) 已就绪，随弹窗批接入。
 //   • 会话页聊天接线（timeline/snapshot）+ 分页加载（nextCursor）→ 下一批。
 
+// [SEARCH-BEAM] 本地 SPM 包，与 ContentView 本机栏同源（vendored 自 libraries.dev
+// border-beam 官方 iOS 移植，上游 MIT；BB1 比例补丁见 PATCHES.md）。
+import BorderBeamKit
 import SwiftUI
 
 struct RemoteSessionListView: View {
@@ -648,6 +653,15 @@ struct RemoteSessionListView: View {
         .padding(.trailing, 8)
         .frame(maxWidth: .infinity)
         .frame(height: 47)
+        // [SEARCH-BEAM] pp 2026-09-24「远端也加」：本栏原属文件头「冻结三件（顶栏/
+        // 新会话/搜索栏）原样」的冻结项——pp 显式指示加光束，即对该设计决策的显式
+        // 修订（字据同步写在文件头）。参数与本机栏逐字一致：line family / theme .auto /
+        // active 常在 / borderRadius 23.5（栏高 47 的胶囊；beam-spec 的 sizePresets
+        // 默认 16 不传会画错弧度），保证两端观感统一。
+        // 尺寸位置零改动依据同本机栏：BorderBeam 只加 .background/.overlay 不参与父视
+        // 图测量；shader 光带 outerCov-innerCov 向内 1pt 全在 bounds 内，不被玻璃层
+        // capsule clip 切；热区仍由 .contentShape(.capsule) 决定。
+        .borderBeam(.line, theme: .auto, active: true, borderRadius: 23.5)
         .modifier(SearchBarSurface())
         .contentShape(.capsule)
     }
