@@ -1643,3 +1643,13 @@ commit 3f81b1a。装机验证：拖动贴端/状态翻转/火焰燃起/滚页不
 - **修复**：官方 `Models/Chat/TextPhraseSequence.swift`（29 行，nonisolated enum，纯 Foundation 自包含）逐字搬运 + 4 行出处头 + 空行（`tail -n +6` diff 归零实证）；ruby xcodeproj 机械登记（fileRef=24A8924B/buildFile=F67814F9，MainActor 旗标惯例）。
 - **seam 判定**：不引词表符号，深扫绿，无需白名单行（与 GlyphRevealLedger 相反——那件引 ReplyPresentation）。
 - **验证**：swiftc -parse v5 OK / 深浅两扫 OK / registration 610(+1) orphans=0 / inputs missing=0 / strict-pbxproj OK。**预期**：本轮起 app 层引用完整性已穷举闭合；若再有错应为类型/并发面而非缺件。
+
+## BB1 — BorderBeamKit line 家族几何按元素尺寸比例缩放（vendored 包首个非逐字节偏差，2026-09-23，pp 拍板方案 B；[doris]）
+
+- **拍板字据**：pp「搜索栏大小的位置不要动」→「是输入框的动画从左到右的」（指认 libraries.dev/beam 官方 **r2 Search 胶囊**，即 line family，非 r0 大输入框的 rotate）→「常在」→「这个动画的尺寸你应该要调一下吧 因为我们这个搜索栏很长」→ 三选一（A 先装机看 / B 直接上比例补丁）回「b」。
+- **为什么必须缩**：`beam-spec.json` 的 line 几何**全是绝对 px**、按基准 **157×42**（= r2 Search 胶囊实测尺寸，与本 spec 同源渲染、pp 指认的目标观感；官方 demo 站 `beam.jakubantalik.com` 当时 TLS+连接失败无法直量）。实数：`beamMaskEllipse 78×60` / `bloomMaskEllipse 84×110` / `whiteHighlight 24×28 yOffset 2` / 彩斑 `sizeW 29~36、offsetX ±36~54` / bloom `w.base 0.8~10、h.base 35~92、yOffPx -2~-4`。78px 光斑在 157 宽上占 **50%**，本仓全宽 ~350pt 搜索栏上只剩 **22%**（相对细一半）；同 3.1s 走完全程＝视觉速度快 2.2×。
+- **改法（单文件 `LineBeamLayers.swift`，+36 行）**：`layers()` 内加双轴系数 `sx = Double(W)/157.0`、`sy = Double(H)/42.0`（动态按实际 bounds 算，非硬编码 2.23）；X 轴量 ×sx、Y 轴量 ×sy，三个 blob 构造函数 `strokeBlobs/innerBlobs/bloomBlobs` 各加 `sx/sy` 形参并传递。
+- **Y 不跟 X 的理由**：栏高仅 42→47（×1.12），若也乘 X 系数 2.23 光斑高度会糊满整条胶囊。
+- **有意不缩放**：`bx = v.x×W`（本就宽度比例，行程本就走满全栏）、`xPct`（本就百分比）、`borderWidth=1`（绝对值，缩了就错）、全部关键帧分数（edge-fade/breathe/spike）、hue/brightness/saturation（色彩属性与尺寸无关）。`duration` 3.1s **本轮不动**——一次只动一个变量，装机看速度感再决定要不要放慢。
+- **影响面申报**：`Packages/BorderBeamKit/` 自此**非逐字节**——19 件中仅 `LineBeamLayers.swift` 1 件有偏差（`diff -rq` 全包比对实证），其余 18 件仍上游原样；**上游 border-beam 升级时须重打本补丁**（本条即重打依据）。只挂 Minis app target，不进 RemoteKit（那边 `swift build` 不编 `.metal`）。
+- **验证**：`diff -rq` 差异文件=1（已列全）；Linux 门全绿（见 commit message）。**未验证**：真机光斑占宽比 / 速度感（iOS Build + 装机是权威裁决）。

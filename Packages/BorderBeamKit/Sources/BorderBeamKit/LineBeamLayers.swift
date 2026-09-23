@@ -68,16 +68,33 @@ struct LineBeamLayers: View {
         let bx = v.x * W
         let base = fade * v.edge * config.strength
 
+        // [PATCH-BB1] 比例适配元素实际尺寸（pp 2026-09-23「这个动画的尺寸你应该
+        // 要调一下吧 因为我们这个搜索栏很长」，拍板方案 B=直接改包按比例缩放）。
+        // 基准 157×42 = libraries.dev/beam 的 r2 Search 胶囊——与本 beam-spec 同源
+        // 渲染、pp 指认的目标观感；官方 demo 站 beam.jakubantalik.com 当时 TLS/连接
+        // 失败无法直量，故取该胶囊为参考几何。
+        // 为什么必须缩：spec 的 line 几何全是为该基准调的**绝对 px**（mask.w=78 →
+        // 在 157 宽上占 50%，本仓 ~350pt 全宽搜索栏上只剩 22%，相对细一半；同
+        // 3.1s 走完全程＝视觉速度快 2.2×）。X 轴量 ×(W/157)、Y 轴量 ×(H/42)。
+        // Y 不跟 X：栏高只 42→47（×1.12），若也乘 2.23 光斑会糊满整条胶囊。
+        // 有意不缩放：`bx = v.x×W`（本就宽度比例）、`xPct`（本就百分比）、
+        // `borderWidth`（1pt 绝对值，缩了就错）、全部关键帧分数、hue/brightness/
+        // saturation（色彩属性与尺寸无关）。duration 3.1s 本轮不动——一次只动一个
+        // 变量，装机看速度感再决定要不要放慢。
+        // 上游同步须重打此补丁：见仓库 PATCHES.md「BB1」。
+        let sx = Double(W) / 157.0
+        let sy = Double(H) / 42.0
+
         let mask = spec.line.beamMaskEllipse
         let bloomMask = spec.line.bloomMaskEllipse
         let radial: [Float] = [
             Float(bx), Float(H),
-            Float(mask.w * v.w), Float(mask.h * v.h),
+            Float(mask.w * v.w * sx), Float(mask.h * v.h * sy),
             Float(mask.softStop[0] / 100), Float(mask.softStop[1]), 1,
         ]
         let bloomRadial: [Float] = [
             Float(bx), Float(H),
-            Float(bloomMask.w * v.w), Float(bloomMask.h * v.h),
+            Float(bloomMask.w * v.w * sx), Float(bloomMask.h * v.h * sy),
             Float(bloomMask.softStop[0] / 100), Float(bloomMask.softStop[1]), 1,
         ]
 
@@ -90,17 +107,17 @@ struct LineBeamLayers: View {
         ZStack {
             shaderLayer(
                 size: size, geomKind: 1, edgeMaskPx: spec.rotate.innerEdgeMaskPx,
-                radial: radial, blobs: innerBlobs(v: v, bx: bx, height: H),
+                radial: radial, blobs: innerBlobs(v: v, bx: bx, height: H, sx: sx, sy: sy),
                 matrix: cm, opacity: base * config.themeConfig.innerOpacity
             )
             shaderLayer(
                 size: size, geomKind: 0, edgeMaskPx: 0,
-                radial: radial, blobs: strokeBlobs(v: v, bx: bx, height: H),
+                radial: radial, blobs: strokeBlobs(v: v, bx: bx, height: H, sx: sx, sy: sy),
                 matrix: cm, opacity: base * config.themeConfig.strokeOpacity
             )
             let bloom = shaderLayer(
                 size: size, geomKind: 1, edgeMaskPx: 0,
-                radial: bloomRadial, blobs: bloomBlobs(v: v, bx: bx, width: W, height: H),
+                radial: bloomRadial, blobs: bloomBlobs(v: v, bx: bx, width: W, height: H, sx: sx, sy: sy),
                 matrix: bloomCM, opacity: base * config.themeConfig.bloomOpacity
             )
             if bloomBlur > 0 {
@@ -113,7 +130,7 @@ struct LineBeamLayers: View {
 
     // ── Blob construction (mirrors border-beam-native LineBeam.tsx) ──
 
-    private func strokeBlobs(v: BeamAnimation.LineFrameValues, bx: Double, height: Double) -> [Float] {
+    private func strokeBlobs(v: BeamAnimation.LineFrameValues, bx: Double, height: Double, sx: Double, sy: Double) -> [Float] {
         let spec = config.spec
         var blobs: [Float] = []
         // White traveling highlight first (on top).
@@ -123,40 +140,42 @@ struct LineBeamLayers: View {
                 BeamSpec.BloomStop(r: c * 255, g: c * 255, b: c * 255, a: $0[1], pos: $0[0] / 100)
             }
             blobs += BlobEncoder.stops(
-                rx: wh.w * v.w, ry: wh.h * v.h, cx: bx, cy: height + wh.yOffset, stops: stops
+                rx: wh.w * v.w * sx, ry: wh.h * v.h * sy,
+                cx: bx, cy: height + wh.yOffset * sy, stops: stops
             )
         }
         for e in spec.palettes.line[config.variant.rawValue]![config.theme]! {
             guard let c = BeamRGBA(css: e.color) else { continue }
             blobs += BlobEncoder.simple(
-                rx: e.sizeW * v.w, ry: e.sizeH * v.h,
-                cx: bx + e.offsetX, cy: height + e.offsetY, color: c
+                rx: e.sizeW * v.w * sx, ry: e.sizeH * v.h * sy,
+                cx: bx + e.offsetX * sx, cy: height + e.offsetY * sy, color: c
             )
         }
         return blobs
     }
 
-    private func innerBlobs(v: BeamAnimation.LineFrameValues, bx: Double, height: Double) -> [Float] {
+    private func innerBlobs(v: BeamAnimation.LineFrameValues, bx: Double, height: Double, sx: Double, sy: Double) -> [Float] {
         var blobs: [Float] = []
         for e in config.spec.palettes.lineInner[config.variant.rawValue]! {
             guard let c = BeamRGBA(css: e.color) else { continue }
             blobs += BlobEncoder.simple(
-                rx: e.sizeW * v.w, ry: e.sizeH * v.h,
-                cx: bx + e.offsetX, cy: height - abs(e.offsetY), color: c
+                rx: e.sizeW * v.w * sx, ry: e.sizeH * v.h * sy,
+                cx: bx + e.offsetX * sx, cy: height - abs(e.offsetY) * sy, color: c
             )
         }
         return blobs
     }
 
-    private func bloomBlobs(v: BeamAnimation.LineFrameValues, bx: Double, width: Double, height: Double) -> [Float] {
+    private func bloomBlobs(v: BeamAnimation.LineFrameValues, bx: Double, width: Double, height: Double, sx: Double, sy: Double) -> [Float] {
         var blobs: [Float] = []
         let grads = config.spec.line.bloomGradients[config.variant.rawValue]![config.theme]!
         for g in grads {
             let cx = g.xPct.map { $0 / 100 * width } ?? bx
+            // [PATCH-BB1] xPct cx unscaled — already a fraction of the actual width.
             blobs += BlobEncoder.stops(
-                rx: g.w.base * BeamAnimation.multValue(g.w.mult, v),
-                ry: g.h.base * BeamAnimation.multValue(g.h.mult, v),
-                cx: cx, cy: height + g.yOffPx, stops: g.stops
+                rx: g.w.base * BeamAnimation.multValue(g.w.mult, v) * sx,
+                ry: g.h.base * BeamAnimation.multValue(g.h.mult, v) * sy,
+                cx: cx, cy: height + g.yOffPx * sy, stops: g.stops
             )
         }
         return blobs
