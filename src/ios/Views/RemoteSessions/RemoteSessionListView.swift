@@ -17,8 +17,11 @@
 //     活跃/已归档/全部 + 归档会话）——AA-LIST-MENU，2026-09-20
 //   • 会话：暖卡堆（白圆 lucide 头像 + 标题/摘要 + 时间）；状态语义化——
 //     等待批准=琥珀胶囊 / 运行中=teal 转圈+mono running / 未读=卡角珊瑚点 / 置顶=pin
-//   • 长按菜单：Open / Rename / Pin·Unpin / Archive·Restore / Copy Session ID
-//   • 左滑动作：置顶 / 归档 / 删除
+//   • 长按菜单：Open / Rename / Pin·Unpin / Archive·Restore / Copy Session ID / Delete
+//     ——[SESSION-SWIPE-TO-LONGPRESS] pp 2026-09-24「把左滑右滑的功能改成长按的
+//     方式，让滑动卡片区域能滑动页面到本地列表页」：原行 swipeActions（置顶/归档/
+//     删除）整体迁入长按菜单；Delete 服务端仍无删除端点（Staged，不假造成功态），
+//     卡片区横滑让给页切手势（同批撤 RootModeTabsView 的 RemoteRowsFence）。
 //   • 归档页（ArchivedSessionsSheet）+ 下拉刷新 + 空态诚实
 //
 // Staged with deadlines（完整性铁律 — 明示不藏）：
@@ -36,6 +39,10 @@ import SwiftUI
 
 struct RemoteSessionListView: View {
     @ObservedObject var service: RemoteService
+    /// [SESSION-SWIPE-TO-LONGPRESS] 页切冻结观察（与本机 ContentView 同款单例
+    /// @ObservedObject）：横滑切页判定胜出时冻结本列表竖滚，防切页时列表跟着跑——
+    /// 卡片区现在能武装页切，没有这条会露馅。
+    @ObservedObject private var tabRouter = RootTabRouter.shared
     /// 审批计数与断开动作由 RemoteRootView 透传（本视图不持有连接生命周期）。
     var pendingNotices: Int = 0
     var onDisconnect: () -> Void = {}
@@ -306,7 +313,6 @@ struct RemoteSessionListView: View {
                             // 全部会话（AA 官方 flat 模式）：平铺卡堆。
                             ForEach(projectItems) { item in
                                 sessionRow(item)
-                                    .background(firstRowFenceReporter(for: item))
                             }
                         } else {
                             // 按项目（AA 官方默认）：项目小标题 + 组内卡堆；未分组殿后。
@@ -314,7 +320,6 @@ struct RemoteSessionListView: View {
                                 projectGroupLabel(group.name)
                                 ForEach(group.items) { item in
                                     sessionRow(item)
-                                        .background(firstRowFenceReporter(for: item))
                                 }
                             }
                         }
@@ -351,10 +356,6 @@ struct RemoteSessionListView: View {
                                 .listRowInsets(EdgeInsets())
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
-                                .onAppear {
-                                    // [REMOTE-ROW-FENCE] 卡堆清空（搜索/无项目）→ 栅栏复位
-                                    RemoteRowsFence.topY = .greatestFiniteMagnitude
-                                }
                         }
                     }
                 }
@@ -365,6 +366,9 @@ struct RemoteSessionListView: View {
         // 方案 B：列表滚动背景让位给页面画布（画布挂在 body 级 background 上）
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.immediately)
+        // [SESSION-SWIPE-TO-LONGPRESS] 页切手势胜出时冻结竖滚（本机 ContentView:2826
+        // 同款对称物——远端此前因卡堆区被 RemoteRowsFence 排除而一直没接）。
+        .scrollDisabled(tabRouter.pageSwipeArmed)
         .safeAreaInset(edge: .bottom) { bottomBar }
         .refreshable { await refresh() }
         // REMOTE-DEVICE-1 + P2-A：设备详情页（单击终端卡进入）；per-connector 数据面
@@ -553,31 +557,9 @@ struct RemoteSessionListView: View {
                 handleMenuAction(action, for: item)
             }
         }
-        .swipeActions(edge: .leading) {
-            Button { togglePin(item) } label: { Label("置顶", systemImage: "pin") }
-                .tint(.orange)
-        }
-        .swipeActions(edge: .trailing) {
-            Button { archive(item) } label: { Label("归档", systemImage: "archivebox") }
-                .tint(.gray)
-            Button(role: .destructive) { delete(item) } label: { Label("删除", systemImage: "trash") }
-        }
-    }
-
-    /// [REMOTE-ROW-FENCE] 首卡上报卡堆区顶沿（窗口坐标）——页切手势在卡堆区让位给
-    /// 行 swipeActions（pp 2026-09-20「卡片我往右滑怎么切换页了」）。
-    /// 仅首卡挂 reporter（中间卡不报，零额外开销）。
-    @ViewBuilder
-    private func firstRowFenceReporter(for item: RemoteSessionItem) -> some View {
-        if item.id == stackFirstItemId {
-            GeometryReader { proxy in
-                Color.clear
-                    .onAppear { RemoteRowsFence.topY = proxy.frame(in: .global).minY }
-                    .onChange(of: proxy.frame(in: .global).minY) { _, y in
-                        RemoteRowsFence.topY = y
-                    }
-            }
-        }
+        // [SESSION-SWIPE-TO-LONGPRESS 2026-09-24] 原 .swipeActions（左：置顶；右：
+        // 归档/删除）已整体迁入上方 contextMenu——行不再消费横滑，卡片区横滑让给
+        // 页切手势（与 RootModeTabsView 撤销 RemoteRowsFence 同批，pp 原话见文件头）。
     }
 
     /// 头像：白圆底 + 裸 lucide；运行中 = teal 外圈转圈（方案 B 语义位）。
@@ -770,8 +752,6 @@ struct RemoteSessionListView: View {
         HStack(spacing: 12) {
             Button {
                 withAnimation(.snappy) { projectsCollapsed.toggle() }
-                // [REMOTE-ROW-FENCE] 收起/展开后卡位变化——先复位，展开时首卡会重新上报
-                RemoteRowsFence.topY = .greatestFiniteMagnitude
             } label: {
                 HStack(spacing: 7) {
                     RemoteSpikeMark()
@@ -840,7 +820,8 @@ struct RemoteSessionListView: View {
     }
 
     // 删除：服务端会话只有归档/取消归档/标记已读，无删除端点（Staged，
-    // 见 PATCHES 台账）；本按钮暂不假造成功态。
+    // 见 PATCHES 台账）；长按菜单入口已就位（2026-09-24 从行 swipeActions 迁入），
+    // 接端点批接线前不假造成功态。
     private func delete(_ item: RemoteSessionItem) {
     }
 
@@ -852,6 +833,10 @@ struct RemoteSessionListView: View {
             break
         case .togglePin: togglePin(item)
         case .archive: archive(item)
+        case .delete:
+            // [SESSION-SWIPE-TO-LONGPRESS] 删除从行 swipeActions 迁入；服务端无删除
+            // 端点（Staged，与 rename 同款暂不假造成功态），接端点批接线。
+            delete(item)
         case .copyId: UIPasteboard.general.string = item.id
         }
     }
@@ -897,11 +882,6 @@ struct RemoteSessionListView: View {
     /// 项目名：远端项目列表的真实结果（缺失时回退 projectId 原值）。
     private func projectDisplayName(for projectId: String) -> String {
         loader.projectNames[projectId] ?? projectId
-    }
-
-    /// 当前渲染顺序下的第一张卡（[REMOTE-ROW-FENCE] reporter 的门）。
-    private var stackFirstItemId: String? {
-        showsAllSessions ? projectItems.first?.id : groupedItems.first?.items.first?.id
     }
 
     // 列表选项（归档/断开）= 页面级操作，挂顶栏右上角 …（本机同位；
@@ -989,5 +969,5 @@ struct RemoteSessionItem: Identifiable, Equatable {
 }
 
 enum RemoteSessionMenuAction {
-    case open, rename, togglePin, archive, copyId
+    case open, rename, togglePin, archive, delete, copyId
 }

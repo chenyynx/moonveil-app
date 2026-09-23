@@ -45,7 +45,8 @@ struct RemoteNewSessionWelcomeView<Workspace: View>: View {
                 .accessibilityHidden(!workspaceRevealed)
         }
         // 观察真实布局但不定死宽高（onGeometryChange 是 iOS 18 API，主 target
-        // 16/17 —— 用仓内 firstRowFenceReporter 同款 GeometryReader 观察模式）。
+        // 16/17 —— 用 GeometryReader + .global onChange 上报的手法，iOS 16 起可用；
+        // 原同款件 firstRowFenceReporter 已随 2026-09-24 swipe→长按批移除）。
         // 绘制开始后，几何更新不得取消揭示任务。
         .background(
             GeometryReader { proxy in

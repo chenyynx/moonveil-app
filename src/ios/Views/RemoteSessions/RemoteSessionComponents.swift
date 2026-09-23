@@ -120,6 +120,12 @@ struct RemoteSessionContextMenu: View {
         Button { onAction(.archive) } label: {
             Label("Archive", systemImage: "archivebox")
         }
+        // [SESSION-SWIPE-TO-LONGPRESS 2026-09-24 pp「改成长按」] Delete 从行
+        // swipeActions 迁入；服务端无删除端点（Staged），接线批到来前点了不生效
+        // （与 Rename 同款暂不假造成功态）。
+        Button(role: .destructive) { onAction(.delete) } label: {
+            Label("Delete", systemImage: "trash")
+        }
         Divider()
         Button { onAction(.copyId) } label: {
             Label("Copy session ID", systemImage: "doc.on.doc")
