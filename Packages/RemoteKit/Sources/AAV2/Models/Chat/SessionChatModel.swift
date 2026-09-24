@@ -73,6 +73,15 @@ final class SessionChatModel {
             // Both cold and cached visits begin with one latest page. Older
             // records are added only by the user's explicit history requests.
             _ = try await repository.open(sessionId: session.id)
+        } catch is CancellationError {
+            // [OPEN-CANCEL-NOT-ERROR] pp 2026-09-24「点进远端聊天页提示：未能完成
+            // 操作。（Swift.CancellationError错误1。）」：open 请求在传输层被接替/
+            // 取消时抛 CancellationError，而外层 task 仍活着——下方 Task.isCancelled
+            // 守卫只看外层，挡不住（这正是它放行的原因）。Swift 铁律：取消 ≠ 错误，
+            // 属正常生命周期，静默；真实打开失败仍走下方 catch 装 openingError。
+            // repository.open 全仓单调用点（本函数），非重复调用竞态。
+            // 本文件属 AAV2 冻结区 divergence：双锚已同步（AAV2/FREEZE-MANIFEST.txt
+            // + scripts/aav2-freeze-baseline.txt，配方同 f49d987）。
         } catch {
             guard !Task.isCancelled else { return }
             openingError = error.localizedDescription
