@@ -164,7 +164,7 @@ final class SSHConfigStore: ObservableObject {
             }
             ensureSSHDirExists()
             var blocks = Self.parseConfigBlocks(from: configHostURL)
-            blocks = Self.upsertBlock(for: clean, in blocks)
+            blocks = Self.upsertBlock(for: clean, in: blocks)
             try writeConfigFile(blocks)
             reload()
         } catch let e as SSHStoreError {
