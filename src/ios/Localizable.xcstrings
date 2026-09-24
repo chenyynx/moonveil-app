@@ -38068,6 +38068,23 @@
         }
       }
     },
+    "Generating key…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generating key…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在生成密钥…"
+          }
+        }
+      }
+    },
     "Generation stopped": {
       "extractionState": "manual",
       "localizations": {
@@ -42594,6 +42611,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "已安裝"
+          }
+        }
+      }
+    },
+    "Installing dependencies…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installing dependencies…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在安装依赖…"
           }
         }
       }
@@ -66340,6 +66374,23 @@
         }
       }
     },
+    "Pushing public key…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pushing public key…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在推送公钥…"
+          }
+        }
+      }
+    },
     "QR Code Login": {
       "comment": "Shared with Web: dashboard.mobileConnections.scanTitle. Sync with ios/scripts/web_copy.py.",
       "extractionState": "manual",
@@ -86836,6 +86887,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "測試失敗"
+          }
+        }
+      }
+    },
+    "Testing connection…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Testing connection…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在测试连接…"
           }
         }
       }

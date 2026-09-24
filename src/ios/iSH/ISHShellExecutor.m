@@ -596,16 +596,18 @@ static int32_t _sweptContexts = 0;
         return ISHShellExecutorErrorExecFailed;
     }
 
-    // Get guest PID and start task
+    // Get guest PID and register the context BEFORE task_start: the exit
+    // notification can arrive as soon as the task runs, and a fast-exiting
+    // command could otherwise post ISHProcessExitedNotification before we
+    // register, dropping the notification and orphaning the context until
+    // the sweeper reaps it hours later.
     ctx.guestPid = task->pid;
     ctx.result.pid = ctx.guestPid;
-    task_start(task);
-    current = saved_current;
-
-    // Register context
     @synchronized(_activeExecutions) {
         _activeExecutions[@(ctx.guestPid)] = ctx;
     }
+    task_start(task);
+    current = saved_current;
 
     // Write stdinData to pipe in background, then close write end
     if (stdinData && stdinPipe[1] >= 0) {

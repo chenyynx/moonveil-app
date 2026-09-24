@@ -391,6 +391,8 @@ private struct SSHAddServerSheet: View {
     @State private var showCustomOptions = false
     @State private var isSettingUp = false
     @State private var setupResult: SSHTestResult?
+    @State private var setupStep: String?
+    @State private var setupTask: Task<Void, Never>?
 
     private var currentKeys: [SSHKeyEntry] { store.keys }
     private var currentServers: [SSHServerEntry] { store.servers }
@@ -495,11 +497,25 @@ private struct SSHAddServerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        // Cancelling the task kills the in-flight guest
+                        // command (see executeSSHCommand) and stops the
+                        // setup between stages.
+                        setupTask?.cancel()
+                        setupTask = nil
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if isSettingUp {
-                        ProgressView()
+                        HStack(spacing: 8) {
+                            if let step = setupStep {
+                                Text(step)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            ProgressView()
+                        }
                     } else if setupResult?.ok == true {
                         Button("Done") { dismiss() }
                     } else {
@@ -516,6 +532,7 @@ private struct SSHAddServerSheet: View {
     private func performSetup() {
         isSettingUp = true
         setupResult = nil
+        setupStep = nil
         let entry = SSHServerEntry(
             alias: effectiveAlias,
             hostname: hostname.trimmingCharacters(in: .whitespaces),
@@ -527,10 +544,15 @@ private struct SSHAddServerSheet: View {
         )
         let pwd = authMode == "password" ? password : nil
         let keysSnapshot = currentKeys
-        Task {
+        setupTask?.cancel()
+        setupTask = Task {
             let result = await store.performOneTouchSetup(
-                server: entry, password: pwd, keys: keysSnapshot)
+                server: entry, password: pwd, keys: keysSnapshot,
+                onStep: { setupStep = $0 })
+            // If the user cancelled, the sheet is already gone — don't touch UI state.
+            guard !Task.isCancelled else { return }
             setupResult = result
+            setupStep = nil
             isSettingUp = false
         }
     }

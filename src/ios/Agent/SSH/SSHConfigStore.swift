@@ -378,6 +378,7 @@ final class SSHConfigStore: ObservableObject {
         let cmd = [
             "sshpass -e ssh",
             "-o StrictHostKeyChecking=no",
+            "-o ConnectTimeout=10",
             "-o Port=\(port)",
             "\(server.user)@\(server.hostname)",
             "\"mkdir -p ~/.ssh && chmod 700 ~/.ssh &&",
@@ -428,16 +429,26 @@ final class SSHConfigStore: ObservableObject {
 
     /// Full auto-configure flow: ensure deps → ensure key → write config → push key → test.
     /// Returns the final test result. On success, the server is fully operational.
+    /// - Parameter onStep: called on the main actor as each stage begins, so the
+    ///   UI can show progress instead of a bare spinner. The task is
+    ///   cooperatively cancellable: it checks for cancellation between stages.
     func performOneTouchSetup(
         server: SSHServerEntry,
         password: String?,
-        keys: [SSHKeyEntry]
+        keys: [SSHKeyEntry],
+        onStep: ((String) -> Void)? = nil
     ) async -> SSHTestResult {
+        func cancelledResult() -> SSHTestResult {
+            SSHTestResult(ok: false, message: AppLocalized("Cancelled"), elapsedMs: 0)
+        }
+
+        onStep?(AppLocalized("Installing dependencies…"))
         do {
             try await ensureDeps()
         } catch {
             return SSHTestResult(ok: false, message: error.localizedDescription, elapsedMs: 0)
         }
+        if Task.isCancelled { return cancelledResult() }
 
         var entry = server
         if entry.authMode == "password" {
@@ -445,6 +456,7 @@ final class SSHConfigStore: ObservableObject {
             if let existing = keys.first {
                 keyName = existing.name
             } else {
+                onStep?(AppLocalized("Generating key…"))
                 let generatedName = "id_moonveil"
                 do {
                     try await generateKey(name: generatedName, type: "ed25519")
@@ -456,6 +468,7 @@ final class SSHConfigStore: ObservableObject {
             entry.identityFileName = keyName
             entry.authMode = "key"
         }
+        if Task.isCancelled { return cancelledResult() }
 
         do {
             try upsertServer(entry)
@@ -477,6 +490,7 @@ final class SSHConfigStore: ObservableObject {
                 authMode: "key",
                 note: entry.note
             )
+            onStep?(AppLocalized("Pushing public key…"))
             let pushResult = await pushPublicKey(server: pushServer, password: pwd)
             if !pushResult.ok {
                 return SSHTestResult(
@@ -485,7 +499,9 @@ final class SSHConfigStore: ObservableObject {
                     elapsedMs: pushResult.elapsedMs)
             }
         }
+        if Task.isCancelled { return cancelledResult() }
 
+        onStep?(AppLocalized("Testing connection…"))
         let reloaded = servers.first { $0.alias == entry.alias } ?? entry
         let testResult = await testConnection(reloaded, password: password)
         return SSHTestResult(
@@ -810,40 +826,99 @@ final class SSHConfigStore: ObservableObject {
         var errorOutput: String
     }
 
+    /// Default per-command timeout. Every guest command goes through here, so a
+    /// hung apk/ssh can never spin the UI forever (see the SSH add-server bug).
+    private static let sshCommandTimeout: TimeInterval = 120
+
     private func executeSSHCommand(
-        _ command: String, env: [String: String] = [:]
+        _ command: String, env: [String: String] = [:],
+        timeoutSeconds: TimeInterval = sshCommandTimeout
     ) async -> ShellResult {
         let scriptContent =
             "cd /root\n({ exec 0</dev/null; } 2>/dev/null || true; \(command)\n)\n"
         let stdinData = scriptContent.data(using: .utf8)
 
-        return await withCheckedContinuation { continuation in
-            ISHShellExecutor.executeExecutable(
-                "/bin/sh",
-                arguments: nil,
-                environment: env.isEmpty ? nil : env,
-                stdinData: stdinData,
-                fsContext: 0,
-                lineCallback: nil,
-                completion: { result in
-                    var output = result.output
-                    let errOutput = result.errorOutput
-                    if !errOutput.isEmpty {
-                        output += output.isEmpty ? "" : "\n"
-                        output += errOutput
+        // Shared with the timeout/cancel handlers below: executeExecutable
+        // returns the guest pid synchronously (negative = failed to start).
+        final class PidBox: @unchecked Sendable {
+            private let lock = NSLock()
+            private var _pid: Int32 = -1
+            var pid: Int32 {
+                get { lock.withLock { _pid } }
+                set { lock.withLock { _pid = newValue } }
+            }
+        }
+        let pidBox = PidBox()
+
+        let killInFlightCommand: @Sendable () -> Void = {
+            let pid = pidBox.pid
+            guard pid > 0 else { return }
+            // Header contract: every timeout path must call both, in this
+            // order. finalizeTimedOutPid fires the completion (at most once,
+            // guarded by didFinalize), so the continuation below always
+            // resumes — no leak, no double-resume.
+            ISHShellExecutor.killProcessGroup(pid)
+            ISHShellExecutor.finalizeTimedOutPid(pid)
+        }
+
+        // Failsafe: if the command is still running after the deadline, kill
+        // its process group and finalize. Cancelled as soon as the command
+        // completes normally.
+        let timeoutTask = Task.detached {
+            do {
+                try await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
+                killInFlightCommand()
+            } catch {
+                // Cancelled because the command finished first — nothing to do.
+            }
+        }
+        defer { timeoutTask.cancel() }
+
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                let rc = ISHShellExecutor.executeExecutable(
+                    "/bin/sh",
+                    arguments: nil,
+                    environment: env.isEmpty ? nil : env,
+                    stdinData: stdinData,
+                    fsContext: 0,
+                    lineCallback: nil,
+                    completion: { result in
+                        var output = result.output
+                        let errOutput = result.errorOutput
+                        if !errOutput.isEmpty {
+                            output += output.isEmpty ? "" : "\n"
+                            output += errOutput
+                        }
+                        if result.error == .timeout {
+                            output += output.isEmpty ? "" : "\n"
+                            output += "(command timed out after \(Int(timeoutSeconds))s)"
+                        } else if result.exitCode != 0 && !output.contains("exit code") {
+                            output += "\n(exit code: \(result.exitCode))"
+                        }
+                        if output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            output = "(command completed with no output)"
+                        }
+                        continuation.resume(returning: ShellResult(
+                            exitCode: Int(result.exitCode),
+                            combinedOutput: output,
+                            errorOutput: errOutput))
                     }
-                    if result.exitCode != 0 && !output.contains("exit code") {
-                        output += "\n(exit code: \(result.exitCode))"
-                    }
-                    if output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        output = "(command completed with no output)"
-                    }
+                )
+                if rc < 0 {
+                    // Failed to start (kernel not booted, pipe/fork/exec
+                    // failure): the ObjC side never calls completion, so
+                    // resume now instead of hanging forever.
                     continuation.resume(returning: ShellResult(
-                        exitCode: Int(result.exitCode),
-                        combinedOutput: output,
-                        errorOutput: errOutput))
+                        exitCode: Int(rc),
+                        combinedOutput: "(failed to start shell command: executor error \(rc))",
+                        errorOutput: ""))
+                } else {
+                    pidBox.pid = rc
                 }
-            )
+            }
+        } onCancel: {
+            killInFlightCommand()
         }
     }
 
