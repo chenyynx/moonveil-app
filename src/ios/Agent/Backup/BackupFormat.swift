@@ -49,6 +49,13 @@ enum BackupCategory: String, Codable, CaseIterable, Sendable {
     /// either. iCloud sync covered this all along, which is why it went
     /// unnoticed by anyone who had sync switched on.
     case environmentVariables = "environment_variables"
+    /// SSH configuration tree (`/root/.ssh/` on the rootfs: config, keys,
+    /// known_hosts, authorized_keys).
+    ///
+    /// Keychain-stored passwords for password-auth servers are NOT included —
+    /// iOS Keychain items are non-transferable. After restore, password-auth
+    /// servers need their passwords re-entered.
+    case sshConfig = "ssh_config"
 
     /// Default checkbox state on the backup screen (§3 table).
     var defaultsOn: Bool { true }
@@ -70,7 +77,7 @@ enum BackupCategory: String, Codable, CaseIterable, Sendable {
     /// the §3.4 size cap applies to.
     var carriesFileTree: Bool {
         switch self {
-        case .chats, .sharedFiles, .skills: return true
+        case .chats, .sharedFiles, .skills, .sshConfig: return true
         case .memory, .providers, .mcpServers, .voiceCorrections,
              .environmentVariables: return false
         }

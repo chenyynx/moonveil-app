@@ -4828,6 +4828,11 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
             userSystemPrompt += "\n\n" + mcpFragment
         }
 
+        // [SSH-SNIPPET] Inject configured SSH server list (Settings → SSH Servers).
+        if let sshFragment = SSHConfigStore.systemPromptSnippet() {
+            userSystemPrompt += "\n\n" + sshFragment
+        }
+
         // [T-memory-toggle-gates-injection-and-tools-ios] Memory injection
         // (GLOBAL.md + recent daily logs) is gated by the per-session
         // memoryEnabled toggle. SOUL.md (identity / persona) is rendered

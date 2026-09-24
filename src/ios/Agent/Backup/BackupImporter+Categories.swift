@@ -50,6 +50,8 @@ extension BackupImporter {
         case .sharedFiles: liveDirs = [AIChatViewModel.minisSharedPersistentDir]
         case .memory: liveDirs = [AIChatViewModel.minisMemoryPersistentDir]
         case .mcpServers: liveDirs = [MCPStore.syncFileURL.deletingLastPathComponent()]
+        case .sshConfig: liveDirs = [RootfsManager.shared.dataPath
+            .appendingPathComponent("root/.ssh", isDirectory: true)]
         // [review B3] Providers had NO rollback at all. It is a single JSON
         // file rather than a directory, so it is snapshotted via a dedicated
         // file-level entry instead of the directory copy-aside used above.
@@ -134,6 +136,8 @@ extension BackupImporter {
         case .voiceCorrections: return try await importVoiceCorrections(root: root)
         case .environmentVariables:
             return try await importEnvironmentVariables(root: root)
+        case .sshConfig:
+            return try importSSHConfig(root: root, fileIndex: fileIndex)
         }
     }
 
@@ -647,6 +651,82 @@ extension BackupImporter {
         return report
     }
 
+    // MARK: - SSH config
+
+    /// Whole-tree restore of `/root/.ssh/` from the package.
+    ///
+    /// Merge semantics: whole-tree override (same as sharedFiles). Files from
+    /// the package overwrite same-named locals; extra local files not in the
+    /// package are left untouched.
+    ///
+    /// After writing the files:
+    ///   1. chmod `.ssh` → 0700, config/known_hosts/private-keys → 0600
+    ///      (§0 权限铁律).
+    ///   2. `registerSubtreeInMetaDB` so the iSH kernel sees the restored tree.
+    ///   3. `ensureFakefsMetadata(mode:)` overrides the default modes that
+    ///      `registerSubtreeInMetaDB` writes (0755/0644) with SSH-correct ones.
+    ///
+    /// Keychain passwords for password-auth servers are NOT restored (iOS
+    /// Keychain items are non-transferable). The user must re-enter them.
+    private func importSSHConfig(root: URL,
+                                 fileIndex: [BackupFileIndexEntry]) throws -> CategoryReport {
+        var report = CategoryReport(category: BackupCategory.sshConfig.rawValue)
+        let fm = FileManager.default
+        let sshDir = RootfsManager.shared.dataPath
+            .appendingPathComponent("root/.ssh", isDirectory: true)
+
+        let files = try restoreFileTree(
+            root: root, fileIndex: fileIndex, category: .sshConfig,
+            destinationFor: { path in
+                guard path.hasPrefix("ssh_config/") else { return nil }
+                return sshDir.appendingPathComponent(
+                    String(path.dropFirst("ssh_config/".count)))
+            })
+        report.filesWritten = files.written
+        report.bytesWritten = files.bytes
+        report.missingBlobs = files.missingBlobs
+        report.imported = files.written
+
+        guard fm.fileExists(atPath: sshDir.path) else { return report }
+
+        // §0 权限铁律: .ssh directory 0700, sensitive files 0600.
+        let sensitiveNames: Set<String> = ["config", "known_hosts", "authorized_keys"]
+        chmod(sshDir.path, 0o700)
+        if let children = try? fm.contentsOfDirectory(atPath: sshDir.path) {
+            for name in children {
+                let childPath = sshDir.appendingPathComponent(name).path
+                var isDir: ObjCBool = false
+                fm.fileExists(atPath: childPath, isDirectory: &isDir)
+                if isDir.boolValue { continue }
+                if sensitiveNames.contains(name) || !name.hasSuffix(".pub") {
+                    chmod(childPath, 0o600)
+                }
+            }
+        }
+
+        // Sync to meta.db so the iSH kernel sees the restored tree.
+        RootfsManager.shared.registerSubtreeInMetaDB(hostRoot: sshDir)
+        // Override the default modes (0755/0644) registerSubtreeInMetaDB wrote
+        // with SSH-correct ones.
+        RootfsManager.shared.ensureFakefsMetadata(
+            for: "/root/.ssh", isDirectory: true, mode: 0o040700)
+        if let children = try? fm.contentsOfDirectory(atPath: sshDir.path) {
+            for name in children {
+                let childPath = sshDir.appendingPathComponent(name).path
+                var isDir: ObjCBool = false
+                fm.fileExists(atPath: childPath, isDirectory: &isDir)
+                if isDir.boolValue { continue }
+                if sensitiveNames.contains(name) || !name.hasSuffix(".pub") {
+                    let linuxPath = "/root/.ssh/\(name)"
+                    RootfsManager.shared.ensureFakefsMetadata(
+                        for: linuxPath, isDirectory: false, mode: 0o100600)
+                }
+            }
+        }
+
+        return report
+    }
+
     // MARK: - Voice corrections
 
     private func importVoiceCorrections(root: URL) async throws -> CategoryReport {
@@ -719,6 +799,9 @@ extension BackupImporter {
             // the app-group root so the check is still meaningful if one ever
             // starts using restoreFileTree.
             return AIChatViewModel.minisAppGroupRoot
+        case .sshConfig:
+            return RootfsManager.shared.dataPath
+                .appendingPathComponent("root/.ssh", isDirectory: true)
         }
     }
 

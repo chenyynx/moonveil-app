@@ -442,7 +442,8 @@ actor BackupImporter {
         // this one would have failed had it simply been appended to the enum.
         let order: [BackupCategory] = [.chats, .sharedFiles, .skills, .memory,
                                        .providers, .environmentVariables,
-                                       .mcpServers, .voiceCorrections]
+                                       .mcpServers, .sshConfig,
+                                       .voiceCorrections]
         return order.filter { wanted.contains($0) }
     }
 }

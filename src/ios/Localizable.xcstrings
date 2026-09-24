@@ -1,390 +1,6 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "dashboard.device.runtimeConfigComponents.modelGateway.label": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.runtimeConfigComponents.modelGateway.label"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u6a21\u578b Gateway\uff08\u53ef\u9009\uff09"
-          }
-        }
-      }
-    },
-    "dashboard.device.runtimeConfigComponents.modelGateway.description": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.runtimeConfigComponents.modelGateway.description"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u8ba9\u8fd9\u4e2a Runtime \u901a\u8fc7\u517c\u5bb9\u7684\u81ea\u5b9a\u4e49 Gateway \u53d1\u9001\u6a21\u578b\u8bf7\u6c42\u3002\u4e24\u4e2a\u5b57\u6bb5\u90fd\u7559\u7a7a\u65f6\uff0c\u7ee7\u7eed\u4f7f\u7528 Runtime \u9ed8\u8ba4\u7684\u6a21\u578b\u5730\u5740\u548c\u8ba4\u8bc1\u3002"
-          }
-        }
-      }
-    },
-    "dashboard.device.runtimeConfigComponents.modelGateway.requiredLabel": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.runtimeConfigComponents.modelGateway.requiredLabel"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u6a21\u578b Gateway"
-          }
-        }
-      }
-    },
-    "dashboard.device.runtimeConfigComponents.modelGateway.requiredDescription": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.runtimeConfigComponents.modelGateway.requiredDescription"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u65b0 Codex \u5b9e\u4f8b\u5fc5\u987b\u4f7f\u7528\u6a21\u578b Gateway\uff0c\u8bf7\u586b\u5199 Gateway \u5730\u5740\u548c API Key\u3002"
-          }
-        }
-      }
-    },
-    "dashboard.device.runtimeConfigComponents.customModels.label": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.runtimeConfigComponents.customModels.label"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u81ea\u5b9a\u4e49\u6a21\u578b\uff08\u53ef\u9009\uff09"
-          }
-        }
-      }
-    },
-    "dashboard.device.runtimeConfigComponents.customModels.description": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.runtimeConfigComponents.customModels.description"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u624b\u52a8\u6dfb\u52a0\u8981\u663e\u793a\u5728\u6a21\u578b\u9009\u62e9\u5668\u91cc\u7684\u6a21\u578b\uff0c\u4ee5\u53ca\u6bcf\u4e2a\u6a21\u578b\u53ef\u7528\u7684\u63a8\u7406\u5f3a\u5ea6\u3002"
-          }
-        }
-      }
-    },
-    "dashboard.device.runtimeConfigComponents.keyValue.label": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.runtimeConfigComponents.keyValue.label"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u73af\u5883\u53d8\u91cf\uff08\u53ef\u9009\uff09"
-          }
-        }
-      }
-    },
-    "dashboard.device.runtimeConfigComponents.keyValue.description": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.runtimeConfigComponents.keyValue.description"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u542f\u52a8\u8fd9\u4e2a Runtime \u65f6\u8ffd\u52a0\u6216\u8986\u76d6\u7684\u73af\u5883\u53d8\u91cf\u3002"
-          }
-        }
-      }
-    },
-    "dashboard.device.showModelGatewayApiKey": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.showModelGatewayApiKey"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u663e\u793a Gateway API Key"
-          }
-        }
-      }
-    },
-    "dashboard.device.hideModelGatewayApiKey": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.hideModelGatewayApiKey"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u9690\u85cf Gateway API Key"
-          }
-        }
-      }
-    },
-    "dashboard.device.agentRuntimes": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.agentRuntimes"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Agent Runtime"
-          }
-        }
-      }
-    },
-    "dashboard.device.runtimeNamePlaceholder": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.runtimeNamePlaceholder"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Runtime \u5b9e\u4f8b\u540d\u79f0"
-          }
-        }
-      }
-    },
-    "dashboard.pairDevice.quickAdd": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.pairDevice.quickAdd"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u5feb\u901f\u6dfb\u52a0"
-          }
-        }
-      }
-    },
-    "dashboard.device.configure": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.configure"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u914d\u7f6e"
-          }
-        }
-      }
-    },
-    "dashboard.device.archiveSelected": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.archiveSelected"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u5f52\u6863\u5df2\u9009\u62e9"
-          }
-        }
-      }
-    },
-    "dashboard.device.unarchiveSelected": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dashboard.device.unarchiveSelected"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u53d6\u6d88\u5f52\u6863\u5df2\u9009\u62e9"
-          }
-        }
-      }
-    },
-    "Gateway URL": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gateway URL"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gateway \u5730\u5740"
-          }
-        }
-      }
-    },
-    "Gateway API key": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gateway API key"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gateway API Key"
-          }
-        }
-      }
-    },
-    "Show secret": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Show secret"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u663e\u793a\u5bc6\u94a5"
-          }
-        }
-      }
-    },
-    "Hide secret": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hide secret"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u9690\u85cf\u5bc6\u94a5"
-          }
-        }
-      }
-    },
-    "Block Spacing": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "new",
-            "value": "Block Spacing"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u5757\u95f4\u8ddd"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\u5340\u584a\u9593\u8ddd"
-          }
-        }
-      }
-    },
-    "Tool Row Spacing": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "new",
-            "value": "Tool Row Spacing"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "工具行间距"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "工具行間距"
-          }
-        }
-      }
-    },
     "": {},
     "\"%@\" already has a value. Replace it with \"%@\"?": {
       "localizations": {
@@ -1407,6 +1023,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ 条/秒"
+          }
+        }
+      }
+    },
+    "%@ referenced": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 件の参照"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@개 참조"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 个引用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 個引用"
           }
         }
       }
@@ -7922,6 +7566,16 @@
         }
       }
     },
+    "Add servers, generate SSH keys, or import existing keys to get started.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加服务器、生成 SSH 密钥或导入现有密钥以开始"
+          }
+        }
+      }
+    },
     "Add the server your backups were saved to. Servers added here are also available as backup destinations.": {
       "extractionState": "manual",
       "localizations": {
@@ -8909,6 +8563,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "所有會話共用 **shared**、**skills**、**memory**、**mounts** — 跨會話持久保留。"
+          }
+        }
+      }
+    },
+    "All entries will be removed from ~/.ssh/known_hosts.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所有条目将从 ~/.ssh/known_hosts 中移除。"
           }
         }
       }
@@ -13508,6 +13172,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "生物识别"
+          }
+        }
+      }
+    },
+    "Block Spacing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Block Spacing"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "块间距"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "區塊間距"
           }
         }
       }
@@ -18347,6 +18033,16 @@
         }
       }
     },
+    "Clear all known hosts?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除所有已知主机？"
+          }
+        }
+      }
+    },
     "Clear your custom display name and max output tokens, restoring the values reported by the provider.": {
       "extractionState": "stale",
       "localizations": {
@@ -19709,6 +19405,58 @@
         }
       }
     },
+    "Config parse error: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehler beim Parsen der Konfiguration: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error al analizar la configuración: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erreur d'analyse de la configuration : %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定の解析エラー: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구문 분석 오류: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ошибка разбора конфигурации: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置解析错误：%@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置解析錯誤：%@"
+          }
+        }
+      }
+    },
     "Configuration": {
       "extractionState": "manual",
       "localizations": {
@@ -20570,6 +20318,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "通訊錄"
+          }
+        }
+      }
+    },
+    "Content does not appear to be a private key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inhalt scheint kein privater Schlüssel zu sein"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El contenido no parece ser una clave privada"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le contenu ne semble pas être une clé privée"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内容はプライベートキーではないようです"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내용이 개인 키가 아닌 것 같습니다"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Содержимое не похоже на закрытый ключ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内容不是有效的私钥"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "內容不是有效的私鑰"
           }
         }
       }
@@ -22043,6 +21843,16 @@
         }
       }
     },
+    "Copy Install Command": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制安装命令"
+          }
+        }
+      }
+    },
     "Copy JSON": {
       "localizations": {
         "de": {
@@ -22213,6 +22023,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "複製 Markdown"
+          }
+        }
+      }
+    },
+    "Copy Public Key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制公钥"
           }
         }
       }
@@ -26310,6 +26130,16 @@
         }
       }
     },
+    "Delete Key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除密钥"
+          }
+        }
+      }
+    },
     "Delete Message?": {
       "extractionState": "manual",
       "localizations": {
@@ -26527,6 +26357,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "刪除記錄和檔案"
+          }
+        }
+      }
+    },
+    "Delete Server": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除服务器"
           }
         }
       }
@@ -27055,6 +26895,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "刪除此環境變量？"
+          }
+        }
+      }
+    },
+    "Delete this key?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除此密钥？"
+          }
+        }
+      }
+    },
+    "Delete this known host?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除此已知主机？"
+          }
+        }
+      }
+    },
+    "Delete this server?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除此服务器？"
           }
         }
       }
@@ -28088,6 +27958,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "登录到同一 iCloud 账号且启用了同步的设备。最近活跃反映该设备最近一次推送的时间。"
+          }
+        }
+      }
+    },
+    "Diagnostics": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnose"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnósticos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnostics"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "診断"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "진단"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Диагностика"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "诊断"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "診斷"
           }
         }
       }
@@ -29709,6 +29631,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "更早"
+          }
+        }
+      }
+    },
+    "Ed25519": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ed25519"
           }
         }
       }
@@ -32296,6 +32228,16 @@
         }
       }
     },
+    "Enter the server password to push your public key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入服务器密码以推送您的公钥"
+          }
+        }
+      }
+    },
     "Enter your API key": {
       "extractionState": "stale",
       "localizations": {
@@ -33509,6 +33451,16 @@
         }
       }
     },
+    "Export Private Key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出私钥"
+          }
+        }
+      }
+    },
     "Export as JSON": {
       "extractionState": "stale",
       "localizations": {
@@ -33614,6 +33566,16 @@
         }
       }
     },
+    "Export private key?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出私钥？"
+          }
+        }
+      }
+    },
     "Exporting MCP servers…": {
       "extractionState": "manual",
       "localizations": {
@@ -33633,6 +33595,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在导出 MCP 服务器…"
+          }
+        }
+      }
+    },
+    "Exporting SSH config…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在导出 SSH 配置…"
           }
         }
       }
@@ -37539,6 +37511,40 @@
         }
       }
     },
+    "Gateway API key": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway API key"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway API Key"
+          }
+        }
+      }
+    },
+    "Gateway URL": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway URL"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway 地址"
+          }
+        }
+      }
+    },
     "Gemini models (google.com)": {
       "extractionState": "stale",
       "localizations": {
@@ -37594,6 +37600,78 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gemini 模型（google.com）"
+          }
+        }
+      }
+    },
+    "Generate": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成"
+          }
+        }
+      }
+    },
+    "Generate Key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schlüssel generieren"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generar clave"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Générer une clé"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鍵を生成"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "키 생성"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сгенерировать ключ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成密钥"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "產生金鑰"
+          }
+        }
+      }
+    },
+    "Generate Key & Push": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成密钥并推送"
           }
         }
       }
@@ -39068,6 +39146,23 @@
         }
       }
     },
+    "Hide secret": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide secret"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏密钥"
+          }
+        }
+      }
+    },
     "Hide session content on the Lock Screen, in the Dynamic Island and in notifications. Only the number of completed tasks and the elapsed time are shown — no session titles, tool status or reply content.": {
       "localizations": {
         "de": {
@@ -39453,6 +39548,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "家庭"
+          }
+        }
+      }
+    },
+    "Host \"%@\" will be removed from known_hosts.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主机 \"%@\" 将从 known_hosts 中移除。"
           }
         }
       }
@@ -40961,6 +41066,16 @@
         }
       }
     },
+    "Import Private Key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入私钥"
+          }
+        }
+      }
+    },
     "Import Provider": {
       "localizations": {
         "de": {
@@ -42378,6 +42493,58 @@
         }
       }
     },
+    "Invalid key name": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungültiger Schlüsselname"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre de clave no válido"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom de clé invalide"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無効な鍵名"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "잘못된 키 이름"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Недопустимое имя ключа"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无效的密钥名称"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無效的金鑰名稱"
+          }
+        }
+      }
+    },
     "Invalid provider configuration file.": {
       "localizations": {
         "de": {
@@ -43136,6 +43303,244 @@
         }
       }
     },
+    "Key \"%@\" and its public key will be deleted.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密钥 \"%@\" 及其公钥将被删除。"
+          }
+        }
+      }
+    },
+    "Key Name": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密钥名称"
+          }
+        }
+      }
+    },
+    "Key Type": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密钥类型"
+          }
+        }
+      }
+    },
+    "Key is referenced by: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schlüssel wird referenziert von: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La clave es referenciada por: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La clé est référencée par : %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鍵は次から参照されています: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "키가 다음에서 참조됨: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ключ используется: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该密钥被以下服务器引用：%@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "該金鑰被以下伺服器引用：%@"
+          }
+        }
+      }
+    },
+    "Key not found": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schlüssel nicht gefunden"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clave no encontrada"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clé introuvable"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鍵が見つかりません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "키를 찾을 수 없음"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ключ не найден"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到密钥"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到金鑰"
+          }
+        }
+      }
+    },
+    "Key with this name already exists": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schlüssel mit diesem Namen existiert bereits"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ya existe una clave con este nombre"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une clé portant ce nom existe déjà"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同じ名前の鍵が既に存在します"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동일한 이름의 키가 이미 있음"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ключ с таким именем уже существует"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同名密钥已存在"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同名金鑰已存在"
+          }
+        }
+      }
+    },
+    "Keys": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schlüssel"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claves"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clés"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鍵"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "키"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ключи"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密钥"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "金鑰"
+          }
+        }
+      }
+    },
     "Kimi Code Login": {
       "localizations": {
         "es": {
@@ -43200,6 +43605,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "類型"
+          }
+        }
+      }
+    },
+    "Known Hosts": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bekannte Hosts"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hosts conocidos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hôtes connus"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "既知ホスト"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알려진 호스트"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Известные хосты"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已知主机"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已知主機"
           }
         }
       }
@@ -49196,6 +49653,86 @@
         }
       }
     },
+    "Missing dependency: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehlende Abhängigkeit: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falta la dependencia: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dépendance manquante : %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "依存関係がありません: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "의존성 없음: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отсутствует зависимость: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缺少依赖：%@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缺少依賴：%@"
+          }
+        }
+      }
+    },
+    "Missing sshpass. Run: apk add sshpass": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sshpass がありません。実行: apk add sshpass"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sshpass가 없습니다. 실행: apk add sshpass"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缺少 sshpass。请运行：apk add sshpass"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缺少 sshpass。請執行：apk add sshpass"
+          }
+        }
+      }
+    },
     "Model": {
       "localizations": {
         "de": {
@@ -53328,22 +53865,6 @@
         }
       }
     },
-    "New chat": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New chat"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "新会话"
-          }
-        }
-      }
-    },
     "New Chat in Group": {
       "localizations": {
         "de": {
@@ -53735,6 +54256,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "新建工作階段"
+          }
+        }
+      }
+    },
+    "New chat": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New chat"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新会话"
           }
         }
       }
@@ -54701,6 +55238,36 @@
         }
       }
     },
+    "No SSH Configuration": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无 SSH 配置"
+          }
+        }
+      }
+    },
+    "No SSH keys": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无 SSH 密钥"
+          }
+        }
+      }
+    },
+    "No SSH keys available": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无可用 SSH 密钥"
+          }
+        }
+      }
+    },
     "No audio data": {
       "comment": "Voice provider missing audio",
       "localizations": {
@@ -55403,6 +55970,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "無需金鑰"
+          }
+        }
+      }
+    },
+    "No known hosts": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无已知主机"
           }
         }
       }
@@ -56369,6 +56946,44 @@
         }
       }
     },
+    "No public key available": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无可用公钥"
+          }
+        }
+      }
+    },
+    "No public key found": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公開鍵が見つかりません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "공개 키를 찾을 수 없습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到公钥"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到公鑰"
+          }
+        }
+      }
+    },
     "No results": {
       "localizations": {
         "de": {
@@ -56423,6 +57038,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "無結果"
+          }
+        }
+      }
+    },
+    "No servers match your search": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无匹配服务器"
           }
         }
       }
@@ -59851,6 +60476,58 @@
         }
       }
     },
+    "Operation failed: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorgang fehlgeschlagen: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La operación falló: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opération échouée : %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作に失敗しました: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "작업 실패: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Операция не удалась: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作失败：%@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作失敗：%@"
+          }
+        }
+      }
+    },
     "Optional": {
       "extractionState": "manual",
       "localizations": {
@@ -61371,6 +62048,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Contraseña"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密码"
           }
         }
       }
@@ -64284,6 +64967,16 @@
         }
       }
     },
+    "Private Key Content": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "私钥内容"
+          }
+        }
+      }
+    },
     "Productivity": {
       "extractionState": "stale",
       "localizations": {
@@ -64865,6 +65558,44 @@
         }
       }
     },
+    "Public Key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公钥"
+          }
+        }
+      }
+    },
+    "Public key pushed successfully": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公開鍵のプッシュに成功しました"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "공개 키 푸시 성공"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公钥推送成功"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公鑰推送成功"
+          }
+        }
+      }
+    },
     "Pull from iCloud": {
       "localizations": {
         "de": {
@@ -65035,6 +65766,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在從 iCloud 拉取…"
+          }
+        }
+      }
+    },
+    "Push": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推送"
           }
         }
       }
@@ -65686,6 +66427,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "README 和文檔"
+          }
+        }
+      }
+    },
+    "RSA": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RSA"
           }
         }
       }
@@ -73610,6 +74361,54 @@
         }
       }
     },
+    "SSH Config": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 設定"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 설정"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 配置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 配置"
+          }
+        }
+      }
+    },
+    "SSH Key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 密钥"
+          }
+        }
+      }
+    },
+    "SSH Servers": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 服务器"
+          }
+        }
+      }
+    },
     "SSH file transfer": {
       "extractionState": "manual",
       "localizations": {
@@ -75955,6 +76754,16 @@
         }
       }
     },
+    "Server \"%@\" will be removed from ~/.ssh/config.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器 \"%@\" 将从 ~/.ssh/config 中移除。"
+          }
+        }
+      }
+    },
     "Server URL": {
       "localizations": {
         "de": {
@@ -76091,6 +76900,12 @@
     "Servers": {
       "extractionState": "manual",
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -76103,10 +76918,40 @@
             "value": "Servidores"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serveurs"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバー"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Серверы"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "服务器"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "伺服器"
           }
         }
       }
@@ -78608,6 +79453,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "在 Agent 任務開始和完成時顯示本地通知，包括快捷指令觸發的任務。"
+          }
+        }
+      }
+    },
+    "Show secret": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show secret"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示密钥"
           }
         }
       }
@@ -85105,6 +85967,16 @@
         }
       }
     },
+    "Test Result": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试结果"
+          }
+        }
+      }
+    },
     "Test Speed": {
       "localizations": {
         "de": {
@@ -86723,6 +87595,16 @@
         }
       }
     },
+    "The private key will be copied to the clipboard. Handle with care.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "私钥将被复制到剪贴板，请谨慎处理。"
+          }
+        }
+      }
+    },
     "The provider has not declared whether this model supports thinking. Force-enabling may cause errors — you can disable it or retry if needed.": {
       "localizations": {
         "de": {
@@ -87826,22 +88708,6 @@
         }
       }
     },
-    "Thinking result": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "思考结果"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "思考結果"
-          }
-        }
-      }
-    },
     "Thinking Intensity": {
       "localizations": {
         "de": {
@@ -87919,6 +88785,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "思考规则"
+          }
+        }
+      }
+    },
+    "Thinking result": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "思考结果"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "思考結果"
           }
         }
       }
@@ -91755,6 +92637,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "工具預覽窗口"
+          }
+        }
+      }
+    },
+    "Tool Row Spacing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Tool Row Spacing"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工具行间距"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工具行間距"
           }
         }
       }
@@ -100421,6 +101325,227 @@
         }
       }
     },
+    "dashboard.device.agentRuntimes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.agentRuntimes"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent Runtime"
+          }
+        }
+      }
+    },
+    "dashboard.device.archiveSelected": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.archiveSelected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "归档已选择"
+          }
+        }
+      }
+    },
+    "dashboard.device.configure": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.configure"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置"
+          }
+        }
+      }
+    },
+    "dashboard.device.hideModelGatewayApiKey": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.hideModelGatewayApiKey"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏 Gateway API Key"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.customModels.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.customModels.description"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手动添加要显示在模型选择器里的模型，以及每个模型可用的推理强度。"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.customModels.label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.customModels.label"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义模型（可选）"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.keyValue.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.keyValue.description"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启动这个 Runtime 时追加或覆盖的环境变量。"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.keyValue.label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.keyValue.label"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "环境变量（可选）"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.modelGateway.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.modelGateway.description"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "让这个 Runtime 通过兼容的自定义 Gateway 发送模型请求。两个字段都留空时，继续使用 Runtime 默认的模型地址和认证。"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.modelGateway.label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.modelGateway.label"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型 Gateway（可选）"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.modelGateway.requiredDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.modelGateway.requiredDescription"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新 Codex 实例必须使用模型 Gateway，请填写 Gateway 地址和 API Key。"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeConfigComponents.modelGateway.requiredLabel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeConfigComponents.modelGateway.requiredLabel"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模型 Gateway"
+          }
+        }
+      }
+    },
+    "dashboard.device.runtimeNamePlaceholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.runtimeNamePlaceholder"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runtime 实例名称"
+          }
+        }
+      }
+    },
     "dashboard.device.runtimeStatus.available": {
       "comment": "Shared with Web: dashboard.device.runtimeStatus.available. Sync with ios/scripts/web_copy.py.",
       "extractionState": "manual",
@@ -100597,6 +101722,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在验证"
+          }
+        }
+      }
+    },
+    "dashboard.device.showModelGatewayApiKey": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.showModelGatewayApiKey"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示 Gateway API Key"
+          }
+        }
+      }
+    },
+    "dashboard.device.unarchiveSelected": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.device.unarchiveSelected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消归档已选择"
+          }
+        }
+      }
+    },
+    "dashboard.pairDevice.quickAdd": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dashboard.pairDevice.quickAdd"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快速添加"
           }
         }
       }

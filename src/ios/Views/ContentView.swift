@@ -7328,6 +7328,7 @@ private enum SettingsDestination: Hashable {
     // [T-mcp-oauth-deeplink]
     case mcpIntegrations
     case mcpServerDetail(serverId: String)
+    case sshServers
 }
 
 /// B16: was `private`. The Settings sheet is now presented by RootModeTabsView so both
@@ -7468,6 +7469,19 @@ struct SettingsSheet: View {
                                 .foregroundStyle(.white)
                                 .frame(width: 21, height: 21)
                                 .background(.green, in: Circle())
+                        }
+                    }
+                    NavigationLink {
+                        SSHServersView()
+                    } label: {
+                        Label {
+                            Text("SSH Servers")
+                        } icon: {
+                            Image(systemName: "server.rack")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.white)
+                                .frame(width: 21, height: 21)
+                                .background(.mint, in: Circle())
                         }
                     }
                 }
@@ -7717,6 +7731,8 @@ struct SettingsSheet: View {
                     MCPIntegrationsView()
                 case .mcpServerDetail(let serverId):
                     MCPIntegrationsView(initialEditServerId: serverId)
+                case .sshServers:
+                    SSHServersView()
                 }
             }
             .onAppear {

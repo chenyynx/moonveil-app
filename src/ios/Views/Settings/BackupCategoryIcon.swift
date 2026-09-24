@@ -60,6 +60,7 @@ struct BackupCategoryIcon: View {
         case .mcpServers: return "square.stack.3d.up.fill"
         case .voiceCorrections: return "waveform"
         case .environmentVariables: return "terminal.fill"
+        case .sshConfig: return "key.fill"
         }
     }
 
@@ -73,6 +74,7 @@ struct BackupCategoryIcon: View {
         case .mcpServers: return .cyan
         case .voiceCorrections: return .purple
         case .environmentVariables: return .brown
+        case .sshConfig: return .green
         }
     }
 }

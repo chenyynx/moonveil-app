@@ -470,6 +470,8 @@
 		E5SHV0004 /* MountDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5SHV0104 /* MountDetailView.swift */; };
 		E5SOUL001 /* SoulStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5SOUL101 /* SoulStore.swift */; };
 		E5SOUL002 /* SoulSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5SOUL102 /* SoulSettingsView.swift */; };
+		E5SSH0001 /* SSHConfigStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5SSH0011 /* SSHConfigStore.swift */; };
+		E5SSH0002 /* SSHServersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5SSH0012 /* SSHServersView.swift */; };
 		E5SVP0021 /* ShadowVoiceProviderDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5SVP0031 /* ShadowVoiceProviderDetailView.swift */; };
 		E5T000001 /* SessionEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5T000011 /* SessionEntity.swift */; };
 		E5T000002 /* ListSessionsIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5T000012 /* ListSessionsIntent.swift */; };
@@ -1376,6 +1378,8 @@
 		E5SHV0104 /* MountDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MountDetailView.swift; sourceTree = "<group>"; };
 		E5SOUL101 /* SoulStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoulStore.swift; sourceTree = "<group>"; };
 		E5SOUL102 /* SoulSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoulSettingsView.swift; sourceTree = "<group>"; };
+		E5SSH0011 /* SSHConfigStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHConfigStore.swift; sourceTree = "<group>"; };
+		E5SSH0012 /* SSHServersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHServersView.swift; sourceTree = "<group>"; };
 		E5SVP0031 /* ShadowVoiceProviderDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShadowVoiceProviderDetailView.swift; sourceTree = "<group>"; };
 		E5T000011 /* SessionEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionEntity.swift; sourceTree = "<group>"; };
 		E5T000012 /* ListSessionsIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListSessionsIntent.swift; sourceTree = "<group>"; };
@@ -2169,6 +2173,7 @@
 				F1A00017 /* Offload */,
 				F1A00015 /* Session */,
 				E5BSH0100 /* Shell */,
+				E5SSH0100 /* SSH */,
 				F1A00018 /* Speech */,
 				F1A00013 /* Sync */,
 				E5LD00003 /* ToolLoopDetector.swift */,
@@ -2286,6 +2291,14 @@
 				E5BSH0013 /* OnDemandBash.swift */,
 			);
 			path = Shell;
+			sourceTree = "<group>";
+		};
+		E5SSH0100 /* SSH */ = {
+			isa = PBXGroup;
+			children = (
+				E5SSH0011 /* SSHConfigStore.swift */,
+			);
+			path = SSH;
 			sourceTree = "<group>";
 		};
 		E5C000030 /* OpenAI */ = {
@@ -2853,6 +2866,7 @@
 				E5SHV0103 /* SharedFoldersSettingsView.swift */,
 				E5SHV0104 /* MountDetailView.swift */,
 				E5SOUL102 /* SoulSettingsView.swift */,
+				E5SSH0012 /* SSHServersView.swift */,
 				E5LOCK102 /* FaceIDProtectionSettingsView.swift */,
 				E5LOCK103 /* AppLockOverlay.swift */,
 				E5FIRE101 /* EffortCardView.swift */,
@@ -3925,6 +3939,8 @@
 				E5LOCK001 /* SessionLockStore.swift in Sources */,
 				E5SOUL001 /* SoulStore.swift in Sources */,
 				E5SOUL002 /* SoulSettingsView.swift in Sources */,
+				E5SSH0001 /* SSHConfigStore.swift in Sources */,
+				E5SSH0002 /* SSHServersView.swift in Sources */,
 				E5LOCK002 /* FaceIDProtectionSettingsView.swift in Sources */,
 				E5LOCK003 /* AppLockOverlay.swift in Sources */,
 				E5FIRE001 /* EffortCardView.swift in Sources */,

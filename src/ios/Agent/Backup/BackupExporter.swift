@@ -135,7 +135,8 @@ actor BackupExporter {
         // a future scheduler, anything — can produce a plaintext copy of the
         // user's API keys by omitting a passphrase.
         let wantsCredentials = options.includeCredentials
-            && options.categories.contains(.providers)
+            && (options.categories.contains(.providers)
+                || options.categories.contains(.sshConfig))
         let hasPassphrase = !(options.passphrase ?? "").isEmpty
         guard !wantsCredentials || hasPassphrase else {
             throw BackupError.writeFailed(
@@ -328,6 +329,9 @@ actor BackupExporter {
         try await run(.environmentVariables,
                       AppLocalized("Exporting environment variables…")) {
             try await exportEnvironmentVariables(dataDir: dataDir)
+        }
+        try await run(.sshConfig, AppLocalized("Exporting SSH config…")) {
+            try exportSSHConfig(trees: trees)
         }
         // [2026-08-15] Not reached in normal use: `.voiceCorrections` is absent
         // from `BackupCategory.backupable`, so it never appears in
@@ -877,6 +881,29 @@ actor BackupExporter {
         let bytes = (try? fm.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
         return BackupManifest.CategoryStat(entries: entries.count, bytes: bytes,
                                            encrypted: false)
+    }
+
+    // MARK: - SSH config
+
+    /// The whole `/root/.ssh/` tree from the rootfs (config, keys,
+    /// known_hosts, authorized_keys, …).
+    ///
+    /// Private keys are included — they are credentials, so the category
+    /// reports `includesCredentials: true`. Keychain passwords for
+    /// password-auth servers are NOT included (iOS Keychain items are
+    /// non-transferable); the manifest description notes this so a user
+    /// restoring onto a new device knows password-auth servers need their
+    /// passwords re-entered.
+    private func exportSSHConfig(trees: BackupFileTreeExporter) throws
+        -> BackupManifest.CategoryStat? {
+        let sshDir = RootfsManager.shared.dataPath
+            .appendingPathComponent("root/.ssh", isDirectory: true)
+        guard fm.fileExists(atPath: sshDir.path) else { return nil }
+        let r = try trees.export(root: sshDir, logicalPrefix: "ssh_config",
+                                 category: .sshConfig)
+        return BackupManifest.CategoryStat(
+            entries: r.filesIncluded, bytes: r.bytesIncluded, encrypted: false,
+            files: r.filesIncluded, includesCredentials: true)
     }
 
     // MARK: - Voice corrections
