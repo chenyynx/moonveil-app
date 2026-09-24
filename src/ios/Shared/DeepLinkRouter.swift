@@ -146,6 +146,9 @@ enum DeepLinkRouter {
                 ? .mcpServerDetail(serverId: arg!)
                 : .mcpIntegrations
 
+        case "ssh-servers", "ssh_servers", "ssh":
+            coord.pendingSettingsTarget = .sshServers
+
         case "memory":
             coord.pendingSettingsTarget = .memory
 

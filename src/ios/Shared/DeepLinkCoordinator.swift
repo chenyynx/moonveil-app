@@ -31,6 +31,10 @@ enum SettingsDeepLinkTarget: Equatable {
     /// edit form (where the Authorize button lives).
     case mcpIntegrations
     case mcpServerDetail(serverId: String)
+    /// SSH Servers panel (Settings → Agent Runtime). Reachable as
+    /// `moonveil://settings/ssh-servers` — the agent's prompt snippet links
+    /// here so users can set up servers from chat with one tap.
+    case sshServers
 }
 
 @MainActor

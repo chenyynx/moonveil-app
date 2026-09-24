@@ -62,9 +62,6 @@ enum SSHStoreError: LocalizedError {
     case configParseFailed(String)
     case operationFailed(String)
 
-    // §9 localization iron rule: these surface in user-facing alerts via
-    // `localizedDescription`, so route them through AppLocalized (key = the
-    // English source with %@ placeholders from LocalizationValue interpolation).
     var errorDescription: String? {
         switch self {
         case .missingDependency(let dep):
@@ -110,8 +107,11 @@ final class SSHConfigStore: ObservableObject {
     @Published private(set) var keys: [SSHKeyEntry] = []
     @Published private(set) var knownHosts: [SSHKnownHostEntry] = []
     @Published private(set) var deps = SSHDependencyStatus(ssh: false, sshKeygen: false, sshpass: false)
+    @Published private(set) var testStates: [String: Bool] = [:]
 
     private let keychainService = "moonveil.ssh"
+    private let testStatePrefix = "ssh.testState."
+    private let ud = UserDefaults.standard
 
     // MARK: - Paths
 
@@ -131,6 +131,12 @@ final class SSHConfigStore: ObservableObject {
     private let configLinuxPath = "/root/.ssh/config"
     private let knownHostsLinuxPath = "/root/.ssh/known_hosts"
 
+    // MARK: - Init
+
+    private init() {
+        loadTestStates()
+    }
+
     // MARK: - Reload
 
     func reload() {
@@ -138,16 +144,36 @@ final class SSHConfigStore: ObservableObject {
         keys = Self.scanKeys(in: sshDirHostURL)
         knownHosts = Self.parseKnownHosts(from: knownHostsHostURL)
         deps = Self.checkDependencies()
+        loadTestStates()
+    }
+
+    // MARK: - Test State Persistence
+
+    private func loadTestStates() {
+        var states: [String: Bool] = [:]
+        for key in ud.dictionaryRepresentation().keys {
+            if key.hasPrefix(testStatePrefix) {
+                let alias = String(key.dropFirst(testStatePrefix.count))
+                states[alias] = ud.bool(forKey: key)
+            }
+        }
+        testStates = states
+    }
+
+    private func persistTestState(alias: String, success: Bool) {
+        ud.set(success, forKey: "\(testStatePrefix)\(alias)")
+        testStates[alias] = success
+    }
+
+    private func clearTestState(alias: String) {
+        ud.removeObject(forKey: "\(testStatePrefix)\(alias)")
+        testStates.removeValue(forKey: alias)
     }
 
     // MARK: - Server Management
 
     func upsertServer(_ entry: SSHServerEntry) throws {
         do {
-            // [review] Input sanitize — a newline (or stray whitespace) in any
-            // field would break the config block structure: alias lands on the
-            // `Host` line, hostname/user on their directive lines, note in a
-            // `# note:` comment. Single-line everything before serializing.
             var clean = entry
             func oneLine(_ s: String) -> String {
                 s.replacingOccurrences(of: "\r", with: "")
@@ -179,6 +205,7 @@ final class SSHConfigStore: ObservableObject {
             var blocks = Self.parseConfigBlocks(from: configHostURL)
             blocks.removeAll { $0.alias == alias }
             try writeConfigFile(blocks)
+            clearTestState(alias: alias)
             reload()
         } catch let e as SSHStoreError {
             throw e
@@ -189,7 +216,11 @@ final class SSHConfigStore: ObservableObject {
 
     // MARK: - Key Management
 
-    func generateKey(name: String, type: String) throws {
+    // async: runs ssh-keygen over executeSSHCommand (the async executeExecutable
+    // path). The sync runShellSync/executeCommandSync variant deadlocks from
+    // MainActor — its completion lands on the main queue while the caller holds
+    // it in a semaphore wait (same root cause as the dependency-detection bug).
+    func generateKey(name: String, type: String) async throws {
         guard deps.sshKeygen else {
             throw SSHStoreError.missingDependency("ssh-keygen")
         }
@@ -208,7 +239,7 @@ final class SSHConfigStore: ObservableObject {
         let genCmd = "ssh-keygen -t \(type) -f \(linuxKeyPath) -N \"\" -C \(name)"
         let script = "\(rmCmd); \(genCmd)"
 
-        let result = runShellSync(script)
+        let result = await executeSSHCommand(script)
         guard result.exitCode == 0 else {
             throw SSHStoreError.operationFailed("ssh-keygen: \(result.errorOutput)")
         }
@@ -299,6 +330,21 @@ final class SSHConfigStore: ObservableObject {
         reload()
     }
 
+    func clearStaleFingerprint(for host: String, port: Int) -> Int {
+        let hostKey = port == 22 ? host : "[\(host)]:\(port)"
+        var entries = Self.parseKnownHosts(from: knownHostsHostURL)
+        let before = entries.count
+        entries.removeAll { entry in
+            entry.host == hostKey || entry.host == host
+        }
+        let removed = before - entries.count
+        if removed > 0 {
+            try? writeKnownHosts(entries)
+            reload()
+        }
+        return removed
+    }
+
     // MARK: - Password (Keychain)
 
     func setPassword(_ password: String, alias: String) {
@@ -319,10 +365,11 @@ final class SSHConfigStore: ObservableObject {
         guard deps.sshpass else {
             return SSHTestResult(
                 ok: false,
-                message: AppLocalized("Missing sshpass. Run: apk add sshpass"),
+                message: AppLocalized("Missing sshpass — installing automatically…"),
                 elapsedMs: 0)
         }
-        guard let pubKey = publicKey(name: server.identityFileName ?? "id_ed25519") else {
+        let keyName = server.identityFileName ?? keys.first?.name ?? "id_ed25519"
+        guard let pubKey = publicKey(name: keyName) else {
             return SSHTestResult(
                 ok: false, message: AppLocalized("No public key found"), elapsedMs: 0)
         }
@@ -367,10 +414,147 @@ final class SSHConfigStore: ObservableObject {
         let result = await executeSSHCommand(cmd, env: env)
         let elapsed = Int(Date().timeIntervalSince(start) * 1000)
 
+        let testResult: SSHTestResult
         if result.exitCode == 0 {
-            return SSHTestResult(ok: true, message: "ok", elapsedMs: elapsed)
+            testResult = SSHTestResult(ok: true, message: "ok", elapsedMs: elapsed)
+        } else {
+            testResult = SSHTestResult(ok: false, message: result.combinedOutput, elapsedMs: elapsed)
         }
-        return SSHTestResult(ok: false, message: result.combinedOutput, elapsedMs: elapsed)
+        persistTestState(alias: entry.alias, success: testResult.ok)
+        return testResult
+    }
+
+    // MARK: - One-Touch Setup
+
+    /// Full auto-configure flow: ensure deps → ensure key → write config → push key → test.
+    /// Returns the final test result. On success, the server is fully operational.
+    func performOneTouchSetup(
+        server: SSHServerEntry,
+        password: String?,
+        keys: [SSHKeyEntry]
+    ) async -> SSHTestResult {
+        do {
+            try await ensureDeps()
+        } catch {
+            return SSHTestResult(ok: false, message: error.localizedDescription, elapsedMs: 0)
+        }
+
+        var entry = server
+        if entry.authMode == "password" {
+            let keyName: String
+            if let existing = keys.first {
+                keyName = existing.name
+            } else {
+                let generatedName = "id_moonveil"
+                do {
+                    try await generateKey(name: generatedName, type: "ed25519")
+                } catch {
+                    return SSHTestResult(ok: false, message: error.localizedDescription, elapsedMs: 0)
+                }
+                keyName = generatedName
+            }
+            entry.identityFileName = keyName
+            entry.authMode = "key"
+        }
+
+        do {
+            try upsertServer(entry)
+        } catch {
+            return SSHTestResult(ok: false, message: error.localizedDescription, elapsedMs: 0)
+        }
+
+        if let pwd = password, let keyName = entry.identityFileName {
+            if let existingPwd = self.password(alias: entry.alias), !existingPwd.isEmpty {
+            } else {
+                setPassword(pwd, alias: entry.alias)
+            }
+            let pushServer = SSHServerEntry(
+                alias: entry.alias,
+                hostname: entry.hostname,
+                port: entry.port,
+                user: entry.user,
+                identityFileName: keyName,
+                authMode: "key",
+                note: entry.note
+            )
+            let pushResult = await pushPublicKey(server: pushServer, password: pwd)
+            if !pushResult.ok {
+                return SSHTestResult(
+                    ok: false,
+                    message: Self.humanize(pushResult.message),
+                    elapsedMs: pushResult.elapsedMs)
+            }
+        }
+
+        let reloaded = servers.first { $0.alias == entry.alias } ?? entry
+        let testResult = await testConnection(reloaded, password: password)
+        return SSHTestResult(
+            ok: testResult.ok,
+            message: testResult.ok
+                ? AppLocalized("Connected — agent can use `ssh \(entry.alias)`")
+                : Self.humanize(testResult.message),
+            elapsedMs: testResult.elapsedMs)
+    }
+
+    // MARK: - Dependency Self-Heal
+
+    /// Install missing SSH dependencies via apk. Throws if installation fails.
+    func ensureDeps() async throws {
+        let refreshed = Self.checkDependencies()
+        if refreshed.ssh && refreshed.sshKeygen && refreshed.sshpass {
+            deps = refreshed
+            return
+        }
+
+        var missing: [String] = []
+        if !refreshed.ssh || !refreshed.sshKeygen { missing.append("openssh-client") }
+        if !refreshed.sshpass { missing.append("sshpass") }
+
+        guard !missing.isEmpty else {
+            deps = refreshed
+            return
+        }
+
+        let cmd = "apk add --no-cache \(missing.joined(separator: " "))"
+        let result = await executeSSHCommand(cmd, env: [:])
+        guard result.exitCode == 0 else {
+            throw SSHStoreError.missingDependency(missing.joined(separator: ", "))
+        }
+
+        let recheck = Self.checkDependencies()
+        deps = recheck
+        if !recheck.sshpass {
+            throw SSHStoreError.missingDependency("sshpass")
+        }
+    }
+
+    // MARK: - Error Humanization
+
+    static func humanize(_ stderr: String) -> String {
+        let lower = stderr.lowercased()
+        if lower.contains("permission denied") {
+            return AppLocalized("Password or key is incorrect")
+        }
+        if lower.contains("connection timed out") || lower.contains("timed out") {
+            return AppLocalized("Cannot reach the server — check the address, port, and network")
+        }
+        if lower.contains("no route to host") || lower.contains("host is down") {
+            return AppLocalized("The remote host is offline")
+        }
+        if lower.contains("host key verification failed") {
+            return AppLocalized("Server fingerprint changed — the stored fingerprint no longer matches")
+        }
+        if lower.contains("connection refused") {
+            return AppLocalized("Connection refused — is SSH running on that port?")
+        }
+        if lower.contains("name or service not known") || lower.contains("could not resolve hostname") {
+            return AppLocalized("Cannot resolve hostname — check the address")
+        }
+        return AppLocalized("Connection failed")
+    }
+
+    static func isHostKeyError(_ message: String) -> Bool {
+        message.lowercased().contains("host key verification failed")
     }
 
     // MARK: - Prompt Injection
@@ -379,11 +563,17 @@ final class SSHConfigStore: ObservableObject {
         let configURL = RootfsManager.shared.dataPath
             .appendingPathComponent("root/.ssh/config")
         let servers = parseServers(from: configURL)
-        guard !servers.isEmpty else { return nil }
+        let panelLink = "[SSH Servers](moonveil://settings/ssh-servers)"
+        guard !servers.isEmpty else {
+            return ("SSH servers: none configured yet. If the user asks about SSH, "
+                + "remote servers, or this feature, point them to Settings with this link: "
+                + panelLink + ". Until configured, they can still connect manually "
+                + "via `ssh user@host` inside the shell (tools may be installed via apk add).")
+        }
 
         var lines: [String] = []
         lines.append(
-            "SSH servers (manage in Settings → SSH Servers; "
+            "SSH servers (manage in Settings → " + panelLink + "; "
             + "configs live in /root/.ssh/config, connect via `ssh <alias>`):")
         for s in servers {
             var line = "- \(s.alias) — \(s.user)@\(s.hostname)"
@@ -396,7 +586,28 @@ final class SSHConfigStore: ObservableObject {
             }
             lines.append(line)
         }
+        lines.append("")
+        lines.append("To add a server from chat, append a Host block to /root/.ssh/config, e.g.:")
+        lines.append("    Host myserver")
+        lines.append("        HostName 1.2.3.4")
+        lines.append("        User root")
+        lines.append("        Port 22")
+        lines.append("The panel (Settings → SSH Servers) picks it up automatically on next open.")
         return lines.joined(separator: "\n")
+    }
+
+    // MARK: - Alias Auto-Generation
+
+    /// Generate a default alias from hostname: first label, lowercased, non-alnum stripped.
+    /// If a server with that alias already exists, appends incrementing number.
+    static func generateAlias(from hostname: String, existing: [SSHServerEntry]) -> String {
+        let base = hostname.split(separator: ".").first.map(String.init) ?? "server"
+        let cleaned = base.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "-" }
+        let stem = cleaned.isEmpty ? "server" : cleaned
+        if !existing.contains(where: { $0.alias == stem }) { return stem }
+        var i = 2
+        while existing.contains(where: { $0.alias == "\(stem)\(i)" }) { i += 1 }
+        return "\(stem)\(i)"
     }
 
     // MARK: - Config Parsing (Private)
@@ -636,21 +847,6 @@ final class SSHConfigStore: ObservableObject {
         }
     }
 
-    private func runShellSync(_ command: String) -> ShellResult {
-        let result = ISHShellExecutor.executeCommandSync(
-            command, timeout: 30, lineCallback: nil)
-        var output = result.output ?? ""
-        let errOutput = result.errorOutput ?? ""
-        if !errOutput.isEmpty {
-            output += output.isEmpty ? "" : "\n"
-            output += errOutput
-        }
-        return ShellResult(
-            exitCode: Int(result.exitCode),
-            combinedOutput: output,
-            errorOutput: errOutput)
-    }
-
     // MARK: - Helpers (Private)
 
     private func ensureSSHDirExists() {
@@ -664,16 +860,22 @@ final class SSHConfigStore: ObservableObject {
             for: sshDirLinuxPath, isDirectory: true, mode: 0o040700)
     }
 
+    // Filesystem-based dependency check — avoids the main-thread deadlock that
+    // `which` via executeCommandSync causes (semaphore wait on main thread
+    // blocks the main-queue completion callback that signals it, so every
+    // command times out with exitCode -1 and shows as red).
     private static func checkDependencies() -> SSHDependencyStatus {
-        func has(_ cmd: String) -> Bool {
-            let r = ISHShellExecutor.executeCommandSync(
-                "which \(cmd)", timeout: 5, lineCallback: nil)
-            return r.exitCode == 0
+        let root = RootfsManager.shared.dataPath
+        func hasBinary(at relativePath: String) -> Bool {
+            root.appendingPathComponent(relativePath).checkFileExists()
         }
+        let ssh = hasBinary("usr/bin/ssh")
+        let sshKeygen = hasBinary("usr/bin/ssh-keygen")
+        let sshpass = hasBinary("usr/bin/sshpass")
         return SSHDependencyStatus(
-            ssh: has("ssh"),
-            sshKeygen: has("ssh-keygen"),
-            sshpass: has("sshpass"))
+            ssh: ssh,
+            sshKeygen: sshKeygen,
+            sshpass: sshpass)
     }
 
     private static func scanKeys(in dirURL: URL) -> [SSHKeyEntry] {
@@ -797,6 +999,10 @@ final class SSHConfigStore: ObservableObject {
 
 private extension URL {
     var exists: Bool {
+        FileManager.default.fileExists(atPath: path)
+    }
+
+    func checkFileExists() -> Bool {
         FileManager.default.fileExists(atPath: path)
     }
 }

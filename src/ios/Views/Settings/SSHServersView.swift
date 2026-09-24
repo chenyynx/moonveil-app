@@ -4,8 +4,8 @@ import UIKit
 struct SSHServersView: View {
     @StateObject private var store = SSHConfigStore.shared
     @State private var searchText = ""
-    @State private var showingAddServerSheet = false
     @State private var editingServer: SSHServerEntry?
+    @State private var showingAddServerSheet = false
     @State private var showingAddActionSheet = false
     @State private var showingGenerateKeySheet = false
     @State private var showingImportKeySheet = false
@@ -14,121 +14,30 @@ struct SSHServersView: View {
     @State private var deleteKeyConfirm: SSHKeyEntry?
     @State private var deleteKnownHostConfirm: SSHKnownHostEntry?
     @State private var showingClearKnownHostsConfirm = false
-    @State private var testResult: SSHTestResult?
-    @State private var testingServer: SSHServerEntry?
     @State private var errorMessage: String?
+    @State private var showAdvanced = false
 
-    private var filteredServers: [SSHServerEntry] {
-        if searchText.isEmpty {
-            return store.servers
-        }
-        let query = searchText
-        return store.servers.filter { (entry: SSHServerEntry) -> Bool in
-            entry.alias.localizedCaseInsensitiveContains(query) ||
-            entry.hostname.localizedCaseInsensitiveContains(query) ||
-            (entry.note ?? "").localizedCaseInsensitiveContains(query)
-        }
+    private var isEmpty: Bool {
+        store.servers.isEmpty && store.keys.isEmpty
     }
 
-    @ViewBuilder
-    private var sshSections: some View {
-            if store.servers.isEmpty && store.keys.isEmpty && store.knownHosts.isEmpty {
-                Section {
-                    VStack(spacing: 8) {
-                        Image(systemName: "server.rack")
-                            .font(.largeTitle)
-                            .foregroundStyle(.secondary)
-                        Text("No SSH Configuration")
-                            .font(.headline)
-                        Text("Add servers, generate SSH keys, or import existing keys to get started.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-                }
-            }
-
-            Section("Servers") {
-                if filteredServers.isEmpty && !searchText.isEmpty {
-                    Text("No servers match your search")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(filteredServers) { server in
-                        serverRow(server)
-                    }
-                    .onDelete { offsets in
-                        let serversToDelete = offsets.map { filteredServers[$0] }
-                        if let first = serversToDelete.first {
-                            deleteServerConfirm = first
-                        }
-                    }
-                }
-            }
-
-            Section("Keys") {
-                if store.keys.isEmpty {
-                    Text("No SSH keys")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(store.keys) { key in
-                        keyRow(key)
-                    }
-                    .onDelete { offsets in
-                        let keysToDelete = offsets.map { store.keys[$0] }
-                        if let first = keysToDelete.first {
-                            deleteKeyConfirm = first
-                        }
-                    }
-                }
-            }
-
-            Section("Known Hosts") {
-                if store.knownHosts.isEmpty {
-                    Text("No known hosts")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(store.knownHosts) { host in
-                        knownHostRow(host)
-                    }
-                    .onDelete { offsets in
-                        let hostsToDelete = offsets.map { store.knownHosts[$0] }
-                        if let first = hostsToDelete.first {
-                            deleteKnownHostConfirm = first
-                        }
-                    }
-
-                    Button(role: .destructive) {
-                        showingClearKnownHostsConfirm = true
-                    } label: {
-                        Label("Clear All", systemImage: "trash")
-                    }
-                }
-            }
-
-            Section("Diagnostics") {
-                dependencyRow("SSH Client", available: store.deps.ssh)
-                dependencyRow("SSH Keygen", available: store.deps.sshKeygen)
-                dependencyRow("SSH Pass", available: store.deps.sshpass)
-
-                if !store.deps.ssh || !store.deps.sshKeygen || !store.deps.sshpass {
-                    Button {
-                        UIPasteboard.general.string = "apk add openssh-client sshpass"
-                    } label: {
-                        Label("Copy Install Command", systemImage: "doc.on.clipboard")
-                    }
-                }
-            }
+    private var filteredServers: [SSHServerEntry] {
+        if searchText.isEmpty { return store.servers }
+        return store.servers.filter {
+            $0.alias.localizedCaseInsensitiveContains(searchText) ||
+            $0.hostname.localizedCaseInsensitiveContains(searchText) ||
+            ($0.note ?? "").localizedCaseInsensitiveContains(searchText)
+        }
     }
 
     var body: some View {
-        applyDialogs(
-        List {
-            sshSections
+        Group {
+            if isEmpty {
+                emptyStateView
+            } else {
+                contentList
+            }
         }
-        .listStyle(.insetGrouped)
-        .searchable(text: $searchText, prompt: "Filter servers")
         .navigationTitle("SSH Servers")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -140,15 +49,6 @@ struct SSHServersView: View {
                 }
             }
         }
-        )
-    }
-
-    /// Type-check isolation: the 1 confirmationDialog + 5 sheets + 6 alerts
-    /// chain made the compiler give up ("unable to type-check in reasonable
-    /// time") while attached to body. Moved into its own generic function so
-    /// each modifier resolves independently of the opaque body type.
-    private func applyDialogs<V: View>(_ base: V) -> some View {
-        base
         .confirmationDialog(
             "Add",
             isPresented: $showingAddActionSheet,
@@ -157,47 +57,22 @@ struct SSHServersView: View {
             Button("Add Server") {
                 showingAddServerSheet = true
             }
-            Button("Generate Key") {
-                showingGenerateKeySheet = true
-            }
-            Button("Import Private Key") {
-                showingImportKeySheet = true
-            }
             Button("Cancel", role: .cancel) {}
         }
         .sheet(isPresented: $showingAddServerSheet) {
-            SSHServerFormSheet(mode: .add, keys: store.keys) { server, password in
-                do {
-                    try store.upsertServer(server)
-                    if let password = password {
-                        store.setPassword(password, alias: server.alias)
-                    }
-                } catch {
-                    errorMessage = error.localizedDescription
-                }
-            }
+            SSHAddServerSheet()
         }
         .sheet(item: $editingServer) { server in
-            SSHServerFormSheet(mode: .edit, server: server, keys: store.keys) { updated, password in
-                do {
-                    try store.removeServer(alias: server.alias)
-                    try store.upsertServer(updated)
-                    if let password = password {
-                        store.setPassword(password, alias: updated.alias)
-                    } else if updated.alias != server.alias {
-                        store.deletePassword(alias: server.alias)
-                    }
-                } catch {
-                    errorMessage = error.localizedDescription
-                }
-            }
+            SSHServerDetailSheet(server: server)
         }
         .sheet(isPresented: $showingGenerateKeySheet) {
             SSHKeyGenerateSheet { name, type in
-                do {
-                    try store.generateKey(name: name, type: type)
-                } catch {
-                    errorMessage = error.localizedDescription
+                Task {
+                    do {
+                        try await store.generateKey(name: name, type: type)
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
                 }
             }
         }
@@ -297,61 +172,171 @@ struct SSHServersView: View {
         } message: {
             Text(errorMessage ?? "")
         }
-        .alert(
-            AppLocalized("Test Result"),
-            isPresented: Binding(
-                get: { testResult != nil },
-                set: { if !$0 { testResult = nil } }
-            ),
-            presenting: testResult
-        ) { result in
-            Button(AppLocalized("OK"), role: .cancel) {}
-        } message: { result in
-            Text(result.message)
-        }
         .onAppear {
             store.reload()
         }
     }
 
-    @ViewBuilder
-    private func serverRow(_ server: SSHServerEntry) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(server.alias)
-                    .font(.system(.body, design: .monospaced))
-                    .fontWeight(.medium)
-                Text("\(server.user)@\(server.hostname):\(server.port)")
-                    .font(.system(.caption, design: .monospaced))
+    // MARK: - Empty State
+
+    private var emptyStateView: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            VStack(spacing: 16) {
+                Image(systemName: "server.rack")
+                    .font(.system(size: 48))
                     .foregroundStyle(.secondary)
-                if let note = server.note, !note.isEmpty {
-                    Text(note)
+                Text("Connect to Your Servers")
+                    .font(.title2.bold())
+                Text("Enter an address and password to set up a connection. Keys are handled automatically.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                Button {
+                    showingAddServerSheet = true
+                } label: {
+                    Text("Add Server")
+                        .font(.body.bold())
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 40)
+                .padding(.top, 8)
+            }
+            Spacer()
+        }
+    }
+
+    // MARK: - Content List (MCP Pattern)
+
+    private var contentList: some View {
+        List {
+            Section {
+                ForEach(filteredServers) { server in
+                    Button {
+                        editingServer = server
+                    } label: {
+                        serverRow(server)
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            deleteServerConfirm = server
+                        } label: {
+                            Label(AppLocalized("Delete"), systemImage: "trash")
+                        }
+                    }
+                }
+                .onDelete { offsets in
+                    let serversToDelete = offsets.map { filteredServers[$0] }
+                    if let first = serversToDelete.first {
+                        deleteServerConfirm = first
+                    }
+                }
+            }
+
+            Section {
+                DisclosureGroup(
+                    isExpanded: $showAdvanced,
+                    content: {
+                        advancedContent
+                    },
+                    label: {
+                        Label("Advanced: Keys & Trust Records", systemImage: "gearshape.2")
+                            .font(.body)
+                    }
+                )
+            }
+        }
+        .listStyle(.insetGrouped)
+        .searchable(text: $searchText, prompt: "Filter servers")
+    }
+
+    @ViewBuilder
+    private var advancedContent: some View {
+        if !store.keys.isEmpty {
+            Text("Keys")
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
+                .padding(.top, 4)
+            ForEach(store.keys) { key in
+                keyRow(key)
+            }
+        }
+
+        if !store.knownHosts.isEmpty {
+            Text("Known Hosts")
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
+                .padding(.top, 8)
+            ForEach(store.knownHosts) { host in
+                knownHostRow(host)
+            }
+            Button(role: .destructive) {
+                showingClearKnownHostsConfirm = true
+            } label: {
+                Label("Clear All Known Hosts", systemImage: "trash")
+            }
+        }
+
+        Text("Dependencies")
+            .font(.caption.bold())
+            .foregroundStyle(.secondary)
+            .padding(.top, 8)
+        depRow("SSH Client", ok: store.deps.ssh)
+        depRow("SSH Keygen", ok: store.deps.sshKeygen)
+        depRow("SSH Pass", ok: store.deps.sshpass)
+
+        HStack(spacing: 8) {
+            Button {
+                showingGenerateKeySheet = true
+            } label: {
+                Label("Generate Key", systemImage: "key")
+            }
+            .buttonStyle(.bordered)
+
+            Button {
+                showingImportKeySheet = true
+            } label: {
+                Label("Import Key", systemImage: "square.and.arrow.down")
+            }
+            .buttonStyle(.bordered)
+        }
+        .font(.caption)
+        .padding(.top, 8)
+    }
+
+    // MARK: - Row Builders
+
+    private func serverRow(_ server: SSHServerEntry) -> some View {
+        HStack(spacing: 12) {
+            let state = store.testStates[server.alias]
+            Circle()
+                .fill(state == nil ? Color.gray : (state! ? Color.green : Color.red))
+                .frame(width: 8, height: 8)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(server.alias)
+                    .font(.body.bold())
+                    .foregroundStyle(.primary)
+                HStack(spacing: 4) {
+                    Text("\(server.user)@\(server.hostname)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if server.port != 22 {
+                        Text(":\(server.port)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
-
             Spacer()
-
-            if testingServer?.id == server.id {
-                ProgressView()
-                    .scaleEffect(0.8)
-            } else {
-                Button {
-                    testConnection(server)
-                } label: {
-                    Image(systemName: "play.circle")
-                        .font(.system(size: 20))
-                        .foregroundStyle(.blue)
-                }
-                .buttonStyle(.plain)
-            }
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
         }
         .contentShape(Rectangle())
-        .onTapGesture {
-            editingServer = server
-        }
     }
 
     @ViewBuilder
@@ -368,7 +353,6 @@ struct SSHServersView: View {
                         .padding(.vertical, 2)
                         .background(.blue.opacity(0.2), in: Capsule())
                         .foregroundStyle(.blue)
-
                     let refCount = store.servers.filter { $0.identityFileName == key.name }.count
                     if refCount > 0 {
                         Text("\(refCount) referenced")
@@ -377,9 +361,7 @@ struct SSHServersView: View {
                     }
                 }
             }
-
             Spacer()
-
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -396,79 +378,252 @@ struct SSHServersView: View {
             Text(host.host)
                 .font(.system(.body, design: .monospaced))
                 .fontWeight(.medium)
-            Text(host.keyType)
-                .font(.caption)
-                .foregroundStyle(.secondary)
             Text(host.fingerprint)
                 .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
-    }
-
-    @ViewBuilder
-    private func dependencyRow(_ name: String, available: Bool) -> some View {
-        HStack {
-            Text(name)
-                .font(.body)
-            Spacer()
-            if available {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-            } else {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.red)
+        .contextMenu {
+            Button(role: .destructive) {
+                deleteKnownHostConfirm = host
+            } label: {
+                Label(AppLocalized("Delete"), systemImage: "trash")
             }
         }
     }
 
-    private func testConnection(_ server: SSHServerEntry) {
-        testingServer = server
-        let password = store.password(alias: server.alias)
-        Task {
-            let result = await store.testConnection(server, password: password)
-            testingServer = nil
-            testResult = result
+    @ViewBuilder
+    private func depRow(_ name: String, ok: Bool) -> some View {
+        HStack {
+            Text(name)
+                .font(.subheadline)
+            Spacer()
+            Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundStyle(ok ? .green : .red)
         }
     }
 }
 
-// MARK: - Server Form Sheet
+// MARK: - Add Server Sheet (One-Touch Flow)
 
-private struct SSHServerFormSheet: View {
-    enum Mode { case add, edit }
-
-    let mode: Mode
-    var server: SSHServerEntry? = nil
-    let keys: [SSHKeyEntry]
-    let onSave: (SSHServerEntry, String?) -> Void
-
+private struct SSHAddServerSheet: View {
+    @StateObject private var store = SSHConfigStore.shared
     @Environment(\.dismiss) private var dismiss
-    @State private var alias = ""
     @State private var hostname = ""
     @State private var port = "22"
-    @State private var user = ""
-    @State private var authMode = "key"
+    @State private var user = "root"
+    @State private var authMode = "password"
     @State private var identityFileName: String?
     @State private var password = ""
+    @State private var alias = ""
     @State private var note = ""
-    @State private var showingGenerateKeySheet = false
-    @State private var pushPassword = ""
-    @State private var showingPushSheet = false
-    @State private var pushResult: SSHTestResult?
+    @State private var showCustomOptions = false
+    @State private var isSettingUp = false
+    @State private var setupResult: SSHTestResult?
+
+    private var currentKeys: [SSHKeyEntry] { store.keys }
+    private var currentServers: [SSHServerEntry] { store.servers }
 
     private var isValid: Bool {
-        !alias.trimmingCharacters(in: .whitespaces).isEmpty &&
         !hostname.trimmingCharacters(in: .whitespaces).isEmpty &&
         !user.trimmingCharacters(in: .whitespaces).isEmpty &&
-        Int(port) != nil
+        Int(port) != nil &&
+        (authMode == "key" ? identityFileName != nil || currentKeys.isEmpty : true)
+    }
+
+    private var effectiveAlias: String {
+        let trimmed = alias.trimmingCharacters(in: .whitespaces)
+        if !trimmed.isEmpty { return trimmed }
+        return SSHConfigStore.generateAlias(from: hostname, existing: currentServers)
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Server") {
+                Section("Connection") {
+                    TextField("Hostname", text: $hostname)
+                        .font(.system(.body, design: .monospaced))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+
+                    TextField("Port", text: $port)
+                        .font(.system(.body, design: .monospaced))
+                        .keyboardType(.numberPad)
+
+                    TextField("User", text: $user)
+                        .font(.system(.body, design: .monospaced))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                }
+
+                Section("Authentication") {
+                    Picker("Method", selection: $authMode) {
+                        Text("Password").tag("password")
+                        Text("SSH Key").tag("key")
+                    }
+
+                    if authMode == "password" {
+                        SecureField("Password", text: $password)
+                            .font(.system(.body, design: .monospaced))
+                    } else {
+                        if currentKeys.isEmpty {
+                            Text("No keys available — will generate one automatically")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Picker("Key", selection: $identityFileName) {
+                                Text("None").tag(String?.none)
+                                ForEach(currentKeys) { key in
+                                    Text(key.name).tag(String?.some(key.name))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                DisclosureGroup("Custom Options", isExpanded: $showCustomOptions) {
+                    TextField("Alias (auto-generated if empty)", text: $alias)
+                        .font(.system(.body, design: .monospaced))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+
+                    TextField("Note", text: $note, axis: .vertical)
+                        .lineLimit(2...4)
+
+                    if authMode == "password" {
+                        Text("Note: agent cannot use password-only connections. A key will be set up automatically.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let result = setupResult {
+                    Section {
+                        if result.ok {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("Connected — agent can use `ssh \(effectiveAlias)`", systemImage: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                    .font(.subheadline.bold())
+                                Text(result.message)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("Connection failed", systemImage: "xmark.circle.fill")
+                                    .foregroundStyle(.red)
+                                    .font(.subheadline.bold())
+                                Text(result.message)
+                                    .font(.subheadline)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Add Server")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if isSettingUp {
+                        ProgressView()
+                    } else if setupResult?.ok == true {
+                        Button("Done") { dismiss() }
+                    } else {
+                        Button(setupResult != nil ? "Retry" : "Set Up") {
+                            performSetup()
+                        }
+                        .disabled(!isValid || isSettingUp)
+                    }
+                }
+            }
+        }
+    }
+
+    private func performSetup() {
+        isSettingUp = true
+        setupResult = nil
+        let entry = SSHServerEntry(
+            alias: effectiveAlias,
+            hostname: hostname.trimmingCharacters(in: .whitespaces),
+            port: Int(port) ?? 22,
+            user: user.trimmingCharacters(in: .whitespaces),
+            identityFileName: identityFileName,
+            authMode: authMode,
+            note: note.isEmpty ? nil : note.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        let pwd = authMode == "password" ? password : nil
+        let keysSnapshot = currentKeys
+        Task {
+            let result = await store.performOneTouchSetup(
+                server: entry, password: pwd, keys: keysSnapshot)
+            setupResult = result
+            isSettingUp = false
+        }
+    }
+}
+
+// MARK: - Server Detail Sheet
+
+private struct SSHServerDetailSheet: View {
+    let server: SSHServerEntry
+
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var store = SSHConfigStore.shared
+    @State private var alias: String
+    @State private var hostname: String
+    @State private var port: String
+    @State private var user: String
+    @State private var authMode: String
+    @State private var identityFileName: String?
+    @State private var password: String
+    @State private var note: String
+    @State private var isTesting = false
+    @State private var testResult: SSHTestResult?
+    @State private var showingDeleteConfirm = false
+    @State private var showingGenerateKeySheet = false
+
+    init(server: SSHServerEntry) {
+        self.server = server
+        _alias = State(initialValue: server.alias)
+        _hostname = State(initialValue: server.hostname)
+        _port = State(initialValue: String(server.port))
+        _user = State(initialValue: server.user)
+        _authMode = State(initialValue: server.authMode)
+        _identityFileName = State(initialValue: server.identityFileName)
+        _password = State(initialValue: SSHConfigStore.shared.password(alias: server.alias) ?? "")
+        _note = State(initialValue: server.note ?? "")
+    }
+
+    private var isHostKeyError: Bool {
+        guard let result = testResult, !result.ok else { return false }
+        return SSHConfigStore.isHostKeyError(result.message)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if isHostKeyError {
+                    Section {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("Server fingerprint has changed", systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                                .font(.subheadline.bold())
+                            Text("The stored fingerprint no longer matches the server. This can happen when the server is reinstalled.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Button("Clear Old Fingerprint & Retry") {
+                                clearAndRetry()
+                            }
+                            .font(.subheadline)
+                        }
+                    }
+                }
+
+                Section("Connection") {
                     TextField("Alias", text: $alias)
                         .font(.system(.body, design: .monospaced))
                         .autocorrectionDisabled()
@@ -488,12 +643,12 @@ private struct SSHServerFormSheet: View {
 
                 Section("Authentication") {
                     Picker("Method", selection: $authMode) {
-                        Text("SSH Key").tag("key")
                         Text("Password").tag("password")
+                        Text("SSH Key").tag("key")
                     }
 
                     if authMode == "key" {
-                        if keys.isEmpty {
+                        if store.keys.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("No SSH keys available")
                                     .font(.caption)
@@ -505,13 +660,9 @@ private struct SSHServerFormSheet: View {
                         } else {
                             Picker("Key", selection: $identityFileName) {
                                 Text("None").tag(String?.none)
-                                ForEach(keys) { key in
+                                ForEach(store.keys) { key in
                                     Text(key.name).tag(String?.some(key.name))
                                 }
-                            }
-
-                            Button("Generate Key & Push") {
-                                showingPushSheet = true
                             }
                         }
                     } else {
@@ -525,116 +676,149 @@ private struct SSHServerFormSheet: View {
                         .lineLimit(3...6)
                 }
 
-                if mode == .edit {
-                    Section {
-                        Button(role: .destructive) {
-                            dismiss()
-                        } label: {
-                            Label("Delete Server", systemImage: "trash")
+                Section {
+                    Button {
+                        testConnection()
+                    } label: {
+                        HStack {
+                            if isTesting {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                            Text(isTesting ? "Testing…" : "Test Connection")
+                                .bold()
                         }
+                    }
+                    .disabled(isTesting)
+
+                    if let result = testResult {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Image(systemName: result.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundStyle(result.ok ? .green : .red)
+                                Text(result.ok ? "Connected" : "Failed")
+                                    .font(.subheadline.bold())
+                                Text("(\(result.elapsedMs)ms)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if !result.ok {
+                                Text(result.message)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Test")
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        showingDeleteConfirm = true
+                    } label: {
+                        Label("Delete Server", systemImage: "trash")
                     }
                 }
             }
-            .navigationTitle(mode == .add ? "Add Server" : "Edit Server")
+            .navigationTitle("Server Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Close") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(mode == .add ? "Add" : "Save") {
-                        let entry = SSHServerEntry(
-                            alias: alias.trimmingCharacters(in: .whitespaces),
-                            hostname: hostname.trimmingCharacters(in: .whitespaces),
-                            port: Int(port) ?? 22,
-                            user: user.trimmingCharacters(in: .whitespaces),
-                            identityFileName: identityFileName,
-                            authMode: authMode,
-                            note: note.isEmpty ? nil : note.trimmingCharacters(in: .whitespacesAndNewlines)
-                        )
-                        let pwd = authMode == "password" ? password : nil
-                        onSave(entry, pwd)
-                        dismiss()
+                    Button("Save") {
+                        saveChanges()
                     }
-                    .disabled(!isValid)
+                    .disabled(alias.trimmingCharacters(in: .whitespaces).isEmpty ||
+                              hostname.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+            }
+            .alert(
+                AppLocalized("Delete this server?"),
+                isPresented: $showingDeleteConfirm
+            ) {
+                Button(AppLocalized("Delete"), role: .destructive) {
+                    do {
+                        try store.removeServer(alias: server.alias)
+                        store.deletePassword(alias: server.alias)
+                        dismiss()
+                    } catch {
+                        // Handled by parent
+                    }
+                }
+                Button(AppLocalized("Cancel"), role: .cancel) {}
+            } message: {
+                Text(AppLocalized("Server \"\(server.alias)\" will be removed from ~/.ssh/config."))
             }
             .sheet(isPresented: $showingGenerateKeySheet) {
                 SSHKeyGenerateSheet { name, type in
-                    do {
-                        try SSHConfigStore.shared.generateKey(name: name, type: type)
-                        identityFileName = name
-                    } catch {
-                        // Error handled by parent
+                    Task {
+                        do {
+                            try await store.generateKey(name: name, type: type)
+                            identityFileName = name
+                        } catch {
+                            // Error handled by parent
+                        }
                     }
                 }
             }
-            .sheet(isPresented: $showingPushSheet) {
-                NavigationStack {
-                    Form {
-                        Section {
-                            SecureField("Server Password", text: $pushPassword)
-                                .font(.system(.body, design: .monospaced))
-                        } header: {
-                            Text("Enter the server password to push your public key")
-                        }
+        }
+    }
 
-                        if let result = pushResult {
-                            Section {
-                                HStack {
-                                    Image(systemName: result.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                        .foregroundStyle(result.ok ? .green : .red)
-                                    Text(result.message)
-                                        .font(.caption)
-                                }
-                            }
-                        }
-                    }
-                    .navigationTitle("Push Public Key")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel") { showingPushSheet = false }
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Push") {
-                                Task {
-                                    guard let keyName = identityFileName ?? keys.first?.name else { return }
-                                    let tempServer = SSHServerEntry(
-                                        alias: alias.isEmpty ? "temp" : alias,
-                                        hostname: hostname,
-                                        port: Int(port) ?? 22,
-                                        user: user,
-                                        identityFileName: keyName,
-                                        authMode: "key",
-                                        note: nil
-                                    )
-                                    let result = await SSHConfigStore.shared.pushPublicKey(server: tempServer, password: pushPassword)
-                                    pushResult = result
-                                    if result.ok {
-                                        identityFileName = keyName
-                                        try? await Task.sleep(nanoseconds: 1_000_000_000)
-                                        showingPushSheet = false
-                                    }
-                                }
-                            }
-                            .disabled(pushPassword.isEmpty)
-                        }
-                    }
-                }
-                .presentationDetents([.medium])
+    private func testConnection() {
+        isTesting = true
+        testResult = nil
+        let entry = SSHServerEntry(
+            alias: alias.trimmingCharacters(in: .whitespaces),
+            hostname: hostname.trimmingCharacters(in: .whitespaces),
+            port: Int(port) ?? 22,
+            user: user.trimmingCharacters(in: .whitespaces),
+            identityFileName: identityFileName,
+            authMode: authMode,
+            note: nil
+        )
+        let pwd = authMode == "password" ? password : nil
+        Task {
+            let result = await store.testConnection(entry, password: pwd)
+            testResult = SSHTestResult(
+                ok: result.ok,
+                message: result.ok ? result.message : SSHConfigStore.humanize(result.message),
+                elapsedMs: result.elapsedMs)
+            isTesting = false
+        }
+    }
+
+    private func clearAndRetry() {
+        let host = hostname.trimmingCharacters(in: .whitespaces)
+        let p = Int(port) ?? 22
+        _ = store.clearStaleFingerprint(for: host, port: p)
+        testConnection()
+    }
+
+    private func saveChanges() {
+        let entry = SSHServerEntry(
+            alias: alias.trimmingCharacters(in: .whitespaces),
+            hostname: hostname.trimmingCharacters(in: .whitespaces),
+            port: Int(port) ?? 22,
+            user: user.trimmingCharacters(in: .whitespaces),
+            identityFileName: identityFileName,
+            authMode: authMode,
+            note: note.isEmpty ? nil : note.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        do {
+            if alias != server.alias {
+                try store.removeServer(alias: server.alias)
+                store.deletePassword(alias: server.alias)
             }
-            .onAppear {
-                if let server = server {
-                    alias = server.alias
-                    hostname = server.hostname
-                    port = String(server.port)
-                    user = server.user
-                    authMode = server.authMode
-                    identityFileName = server.identityFileName
-                    note = server.note ?? ""
-                }
+            try store.upsertServer(entry)
+            if authMode == "password" && !password.isEmpty {
+                store.setPassword(password, alias: entry.alias)
             }
+            dismiss()
+        } catch {
+            // Error handled by parent
         }
     }
 }

@@ -7959,6 +7959,34 @@
         }
       }
     },
+    "Advanced: Keys & Trust Records": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "詳細：鍵と信頼記録"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "고급: 키 및 신뢰 기록"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高级：密钥与信任记录"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "進階：金鑰與信任記錄"
+          }
+        }
+      }
+    },
     "Advanced: write a value at a dotted field path. Not validated by Moonveil.": {
       "extractionState": "manual",
       "localizations": {
@@ -8319,6 +8347,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "鬧鐘"
+          }
+        }
+      }
+    },
+    "Alias (auto-generated if empty)": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エイリアス（空欄なら自動生成）"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "별칭(비워두면 자동 생성)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "别名（留空自动生成）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "別名（留空自動產生）"
           }
         }
       }
@@ -14992,6 +15048,62 @@
         }
       }
     },
+    "Cannot reach the server — check the address, port, and network": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーに接続できません — アドレス、ポート、ネットワークを確認してください"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버에 연결할 수 없습니다 — 주소, 포트, 네트워크를 확인하세요"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连不上服务器 — 检查地址、端口和网络"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連不上伺服器 — 檢查位址、連接埠和網路"
+          }
+        }
+      }
+    },
+    "Cannot resolve hostname — check the address": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホスト名を解決できません — アドレスを確認してください"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "호스트 이름을 확인할 수 없습니다 — 주소를 확인하세요"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法解析主机名 — 检查地址"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法解析主機名稱 — 檢查位址"
+          }
+        }
+      }
+    },
     "Capabilities": {
       "localizations": {
         "de": {
@@ -17683,6 +17795,34 @@
         }
       }
     },
+    "Clear All Known Hosts": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "既知のホストをすべてクリア"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알려진 호스트 모두 삭제"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除所有已知主机"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除所有已知主機"
+          }
+        }
+      }
+    },
     "Clear Browsing History?": {
       "localizations": {
         "de": {
@@ -17854,6 +17994,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "清除已收集資料"
+          }
+        }
+      }
+    },
+    "Clear Old Fingerprint & Retry": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "古いフィンガープリントを削除して再試行"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이전 지문 삭제 후 재시도"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除旧指纹并重试"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除舊指紋並重試"
           }
         }
       }
@@ -20144,6 +20312,34 @@
         }
       }
     },
+    "Connect to Your Servers": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーに接続"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 연결"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接您的服务器"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連線您的伺服器"
+          }
+        }
+      }
+    },
     "Connect to your self-hosted instance": {
       "extractionState": "manual",
       "localizations": {
@@ -20157,6 +20353,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "连接到自己部署的实例"
+          }
+        }
+      }
+    },
+    "Connected — agent can use `ssh <alias>`": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接続完了 — agent が `ssh <alias>` を利用可能"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결됨 — agent가 `ssh <alias>` 사용 가능"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已连通 — agent 可用 `ssh <alias>`"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已連線 — agent 可用 `ssh <alias>`"
           }
         }
       }
@@ -20226,6 +20450,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "连接信息"
+          }
+        }
+      }
+    },
+    "Connection failed": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接続に失敗しました"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결 실패"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接失败"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連線失敗"
+          }
+        }
+      }
+    },
+    "Connection refused — is SSH running on that port?": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接続が拒否されました — そのポートで SSH が動いていますか？"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결이 거부되었습니다 — 해당 포트에서 SSH가 실행 중인가요?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接被拒绝 — 该端口有 SSH 服务吗？"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連線被拒絕 — 該連接埠有 SSH 服務嗎？"
           }
         }
       }
@@ -24386,6 +24666,34 @@
         }
       }
     },
+    "Custom Options": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カスタムオプション"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사용자 정의 옵션"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义选项"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自訂選項"
+          }
+        }
+      }
+    },
     "Custom User-Agent": {
       "localizations": {
         "de": {
@@ -27285,6 +27593,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "在本次會話中拒絕"
+          }
+        }
+      }
+    },
+    "Dependencies": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "依存関係"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "의존성"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "依赖"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "依賴"
           }
         }
       }
@@ -32031,6 +32367,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "请为 %@ 输入有效值。"
+          }
+        }
+      }
+    },
+    "Enter an address and password to set up a connection. Keys are handled automatically.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アドレスとパスワードを入力するだけで接続を設定できます。鍵は自動で処理されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "주소와 비밀번호를 입력하면 연결이 설정됩니다. 키는 자동으로 처리됩니다。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "填入地址和密码即可完成配置，密钥将自动处理。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "填入位址和密碼即可完成設定，金鑰將自動處理。"
           }
         }
       }
@@ -41008,6 +41372,34 @@
         }
       }
     },
+    "Import Key": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鍵をインポート"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "키 가져오기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导入密钥"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匯入金鑰"
+          }
+        }
+      }
+    },
     "Import Method": {
       "localizations": {
         "de": {
@@ -49705,6 +50097,34 @@
         }
       }
     },
+    "Missing sshpass — installing automatically…": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sshpass が見つかりません — 自動インストール中…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sshpass가 없습니다 — 자동 설치 중…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sshpass 缺失 — 正在自动安装…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sshpass 缺失 — 正在自動安裝…"
+          }
+        }
+      }
+    },
     "Missing sshpass. Run: apk add sshpass": {
       "localizations": {
         "ja": {
@@ -55974,6 +56394,34 @@
         }
       }
     },
+    "No keys available — will generate one automatically": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鍵がありません — 自動で生成されます"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사용 가능한 키 없음 — 자동으로 생성됩니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无可用密钥 — 将自动生成"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無可用金鑰 — 將自動產生"
+          }
+        }
+      }
+    },
     "No known hosts": {
       "localizations": {
         "zh-Hans": {
@@ -58716,6 +59164,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "備註（展示給智能體）"
+          }
+        }
+      }
+    },
+    "Note: agent cannot use password-only connections. A key will be set up automatically.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "注：agent はパスワードのみの接続を利用できません。鍵は自動で設定されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "참고: agent는 비밀번호 전용 연결을 사용할 수 없습니다. 키가 자동으로 설정됩니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提示：agent 无法使用纯密码连接，将自动配置密钥。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提示：agent 無法使用純密碼連線，將自動設定金鑰。"
           }
         }
       }
@@ -62072,6 +62548,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "密码至少需要 8 个字符。"
+          }
+        }
+      }
+    },
+    "Password or key is incorrect": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パスワードまたは鍵が正しくありません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비밀번호 또는 키가 올바르지 않습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密码或密钥不对"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密碼或金鑰不正確"
           }
         }
       }
@@ -74361,6 +74865,34 @@
         }
       }
     },
+    "SSH Client": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH クライアント"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 클라이언트"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 客户端"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 用戶端"
+          }
+        }
+      }
+    },
     "SSH Config": {
       "localizations": {
         "ja": {
@@ -74395,6 +74927,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "SSH 密钥"
+          }
+        }
+      }
+    },
+    "SSH Keygen": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 鍵生成"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 키 생성"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 密钥生成"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 金鑰產生"
+          }
+        }
+      }
+    },
+    "SSH Pass": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH パス"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 패스"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 密码工具"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 密碼工具"
           }
         }
       }
@@ -76839,6 +77427,62 @@
         }
       }
     },
+    "Server fingerprint changed — the stored fingerprint no longer matches": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーのフィンガープリントが変更されました — 保存されたフィンガープリントが一致しません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 지문이 변경되었습니다 — 저장된 지문이 일치하지 않습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器指纹已变化 — 存储的指纹不再匹配"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "伺服器指紋已變更 — 儲存的指紋不再相符"
+          }
+        }
+      }
+    },
+    "Server fingerprint has changed": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーのフィンガープリントが変更されました"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 지문이 변경되었습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器指纹已变化"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "伺服器指紋已變更"
+          }
+        }
+      }
+    },
     "Server name": {
       "localizations": {
         "de": {
@@ -77964,6 +78608,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "設置手動 Bearer Token"
+          }
+        }
+      }
+    },
+    "Set Up": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설정"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定"
           }
         }
       }
@@ -85959,10 +86631,28 @@
             "value": "Probar conexión"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接続テスト"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결 테스트"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "测试连接"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "測試連線"
           }
         }
       }
@@ -87659,6 +88349,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "模型服務商未明確聲明此模型是否支援深度思考。強制啟用後可能導致異常，可嘗試關閉思考或重試。"
+          }
+        }
+      }
+    },
+    "The remote host is offline": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リモートホストがオフライン"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "원격 호스트가 오프라인"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对方主机不在线"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "遠端主機不在線上"
           }
         }
       }

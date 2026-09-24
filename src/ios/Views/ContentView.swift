@@ -7812,6 +7812,8 @@ struct SettingsSheet: View {
             navPath.append(SettingsDestination.mountedFolders)
         case .sharedFolders:
             navPath.append(SettingsDestination.sharedFolders)
+        case .sshServers:
+            navPath.append(SettingsDestination.sshServers)
         case .logs:
             navPath.append(SettingsDestination.logs)
         case .appearance:
