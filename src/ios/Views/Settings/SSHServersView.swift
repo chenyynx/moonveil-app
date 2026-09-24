@@ -23,10 +23,11 @@ struct SSHServersView: View {
 
     private var filteredServers: [SSHServerEntry] {
         if searchText.isEmpty { return store.servers }
-        return store.servers.filter {
-            $0.alias.localizedCaseInsensitiveContains(searchText) ||
-            $0.hostname.localizedCaseInsensitiveContains(searchText) ||
-            ($0.note ?? "").localizedCaseInsensitiveContains(searchText)
+        let query = searchText
+        return store.servers.filter { (entry: SSHServerEntry) -> Bool in
+            entry.alias.localizedCaseInsensitiveContains(query) ||
+            entry.hostname.localizedCaseInsensitiveContains(query) ||
+            (entry.note ?? "").localizedCaseInsensitiveContains(query)
         }
     }
 
