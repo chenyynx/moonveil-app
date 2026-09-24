@@ -123,6 +123,7 @@ struct SSHServersView: View {
     }
 
     var body: some View {
+        applyDialogs(
         List {
             sshSections
         }
@@ -139,6 +140,15 @@ struct SSHServersView: View {
                 }
             }
         }
+        )
+    }
+
+    /// Type-check isolation: the 1 confirmationDialog + 5 sheets + 6 alerts
+    /// chain made the compiler give up ("unable to type-check in reasonable
+    /// time") while attached to body. Moved into its own generic function so
+    /// each modifier resolves independently of the opaque body type.
+    private func applyDialogs<V: View>(_ base: V) -> some View {
+        base
         .confirmationDialog(
             "Add",
             isPresented: $showingAddActionSheet,

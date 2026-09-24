@@ -95,7 +95,7 @@ private struct ServerConfigBlock: Sendable {
     var knownDirectives: [(String, String)]
     var unknownLines: [String]
 
-    func value(for key: String) -> String? {
+    nonisolated func value(for key: String) -> String? {
         knownDirectives.first { $0.0.lowercased() == key.lowercased() }?.1
     }
 }
@@ -485,7 +485,7 @@ final class SSHConfigStore: ObservableObject {
         return blocks
     }
 
-    private static func findNoteForHost(
+    private nonisolated static func findNoteForHost(
         _ alias: String, in globalLines: [String],
         previousBlocks: [ServerConfigBlock]
     ) -> String? {
