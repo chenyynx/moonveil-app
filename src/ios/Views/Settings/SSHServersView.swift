@@ -32,11 +32,45 @@ struct SSHServersView: View {
     }
 
     var body: some View {
-        Group {
+        List {
             if isEmpty {
-                emptyStateView
+                emptyState
             } else {
-                contentList
+                Section {
+                    ForEach(filteredServers) { server in
+                        Button {
+                            editingServer = server
+                        } label: {
+                            serverRow(server)
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                deleteServerConfirm = server
+                            } label: {
+                                Label(AppLocalized("Delete"), systemImage: "trash")
+                            }
+                        }
+                    }
+                    .onDelete { offsets in
+                        let serversToDelete = offsets.map { filteredServers[$0] }
+                        if let first = serversToDelete.first {
+                            deleteServerConfirm = first
+                        }
+                    }
+                }
+                Section {
+                    DisclosureGroup(
+                        isExpanded: $showAdvanced,
+                        content: {
+                            advancedContent
+                        },
+                        label: {
+                            Label("Advanced: Keys & Trust Records", systemImage: "gearshape.2")
+                                .font(.body)
+                        }
+                    )
+                }
             }
         }
         .navigationTitle("SSH Servers")
@@ -44,21 +78,11 @@ struct SSHServersView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    showingAddActionSheet = true
+                    showingAddServerSheet = true
                 } label: {
                     Image(systemName: "plus")
                 }
             }
-        }
-        .confirmationDialog(
-            "Add",
-            isPresented: $showingAddActionSheet,
-            titleVisibility: .hidden
-        ) {
-            Button("Add Server") {
-                showingAddServerSheet = true
-            }
-            Button("Cancel", role: .cancel) {}
         }
         .sheet(isPresented: $showingAddServerSheet) {
             SSHAddServerSheet()
@@ -180,79 +204,24 @@ struct SSHServersView: View {
 
     // MARK: - Empty State
 
-    private var emptyStateView: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            VStack(spacing: 16) {
-                Image(systemName: "server.rack")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.secondary)
-                Text("Connect to Your Servers")
-                    .font(.title2.bold())
-                Text("Enter an address and password to set up a connection. Keys are handled automatically.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                Button {
-                    showingAddServerSheet = true
-                } label: {
-                    Text("Add Server")
-                        .font(.body.bold())
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(.horizontal, 40)
-                .padding(.top, 8)
-            }
-            Spacer()
+    // [T-ssh-empty-mcp-parity] Structure & styling mirrored from
+    // MCPIntegrationsView.emptyState (pp: use the ready-made MCP empty state,
+    // do not invent a custom hero card). Copy adapted to the SSH context.
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "server.rack")
+                .font(.system(size: 44))
+                .foregroundStyle(.secondary)
+            Text("No SSH Servers")
+                .font(.headline)
+            Text("Add a server so the agent can reach it over SSH. Tap + to add one manually.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
-    }
-
-    // MARK: - Content List (MCP Pattern)
-
-    private var contentList: some View {
-        List {
-            Section {
-                ForEach(filteredServers) { server in
-                    Button {
-                        editingServer = server
-                    } label: {
-                        serverRow(server)
-                    }
-                    .buttonStyle(.plain)
-                    .contextMenu {
-                        Button(role: .destructive) {
-                            deleteServerConfirm = server
-                        } label: {
-                            Label(AppLocalized("Delete"), systemImage: "trash")
-                        }
-                    }
-                }
-                .onDelete { offsets in
-                    let serversToDelete = offsets.map { filteredServers[$0] }
-                    if let first = serversToDelete.first {
-                        deleteServerConfirm = first
-                    }
-                }
-            }
-
-            Section {
-                DisclosureGroup(
-                    isExpanded: $showAdvanced,
-                    content: {
-                        advancedContent
-                    },
-                    label: {
-                        Label("Advanced: Keys & Trust Records", systemImage: "gearshape.2")
-                            .font(.body)
-                    }
-                )
-            }
-        }
-        .listStyle(.insetGrouped)
-        .searchable(text: $searchText, prompt: "Filter servers")
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .listRowBackground(Color.clear)
     }
 
     @ViewBuilder

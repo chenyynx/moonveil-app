@@ -7368,6 +7368,34 @@
         }
       }
     },
+    "Add a server so the agent can reach it over SSH. Tap + to add one manually.": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーを追加すると、agent が SSH で接続できるようになります。右上の + から手動で追加してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버를 추가하면 agent가 SSH로 연결할 수 있습니다. 오른쪽 위 +를 눌러 수동으로 추가하세요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加一台服务器，让 agent 能通过 SSH 连上它。点右上角 + 手动添加。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新增一台伺服器，讓 agent 能透過 SSH 連上它。點右上角 + 手動新增。"
+          }
+        }
+      }
+    },
     "Add a storage destination to continue.": {
       "extractionState": "manual",
       "localizations": {
@@ -55664,6 +55692,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "无 SSH 配置"
+          }
+        }
+      }
+    },
+    "No SSH Servers": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH サーバーがありません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 서버 없음"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无 SSH 服务器"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無 SSH 伺服器"
           }
         }
       }
