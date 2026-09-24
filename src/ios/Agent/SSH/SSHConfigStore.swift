@@ -866,7 +866,7 @@ final class SSHConfigStore: ObservableObject {
     // command times out with exitCode -1 and shows as red).
     private static func checkDependencies() -> SSHDependencyStatus {
         let root = RootfsManager.shared.dataPath
-        func hasBinary(at relativePath: String) -> Bool {
+        func hasBinary(_ relativePath: String) -> Bool {
             root.appendingPathComponent(relativePath).checkFileExists()
         }
         let ssh = hasBinary("usr/bin/ssh")
