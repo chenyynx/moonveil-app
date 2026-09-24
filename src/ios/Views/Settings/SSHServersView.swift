@@ -66,14 +66,14 @@ struct SSHServersView: View {
                             advancedContent
                         },
                         label: {
-                            Label("Advanced: Keys & Trust Records", systemImage: "gearshape.2")
+                            Label(AppLocalized("Advanced: Keys & Trust Records"), systemImage: "gearshape.2")
                                 .font(.body)
                         }
                     )
                 }
             }
         }
-        .navigationTitle("SSH Servers")
+        .navigationTitle(AppLocalized("SSH Devices"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -114,7 +114,7 @@ struct SSHServersView: View {
             SSHKeyDetailSheet(key: key, publicKey: store.publicKey(name: key.name))
         }
         .alert(
-            AppLocalized("Delete this server?"),
+            AppLocalized("Delete this device?"),
             isPresented: Binding(
                 get: { deleteServerConfirm != nil },
                 set: { if !$0 { deleteServerConfirm = nil } }
@@ -131,7 +131,7 @@ struct SSHServersView: View {
             }
             Button(AppLocalized("Cancel"), role: .cancel) {}
         } message: { server in
-            Text(AppLocalized("Server \"\(server.alias)\" will be removed from ~/.ssh/config."))
+            Text(AppLocalized("Device \"\(server.alias)\" will be removed from ~/.ssh/config."))
         }
         .alert(
             AppLocalized("Delete this key?"),
@@ -212,9 +212,9 @@ struct SSHServersView: View {
             Image(systemName: "server.rack")
                 .font(.system(size: 44))
                 .foregroundStyle(.secondary)
-            Text("No SSH Servers")
+            Text(AppLocalized("No SSH Devices"))
                 .font(.headline)
-            Text("Add a server so the agent can reach it over SSH. Tap + to add one manually.")
+            Text(AppLocalized("Add a device so the agent can reach it over SSH. Tap + to add one manually."))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -227,7 +227,7 @@ struct SSHServersView: View {
     @ViewBuilder
     private var advancedContent: some View {
         if !store.keys.isEmpty {
-            Text("Keys")
+            Text(AppLocalized("Keys"))
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
@@ -237,7 +237,7 @@ struct SSHServersView: View {
         }
 
         if !store.knownHosts.isEmpty {
-            Text("Known Hosts")
+            Text(AppLocalized("Known Hosts"))
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
                 .padding(.top, 8)
@@ -247,11 +247,11 @@ struct SSHServersView: View {
             Button(role: .destructive) {
                 showingClearKnownHostsConfirm = true
             } label: {
-                Label("Clear All Known Hosts", systemImage: "trash")
+                Label(AppLocalized("Clear All Known Hosts"), systemImage: "trash")
             }
         }
 
-        Text("Dependencies")
+        Text(AppLocalized("Dependencies"))
             .font(.caption.bold())
             .foregroundStyle(.secondary)
             .padding(.top, 8)
@@ -263,14 +263,14 @@ struct SSHServersView: View {
             Button {
                 showingGenerateKeySheet = true
             } label: {
-                Label("Generate Key", systemImage: "key")
+                Label(AppLocalized("Generate Key"), systemImage: "key")
             }
             .buttonStyle(.bordered)
 
             Button {
                 showingImportKeySheet = true
             } label: {
-                Label("Import Key", systemImage: "square.and.arrow.down")
+                Label(AppLocalized("Import Key"), systemImage: "square.and.arrow.down")
             }
             .buttonStyle(.bordered)
         }
@@ -325,7 +325,7 @@ struct SSHServersView: View {
                         .foregroundStyle(.blue)
                     let refCount = store.servers.filter { $0.identityFileName == key.name }.count
                     if refCount > 0 {
-                        Text("\(refCount) referenced")
+                        Text(String(format: AppLocalized("%@ referenced"), refCount))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -382,13 +382,12 @@ private struct SSHAddServerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var hostname = ""
     @State private var port = "22"
-    @State private var user = "root"
+    @State private var user = ""
     @State private var authMode = "password"
     @State private var identityFileName: String?
     @State private var password = ""
     @State private var alias = ""
     @State private var note = ""
-    @State private var showCustomOptions = false
     @State private var isSettingUp = false
     @State private var setupResult: SSHTestResult?
     @State private var setupStep: String?
@@ -413,39 +412,47 @@ private struct SSHAddServerSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Connection") {
-                    TextField("Hostname", text: $hostname)
+                Section(AppLocalized("Connection")) {
+                    TextField(AppLocalized("Alias"), text: $alias, prompt: Text(AppLocalized("Leave empty to auto-generate")))
                         .font(.system(.body, design: .monospaced))
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
 
-                    TextField("Port", text: $port)
+                    TextField(AppLocalized("Hostname"), text: $hostname)
+                        .font(.system(.body, design: .monospaced))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+
+                    TextField(AppLocalized("Username"), text: $user)
+                        .font(.system(.body, design: .monospaced))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+
+                    TextField(AppLocalized("Port"), text: $port)
                         .font(.system(.body, design: .monospaced))
                         .keyboardType(.numberPad)
-
-                    TextField("User", text: $user)
-                        .font(.system(.body, design: .monospaced))
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
                 }
 
-                Section("Authentication") {
-                    Picker("Method", selection: $authMode) {
-                        Text("Password").tag("password")
-                        Text("SSH Key").tag("key")
+                Section(AppLocalized("Authentication")) {
+                    Picker(AppLocalized("Method"), selection: $authMode) {
+                        Text(AppLocalized("Password")).tag("password")
+                        Text(AppLocalized("SSH Key")).tag("key")
                     }
 
                     if authMode == "password" {
-                        SecureField("Password", text: $password)
+                        SecureField(AppLocalized("Password"), text: $password)
                             .font(.system(.body, design: .monospaced))
+                        Text(AppLocalized("This password will be used once to set up key-based login — you won't need it again afterwards."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     } else {
                         if currentKeys.isEmpty {
-                            Text("No keys available — will generate one automatically")
+                            Text(AppLocalized("No keys available — will generate one automatically"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         } else {
-                            Picker("Key", selection: $identityFileName) {
-                                Text("None").tag(String?.none)
+                            Picker(AppLocalized("Key"), selection: $identityFileName) {
+                                Text(AppLocalized("None")).tag(String?.none)
                                 ForEach(currentKeys) { key in
                                     Text(key.name).tag(String?.some(key.name))
                                 }
@@ -454,27 +461,16 @@ private struct SSHAddServerSheet: View {
                     }
                 }
 
-                DisclosureGroup("Custom Options", isExpanded: $showCustomOptions) {
-                    TextField("Alias (auto-generated if empty)", text: $alias)
-                        .font(.system(.body, design: .monospaced))
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-
-                    TextField("Note", text: $note, axis: .vertical)
+                Section(AppLocalized("Note")) {
+                    TextField(AppLocalized("Note"), text: $note, axis: .vertical)
                         .lineLimit(2...4)
-
-                    if authMode == "password" {
-                        Text("Note: agent cannot use password-only connections. A key will be set up automatically.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
                 }
 
                 if let result = setupResult {
                     Section {
                         if result.ok {
                             VStack(alignment: .leading, spacing: 8) {
-                                Label("Connected — agent can use `ssh \(effectiveAlias)`", systemImage: "checkmark.circle.fill")
+                                Label(String(format: AppLocalized("Connected (alias: %@) — device is ready to use"), effectiveAlias), systemImage: "checkmark.circle.fill")
                                     .foregroundStyle(.green)
                                     .font(.subheadline.bold())
                                 Text(result.message)
@@ -483,7 +479,7 @@ private struct SSHAddServerSheet: View {
                             }
                         } else {
                             VStack(alignment: .leading, spacing: 8) {
-                                Label("Connection failed", systemImage: "xmark.circle.fill")
+                                Label(AppLocalized("Connection failed"), systemImage: "xmark.circle.fill")
                                     .foregroundStyle(.red)
                                     .font(.subheadline.bold())
                                 Text(result.message)
@@ -493,11 +489,11 @@ private struct SSHAddServerSheet: View {
                     }
                 }
             }
-            .navigationTitle("Add Server")
+            .navigationTitle(AppLocalized("Add Device"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(AppLocalized("Cancel")) {
                         // Cancelling the task kills the in-flight guest
                         // command (see executeSSHCommand) and stops the
                         // setup between stages.
@@ -517,9 +513,9 @@ private struct SSHAddServerSheet: View {
                             ProgressView()
                         }
                     } else if setupResult?.ok == true {
-                        Button("Done") { dismiss() }
+                        Button(AppLocalized("Done")) { dismiss() }
                     } else {
-                        Button(setupResult != nil ? "Retry" : "Set Up") {
+                        Button(setupResult != nil ? AppLocalized("Retry") : AppLocalized("Set Up")) {
                             performSetup()
                         }
                         .disabled(!isValid || isSettingUp)
@@ -601,13 +597,13 @@ private struct SSHServerDetailSheet: View {
                 if isHostKeyError {
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
-                            Label("Server fingerprint has changed", systemImage: "exclamationmark.triangle.fill")
+                            Label(AppLocalized("Device fingerprint has changed"), systemImage: "exclamationmark.triangle.fill")
                                 .foregroundStyle(.orange)
                                 .font(.subheadline.bold())
-                            Text("The stored fingerprint no longer matches the server. This can happen when the server is reinstalled.")
+                            Text(AppLocalized("The stored fingerprint no longer matches the device. This can happen when the device is reinstalled."))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            Button("Clear Old Fingerprint & Retry") {
+                            Button(AppLocalized("Clear Old Fingerprint & Retry")) {
                                 clearAndRetry()
                             }
                             .font(.subheadline)
@@ -615,56 +611,56 @@ private struct SSHServerDetailSheet: View {
                     }
                 }
 
-                Section("Connection") {
-                    TextField("Alias", text: $alias)
+                Section(AppLocalized("Connection")) {
+                    TextField(AppLocalized("Alias"), text: $alias)
                         .font(.system(.body, design: .monospaced))
                         .autocorrectionDisabled()
 
-                    TextField("Hostname", text: $hostname)
+                    TextField(AppLocalized("Hostname"), text: $hostname)
                         .font(.system(.body, design: .monospaced))
                         .autocorrectionDisabled()
 
-                    TextField("Port", text: $port)
+                    TextField(AppLocalized("Username"), text: $user)
+                        .font(.system(.body, design: .monospaced))
+                        .autocorrectionDisabled()
+
+                    TextField(AppLocalized("Port"), text: $port)
                         .font(.system(.body, design: .monospaced))
                         .keyboardType(.numberPad)
-
-                    TextField("User", text: $user)
-                        .font(.system(.body, design: .monospaced))
-                        .autocorrectionDisabled()
                 }
 
-                Section("Authentication") {
-                    Picker("Method", selection: $authMode) {
-                        Text("Password").tag("password")
-                        Text("SSH Key").tag("key")
+                Section(AppLocalized("Authentication")) {
+                    Picker(AppLocalized("Method"), selection: $authMode) {
+                        Text(AppLocalized("Password")).tag("password")
+                        Text(AppLocalized("SSH Key")).tag("key")
                     }
 
                     if authMode == "key" {
                         if store.keys.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("No SSH keys available")
+                                Text(AppLocalized("No SSH keys available"))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                                Button("Generate Key") {
+                                Button(AppLocalized("Generate Key")) {
                                     showingGenerateKeySheet = true
                                 }
                             }
                         } else {
-                            Picker("Key", selection: $identityFileName) {
-                                Text("None").tag(String?.none)
+                            Picker(AppLocalized("Key"), selection: $identityFileName) {
+                                Text(AppLocalized("None")).tag(String?.none)
                                 ForEach(store.keys) { key in
                                     Text(key.name).tag(String?.some(key.name))
                                 }
                             }
                         }
                     } else {
-                        SecureField("Password", text: $password)
+                        SecureField(AppLocalized("Password"), text: $password)
                             .font(.system(.body, design: .monospaced))
                     }
                 }
 
-                Section("Note") {
-                    TextField("Optional note", text: $note, axis: .vertical)
+                Section(AppLocalized("Note")) {
+                    TextField(AppLocalized("Note"), text: $note, axis: .vertical)
                         .lineLimit(3...6)
                 }
 
@@ -677,7 +673,7 @@ private struct SSHServerDetailSheet: View {
                                 ProgressView()
                                     .scaleEffect(0.8)
                             }
-                            Text(isTesting ? "Testing…" : "Test Connection")
+                            Text(isTesting ? AppLocalized("Testing…") : AppLocalized("Test Connection"))
                                 .bold()
                         }
                     }
@@ -688,7 +684,7 @@ private struct SSHServerDetailSheet: View {
                             HStack {
                                 Image(systemName: result.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
                                     .foregroundStyle(result.ok ? .green : .red)
-                                Text(result.ok ? "Connected" : "Failed")
+                                Text(result.ok ? AppLocalized("Connected") : AppLocalized("Connection failed"))
                                     .font(.subheadline.bold())
                                 Text("(\(result.elapsedMs)ms)")
                                     .font(.caption)
@@ -702,25 +698,25 @@ private struct SSHServerDetailSheet: View {
                         }
                     }
                 } header: {
-                    Text("Test")
+                    Text(AppLocalized("Test"))
                 }
 
                 Section {
                     Button(role: .destructive) {
                         showingDeleteConfirm = true
                     } label: {
-                        Label("Delete Server", systemImage: "trash")
+                        Label(AppLocalized("Delete Device"), systemImage: "trash")
                     }
                 }
             }
-            .navigationTitle("Server Details")
+            .navigationTitle(AppLocalized("Device Details"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button(AppLocalized("Close")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(AppLocalized("Save")) {
                         saveChanges()
                     }
                     .disabled(alias.trimmingCharacters(in: .whitespaces).isEmpty ||
@@ -728,7 +724,7 @@ private struct SSHServerDetailSheet: View {
                 }
             }
             .alert(
-                AppLocalized("Delete this server?"),
+                AppLocalized("Delete this device?"),
                 isPresented: $showingDeleteConfirm
             ) {
                 Button(AppLocalized("Delete"), role: .destructive) {
@@ -742,7 +738,7 @@ private struct SSHServerDetailSheet: View {
                 }
                 Button(AppLocalized("Cancel"), role: .cancel) {}
             } message: {
-                Text(AppLocalized("Server \"\(server.alias)\" will be removed from ~/.ssh/config."))
+                Text(AppLocalized("Device \"\(server.alias)\" will be removed from ~/.ssh/config."))
             }
             .sheet(isPresented: $showingGenerateKeySheet) {
                 SSHKeyGenerateSheet { name, type in
@@ -827,27 +823,27 @@ private struct SSHKeyGenerateSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Key Name") {
-                    TextField("Name", text: $name)
+                Section(AppLocalized("Key Name")) {
+                    TextField(AppLocalized("Name"), text: $name)
                         .font(.system(.body, design: .monospaced))
                         .autocorrectionDisabled()
                 }
 
-                Section("Key Type") {
-                    Picker("Type", selection: $type) {
+                Section(AppLocalized("Key Type")) {
+                    Picker(AppLocalized("Type"), selection: $type) {
                         Text("Ed25519").tag("ed25519")
                         Text("RSA").tag("rsa")
                     }
                 }
             }
-            .navigationTitle("Generate Key")
+            .navigationTitle(AppLocalized("Generate Key"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(AppLocalized("Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Generate") {
+                    Button(AppLocalized("Generate")) {
                         onGenerate(name, type)
                         dismiss()
                     }
@@ -871,26 +867,26 @@ private struct SSHKeyImportSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Key Name") {
-                    TextField("Name", text: $name)
+                Section(AppLocalized("Key Name")) {
+                    TextField(AppLocalized("Name"), text: $name)
                         .font(.system(.body, design: .monospaced))
                         .autocorrectionDisabled()
                 }
 
-                Section("Private Key Content") {
+                Section(AppLocalized("Private Key Content")) {
                     TextEditor(text: $content)
                         .font(.system(.body, design: .monospaced))
                         .frame(minHeight: 200)
                 }
             }
-            .navigationTitle("Import Key")
+            .navigationTitle(AppLocalized("Import Key"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(AppLocalized("Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Import") {
+                    Button(AppLocalized("Import")) {
                         onImport(name, content)
                         dismiss()
                     }
@@ -915,7 +911,7 @@ private struct SSHKeyDetailSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Public Key") {
+                Section(AppLocalized("Public Key")) {
                     if let publicKey = publicKey {
                         Text(publicKey)
                             .font(.system(.caption, design: .monospaced))
@@ -924,10 +920,10 @@ private struct SSHKeyDetailSheet: View {
                         Button {
                             UIPasteboard.general.string = publicKey
                         } label: {
-                            Label("Copy Public Key", systemImage: "doc.on.clipboard")
+                            Label(AppLocalized("Copy Public Key"), systemImage: "doc.on.clipboard")
                         }
                     } else {
-                        Text("No public key available")
+                        Text(AppLocalized("No public key available"))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -937,13 +933,13 @@ private struct SSHKeyDetailSheet: View {
                         Button {
                             showingExportConfirm = true
                         } label: {
-                            Label("Export Private Key", systemImage: "square.and.arrow.up")
+                            Label(AppLocalized("Export Private Key"), systemImage: "square.and.arrow.up")
                         }
 
                         Button(role: .destructive) {
                             showingDeleteConfirm = true
                         } label: {
-                            Label("Delete Key", systemImage: "trash")
+                            Label(AppLocalized("Delete Key"), systemImage: "trash")
                         }
                     }
                 }
@@ -952,7 +948,7 @@ private struct SSHKeyDetailSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button(AppLocalized("Close")) { dismiss() }
                 }
             }
             .alert(

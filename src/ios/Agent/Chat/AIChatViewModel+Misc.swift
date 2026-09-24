@@ -16,34 +16,9 @@ extension AIChatViewModel {
         Task {
             let bootStart = CFAbsoluteTimeGetCurrent()
             do {
-                if !ISHKernel.shared.isBooted {
-                    let installStart = CFAbsoluteTimeGetCurrent()
-                    try RootfsManager.shared.installIfNeeded()
-                    let installElapsed = (CFAbsoluteTimeGetCurrent() - installStart) * 1000
-                    logger.info("[KernelBoot] installIfNeeded: \(String(format: "%.1f", installElapsed))ms")
-
-                    let kernelStart = CFAbsoluteTimeGetCurrent()
-                    let rootPath = RootfsManager.shared.rootfsPath.path
-                    let err = ISHKernel.shared.boot(withRootPath: rootPath)
-                    let kernelElapsed = (CFAbsoluteTimeGetCurrent() - kernelStart) * 1000
-                    logger.info("[KernelBoot] kernel boot call: \(String(format: "%.1f", kernelElapsed))ms")
-                    if err < 0 {
-                        kernelStatus = .failed("Kernel boot failed: \(err)")
-                        return
-                    }
-                    // Wire fakefs change events into the iCloud Sync v2
-                    // SessionFile dirty pipeline. Must be done after boot
-                    // (the C-side dispatch source is created by this call)
-                    // and before any bind mount, so the first realfs op
-                    // already has a consumer registered.
-                    installSessionFileChangeTracker(kernel: ISHKernel.shared)
-
-                    // Install per-session path-translate hook. Must run
-                    // before any session task is spawned so the first
-                    // /var/minis/* access already routes correctly.
-                    MinisFsRouter.shared.installHook()
-                }
-                RootfsManager.shared.applyDefaultMountOverlay()
+                // Serialized with every other boot path (e.g. SSH settings)
+                // via ISHBootGate; no-op when the kernel is already up.
+                try ISHBootGate.ensureBooted()
                 Task { @MainActor in MirrorSpeedTestViewModel.shared.autoDetectOnceIfNeeded() }
                 kernelStatus = .booted
                 let totalElapsed = (CFAbsoluteTimeGetCurrent() - bootStart) * 1000

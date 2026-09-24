@@ -1044,7 +1044,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 个引用"
+            "value": "已有 %@ 台设备使用此密钥"
           }
         },
         "zh-Hant": {
@@ -7067,7 +7067,7 @@
         }
       }
     },
-    "Add Server": {
+    "Add Device": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -7078,7 +7078,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Add Server"
+            "value": "Add Device"
           }
         },
         "es": {
@@ -7114,7 +7114,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "添加服务器"
+            "value": "添加设备"
           }
         },
         "zh-Hant": {
@@ -7368,7 +7368,7 @@
         }
       }
     },
-    "Add a server so the agent can reach it over SSH. Tap + to add one manually.": {
+    "Add a device so the agent can reach it over SSH. Tap + to add one manually.": {
       "localizations": {
         "ja": {
           "stringUnit": {
@@ -7385,7 +7385,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "添加一台服务器，让 agent 能通过 SSH 连上它。点右上角 + 手动添加。"
+            "value": "添加一台设备，让 agent 能通过 SSH 连上它。点右上角 + 手动添加。"
           }
         },
         "zh-Hant": {
@@ -15076,7 +15076,7 @@
         }
       }
     },
-    "Cannot reach the server — check the address, port, and network": {
+    "Cannot reach the device — check the address, port, and network": {
       "localizations": {
         "ja": {
           "stringUnit": {
@@ -15093,7 +15093,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "连不上服务器 — 检查地址、端口和网络"
+            "value": "连不上设备 — 检查地址、端口和网络"
           }
         },
         "zh-Hant": {
@@ -26697,12 +26697,12 @@
         }
       }
     },
-    "Delete Server": {
+    "Delete Device": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "删除服务器"
+            "value": "删除设备"
           }
         }
       }
@@ -27255,12 +27255,12 @@
         }
       }
     },
-    "Delete this server?": {
+    "Delete this device?": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "删除此服务器？"
+            "value": "删除此设备？"
           }
         }
       }
@@ -55730,7 +55730,7 @@
         }
       }
     },
-    "No SSH Servers": {
+    "No SSH Devices": {
       "localizations": {
         "ja": {
           "stringUnit": {
@@ -55747,7 +55747,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "无 SSH 服务器"
+            "value": "还没有 SSH 设备"
           }
         },
         "zh-Hant": {
@@ -55773,7 +55773,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "无可用 SSH 密钥"
+            "value": "还没有可用的 SSH 密钥"
           }
         }
       }
@@ -59258,30 +59258,19 @@
         }
       }
     },
-    "Note: agent cannot use password-only connections. A key will be set up automatically.": {
+    "This password will be used once to set up key-based login — you won't need it again afterwards.": {
+      "extractionState": "manual",
       "localizations": {
-        "ja": {
+        "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "注：agent はパスワードのみの接続を利用できません。鍵は自動で設定されます。"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "참고: agent는 비밀번호 전용 연결을 사용할 수 없습니다. 키가 자동으로 설정됩니다."
+            "value": "This password will be used once to set up key-based login — you won't need it again afterwards."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "提示：agent 无法使用纯密码连接，将自动配置密钥。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "提示：agent 無法使用純密碼連線，將自動設定金鑰。"
+            "value": "将使用此密码自动配置密钥登录，配置完成后无需再次输入密码。"
           }
         }
       }
@@ -75094,12 +75083,12 @@
         }
       }
     },
-    "SSH Servers": {
+    "SSH Devices": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "SSH 服务器"
+            "value": "SSH 设备"
           }
         }
       }
@@ -77449,12 +77438,12 @@
         }
       }
     },
-    "Server \"%@\" will be removed from ~/.ssh/config.": {
+    "Device \"%@\" will be removed from ~/.ssh/config.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "服务器 \"%@\" 将从 ~/.ssh/config 中移除。"
+            "value": "设备 \"%@\" 将从 ~/.ssh/config 中移除。"
           }
         }
       }
@@ -77534,7 +77523,7 @@
         }
       }
     },
-    "Server fingerprint changed — the stored fingerprint no longer matches": {
+    "Device fingerprint changed — the stored fingerprint no longer matches": {
       "localizations": {
         "ja": {
           "stringUnit": {
@@ -77551,7 +77540,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "服务器指纹已变化 — 存储的指纹不再匹配"
+            "value": "设备指纹已变化 — 存储的指纹不再匹配"
           }
         },
         "zh-Hant": {
@@ -77562,7 +77551,7 @@
         }
       }
     },
-    "Server fingerprint has changed": {
+    "Device fingerprint has changed": {
       "localizations": {
         "ja": {
           "stringUnit": {
@@ -77579,7 +77568,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "服务器指纹已变化"
+            "value": "设备指纹已变化"
           }
         },
         "zh-Hant": {
@@ -78743,6 +78732,244 @@
           "stringUnit": {
             "state": "translated",
             "value": "設定"
+          }
+        }
+      }
+    },
+    "Device Details": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device Details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备详情"
+          }
+        }
+      }
+    },
+    "Alias": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alias"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "别名"
+          }
+        }
+      }
+    },
+    "Hostname": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hostname"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主机名"
+          }
+        }
+      }
+    },
+    "Username": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Username"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户名"
+          }
+        }
+      }
+    },
+    "Port": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端口"
+          }
+        }
+      }
+    },
+    "Method": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Method"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "方式"
+          }
+        }
+      }
+    },
+    "Key": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Key"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密钥"
+          }
+        }
+      }
+    },
+    "Test": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测试"
+          }
+        }
+      }
+    },
+    "Leave empty to auto-generate": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave empty to auto-generate"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "留空自动生成"
+          }
+        }
+      }
+    },
+    "The stored fingerprint no longer matches the device. This can happen when the device is reinstalled.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The stored fingerprint no longer matches the device. This can happen when the device is reinstalled."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存的指纹与设备当前的不一致，通常是因为设备重装了系统。"
+          }
+        }
+      }
+    },
+    "Connected": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接成功"
+          }
+        }
+      }
+    },
+    "Connected (alias: %@) — device is ready to use": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected (alias: %@) — device is ready to use"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接成功（别名：%@），设备已可使用"
+          }
+        }
+      }
+    },
+    "Preparing environment…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing environment…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备环境…"
+          }
+        }
+      }
+    },
+    "iSH kernel failed to start (code %@)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iSH kernel failed to start (code %@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iSH 内核启动失败（代码 %@）"
           }
         }
       }

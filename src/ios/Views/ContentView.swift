@@ -7475,7 +7475,7 @@ struct SettingsSheet: View {
                         SSHServersView()
                     } label: {
                         Label {
-                            Text("SSH Servers")
+                            Text(AppLocalized("SSH Devices"))
                         } icon: {
                             Image(systemName: "server.rack")
                                 .font(.system(size: 9))

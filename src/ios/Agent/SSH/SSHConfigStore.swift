@@ -442,6 +442,19 @@ final class SSHConfigStore: ObservableObject {
             SSHTestResult(ok: false, message: AppLocalized("Cancelled"), elapsedMs: 0)
         }
 
+        // Boot the iSH kernel first so no guest command ever runs against a
+        // kernel that isn't up (the "kernel not booted" root cause). Shown as
+        // its own step because first boot (rootfs install) can take a while.
+        onStep?(AppLocalized("Preparing environment…"))
+        do {
+            try await Task.detached(priority: .userInitiated) {
+                try ISHBootGate.ensureBooted()
+            }.value
+        } catch {
+            return SSHTestResult(ok: false, message: Self.humanize(error.localizedDescription), elapsedMs: 0)
+        }
+        if Task.isCancelled { return cancelledResult() }
+
         onStep?(AppLocalized("Installing dependencies…"))
         do {
             try await ensureDeps()
@@ -507,7 +520,7 @@ final class SSHConfigStore: ObservableObject {
         return SSHTestResult(
             ok: testResult.ok,
             message: testResult.ok
-                ? AppLocalized("Connected — agent can use `ssh \(entry.alias)`")
+                ? String(format: AppLocalized("Connected (alias: %@) — device is ready to use"), entry.alias)
                 : Self.humanize(testResult.message),
             elapsedMs: testResult.elapsedMs)
     }
@@ -552,13 +565,13 @@ final class SSHConfigStore: ObservableObject {
             return AppLocalized("Password or key is incorrect")
         }
         if lower.contains("connection timed out") || lower.contains("timed out") {
-            return AppLocalized("Cannot reach the server — check the address, port, and network")
+            return AppLocalized("Cannot reach the device — check the address, port, and network")
         }
         if lower.contains("no route to host") || lower.contains("host is down") {
             return AppLocalized("The remote host is offline")
         }
         if lower.contains("host key verification failed") {
-            return AppLocalized("Server fingerprint changed — the stored fingerprint no longer matches")
+            return AppLocalized("Device fingerprint changed — the stored fingerprint no longer matches")
         }
         if lower.contains("connection refused") {
             return AppLocalized("Connection refused — is SSH running on that port?")
@@ -579,17 +592,17 @@ final class SSHConfigStore: ObservableObject {
         let configURL = RootfsManager.shared.dataPath
             .appendingPathComponent("root/.ssh/config")
         let servers = parseServers(from: configURL)
-        let panelLink = "[SSH Servers](moonveil://settings/ssh-servers)"
+        let panelLink = "[SSH Devices](moonveil://settings/ssh-servers)"
         guard !servers.isEmpty else {
-            return ("SSH servers: none configured yet. If the user asks about SSH, "
-                + "remote servers, or this feature, point them to Settings with this link: "
+            return ("SSH devices: none configured yet. If the user asks about SSH, "
+                + "remote devices, or this feature, point them to Settings with this link: "
                 + panelLink + ". Until configured, they can still connect manually "
                 + "via `ssh user@host` inside the shell (tools may be installed via apk add).")
         }
 
         var lines: [String] = []
         lines.append(
-            "SSH servers (manage in Settings → " + panelLink + "; "
+            "SSH devices (manage in Settings → " + panelLink + "; "
             + "configs live in /root/.ssh/config, connect via `ssh <alias>`):")
         for s in servers {
             var line = "- \(s.alias) — \(s.user)@\(s.hostname)"
@@ -603,12 +616,12 @@ final class SSHConfigStore: ObservableObject {
             lines.append(line)
         }
         lines.append("")
-        lines.append("To add a server from chat, append a Host block to /root/.ssh/config, e.g.:")
+        lines.append("To add a device from chat, append a Host block to /root/.ssh/config, e.g.:")
         lines.append("    Host myserver")
         lines.append("        HostName 1.2.3.4")
         lines.append("        User root")
         lines.append("        Port 22")
-        lines.append("The panel (Settings → SSH Servers) picks it up automatically on next open.")
+        lines.append("The panel (Settings → SSH Devices) picks it up automatically on next open.")
         return lines.joined(separator: "\n")
     }
 
@@ -834,6 +847,21 @@ final class SSHConfigStore: ObservableObject {
         _ command: String, env: [String: String] = [:],
         timeoutSeconds: TimeInterval = sshCommandTimeout
     ) async -> ShellResult {
+        // Root-cause fix for the Settings "add server spins forever" bug:
+        // never run a guest command before the iSH kernel is booted.
+        // ensureBooted is serialized app-wide via ISHBootGate and hops off
+        // the main thread because first boot (rootfs install) is slow.
+        do {
+            try await Task.detached(priority: .userInitiated) {
+                try ISHBootGate.ensureBooted()
+            }.value
+        } catch {
+            return ShellResult(
+                exitCode: -1,
+                combinedOutput: error.localizedDescription,
+                errorOutput: "")
+        }
+
         let scriptContent =
             "cd /root\n({ exec 0</dev/null; } 2>/dev/null || true; \(command)\n)\n"
         let stdinData = scriptContent.data(using: .utf8)
