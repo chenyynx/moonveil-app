@@ -22,15 +22,16 @@ struct SSHServersView: View {
         if searchText.isEmpty {
             return store.servers
         }
-        return store.servers.filter {
-            $0.alias.localizedCaseInsensitiveContains(searchText) ||
-            $0.hostname.localizedCaseInsensitiveContains(searchText) ||
-            ($0.note ?? "").localizedCaseInsensitiveContains(searchText)
+        let query = searchText
+        return store.servers.filter { (entry: SSHServerEntry) -> Bool in
+            entry.alias.localizedCaseInsensitiveContains(query) ||
+            entry.hostname.localizedCaseInsensitiveContains(query) ||
+            (entry.note ?? "").localizedCaseInsensitiveContains(query)
         }
     }
 
-    var body: some View {
-        List {
+    @ViewBuilder
+    private var sshSections: some View {
             if store.servers.isEmpty && store.keys.isEmpty && store.knownHosts.isEmpty {
                 Section {
                     VStack(spacing: 8) {
@@ -119,6 +120,11 @@ struct SSHServersView: View {
                     }
                 }
             }
+    }
+
+    var body: some View {
+        List {
+            sshSections
         }
         .listStyle(.insetGrouped)
         .searchable(text: $searchText, prompt: "Filter servers")

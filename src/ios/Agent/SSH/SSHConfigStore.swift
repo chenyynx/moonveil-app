@@ -401,7 +401,7 @@ final class SSHConfigStore: ObservableObject {
 
     // MARK: - Config Parsing (Private)
 
-    private static func parseServers(from url: URL) -> [SSHServerEntry] {
+    private nonisolated static func parseServers(from url: URL) -> [SSHServerEntry] {
         parseConfigBlocks(from: url).compactMap { block -> SSHServerEntry? in
             let hostname = block.value(for: "hostname") ?? ""
             guard !hostname.isEmpty else { return nil }
@@ -419,7 +419,7 @@ final class SSHConfigStore: ObservableObject {
         }
     }
 
-    private static func parseConfigBlocks(from url: URL) -> [ServerConfigBlock] {
+    private nonisolated static func parseConfigBlocks(from url: URL) -> [ServerConfigBlock] {
         guard let content = try? String(contentsOf: url, encoding: .utf8) else {
             return []
         }
@@ -438,7 +438,7 @@ final class SSHConfigStore: ObservableObject {
                 continue
             }
 
-            let parts = trimmed.split(maxTokens: 1) { $0.isWhitespace }
+            let parts = trimmed.split(maxSplits: 1) { $0.isWhitespace }
             if parts.count == 2, parts[0].lowercased() == "host" {
                 let alias = String(parts[1]).trimmingCharacters(in: .whitespaces)
                 var directives: [(String, String)] = []
@@ -452,7 +452,7 @@ final class SSHConfigStore: ObservableObject {
                         i += 1
                         continue
                     }
-                    let dParts = dTrimmed.split(maxTokens: 1) { $0.isWhitespace }
+                    let dParts = dTrimmed.split(maxSplits: 1) { $0.isWhitespace }
                     if dParts.count == 2, dParts[0].lowercased() == "host" {
                         break
                     }
@@ -628,7 +628,7 @@ final class SSHConfigStore: ObservableObject {
                         output = "(command completed with no output)"
                     }
                     continuation.resume(returning: ShellResult(
-                        exitCode: result.exitCode,
+                        exitCode: Int(result.exitCode),
                         combinedOutput: output,
                         errorOutput: errOutput))
                 }
