@@ -7,10 +7,9 @@
 //  Row chrome follows the Grok reference measurements: 44pt logo well
 //  (R12.5, ~20pt logo) and a 48×26 connect capsule in #EAEAEA.
 //
-//  Row states: unconnected → a 48×26 connect capsule that opens the detail
-//  sheet; connected → chevron, the whole row opens the sheet; broken
-//  credentials (expired token / revoked grant) → warning badge, the row
-//  opens the sheet.
+//  Row states: unconnected → a 48×26 display-only connect capsule;
+//  connected → chevron; broken credentials → warning badge. The whole row
+//  opens the detail sheet in every state.
 //
 
 import SwiftUI
@@ -148,13 +147,10 @@ private struct ConnectorRowView: View {
         }
         .contentShape(Rectangle())
 
-        // An unconnected row is inert — only its button is a control.
-        if state == .unconnected {
-            row
-        } else {
-            Button(action: open) { row }
-                .buttonStyle(.plain)
-        }
+        // The whole card is the control in every state — tapping anywhere
+        // (connect pill included) opens the detail sheet.
+        Button(action: open) { row }
+            .buttonStyle(.plain)
     }
 
     private var iconWell: some View {
@@ -189,15 +185,13 @@ private struct ConnectorRowView: View {
         switch state {
         case .unconnected:
             // Grok's connect pill: 48×26 capsule, #EAEAEA fill, 11pt black
-            // label (measured from the reference screenshots).
-            Button(action: open) {
-                Text(AppLocalized("Connect"))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.primary)
-                    .frame(width: ConnectorMetrics.pillWidth, height: ConnectorMetrics.pillHeight)
-                    .background(ConnectorPalette.pill, in: Capsule())
-            }
-            .buttonStyle(.plain)
+            // label (measured from the reference screenshots). Display only —
+            // the whole row behind it is the button, so no nested Button.
+            Text(AppLocalized("Connect"))
+                .font(.system(size: 11))
+                .foregroundStyle(.primary)
+                .frame(width: ConnectorMetrics.pillWidth, height: ConnectorMetrics.pillHeight)
+                .background(ConnectorPalette.pill, in: Capsule())
         case .connected:
             Image(systemName: "chevron.right")
                 .font(.footnote)
