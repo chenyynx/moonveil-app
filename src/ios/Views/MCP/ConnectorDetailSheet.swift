@@ -83,23 +83,21 @@ struct ConnectorDetailSheet: View {
                 }
             }
         }
-        .presentationDetents([.fraction(0.92)])
+        .presentationDetents([.fraction(0.62)])
         .presentationCornerRadius(36)
         .presentationBackground(connector.tintColor)
         .presentationDragIndicator(.hidden)
     }
 
-    // MARK: - Header (47pt #BABABA band, grabber, liquid-glass close)
+    // MARK: - Header (grabber + liquid-glass close, no band — matches Grok)
 
     private var header: some View {
         ZStack(alignment: .top) {
-            Color(red: 0.729, green: 0.729, blue: 0.729)
-                .frame(height: 47)
-
-            // Grabber 35x5 #7D7D7F
+            // Grabber 35x5 #7D7D7F, centered
             RoundedRectangle(cornerRadius: 2.5)
                 .fill(Color(red: 0.49, green: 0.49, blue: 0.498))
                 .frame(width: 35, height: 5)
+                .frame(maxWidth: .infinity)
                 .padding(.top, 8)
 
             HStack {
@@ -118,9 +116,9 @@ struct ConnectorDetailSheet: View {
                 .padding(.leading, 16)
                 Spacer()
             }
-            .padding(.top, 1)
+            .padding(.top, 18)
         }
-        .frame(height: 47)
+        .frame(height: 70)
     }
 
     // MARK: - Hero (100pt white, soft shadow, inner highlight)
