@@ -4,8 +4,14 @@
 //
 //  Add-your-own connector form: name, HTTP server URL, custom headers
 //  (key-value rows), and JSON import. Saves into MCPStore as a regular
-//  server entry. Chrome matches ConnectorDetailSheet (tinted canvas,
-//  36pt top radius, grabber, liquid-glass close).
+//  server entry.
+//
+//  Redesigned as a native grouped Form: system section chrome, standard
+//  labeled field rows, swipe-to-delete headers with a blue add row, a
+//  DisclosureGroup for JSON import, and the module's black capsule Save
+//  (matches ConnectorDetailSheet's CTA language). Sheet chrome is fully
+//  system — inline nav title, plain close key, system grabber; no custom
+//  header band.
 //
 
 import SwiftUI
@@ -35,130 +41,105 @@ struct CustomConnectorForm: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            Color(red: 0.961, green: 0.961, blue: 0.961)
-                .ignoresSafeArea()
+        NavigationStack {
+            Form {
+                Section {
+                    labeledField(
+                        AppLocalized("Name"),
+                        AppLocalized("My MCP Server"),
+                        text: $name
+                    )
+                    labeledField(
+                        AppLocalized("Server URL"),
+                        AppLocalized("https://example.com/mcp"),
+                        text: $url
+                    )
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                }
 
-            VStack(spacing: 0) {
-                header
-
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 14) {
-                        formCard {
-                            fieldRow(
-                                label: AppLocalized("Name"),
-                                placeholder: AppLocalized("My MCP Server"),
-                                text: $name
-                            )
-                            Divider().background(cardDivider)
-                            fieldRow(
-                                label: AppLocalized("Server URL"),
-                                placeholder: AppLocalized("https://example.com/mcp"),
-                                text: $url
-                            )
-                            .keyboardType(.URL)
-                            .autocapitalization(.none)
+                Section {
+                    ForEach($headers) { $row in
+                        HStack(spacing: 12) {
+                            TextField(AppLocalized("Key"), text: $row.key)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                            Divider()
+                                .frame(height: 20)
+                            TextField(AppLocalized("Value"), text: $row.value)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
                         }
-
-                        formCard {
-                            HStack {
-                                Text(AppLocalized("Headers"))
-                                    .font(.system(size: 13, weight: .semibold))
-                                Spacer()
-                                Button(action: { headers.append(HeaderRow()) }) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(.accentColor)
-                                }
-                            }
-                            .padding(.bottom, 4)
-
-                            if headers.isEmpty {
-                                Text(AppLocalized("No custom headers."))
-                                    .font(.system(size: 13))
-                                    .foregroundColor(Color(red: 0.745, green: 0.745, blue: 0.753))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            } else {
-                                ForEach($headers) { $row in
-                                    HStack(spacing: 8) {
-                                        TextField(AppLocalized("Key"), text: $row.key)
-                                            .font(.system(size: 14))
-                                            .autocapitalization(.none)
-                                            .padding(10)
-                                            .background(Color(red: 0.961, green: 0.961, blue: 0.961))
-                                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                                        TextField(AppLocalized("Value"), text: $row.value)
-                                            .font(.system(size: 14))
-                                            .autocapitalization(.none)
-                                            .padding(10)
-                                            .background(Color(red: 0.961, green: 0.961, blue: 0.961))
-                                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                                        Button(action: { headers.removeAll { $0.id == row.id } }) {
-                                            Image(systemName: "minus.circle.fill")
-                                                .font(.system(size: 20))
-                                                .foregroundColor(Color(red: 0.9, green: 0.25, blue: 0.25))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        formCard {
-                            Button(action: { showJSON.toggle() }) {
-                                HStack {
-                                    Text(AppLocalized("Import from JSON"))
-                                        .font(.system(size: 13, weight: .semibold))
-                                    Spacer()
-                                    Image(systemName: showJSON ? "chevron.up" : "chevron.down")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundColor(Color(red: 0.6, green: 0.6, blue: 0.62))
-                                }
-                            }
-
-                            if showJSON {
-                                TextEditor(text: $jsonText)
-                                    .font(.system(size: 13, design: .monospaced))
-                                    .frame(minHeight: 120)
-                                    .padding(8)
-                                    .background(Color(red: 0.961, green: 0.961, blue: 0.961))
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                    .autocapitalization(.none)
-
-                                Button(action: importJSON) {
-                                    Text(AppLocalized("Import"))
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 10)
-                                        .background(Color.black)
-                                        .clipShape(Capsule())
-                                }
-                                .padding(.top, 6)
-                            }
-                        }
-
-                        Button(action: save) {
-                            Text(AppLocalized("Save"))
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(canSave ? .white : Color(red: 0.6, green: 0.6, blue: 0.62))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 13)
-                                .background(canSave ? Color.black : Color(red: 0.92, green: 0.92, blue: 0.93))
-                                .clipShape(Capsule())
-                        }
-                        .disabled(!canSave)
-                        .padding(.top, 6)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 20)
-                    .padding(.bottom, 40)
+                    .onDelete { headers.remove(atOffsets: $0) }
+
+                    Button {
+                        headers.append(HeaderRow())
+                    } label: {
+                        Label(AppLocalized("Add Header"), systemImage: "plus")
+                    }
+                } header: {
+                    Text(AppLocalized("Headers"))
+                } footer: {
+                    Text(headers.isEmpty
+                         ? AppLocalized("No custom headers.")
+                         : AppLocalized("Swipe to delete"))
+                }
+
+                Section {
+                    DisclosureGroup(isExpanded: $showJSON) {
+                        TextEditor(text: $jsonText)
+                            .font(.system(size: 13, design: .monospaced))
+                            .frame(minHeight: 100)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+
+                        Button(AppLocalized("Import")) {
+                            importJSON()
+                        }
+                        .buttonStyle(.bordered)
+                        .padding(.top, 4)
+                    } label: {
+                        Text(AppLocalized("Import from JSON"))
+                    }
+                }
+
+                Section {
+                    Button(action: save) {
+                        Text(AppLocalized("Save"))
+                            .font(.system(size: 17, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                    }
+                    .foregroundStyle(canSave ? Color.white : Color(red: 0.6, green: 0.6, blue: 0.62))
+                    .background(
+                        canSave ? Color.black : Color(red: 0.92, green: 0.92, blue: 0.93),
+                        in: Capsule()
+                    )
+                    .disabled(!canSave)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                }
+            }
+            .formStyle(.grouped)
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle(AppLocalized("Custom Connector"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.primary)
+                    }
                 }
             }
         }
         .presentationDetents([.fraction(0.92), .large])
         .presentationCornerRadius(36)
-        .presentationBackground(Color(red: 0.961, green: 0.961, blue: 0.961))
-        .presentationDragIndicator(.hidden)
+        .presentationBackground(Color(uiColor: .systemGroupedBackground))
+        .presentationDragIndicator(.visible)
         .alert(AppLocalized("Couldn't Save"), isPresented: $showError) {
             Button(AppLocalized("OK"), role: .cancel) {}
         } message: {
@@ -166,66 +147,16 @@ struct CustomConnectorForm: View {
         }
     }
 
-    // MARK: - Chrome
+    // MARK: - Rows
 
-    private var header: some View {
-        ZStack(alignment: .top) {
-            Color(red: 0.729, green: 0.729, blue: 0.729)
-                .frame(height: 47)
-
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color(red: 0.49, green: 0.49, blue: 0.498))
-                .frame(width: 35, height: 5)
-                .padding(.top, 8)
-
-            HStack {
-                Button(action: { dismiss() }) {
-                    ZStack {
-                        Circle()
-                            .frame(width: 44, height: 44)
-                            .modifier(GlassCircleButtonIfAvailable())
-                        Image(systemName: "xmark")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(.primary)
-                    }
-                }
-                .buttonStyle(.plain)
-                .padding(.leading, 16)
-
-                Spacer()
-
-                Text(AppLocalized("Custom Connector"))
-                    .font(.system(size: 15, weight: .bold))
-                    .padding(.trailing, 60) // optically recenter against the close button
-            }
-            .padding(.top, 1)
-        }
-        .frame(height: 47)
-    }
-
-    private var cardDivider: Color {
-        Color(red: 0.78, green: 0.78, blue: 0.79)
-    }
-
-    private func formCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            content()
-        }
-        .padding(16)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 24))
-        .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 4)
-    }
-
-    private func fieldRow(label: String, placeholder: String, text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+    /// Apple-settings style row: fixed secondary label + filling text field.
+    private func labeledField(_ label: String, _ placeholder: String, text: Binding<String>) -> some View {
+        HStack(spacing: 12) {
             Text(label)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(Color(red: 0.494, green: 0.49, blue: 0.51))
+                .foregroundStyle(.secondary)
+                .frame(width: 110, alignment: .leading)
             TextField(placeholder, text: text)
-                .font(.system(size: 15))
         }
-        .padding(.vertical, 4)
     }
 
     // MARK: - Actions
