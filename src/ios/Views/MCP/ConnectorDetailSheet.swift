@@ -95,6 +95,11 @@ struct ConnectorDetailSheet: View {
                         }
                     }
                 }
+                // The hero's 24pt shadow bleeds ~14pt above the tile; with
+                // only 4pt top padding the scroll view's default clipping
+                // chopped the top of the shadow off (iOS17 fixes it without
+                // giving back the Grok-aligned spacing).
+                .scrollClipDisabled()
             }
         }
         // Detents matched to Grok's observed sheet heights (3x screenshots):
