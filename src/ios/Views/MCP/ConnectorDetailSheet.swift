@@ -13,6 +13,15 @@
 import SwiftUI
 import UIKit
 
+/// Resolves a runtime localization key (e.g. "connector.name.github") against
+/// the String Catalog. `AppLocalized("\(key)")` does NOT work — the string
+/// interpolation turns the key into a format pattern. This does the lookup
+/// directly, falling back to the key itself if untranslated.
+private func dynamicLocalized(_ key: String) -> String {
+    let resolved = String(localized: String.LocalizationValue(key), bundle: AppBundle.current)
+    return resolved
+}
+
 struct ConnectorDetailSheet: View {
     let connector: ConnectorDefinition
 
@@ -44,14 +53,14 @@ struct ConnectorDetailSheet: View {
                         hero
                             .padding(.top, 28)
 
-                        Text(AppLocalized("\(connector.nameKey)"))
+                        Text(dynamicLocalized(connector.nameKey))
                             .font(.system(size: 20, weight: .bold))
                             .padding(.top, 14)
 
                         ctaButton
                             .padding(.top, 22)
 
-                        Text(AppLocalized("\(connector.permissionTextKey)"))
+                        Text(dynamicLocalized(connector.permissionTextKey))
                             .font(.system(size: 12))
                             .foregroundColor(Color(red: 0.55, green: 0.55, blue: 0.57))
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -105,6 +114,7 @@ struct ConnectorDetailSheet: View {
                             .foregroundColor(.primary)
                     }
                 }
+                .buttonStyle(.plain)
                 .padding(.leading, 16)
                 Spacer()
             }
@@ -206,10 +216,10 @@ struct ConnectorDetailSheet: View {
                         .padding(.top, 2)
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(AppLocalized("\(item.titleKey)"))
+                        Text(dynamicLocalized(item.titleKey))
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.primary)
-                        Text(AppLocalized("\(item.descriptionKey)"))
+                        Text(dynamicLocalized(item.descriptionKey))
                             .font(.system(size: 13))
                             .foregroundColor(Color(red: 0.745, green: 0.745, blue: 0.753))
                             .fixedSize(horizontal: false, vertical: true)

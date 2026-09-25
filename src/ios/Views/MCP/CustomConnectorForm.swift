@@ -189,6 +189,7 @@ struct CustomConnectorForm: View {
                             .foregroundColor(.primary)
                     }
                 }
+                .buttonStyle(.plain)
                 .padding(.leading, 16)
 
                 Spacer()

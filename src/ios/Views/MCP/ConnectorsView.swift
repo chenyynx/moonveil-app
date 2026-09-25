@@ -91,6 +91,7 @@ struct ConnectorsView: View {
         .sheet(isPresented: $showCustomForm) {
             CustomConnectorForm()
         }
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     // MARK: - Header
