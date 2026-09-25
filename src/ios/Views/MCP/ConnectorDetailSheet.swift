@@ -91,7 +91,7 @@ struct ConnectorDetailSheet: View {
 
     /// Grok-style sheet background: connector tint at the top fading to the
     /// neutral canvas. Native LinearGradient as the presentation background.
-    private var sheetBackground: some View {
+    private var sheetBackground: LinearGradient {
         LinearGradient(
             gradient: Gradient(stops: [
                 .init(color: connector.tintColor, location: 0),

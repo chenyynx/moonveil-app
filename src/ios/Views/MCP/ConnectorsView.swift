@@ -286,7 +286,7 @@ private enum ConnectorMetrics {
     static let hairline: CGFloat = 1 / 3
 }
 
-private enum ConnectorPalette {
+enum ConnectorPalette {
     static let canvas = Color(red: 0xF5 / 255, green: 0xF5 / 255, blue: 0xF5 / 255)
     static let card = Color.white
     static let groupTitle = Color(red: 0x7E / 255, green: 0x7D / 255, blue: 0x82 / 255)
