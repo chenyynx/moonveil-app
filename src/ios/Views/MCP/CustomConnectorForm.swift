@@ -155,7 +155,7 @@ struct CustomConnectorForm: View {
                 }
             }
         }
-        .presentationDetents([.fraction(0.92)])
+        .presentationDetents([.fraction(0.92), .large])
         .presentationCornerRadius(36)
         .presentationBackground(Color(red: 0.961, green: 0.961, blue: 0.961))
         .presentationDragIndicator(.hidden)

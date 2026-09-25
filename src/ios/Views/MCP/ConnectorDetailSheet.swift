@@ -83,7 +83,7 @@ struct ConnectorDetailSheet: View {
                 }
             }
         }
-        .presentationDetents([.fraction(0.62)])
+        .presentationDetents([.fraction(0.62), .large])
         .presentationCornerRadius(36)
         .presentationBackground(connector.tintColor)
         .presentationDragIndicator(.hidden)
@@ -197,17 +197,17 @@ struct ConnectorDetailSheet: View {
                     Image(lucideAsset(for: item.iconName))
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 14, height: 14)
+                        .frame(width: 20, height: 20)
                         .foregroundColor(Color(red: 0.537, green: 0.537, blue: 0.553))
                         .padding(.top, 2)
 
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(dynamicLocalized(item.titleKey))
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.primary)
                         Text(dynamicLocalized(item.descriptionKey))
-                            .font(.system(size: 13))
-                            .foregroundColor(Color(red: 0.745, green: 0.745, blue: 0.753))
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(red: 0.557, green: 0.557, blue: 0.576))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
