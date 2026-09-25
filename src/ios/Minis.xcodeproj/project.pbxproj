@@ -605,12 +605,16 @@
 		F1M00020 /* MessageImageGallery.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1M00019 /* MessageImageGallery.swift */; };
 		F1MCPOAUTHB /* MCPOAuthController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1MCPOAUTH /* MCPOAuthController.swift */; };
 		F1MCPSTOREB /* MCPStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1MCPSTORE /* MCPStore.swift */; };
+		F1CONNCATB /* ConnectorCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1CONNCAT /* ConnectorCatalog.swift */; };
 		F1S00012 /* ChatSessionIdEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1S00011 /* ChatSessionIdEnvironment.swift */; };
 		F1T00011 /* ToolLiveSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1T00010 /* ToolLiveSheet.swift */; };
 		F1VMCPB1 /* MCPIntegrationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP01 /* MCPIntegrationsView.swift */; };
 		F1VMCPB2 /* MCPFormSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP02 /* MCPFormSheet.swift */; };
 		F1VMCPB3 /* MCPJSONImportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP03 /* MCPJSONImportSheet.swift */; };
 		F1VMCPB4 /* SessionMCPsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP04 /* SessionMCPsView.swift */; };
+		F1VMCPB5 /* ConnectorDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP05 /* ConnectorDetailSheet.swift */; };
+		F1VMCPB6 /* CustomConnectorForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP06 /* CustomConnectorForm.swift */; };
+		F1VMCPB7 /* ConnectorsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP07 /* ConnectorsView.swift */; };
 		F1W00011 /* MinisShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1W00010 /* MinisShareSheet.swift */; };
 		F1W00013 /* WebPreviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1W00012 /* WebPreviewSheet.swift */; };
 		F1W00061 /* PaginatedMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1W00060 /* PaginatedMarkdownView.swift */; };
@@ -1503,12 +1507,16 @@
 		F1M00019 /* MessageImageGallery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageImageGallery.swift; sourceTree = "<group>"; };
 		F1MCPOAUTH /* MCPOAuthController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPOAuthController.swift; sourceTree = "<group>"; };
 		F1MCPSTORE /* MCPStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPStore.swift; sourceTree = "<group>"; };
+		F1CONNCAT /* ConnectorCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorCatalog.swift; sourceTree = "<group>"; };
 		F1S00011 /* ChatSessionIdEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionIdEnvironment.swift; sourceTree = "<group>"; };
 		F1T00010 /* ToolLiveSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolLiveSheet.swift; sourceTree = "<group>"; };
 		F1VMCP01 /* MCPIntegrationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPIntegrationsView.swift; sourceTree = "<group>"; };
 		F1VMCP02 /* MCPFormSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPFormSheet.swift; sourceTree = "<group>"; };
 		F1VMCP03 /* MCPJSONImportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPJSONImportSheet.swift; sourceTree = "<group>"; };
 		F1VMCP04 /* SessionMCPsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionMCPsView.swift; sourceTree = "<group>"; };
+		F1VMCP05 /* ConnectorDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorDetailSheet.swift; sourceTree = "<group>"; };
+		F1VMCP06 /* CustomConnectorForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomConnectorForm.swift; sourceTree = "<group>"; };
+		F1VMCP07 /* ConnectorsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorsView.swift; sourceTree = "<group>"; };
 		F1W00010 /* MinisShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinisShareSheet.swift; sourceTree = "<group>"; };
 		F1W00012 /* WebPreviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPreviewSheet.swift; sourceTree = "<group>"; };
 		F1W00060 /* PaginatedMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaginatedMarkdownView.swift; sourceTree = "<group>"; };
@@ -2722,6 +2730,7 @@
 				E5LOCK101 /* SessionLockStore.swift */,
 				E5N0000112F3B941A00049557 /* SkillStore.swift */,
 				F1MCPSTORE /* MCPStore.swift */,
+				F1CONNCAT /* ConnectorCatalog.swift */,
 				F1MCPOAUTH /* MCPOAuthController.swift */,
 				E5SOUL101 /* SoulStore.swift */,
 			);
@@ -2948,6 +2957,9 @@
 				F1VMCP02 /* MCPFormSheet.swift */,
 				F1VMCP03 /* MCPJSONImportSheet.swift */,
 				F1VMCP04 /* SessionMCPsView.swift */,
+				F1VMCP05 /* ConnectorDetailSheet.swift */,
+				F1VMCP06 /* CustomConnectorForm.swift */,
+				F1VMCP07 /* ConnectorsView.swift */,
 			);
 			path = MCP;
 			sourceTree = "<group>";
@@ -3933,6 +3945,7 @@
 				E5Y000001 /* MathRenderScheduler.swift in Sources */,
 				E5N0000012F3B941A00049557 /* SkillStore.swift in Sources */,
 				F1MCPSTOREB /* MCPStore.swift in Sources */,
+				F1CONNCATB /* ConnectorCatalog.swift in Sources */,
 				F1MCPOAUTHB /* MCPOAuthController.swift in Sources */,
 				E5N0000022F3B941A00049557 /* SessionSkillsView.swift in Sources */,
 				E5N0000032F3B941A00049557 /* SkillsManagementView.swift in Sources */,
@@ -3940,6 +3953,9 @@
 				F1VMCPB2 /* MCPFormSheet.swift in Sources */,
 				F1VMCPB3 /* MCPJSONImportSheet.swift in Sources */,
 				F1VMCPB4 /* SessionMCPsView.swift in Sources */,
+				F1VMCPB5 /* ConnectorDetailSheet.swift in Sources */,
+				F1VMCPB6 /* CustomConnectorForm.swift in Sources */,
+				F1VMCPB7 /* ConnectorsView.swift in Sources */,
 				E5LOCK001 /* SessionLockStore.swift in Sources */,
 				E5SOUL001 /* SoulStore.swift in Sources */,
 				E5SOUL002 /* SoulSettingsView.swift in Sources */,

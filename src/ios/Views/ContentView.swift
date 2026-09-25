@@ -7446,10 +7446,10 @@ struct SettingsSheet: View {
                         }
                     }
                     NavigationLink {
-                        MCPIntegrationsView()
+                        ConnectorsView()
                     } label: {
                         Label {
-                            Text("MCP Integrations")
+                            Text("Connectors")
                         } icon: {
                             Image(systemName: "square.stack.3d.up")
                                 .font(.system(size: 9))
