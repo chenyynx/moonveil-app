@@ -107671,6 +107671,23 @@
           }
         }
       }
+    },
+    "connector.status.toolcount": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d tools"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d 个工具"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
