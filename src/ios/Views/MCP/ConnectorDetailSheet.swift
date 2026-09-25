@@ -97,7 +97,10 @@ struct ConnectorDetailSheet: View {
                 }
             }
         }
-        .presentationDetents([.fraction(0.62), .large])
+        // Detents matched to Grok's observed sheet heights (3x screenshots):
+        // small detent tops out at 52.0% of screen (ours was 57.0% at
+        // fraction 0.62 → 0.565), expanded at 86.5% (0.94 instead of .large).
+        .presentationDetents([.fraction(0.565), .fraction(0.94)])
         .presentationCornerRadius(36)
         .presentationBackground(sheetBackground)
         .presentationDragIndicator(.hidden)
