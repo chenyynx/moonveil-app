@@ -116,9 +116,9 @@ struct ConnectorDetailSheet: View {
                 .padding(.leading, 16)
                 Spacer()
             }
-            .padding(.top, 18)
+            .padding(.top, 8)
         }
-        .frame(height: 70)
+        .frame(height: 60)
     }
 
     // MARK: - Hero (100pt white, soft shadow, inner highlight)

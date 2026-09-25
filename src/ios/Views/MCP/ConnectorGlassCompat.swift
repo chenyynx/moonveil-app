@@ -8,9 +8,9 @@ import SwiftUI
 struct GlassCircleButtonIfAvailable: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.glassEffect(.regular.tint(.white.opacity(0.55)).interactive(), in: Circle())
+            content.glassEffect(.regular.tint(.white.opacity(0.75)).interactive(), in: Circle())
         } else {
-            content.background(Circle().fill(Color.white.opacity(0.55)))
+            content.background(Circle().fill(Color.white.opacity(0.75)))
         }
     }
 }
