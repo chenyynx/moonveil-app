@@ -13,6 +13,9 @@
 
 import Foundation
 import SwiftUI
+import UIKit
+import CoreImage
+import CoreImage.CIFilterBuiltins
 
 // MARK: - ConnectorAuthType
 
@@ -55,6 +58,9 @@ struct ConnectorDefinition: Identifiable, Hashable {
     /// Localization key for the permission grant text.
     var permissionTextKey: String
     var aboutItems: [ConnectorAboutItem]
+    /// MCP tool names surfaced in the detail sheet's "Tools" chip list.
+    /// Placeholder data pending real MCP tool discovery (see connect()).
+    var toolNames: [String] = []
 
     /// SwiftUI Color parsed from tintColorHex.
     var tintColor: Color {
@@ -94,71 +100,141 @@ enum ConnectorCatalog {
             id: "github",
             nameKey: "connector.name.github",
             logoAssetName: "logo-github",
-            tintColorHex: "#F5F5F5",
+            tintColorHex: "#D9DCE0",
             authType: .pat,
             permissionTextKey: "connector.permission.github",
             aboutItems: [
                 ConnectorAboutItem(iconName: "folder", titleKey: "connector.about.github.files.title", descriptionKey: "connector.about.github.files.desc"),
                 ConnectorAboutItem(iconName: "lock", titleKey: "connector.about.notrain.title", descriptionKey: "connector.about.github.notrain.desc"),
                 ConnectorAboutItem(iconName: "shield-check", titleKey: "connector.about.control.title", descriptionKey: "connector.about.control.desc"),
-            ]
+            ],
+            toolNames: ["github_list_repositories", "github_read_file", "github_search_code", "github_list_issues", "github_create_issue", "github_create_pull_request"]
         ),
         ConnectorDefinition(
             id: "outlook",
             nameKey: "connector.name.outlook",
             logoAssetName: "logo-outlook",
-            tintColorHex: "#EDF1F5",
+            tintColorHex: "#B1C1CF",
             authType: .oauth(provider: "microsoft"),
             permissionTextKey: "connector.permission.outlook",
             aboutItems: [
                 ConnectorAboutItem(iconName: "mail", titleKey: "connector.about.outlook.mail.title", descriptionKey: "connector.about.outlook.mail.desc"),
                 ConnectorAboutItem(iconName: "lock", titleKey: "connector.about.notrain.title", descriptionKey: "connector.about.outlook.notrain.desc"),
                 ConnectorAboutItem(iconName: "shield-check", titleKey: "connector.about.control.title", descriptionKey: "connector.about.control.desc"),
-            ]
+            ],
+            toolNames: ["outlook_list_messages", "outlook_read_message", "outlook_search_mail", "outlook_send_message", "outlook_create_draft", "outlook_move_message"]
         ),
         ConnectorDefinition(
             id: "slack",
             nameKey: "connector.name.slack",
             logoAssetName: "logo-slack",
-            tintColorHex: "#F1EEEF",
+            tintColorHex: "#DCD3DA",
             authType: .oauth(provider: "slack"),
             permissionTextKey: "connector.permission.slack",
             aboutItems: [
                 ConnectorAboutItem(iconName: "hash", titleKey: "connector.about.slack.channels.title", descriptionKey: "connector.about.slack.channels.desc"),
                 ConnectorAboutItem(iconName: "lock", titleKey: "connector.about.notrain.title", descriptionKey: "connector.about.slack.notrain.desc"),
                 ConnectorAboutItem(iconName: "shield-check", titleKey: "connector.about.control.title", descriptionKey: "connector.about.control.desc"),
-            ]
+            ],
+            toolNames: ["slack_list_channels", "slack_read_history", "slack_send_message", "slack_search_messages", "slack_upload_file"]
         ),
         ConnectorDefinition(
             id: "drive",
             nameKey: "connector.name.drive",
             logoAssetName: "logo-drive",
-            tintColorHex: "#F5F3ED",
+            tintColorHex: "#E7E1D2",
             authType: .oauth(provider: "google"),
             permissionTextKey: "connector.permission.drive",
             aboutItems: [
                 ConnectorAboutItem(iconName: "folder", titleKey: "connector.about.drive.files.title", descriptionKey: "connector.about.drive.files.desc"),
                 ConnectorAboutItem(iconName: "lock", titleKey: "connector.about.notrain.title", descriptionKey: "connector.about.drive.notrain.desc"),
                 ConnectorAboutItem(iconName: "shield-check", titleKey: "connector.about.control.title", descriptionKey: "connector.about.control.desc"),
-            ]
+            ],
+            toolNames: ["drive_list_files", "drive_read_file", "drive_search_files", "drive_share_file", "drive_create_folder"]
         ),
         ConnectorDefinition(
             id: "gmail",
             nameKey: "connector.name.gmail",
             logoAssetName: "logo-gmail",
-            tintColorHex: "#F6EFEE",
+            tintColorHex: "#E8D6D4",
             authType: .oauth(provider: "google"),
             permissionTextKey: "connector.permission.gmail",
             aboutItems: [
                 ConnectorAboutItem(iconName: "mail", titleKey: "connector.about.gmail.mail.title", descriptionKey: "connector.about.gmail.mail.desc"),
                 ConnectorAboutItem(iconName: "lock", titleKey: "connector.about.notrain.title", descriptionKey: "connector.about.gmail.notrain.desc"),
                 ConnectorAboutItem(iconName: "shield-check", titleKey: "connector.about.control.title", descriptionKey: "connector.about.control.desc"),
-            ]
+            ],
+            toolNames: ["gmail_list_messages", "gmail_read_message", "gmail_search_mail", "gmail_send_message", "gmail_create_draft"]
         ),
     ]
 
     static func definition(id: String) -> ConnectorDefinition? {
         all.first { $0.id == id }
+    }
+
+    // MARK: - Brand tint derivation (logo → gradient)
+
+    /// Alpha-weighted average of the connector's logo, lightened and pulled
+    /// toward neutral — the soft brand wash Grok paints the detail sheet with.
+    ///
+    /// Native Core Image path (per Apple's CIAreaAverage practice): the area
+    /// filter returns premultiplied RGBA, so RGB ÷ alpha gives the average of
+    /// the *opaque* pixels only — transparent logo padding contributes nothing.
+    /// Cached per connector id; falls back to the static tintColorHex tint.
+    static func brandTint(for id: String) -> Color {
+        if let cached = tintCache[id] { return cached }
+        guard let def = definition(id: id) else { return Color(hex: "#F5F5F5") }
+        guard let avg = opaqueAverageColor(of: def.logoAssetName) else {
+            return def.tintColor
+        }
+        // Step 1 — lighten 55% toward white (logos read far too vivid raw).
+        var r = avg.r * 0.45 + 255 * 0.55
+        var g = avg.g * 0.45 + 255 * 0.55
+        var b = avg.b * 0.45 + 255 * 0.55
+        // Step 2 — pull 30% toward luminance gray (Grok's wash is desaturated).
+        let lum = 0.299 * r + 0.587 * g + 0.114 * b
+        let m: CGFloat = 0.30
+        r += (lum - r) * m
+        g += (lum - g) * m
+        b += (lum - b) * m
+        let color = Color(red: r / 255, green: g / 255, blue: b / 255)
+        tintCache[id] = color
+        return color
+    }
+
+    // nonisolated(unsafe): written only from the main thread (sheet body)
+    // and guarded by id-keyed immutability; silences Swift 6 strict mode.
+    nonisolated(unsafe) private static var tintCache: [String: Color] = [:]
+
+    /// Premultiplied-unbiased average color of an asset image, or nil.
+    /// SVG-backed imagesets may not expose cgImage, so redraw through a
+    /// 64×64 bitmap first (also keeps the reduction cheap).
+    private static func opaqueAverageColor(of assetName: String) -> (r: CGFloat, g: CGFloat, b: CGFloat)? {
+        guard let logo = UIImage(named: assetName) else { return nil }
+        let side: CGFloat = 64
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+        let rendered = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).image { _ in
+            logo.draw(in: CGRect(x: 0, y: 0, width: side, height: side))
+        }
+        guard let cg = rendered.cgImage else { return nil }
+
+        let context = CIContext()
+        let input = CIImage(cgImage: cg)
+        guard let filter = CIFilter(name: "CIAreaAverage") else { return nil }
+        filter.setValue(input, forKey: kCIInputImageKey)
+        filter.setValue(CIVector(cgRect: input.extent), forKey: kCIInputExtentKey)
+        guard let output = filter.outputImage else { return nil }
+        var px = [UInt8](repeating: 0, count: 4)
+        let cs = CGColorSpaceCreateDeviceRGB()
+        context.render(output, toBitmap: &px, rowBytes: 4,
+                       bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+                       format: .RGBA8, colorSpace: cs)
+        let avgA = CGFloat(px[3]) / 255
+        guard avgA > 0.004 else { return nil } // fully transparent logo
+        let unmult: (UInt8) -> CGFloat = { CGFloat($0) / 255 / avgA * 255 }
+        return (min(unmult(px[0]), 255), min(unmult(px[1]), 255), min(unmult(px[2]), 255))
     }
 
     // MARK: - MCPStore bridge

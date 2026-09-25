@@ -2,12 +2,12 @@
 //  ConnectorDetailSheet.swift
 //  MinisApp
 //
-//  Connector detail sheet — a 1:1 native replica of Grok's connector detail
-//  sheet. Custom chrome (67pt top offset, 36pt top radius, #BABABA 47pt
-//  header, liquid-glass close button), 100pt hero, black "Connect" CTA or
-//  liquid-glass "Disconnect" CTA, permission text, and the "About this
-//  connector" info card. All white surfaces carry soft shadows / inner
-//  highlights per the iOS 26 Liquid Glass material language — never flat.
+//  Connector detail sheet — Grok-aligned replica. Tinted gradient canvas
+//  (connector brand tint fading to neutral), white glass hero tile, 19pt
+//  bold title, black "Connect" CTA (glass "Disconnect" when linked),
+//  optional reauth warning card, permission text, the "About this
+//  connector" info card, and the "Tools" chip list. White surfaces carry
+//  soft shadows per the iOS 26 Liquid Glass language — never flat.
 //
 
 import SwiftUI
@@ -25,6 +25,10 @@ private func dynamicLocalized(_ key: String) -> String {
 struct ConnectorDetailSheet: View {
     let connector: ConnectorDefinition
 
+    /// Broken-credentials state — shows the reauth warning card. Fed from
+    /// the list's needsReauthConnectorIDs (data signal still TODO there).
+    var needsReauth: Bool = false
+
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var store = MCPStore.shared
 
@@ -34,9 +38,9 @@ struct ConnectorDetailSheet: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            // Tinted canvas + whisper of texture.
-            connector.tintColor
-                .ignoresSafeArea()
+            // The canvas itself lives in presentationBackground (logo-derived
+            // gradient) — only the soft top-center highlight sits here; a flat
+            // fill would cover the gradient.
             RadialGradient(
                 gradient: Gradient(colors: [Color.white.opacity(0.35), Color.white.opacity(0)]),
                 center: .top,
@@ -51,14 +55,20 @@ struct ConnectorDetailSheet: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
                         hero
-                            .padding(.top, 28)
+                            .padding(.top, 4)
 
                         Text(dynamicLocalized(connector.nameKey))
-                            .font(.system(size: 17, weight: .bold))
+                            .font(.system(size: 19, weight: .bold))
                             .padding(.top, 14)
 
                         ctaButton
                             .padding(.top, 22)
+
+                        if needsReauth {
+                            reauthCard
+                                .padding(.horizontal, 16)
+                                .padding(.top, 44)
+                        }
 
                         Text(dynamicLocalized(connector.permissionTextKey))
                             .font(.system(size: 12))
@@ -66,19 +76,23 @@ struct ConnectorDetailSheet: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.leading, 33)
                             .padding(.trailing, 24)
-                            .padding(.top, 26)
+                            .padding(.top, needsReauth ? 35 : 26)
 
                         Text(AppLocalized("About This Connector"))
-                            .font(.system(size: 11))
+                            .font(.system(size: 13))
                             .foregroundColor(Color(red: 0.494, green: 0.49, blue: 0.51))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.leading, 33)
-                            .padding(.top, 18)
+                            .padding(.top, 20)
 
                         infoCard
                             .padding(.horizontal, 16)
                             .padding(.top, 8)
-                            .padding(.bottom, 40)
+                            .padding(.bottom, connector.toolNames.isEmpty ? 40 : 0)
+
+                        if !connector.toolNames.isEmpty {
+                            toolsSection
+                        }
                     }
                 }
             }
@@ -89,14 +103,16 @@ struct ConnectorDetailSheet: View {
         .presentationDragIndicator(.hidden)
     }
 
-    /// Grok-style sheet background: connector tint at the top fading to the
-    /// neutral canvas. Native LinearGradient as the presentation background.
+    /// Grok-style sheet background: the logo-derived brand wash at the top
+    /// fading to the neutral canvas. Extraction is Core Image CIAreaAverage
+    /// over the connector logo (see ConnectorCatalog.brandTint), cached.
     private var sheetBackground: LinearGradient {
-        LinearGradient(
+        let tint = ConnectorCatalog.brandTint(for: connector.id)
+        return LinearGradient(
             gradient: Gradient(stops: [
-                .init(color: connector.tintColor, location: 0),
-                .init(color: connector.tintColor.opacity(0.4), location: 0.35),
-                .init(color: ConnectorPalette.canvas, location: 0.65),
+                .init(color: tint, location: 0),
+                .init(color: tint.opacity(0.5), location: 0.30),
+                .init(color: ConnectorPalette.canvas, location: 0.62),
             ]),
             startPoint: .top,
             endPoint: .bottom
@@ -115,10 +131,11 @@ struct ConnectorDetailSheet: View {
                 .padding(.top, 8)
 
             HStack {
-                // Liquid-glass close: translucent white circle + blur + highlight.
+                // Close: white circle (explicit fill — see hero note) + glass.
                 Button(action: { dismiss() }) {
                     ZStack {
                         Circle()
+                            .fill(.white)
                             .frame(width: 44, height: 44)
                             .modifier(GlassCircleButtonIfAvailable())
                         Image(systemName: "xmark")
@@ -135,14 +152,16 @@ struct ConnectorDetailSheet: View {
         .frame(height: 60)
     }
 
-    // MARK: - Hero (100pt white, soft shadow, inner highlight)
+    // MARK: - Hero (100pt white tile, soft shadow — white fill is mandatory:
+    // a bare Shape paints black under the glass tint and reads muddy gray.)
 
     private var hero: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 20.5, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(.white)
                 .frame(width: 100, height: 100)
-                .modifier(GlassRoundedRectIfAvailable(cornerRadius: 20.5, tintOpacity: 0.7))
-                .shadow(color: .black.opacity(0.1), radius: 24, x: 0, y: 10)
+                .modifier(GlassRoundedRectIfAvailable(cornerRadius: 24, tintOpacity: 0.7))
+                .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: 10)
             connectorLogo
         }
     }
@@ -197,7 +216,7 @@ struct ConnectorDetailSheet: View {
                                 )
                             )
                     )
-                    .shadow(color: .black.opacity(0.18), radius: 10, x: 0, y: 4)
+                    .shadow(color: .black.opacity(0.12), radius: 18, x: 0, y: 6)
             }
         }
     }
@@ -217,7 +236,7 @@ struct ConnectorDetailSheet: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(dynamicLocalized(item.titleKey))
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(.primary)
                         Text(dynamicLocalized(item.descriptionKey))
                             .font(.system(size: 13))
@@ -232,7 +251,7 @@ struct ConnectorDetailSheet: View {
                 if index < connector.aboutItems.count - 1 {
                     Divider()
                         .background(Color(red: 0.78, green: 0.78, blue: 0.79))
-                        .padding(.leading, 16)
+                        .padding(.leading, 48)
                 }
             }
         }
@@ -253,6 +272,65 @@ struct ConnectorDetailSheet: View {
         }
     }
 
+    // MARK: - Reauth warning card (Grok's broken-credentials state)
+
+    private var reauthCard: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 20))
+                .foregroundColor(ConnectorPalette.warning)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(AppLocalized("connector.reauth.title"))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary)
+                Text(AppLocalized("connector.reauth.subtitle"))
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(red: 0.557, green: 0.557, blue: 0.576))
+            }
+            Spacer(minLength: 8)
+            Button(action: reauth) {
+                Text(AppLocalized("connector.reauth.button"))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 13)
+                    .frame(height: 24)
+                    .background(Color.black, in: Capsule())
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 4)
+    }
+
+    // MARK: - Tools chip list
+
+    private var toolsSection: some View {
+        Group {
+            Text(AppLocalized("connector.tools.header"))
+                .font(.system(size: 13))
+                .foregroundColor(Color(red: 0.494, green: 0.49, blue: 0.51))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 33)
+                .padding(.top, 26)
+
+            ToolChipFlow(spacing: 8) {
+                ForEach(connector.toolNames, id: \.self) { name in
+                    Text(name)
+                        .font(.system(size: 13))
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.primary.opacity(0.08), in: Capsule())
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 40)
+        }
+    }
+
     // MARK: - Actions
 
     private func connect() {
@@ -270,5 +348,54 @@ struct ConnectorDetailSheet: View {
         // MCPStore.delete), matching Grok's "Disconnect" semantics.
         store.delete(id: connector.serverId)
         dismiss()
+    }
+
+    private func reauth() {
+        // Placeholder reset: purge + re-add so the backing server is healthy
+        // again. Real OAuth re-auth lands with the credential flow above.
+        store.delete(id: connector.serverId)
+        connect()
+    }
+}
+
+// MARK: - Tool chip flow layout
+
+/// Left-to-right wrapping chip row for the Tools list (iOS16+ Layout;
+/// SwiftUI has no built-in flow container).
+private struct ToolChipFlow: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        arrange(proposal: proposal, subviews: subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = arrange(proposal: proposal, subviews: subviews)
+        for (index, position) in result.positions.enumerated() {
+            subviews[index].place(
+                at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y),
+                proposal: .unspecified
+            )
+        }
+    }
+
+    private func arrange(proposal: ProposedViewSize, subviews: Subviews) -> (size: CGSize, positions: [CGPoint]) {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var positions: [CGPoint] = []
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > maxWidth {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            positions.append(CGPoint(x: x, y: y))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        return (CGSize(width: maxWidth.isFinite ? maxWidth : x, height: y + rowHeight), positions)
     }
 }

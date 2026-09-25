@@ -78935,7 +78935,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "连接成功"
+            "value": "已连接"
           }
         }
       }
@@ -106835,7 +106835,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "推荐"
+            "value": "建议"
           }
         }
       }
@@ -107412,6 +107412,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "保护"
+          }
+        }
+      }
+    },
+    "connector.reauth.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connector disconnected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接器已断开"
+          }
+        }
+      }
+    },
+    "connector.reauth.subtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please verify your identity again"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请再次进行身份验证"
+          }
+        }
+      }
+    },
+    "connector.reauth.button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verify Again"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新验证身份"
+          }
+        }
+      }
+    },
+    "connector.tools.header": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tools"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工具"
           }
         }
       }

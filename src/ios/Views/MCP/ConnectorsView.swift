@@ -81,7 +81,10 @@ struct ConnectorsView: View {
         }
         .listStyle(.insetGrouped)
         .sheet(item: $selectedConnector) { connector in
-            ConnectorDetailSheet(connector: connector)
+            ConnectorDetailSheet(
+                connector: connector,
+                needsReauth: needsReauthConnectorIDs.contains(connector.id)
+            )
         }
         .sheet(isPresented: $showCustomForm) {
             CustomConnectorForm()
