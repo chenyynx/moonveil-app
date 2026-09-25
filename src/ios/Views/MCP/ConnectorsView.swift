@@ -4,7 +4,7 @@
 //
 //  Connectors list page — native system styling: an inset-grouped List with
 //  system section headers, default row typography, and stock separators.
-//  Brand logos keep their original 44pt rounded icon well.
+//  Brand logos sit in a system Settings-style 29pt rounded icon well.
 //
 //  Row states: unconnected → a bordered "Connect" button that opens the
 //  detail sheet; connected → chevron, the whole row opens the sheet; broken
@@ -202,9 +202,10 @@ private struct ConnectorRowView: View {
 // MARK: - Metrics and palette
 
 private enum ConnectorMetrics {
-    static let well: CGFloat = 44
-    static let wellCorner: CGFloat = 12.5
-    static let glyph: CGFloat = 26
+    /// Apple Settings-style well: 29pt with a continuous ~6.5pt corner.
+    static let well: CGFloat = 29
+    static let wellCorner: CGFloat = 6.5
+    static let glyph: CGFloat = 17
     static let glyphToTitle: CGFloat = 12
 }
 
