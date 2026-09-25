@@ -4,10 +4,11 @@
 //
 //  Connectors list page — native system styling: an inset-grouped List with
 //  system section headers, default row typography, and stock separators.
-//  Brand logos sit in a system Settings-style 29pt rounded icon well.
+//  Row chrome follows the Grok reference measurements: 44pt logo well
+//  (R12.5, ~20pt logo) and a 48×26 connect capsule in #EAEAEA.
 //
-//  Row states: unconnected → a bordered "Connect" button that opens the
-//  detail sheet; connected → chevron, the whole row opens the sheet; broken
+//  Row states: unconnected → a 48×26 connect capsule that opens the detail
+//  sheet; connected → chevron, the whole row opens the sheet; broken
 //  credentials (expired token / revoked grant) → warning badge, the row
 //  opens the sheet.
 //
@@ -187,10 +188,16 @@ private struct ConnectorRowView: View {
     @ViewBuilder private var trailing: some View {
         switch state {
         case .unconnected:
+            // Grok's connect pill: 48×26 capsule, #EAEAEA fill, 11pt black
+            // label (measured from the reference screenshots).
             Button(action: open) {
                 Text(AppLocalized("Connect"))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.primary)
+                    .frame(width: ConnectorMetrics.pillWidth, height: ConnectorMetrics.pillHeight)
+                    .background(ConnectorPalette.pill, in: Capsule())
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
         case .connected:
             Image(systemName: "chevron.right")
                 .font(.footnote)
@@ -205,11 +212,15 @@ private struct ConnectorRowView: View {
 // MARK: - Metrics and palette
 
 private enum ConnectorMetrics {
-    /// Apple Settings-style well: 29pt with a continuous ~6.5pt corner.
-    static let well: CGFloat = 29
-    static let wellCorner: CGFloat = 6.5
-    static let glyph: CGFloat = 17
-    static let glyphToTitle: CGFloat = 12
+    /// Measured from Grok's list (3x screenshots, run-length scan):
+    /// well 44pt square, corner R 12.5 (fitted to the edge curve), logo ≈20pt,
+    /// title gap ≈22pt, connect pill 48×26 capsule.
+    static let well: CGFloat = 44
+    static let wellCorner: CGFloat = 12.5
+    static let glyph: CGFloat = 20
+    static let glyphToTitle: CGFloat = 22
+    static let pillWidth: CGFloat = 48
+    static let pillHeight: CGFloat = 26
 }
 
 enum ConnectorPalette {
