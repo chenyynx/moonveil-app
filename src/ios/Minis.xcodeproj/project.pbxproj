@@ -613,7 +613,7 @@
 		F1VMCPB3 /* MCPJSONImportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP03 /* MCPJSONImportSheet.swift */; };
 		F1VMCPB4 /* SessionMCPsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP04 /* SessionMCPsView.swift */; };
 		F1VMCPB5 /* ConnectorDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP05 /* ConnectorDetailSheet.swift */; };
-		F1VMCPB7 /* ConnectorGlassCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP07 /* ConnectorGlassCompat.swift */; };
+		F1VMCPB8 /* ConnectorGlassCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP08 /* ConnectorGlassCompat.swift */; };
 		F1VMCPB6 /* CustomConnectorForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP06 /* CustomConnectorForm.swift */; };
 		F1VMCPB7 /* ConnectorsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP07 /* ConnectorsView.swift */; };
 		F1W00011 /* MinisShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1W00010 /* MinisShareSheet.swift */; };
@@ -1516,7 +1516,7 @@
 		F1VMCP03 /* MCPJSONImportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPJSONImportSheet.swift; sourceTree = "<group>"; };
 		F1VMCP04 /* SessionMCPsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionMCPsView.swift; sourceTree = "<group>"; };
 		F1VMCP05 /* ConnectorDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorDetailSheet.swift; sourceTree = "<group>"; };
-		F1VMCP07 /* ConnectorGlassCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorGlassCompat.swift; sourceTree = "<group>"; };
+		F1VMCP08 /* ConnectorGlassCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorGlassCompat.swift; sourceTree = "<group>"; };
 		F1VMCP06 /* CustomConnectorForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomConnectorForm.swift; sourceTree = "<group>"; };
 		F1VMCP07 /* ConnectorsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorsView.swift; sourceTree = "<group>"; };
 		F1W00010 /* MinisShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinisShareSheet.swift; sourceTree = "<group>"; };
@@ -2960,7 +2960,7 @@
 				F1VMCP03 /* MCPJSONImportSheet.swift */,
 				F1VMCP04 /* SessionMCPsView.swift */,
 				F1VMCP05 /* ConnectorDetailSheet.swift */,
-				F1VMCP07 /* ConnectorGlassCompat.swift */,
+				F1VMCP08 /* ConnectorGlassCompat.swift */,
 				F1VMCP06 /* CustomConnectorForm.swift */,
 				F1VMCP07 /* ConnectorsView.swift */,
 			);
@@ -3957,7 +3957,7 @@
 				F1VMCPB3 /* MCPJSONImportSheet.swift in Sources */,
 				F1VMCPB4 /* SessionMCPsView.swift in Sources */,
 				F1VMCPB5 /* ConnectorDetailSheet.swift in Sources */,
-				F1VMCPB7 /* ConnectorGlassCompat.swift in Sources */,
+				F1VMCPB8 /* ConnectorGlassCompat.swift in Sources */,
 				F1VMCPB6 /* CustomConnectorForm.swift in Sources */,
 				F1VMCPB7 /* ConnectorsView.swift in Sources */,
 				E5LOCK001 /* SessionLockStore.swift in Sources */,
