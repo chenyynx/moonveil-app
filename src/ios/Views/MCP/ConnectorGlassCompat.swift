@@ -29,8 +29,11 @@ struct GlassCapsuleButtonIfAvailable: ViewModifier {
     }
 }
 
-/// Liquid glass in a continuous-corner rounded rectangle (icon wells, hero).
+/// Liquid glass in a continuous-corner rounded rectangle (hero tile).
 /// Falls back to the same translucent white fill pre-iOS 26.
+/// Deliberately NOT `.interactive()` — the hero logo must stay locked on
+/// press (no zoom/highlight animation); interactive feedback is reserved
+/// for actual buttons (close key, CTA).
 struct GlassRoundedRectIfAvailable: ViewModifier {
     var cornerRadius: CGFloat
     var tintOpacity: Double = 0.6
@@ -40,7 +43,7 @@ struct GlassRoundedRectIfAvailable: ViewModifier {
         if #available(iOS 26.0, *) {
             content
                 .background(shape.fill(.white))
-                .glassEffect(.regular.tint(.white.opacity(tintOpacity)).interactive(), in: shape)
+                .glassEffect(.regular.tint(.white.opacity(tintOpacity)), in: shape)
         } else {
             content.background(shape.fill(Color.white.opacity(tintOpacity)))
         }
