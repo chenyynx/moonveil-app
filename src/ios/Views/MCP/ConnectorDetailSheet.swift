@@ -99,7 +99,7 @@ struct ConnectorDetailSheet: View {
                     ZStack {
                         Circle()
                             .frame(width: 44, height: 44)
-                            .glassEffect(.regular.tint(.white.opacity(0.55)).interactive(), in: Circle())
+                            .modifier(GlassCircleButtonIfAvailable())
                         Image(systemName: "xmark")
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundColor(.primary)
@@ -164,7 +164,7 @@ struct ConnectorDetailSheet: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.primary)
                     .frame(width: 238, height: 43)
-                    .glassEffect(.regular.tint(.white.opacity(0.5)).interactive(), in: Capsule())
+                    .modifier(GlassCapsuleButtonIfAvailable())
             }
         } else {
             // Solid black "Connect" with a faint top inner highlight.

@@ -183,7 +183,7 @@ struct CustomConnectorForm: View {
                     ZStack {
                         Circle()
                             .frame(width: 44, height: 44)
-                            .glassEffect(.regular.tint(.white.opacity(0.55)).interactive(), in: Circle())
+                            .modifier(GlassCircleButtonIfAvailable())
                         Image(systemName: "xmark")
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundColor(.primary)
