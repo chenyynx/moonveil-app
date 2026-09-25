@@ -32,6 +32,21 @@ struct ConnectorDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var store = MCPStore.shared
 
+    @State private var errorMessage: String?
+    @State private var showError: Bool = false
+    /// GitHub PAT collection prompt.
+    @State private var patPrompt: PATPrompt?
+    /// OAuth provider that has no client id configured yet.
+    @State private var notConfiguredProvider: String = ""
+    @State private var showNotConfigured: Bool = false
+
+    /// Parameters for the PAT collection sheet.
+    struct PATPrompt: Identifiable {
+        let id = UUID()
+        let title: String
+        let endpoint: String
+    }
+
     private var isConnected: Bool {
         ConnectorCatalog.isConnected(connectorId: connector.id, in: store)
     }
@@ -109,6 +124,16 @@ struct ConnectorDetailSheet: View {
         .presentationCornerRadius(36)
         .presentationBackground(sheetBackground)
         .presentationDragIndicator(.hidden)
+        .sheet(item: $patPrompt) { prompt in
+            PATEntrySheet(prompt: prompt) { pat in
+                connectWithPAT(pat)
+            }
+        }
+        .alert(AppLocalized("connector.oauth.notconfigured"), isPresented: $showNotConfigured) {
+            Button(AppLocalized("OK"), role: .cancel) {}
+        } message: {
+            Text(String(format: AppLocalized("connector.oauth.notconfigured.body"), notConfiguredProvider))
+        }
     }
 
     /// Grok-style sheet background: the logo-derived brand wash at the top
@@ -341,28 +366,161 @@ struct ConnectorDetailSheet: View {
 
     // MARK: - Actions
 
+    /// Real connection: write url (+ PAT header) / oauth config into
+    /// MCPStore, then the in-guest CLI daemon handles initialize +
+    /// tools/list on next refresh. GitHub = PAT prompt (zero registration);
+    /// OAuth providers = MCPOAuthController.authorize when a client id is
+    /// configured; otherwise an honest "not configured" alert — never a
+    /// fake connected state.
     private func connect() {
-        // TODO(connectors): wire the real credential flow — OAuth via
-        // MCPOAuthController for .oauth connectors, PAT prompt for .pat.
-        // For now, register an enabled backing server so the connector
-        // flips to the connected state.
+        // 1) PAT connector with a real remote endpoint → collect the token.
+        if case .pat = connector.authType, let endpoint = connector.remoteMCPURL {
+            patPrompt = PATPrompt(
+                title: AppLocalized("connector.pat.prompt.github"),
+                endpoint: endpoint
+            )
+            return
+        }
+        // 2) OAuth connector → real flow when configured, honest alert when not.
+        if case .oauth(let provider) = connector.authType {
+            if let oauth = ConnectorCatalog.registeredOAuthClient(provider: provider) {
+                Task { await oauthConnect(oauth: oauth) }
+            } else {
+                notConfiguredProvider = provider
+                showNotConfigured = true
+            }
+            return
+        }
+        // 3) Anything else (shouldn't happen in the catalog) — plain register.
+        registerPlain()
+    }
+
+    private func registerPlain() {
         var cfg = MCPServerConfig(id: connector.serverId, enabled: true)
         cfg.note = connector.id
+        if let endpoint = connector.remoteMCPURL { cfg.url = endpoint }
         store.add(cfg)
+    }
+
+    /// OAuth handshake via the shared controller, then register the server.
+    private func oauthConnect(oauth: MCPOAuthConfig) async {
+        do {
+            try await MCPOAuthController.shared.authorize(server: connector.serverId, oauth: oauth)
+            var cfg = MCPServerConfig(id: connector.serverId, enabled: true)
+            cfg.note = connector.id
+            cfg.oauth = oauth
+            store.add(cfg)
+        } catch {
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                showError = true
+            }
+        }
+    }
+
+    /// Persist the PAT the user entered and flip the connector on.
+    private func connectWithPAT(_ pat: String) {
+        guard let endpoint = connector.remoteMCPURL else { return }
+        var cfg = MCPServerConfig(id: connector.serverId, enabled: true)
+        cfg.note = connector.id
+        cfg.url = endpoint
+        cfg.headers = ["Authorization": "Bearer \(pat)"]
+        store.add(cfg)
+        // Fire the real handshake + tools/list in the guest daemon.
+        Task {
+            _ = try? await store.refreshTools(server: connector.serverId)
+        }
     }
 
     private func disconnect() {
         // Purges the backing server and its OAuth credentials (see
         // MCPStore.delete), matching Grok's "Disconnect" semantics.
+        MCPOAuthController.purge(server: connector.serverId)
         store.delete(id: connector.serverId)
         dismiss()
     }
 
     private func reauth() {
-        // Placeholder reset: purge + re-add so the backing server is healthy
-        // again. Real OAuth re-auth lands with the credential flow above.
-        store.delete(id: connector.serverId)
-        connect()
+        // Reset credentials so isAuthorized flips false and connect() can
+        // run the full flow again.
+        MCPOAuthController.purge(server: connector.serverId)
+        if case .pat = connector.authType {
+            connect()
+        }
+    }
+}
+
+// MARK: - PAT entry sheet
+
+/// Secure-text prompt for PAT-connector setup (GitHub). Shows the target
+/// endpoint, validates non-empty, hands the token to the caller.
+private struct PATEntrySheet: View {
+    let prompt: ConnectorDetailSheet.PATPrompt
+    let onSubmit: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var token: String = ""
+
+    private var valid: Bool {
+        !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack(spacing: 12) {
+                        Text(AppLocalized("Token"))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 110, alignment: .leading)
+                        SecureField("ghp_…", text: $token)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
+                } header: {
+                    Text(prompt.title)
+                } footer: {
+                    Text(prompt.endpoint)
+                }
+
+                Section {
+                    Button(action: submit) {
+                        Text(AppLocalized("Connect"))
+                            .font(.system(size: 17, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                    }
+                    .foregroundStyle(valid ? Color.white : Color(red: 0.6, green: 0.6, blue: 0.62))
+                    .background(
+                        valid ? Color.black : Color(red: 0.92, green: 0.92, blue: 0.93),
+                        in: Capsule()
+                    )
+                    .disabled(!valid)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                }
+            }
+            .formStyle(.grouped)
+            .navigationTitle(AppLocalized("Connect"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.primary)
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private func submit() {
+        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard valid else { return }
+        onSubmit(trimmed)
+        dismiss()
     }
 }
 

@@ -10,6 +10,12 @@
 //  A connected pre-built connector is represented in MCPStore as a server
 //  whose id is "connector-<definition.id>" (e.g. "connector-github").
 //
+//  Real-connection wiring: GitHub ships a working remote MCP endpoint
+//  (api.githubcopilot.com, PAT header auth — zero registration). OAuth
+//  providers need a per-app client id (see registeredOAuthClient) which is
+//  injected at build/config time; until then their connect() falls back to
+//  a clear "not configured" alert instead of a fake connected state.
+//
 
 import Foundation
 import SwiftUI
@@ -69,6 +75,29 @@ struct ConnectorDefinition: Identifiable, Hashable {
 
     /// The MCPStore server id backing this connector's connection.
     var serverId: String { "connector-\(id)" }
+
+    /// Real remote MCP endpoint for this connector (HTTP transport), when
+    /// the provider hosts one. GitHub's official remote server authenticates
+    /// with a PAT header — no OAuth app registration needed.
+    var remoteMCPURL: String? {
+        switch authType {
+        case .pat where id == "github":
+            return "https://api.githubcopilot.com/mcp/"
+        default:
+            return nil
+        }
+    }
+
+    /// OAuth providers need a client id registered in OUR developer app
+    /// (Google/Microsoft/Slack consoles — free, but per-app and must be
+    /// embedded at build time). Returns the configured id or nil when the
+    /// provider isn't wired up yet; nil ⇒ connect() shows "not configured".
+    static func registeredOAuthClient(provider: String) -> MCPOAuthConfig? {
+        // Placeholder injection point: fill from build settings / remote
+        // config once the developer apps are registered. Until then every
+        // OAuth provider is honestly disabled.
+        return nil
+    }
 }
 
 // MARK: - Color hex helper

@@ -107607,6 +107607,54 @@
           }
         }
       }
+    },
+    "connector.pat.prompt.github": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub Personal Access Token"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub 个人访问令牌"
+          }
+        }
+      }
+    },
+    "connector.oauth.notconfigured": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connector Not Configured"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接器暂未配置"
+          }
+        }
+      }
+    },
+    "connector.oauth.notconfigured.body": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ requires an OAuth client id registered in the developer console. It will be enabled in a future update."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 需要在开发者后台注册 OAuth 应用后才能连接，将在后续更新中启用。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
