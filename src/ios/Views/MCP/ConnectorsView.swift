@@ -18,7 +18,6 @@ import SwiftUI
 import UIKit
 
 struct ConnectorsView: View {
-    @Environment(\.dismiss) private var dismiss
     @ObservedObject private var store = MCPStore.shared
 
     /// Connector ids whose backing server exists but can no longer
@@ -36,8 +35,6 @@ struct ConnectorsView: View {
                 .ignoresSafeArea(edges: .bottom)
 
             VStack(spacing: 0) {
-                header
-
                 ScrollView {
                     VStack(spacing: 0) {
                         let connected = ConnectorCatalog.all.filter { isConnected($0) }
@@ -91,34 +88,8 @@ struct ConnectorsView: View {
         .sheet(isPresented: $showCustomForm) {
             CustomConnectorForm()
         }
-        .toolbar(.hidden, for: .navigationBar)
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        ZStack {
-            Text(AppLocalized("Connectors"))
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.black)
-
-            HStack(spacing: 0) {
-                Button { dismiss() } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.black)
-                        .frame(width: ConnectorMetrics.backButton, height: ConnectorMetrics.backButton)
-                        .background(ConnectorPalette.card, in: Circle())
-                        .shadow(color: .black.opacity(0.07), radius: 1.5, y: 0.5)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(AppLocalized("Back"))
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, ConnectorMetrics.cardInset)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
+        .navigationTitle(AppLocalized("Connectors"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     // MARK: - Groups
