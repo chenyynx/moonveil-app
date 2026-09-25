@@ -54,7 +54,7 @@ struct ConnectorDetailSheet: View {
                             .padding(.top, 28)
 
                         Text(dynamicLocalized(connector.nameKey))
-                            .font(.system(size: 20, weight: .bold))
+                            .font(.system(size: 17, weight: .bold))
                             .padding(.top, 14)
 
                         ctaButton
@@ -217,10 +217,10 @@ struct ConnectorDetailSheet: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(dynamicLocalized(item.titleKey))
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(.primary)
                         Text(dynamicLocalized(item.descriptionKey))
-                            .font(.system(size: 14))
+                            .font(.system(size: 13))
                             .foregroundColor(Color(red: 0.557, green: 0.557, blue: 0.576))
                             .fixedSize(horizontal: false, vertical: true)
                     }

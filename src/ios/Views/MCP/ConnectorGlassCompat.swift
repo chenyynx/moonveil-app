@@ -8,7 +8,9 @@ import SwiftUI
 struct GlassCircleButtonIfAvailable: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.glassEffect(.regular.tint(.white.opacity(0.75)).interactive(), in: Circle())
+            content
+                .background(Circle().fill(.white))
+                .glassEffect(.regular.tint(.white.opacity(0.75)).interactive(), in: Circle())
         } else {
             content.background(Circle().fill(Color.white.opacity(0.75)))
         }
@@ -18,7 +20,9 @@ struct GlassCircleButtonIfAvailable: ViewModifier {
 struct GlassCapsuleButtonIfAvailable: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.glassEffect(.regular.tint(.white.opacity(0.5)).interactive(), in: Capsule())
+            content
+                .background(Capsule().fill(.white))
+                .glassEffect(.regular.tint(.white.opacity(0.5)).interactive(), in: Capsule())
         } else {
             content.background(Capsule().fill(Color.white.opacity(0.5)))
         }
@@ -34,7 +38,9 @@ struct GlassRoundedRectIfAvailable: ViewModifier {
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         if #available(iOS 26.0, *) {
-            content.glassEffect(.regular.tint(.white.opacity(tintOpacity)).interactive(), in: shape)
+            content
+                .background(shape.fill(.white))
+                .glassEffect(.regular.tint(.white.opacity(tintOpacity)).interactive(), in: shape)
         } else {
             content.background(shape.fill(Color.white.opacity(tintOpacity)))
         }

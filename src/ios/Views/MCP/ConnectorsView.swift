@@ -98,7 +98,7 @@ struct ConnectorsView: View {
     private func groupTitle(_ title: String) -> some View {
         HStack(spacing: 0) {
             Text(title)
-                .font(.system(size: 11))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(ConnectorPalette.groupTitle)
             Spacer(minLength: 0)
         }
@@ -212,7 +212,10 @@ private struct ConnectorRowView: View {
             }
         }
         .frame(width: ConnectorMetrics.well, height: ConnectorMetrics.well)
-        .modifier(GlassRoundedRectIfAvailable(cornerRadius: ConnectorMetrics.wellCorner, tintOpacity: 0.55))
+        .background(
+            ConnectorPalette.iconWell,
+            in: RoundedRectangle(cornerRadius: ConnectorMetrics.wellCorner, style: .continuous)
+        )
     }
 
     @ViewBuilder private var trailing: some View {
