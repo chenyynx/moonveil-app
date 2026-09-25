@@ -7341,348 +7341,192 @@ struct SettingsSheet: View {
     @State private var navPath = NavigationPath()
     @State private var showFeedbackDialog = false
 
-    // [T-split-body] SettingsSheet timeout twin: List's Section children moved
-    // byte-identical into three @ViewBuilder stages. List flattens nested
-    // ViewBuilder/TupleView children, so row order and identity are preserved.
-    @ViewBuilder private var settingsListStageA: some View {
-                Section {
-                    NavigationLink {
-                        ProviderInstancesView()
-                    } label: {
-                        if #available(iOS 26, *) {
-                            Label("Manage Providers", systemImage: "key.circle.fill")
-                        } else {
-                            Label("Manage Providers", systemImage: "lock.circle.fill")
-                        }
-                    }
-
-                    NavigationLink {
-                        ModelGroupsView()
-                    } label: {
-                        Label("Model Groups", systemImage: "gearshape.circle.fill")
-                    }
-
-                    NavigationLink {
-                        UsageStatsView()
-                    } label: {
-                        Label("Token Usage", systemImage: "chart.line.uptrend.xyaxis.circle.fill")
-                    }
-                } header: {
-                    Text("LLM Providers")
-                } footer: {
-                    Text("Configure which models the agent uses, manage API keys & OAuth for each provider, and create model groups for fallback or load balancing.")
-                }
-                Section("Appearance") {
-                    NavigationLink {
-                        AppearanceSettingsView()
-                    } label: {
-                        Label {
-                            Text("Appearance")
-                        } icon: {
-                            Image(systemName: "paintbrush.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.indigo, in: Circle())
-                        }
-                    }
-                }
-                Section("Preview") {
-                    NavigationLink {
-                        EffortSliderPreviewView()
-                    } label: {
-                        Label {
-                            Text("Ultracode Flame")
-                        } icon: {
-                            Image(systemName: "flame.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.orange, in: Circle())
-                        }
-                    }
-                }
+    // [Grok-1:1] Settings list rebuilt Grok-style: custom header (glass X +
+    // centered 17pt title), ScrollView + white 24pt cards, 50pt rows with
+    // 20pt Lucide line icons. Sections/rows are data-driven so the floating
+    // search pill can filter them. All destinations and deep-link behavior
+    // are unchanged from the old insetGrouped List.
+    private struct SettingsSectionData: Identifiable {
+        let id: String
+        let title: String // pre-localized
+        let rows: [GrokSettingsRowSpec]
     }
 
-    @ViewBuilder private var settingsListStageB: some View {
-                Section("Agent Runtime") {
-                    NavigationLink {
-                        SkillsManagementView()
-                    } label: {
-                        Label {
-                            Text("Skills")
-                        } icon: {
-                            Image(systemName: "puzzlepiece.extension")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.blue, in: Circle())
-                        }
-                    }
-                    NavigationLink {
-                        SoulSettingsView()
-                    } label: {
-                        Label {
-                            Text("Soul")
-                        } icon: {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.pink, in: Circle())
-                        }
-                    }
-                    NavigationLink {
-                        MemoryManagementView()
-                    } label: {
-                        Label {
-                            Text("Memory")
-                        } icon: {
-                            Image(systemName: "brain.head.profile")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.purple, in: Circle())
-                        }
-                    }
-                    NavigationLink {
-                        ConnectorsView()
-                    } label: {
-                        Label {
-                            Text("Connectors")
-                        } icon: {
-                            Image(systemName: "square.stack.3d.up")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.teal, in: Circle())
-                        }
-                    }
-                    NavigationLink {
-                        EnvironmentVariablesView()
-                    } label: {
-                        Label {
-                            Text("Environment Variables")
-                        } icon: {
-                            Image(systemName: "terminal")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.green, in: Circle())
-                        }
-                    }
-                    NavigationLink {
-                        SSHServersView()
-                    } label: {
-                        Label {
-                            Text(AppLocalized("SSH Devices"))
-                        } icon: {
-                            Image(systemName: "server.rack")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.mint, in: Circle())
-                        }
-                    }
-                }
-                Section("Storage") {
-                    NavigationLink {
-                        StorageManagementView()
-                    } label: {
-                        Label {
-                            Text("Storage")
-                        } icon: {
-                            Image(systemName: "archivebox")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.blue, in: Circle())
-                        }
-                    }
-                    NavigationLink {
-                        SharedFoldersSettingsView()
-                    } label: {
-                        Label {
-                            Text("Shared Folders")
-                        } icon: {
-                            Image(systemName: "folder.fill.badge.person.crop")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.green, in: Circle())
-                        }
-                    }
-                    NavigationLink {
-                        MountedFoldersSettingsView()
-                    } label: {
-                        Label {
-                            Text("Mount External Folders")
-                        } icon: {
-                            Image(systemName: "externaldrive.badge.plus")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.orange, in: Circle())
-                        }
-                    }
-                    if #available(iOS 17.0, *) {
-                        NavigationLink {
-                            // v2 is the default sync engine; legacy v1
-                            // settings page is unreachable from here.
-                            CloudSyncSettingsV2View()
-                        } label: {
-                            Label {
-                                Text("iCloud Sync")
-                            } icon: {
-                                Image(systemName: "icloud")
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 21, height: 21)
-                                    .background(.cyan, in: Circle())
-                            }
-                        }
-                    }
-                    NavigationLink {
-                        BackupAndRestoreView()
-                    } label: {
-                        Label {
-                            // Not just "Backup": this screen is both halves of
-                            // the feature, and on a new device restore is the
-                            // only one the user is looking for.
-                            Text("Backup & Restore")
-                        } icon: {
-                            // arrow.triangle.2.circlepath reads as a round trip
-                            // rather than a one-way export.
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.indigo, in: Circle())
-                        }
-                    }
-                }
+    @State private var settingsSearchText = ""
+    @State private var settingsKeyboardHeight: CGFloat = 0
+
+    private var biometryProtectionTitle: String {
+        let localizedName: String
+        switch BiometricAuth.biometryDisplayName {
+        case "Face ID": localizedName = AppLocalized("Face ID")
+        case "Touch ID": localizedName = AppLocalized("Touch ID")
+        default: localizedName = BiometricAuth.biometryDisplayName
+        }
+        return "\(localizedName) \(AppLocalized("Protection"))"
     }
 
-    @ViewBuilder private var settingsListStageC: some View {
-                Section("Permissions") {
-                    NavigationLink {
-                        OffloadPermissionSettingsView()
-                    } label: {
-                        Label {
-                            Text("Permissions")
-                        } icon: {
-                            Image(systemName: "lock.shield")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.red, in: Circle())
-                        }
-                    }
-                    if BiometricAuth.isAvailable {
-                        NavigationLink {
-                            FaceIDProtectionSettingsView()
-                        } label: {
-                            Label {
-                                Text("\(BiometricAuth.biometryDisplayName) Protection")
-                            } icon: {
-                                // Match SF Symbol to the device's actual sensor — Touch ID
-                                // devices showed a Face ID glyph here before.
-                                Image(systemName: BiometricAuth.biometryIconName)
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 21, height: 21)
-                                    .background(.teal, in: Circle())
-                            }
-                        }
-                    }
-                }
-                Section("Logs") {
-                    NavigationLink {
-                        LogManagementView()
-                    } label: {
-                        Label {
-                            Text("Logs")
-                        } icon: {
-                            Image(systemName: "doc.text")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.gray, in: Circle())
-                        }
-                    }
-                }
-                Section("About") {
-                    NavigationLink {
-                        AboutView()
-                    } label: {
-                        Label {
-                            Text("About Moonveil")
-                        } icon: {
-                            Image(systemName: "info")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.indigo, in: Circle())
-                        }
-                    }
-                    Link(destination: URL(string: "https://openminis.github.io/privacy-policy.html")!) {
-                        Label {
-                            Text("Privacy Policy")
-                        } icon: {
-                            Image(systemName: "hand.raised")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.teal, in: Circle())
-                        }
-                    }
-                    Button {
-                        showFeedbackDialog = true
-                    } label: {
-                        Label {
-                            Text("Feedback")
-                        } icon: {
-                            Image(systemName: "bubble.left.and.bubble.right.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.indigo, in: Circle())
-                        }
-                    }
-                    .foregroundStyle(.primary)
-                    .confirmationDialog("Feedback", isPresented: $showFeedbackDialog, titleVisibility: .visible) {
-                        Button("Report a Bug (GitHub)") {
-                            if let url = Self.makeBugReportURL() { UIApplication.shared.open(url) }
-                        }
-                        Button("Feedback (Telegram)") {
-                            if let url = URL(string: "https://t.me/+2NzhOJuzRyI1YmM1") { UIApplication.shared.open(url) }
-                        }
-                        Button("Feedback (Email)") {
-                            if let url = Self.makeFeedbackEmailURL() { UIApplication.shared.open(url) }
-                        }
-                        Button("Cancel", role: .cancel) {}
-                    }
-                }
+    private var settingsSections: [SettingsSectionData] {
+        var sections: [SettingsSectionData] = []
+
+        sections.append(SettingsSectionData(
+            id: "providers",
+            title: AppLocalized("LLM Providers"),
+            rows: [
+                GrokSettingsRowSpec(id: "providers.manage", title: AppLocalized("Manage Providers"), iconAsset: "aa-KeyRound",
+                                    kind: .navigate { AnyView(ProviderInstancesView()) }),
+                GrokSettingsRowSpec(id: "providers.groups", title: AppLocalized("Model Groups"), iconAsset: "aa-GitBranch",
+                                    kind: .navigate { AnyView(ModelGroupsView()) }),
+                GrokSettingsRowSpec(id: "providers.usage", title: AppLocalized("Token Usage"), iconAsset: "aa-Zap",
+                                    kind: .navigate { AnyView(UsageStatsView()) }),
+            ]
+        ))
+
+        sections.append(SettingsSectionData(
+            id: "appearance",
+            title: AppLocalized("Appearance"),
+            rows: [
+                GrokSettingsRowSpec(id: "appearance.main", title: AppLocalized("Appearance"), iconAsset: "aa-SunMoon",
+                                    kind: .navigate { AnyView(AppearanceSettingsView()) }),
+            ]
+        ))
+
+        sections.append(SettingsSectionData(
+            id: "preview",
+            title: AppLocalized("Preview"),
+            rows: [
+                GrokSettingsRowSpec(id: "preview.flame", title: AppLocalized("Ultracode Flame"), iconAsset: "aa-Eye",
+                                    kind: .navigate { AnyView(EffortSliderPreviewView()) }),
+            ]
+        ))
+
+        sections.append(SettingsSectionData(
+            id: "runtime",
+            title: AppLocalized("Agent Runtime"),
+            rows: [
+                GrokSettingsRowSpec(id: "runtime.skills", title: AppLocalized("Skills"), iconAsset: "aa-Puzzle",
+                                    kind: .navigate { AnyView(SkillsManagementView()) }),
+                GrokSettingsRowSpec(id: "runtime.soul", title: AppLocalized("Soul"), iconAsset: "aa-Sparkles",
+                                    kind: .navigate { AnyView(SoulSettingsView()) }),
+                GrokSettingsRowSpec(id: "runtime.memory", title: AppLocalized("Memory"), iconAsset: "aa-Bot",
+                                    kind: .navigate { AnyView(MemoryManagementView()) }),
+                GrokSettingsRowSpec(id: "runtime.connectors", title: AppLocalized("Connectors"), iconAsset: "aa-Blocks",
+                                    kind: .navigate { AnyView(ConnectorsView()) }),
+                GrokSettingsRowSpec(id: "runtime.env", title: AppLocalized("Environment Variables"), iconAsset: "aa-SquareTerminal",
+                                    kind: .navigate { AnyView(EnvironmentVariablesView()) }),
+                GrokSettingsRowSpec(id: "runtime.ssh", title: AppLocalized("SSH Devices"), iconAsset: "aa-Server",
+                                    kind: .navigate { AnyView(SSHServersView()) }),
+            ]
+        ))
+
+        var storageRows: [GrokSettingsRowSpec] = [
+            GrokSettingsRowSpec(id: "storage.main", title: AppLocalized("Storage"), iconAsset: "aa-Archive",
+                                kind: .navigate { AnyView(StorageManagementView()) }),
+            GrokSettingsRowSpec(id: "storage.shared", title: AppLocalized("Shared Folders"), iconAsset: "aa-Folder",
+                                kind: .navigate { AnyView(SharedFoldersSettingsView()) }),
+            GrokSettingsRowSpec(id: "storage.mount", title: AppLocalized("Mount External Folders"), iconAsset: "aa-FolderPlus",
+                                kind: .navigate { AnyView(MountedFoldersSettingsView()) }),
+        ]
+        if #available(iOS 17.0, *) {
+            // v2 is the default sync engine; legacy v1 settings page is
+            // unreachable from here.
+            storageRows.append(
+                GrokSettingsRowSpec(id: "storage.icloud", title: AppLocalized("iCloud Sync"), iconAsset: "aa-Cloud",
+                                    kind: .navigate { AnyView(CloudSyncSettingsV2View()) })
+            )
+        }
+        storageRows.append(
+            GrokSettingsRowSpec(id: "storage.backup", title: AppLocalized("Backup & Restore"), iconAsset: "aa-ArchiveRestore",
+                                kind: .navigate { AnyView(BackupAndRestoreView()) })
+        )
+        sections.append(SettingsSectionData(id: "storage", title: AppLocalized("Storage"), rows: storageRows))
+
+        var permissionRows: [GrokSettingsRowSpec] = [
+            GrokSettingsRowSpec(id: "permissions.main", title: AppLocalized("Permissions"), iconAsset: "aa-ShieldCheck",
+                                kind: .navigate { AnyView(OffloadPermissionSettingsView()) }),
+        ]
+        if BiometricAuth.isAvailable {
+            // Match the row icon to the device's actual sensor — Touch ID
+            // devices showed a Face ID glyph here before.
+            permissionRows.append(
+                GrokSettingsRowSpec(id: "permissions.biometry", title: biometryProtectionTitle, iconAsset: "aa-Lock",
+                                    kind: .navigate { AnyView(FaceIDProtectionSettingsView()) })
+            )
+        }
+        sections.append(SettingsSectionData(id: "permissions", title: AppLocalized("Permissions"), rows: permissionRows))
+
+        sections.append(SettingsSectionData(
+            id: "logs",
+            title: AppLocalized("Logs"),
+            rows: [
+                GrokSettingsRowSpec(id: "logs.main", title: AppLocalized("Logs"), iconAsset: "aa-FileText",
+                                    kind: .navigate { AnyView(LogManagementView()) }),
+            ]
+        ))
+
+        sections.append(SettingsSectionData(
+            id: "about",
+            title: AppLocalized("About"),
+            rows: [
+                GrokSettingsRowSpec(id: "about.moonveil", title: AppLocalized("About Moonveil"), iconAsset: "aa-Info",
+                                    kind: .navigate { AnyView(AboutView()) }),
+                GrokSettingsRowSpec(id: "about.privacy", title: AppLocalized("Privacy Policy"), iconAsset: "aa-Hand",
+                                    kind: .openURL(URL(string: "https://openminis.github.io/privacy-policy.html")!)),
+                GrokSettingsRowSpec(id: "about.feedback", title: AppLocalized("Feedback"), iconAsset: "aa-MessagesSquare",
+                                    kind: .action { showFeedbackDialog = true }),
+            ]
+        ))
+
+        return sections
+    }
+
+    private var filteredSettingsSections: [SettingsSectionData] {
+        let q = settingsSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return settingsSections }
+        return settingsSections.compactMap { section in
+            let rows = section.rows.filter { $0.title.localizedCaseInsensitiveContains(q) }
+            guard !rows.isEmpty else { return nil }
+            return SettingsSectionData(id: section.id, title: section.title, rows: rows)
+        }
     }
 
     var body: some View {
         NavigationStack(path: $navPath) {
-            List {
-                settingsListStageA
-                settingsListStageB
-                settingsListStageC
+            ZStack(alignment: .bottom) {
+                GrokSettingsStyle.pageBg.ignoresSafeArea()
+                VStack(spacing: 0) {
+                    // Custom header: glass X (leading) + centered 17pt title.
+                    ZStack {
+                        HStack {
+                            GrokSettingsCloseButton { dismiss() }
+                                .padding(.leading, 16)
+                            Spacer()
+                        }
+                        Text(AppLocalized("Settings"))
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.black)
+                    }
+                    .padding(.top, 10)
+                    .padding(.bottom, 8)
 
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            ForEach(filteredSettingsSections) { section in
+                                GrokSettingsSection(title: section.title, rows: section.rows)
+                            }
+                        }
+                        // Clear the floating search pill.
+                        .padding(.bottom, 110)
+                    }
+                    .scrollDismissesKeyboard(.interactively)
+                }
+                GrokSettingsSearchBar(text: $settingsSearchText)
+                    .padding(.bottom, 26.5 + settingsKeyboardHeight)
+                    .animation(.easeOut(duration: 0.25), value: settingsKeyboardHeight)
             }
-            .listStyle(.insetGrouped)
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            // [T-8bfix] SheetCloseToolbar IS a ToolbarContent — it was wrapped in
-            // a ToolbarItem View closure in 8b (never typechecked until now). The
-            // other 4 usages expand directly; unify (leading-X placement lives in
-            // the component, matching upstream chrome). Dismiss semantics unchanged.
-            .toolbar {
-                SheetCloseToolbar(action: { dismiss() })
-            }
+            // Custom header only: hide the system nav bar on the root so it
+            // never doubles the glass X (same fix as ConnectorsView 22bf18d).
+            // Pushed destinations keep their own system bars.
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: SettingsDestination.self) { dest in
                 switch dest {
                 case .providers:
@@ -7765,6 +7609,26 @@ struct SettingsSheet: View {
             }
             .onChange(of: deepLink.pendingSettingsTarget) { _ in
                 applyPendingDeepLink()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notif in
+                if let frame = notif.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                    settingsKeyboardHeight = frame.height
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                settingsKeyboardHeight = 0
+            }
+            .confirmationDialog("Feedback", isPresented: $showFeedbackDialog, titleVisibility: .visible) {
+                Button("Report a Bug (GitHub)") {
+                    if let url = Self.makeBugReportURL() { UIApplication.shared.open(url) }
+                }
+                Button("Feedback (Telegram)") {
+                    if let url = URL(string: "https://t.me/+2NzhOJuzRyI1YmM1") { UIApplication.shared.open(url) }
+                }
+                Button("Feedback (Email)") {
+                    if let url = Self.makeFeedbackEmailURL() { UIApplication.shared.open(url) }
+                }
+                Button("Cancel", role: .cancel) {}
             }
         }
         .preferredColorScheme(appearanceMode == 1 ? .light : appearanceMode == 2 ? .dark : nil)

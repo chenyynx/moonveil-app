@@ -614,6 +614,7 @@
 		F1VMCPB4 /* SessionMCPsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP04 /* SessionMCPsView.swift */; };
 		F1VMCPB5 /* ConnectorDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP05 /* ConnectorDetailSheet.swift */; };
 		F1VMCPB8 /* ConnectorGlassCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP08 /* ConnectorGlassCompat.swift */; };
+		F9775B730C1F2E57BEED3393 /* GrokSettingsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B80DC412F9DA113761E2225 /* GrokSettingsComponents.swift */; };
 		F1VMCPB6 /* CustomConnectorForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP06 /* CustomConnectorForm.swift */; };
 		F1VMCPB7 /* ConnectorsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP07 /* ConnectorsView.swift */; };
 		F1W00011 /* MinisShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1W00010 /* MinisShareSheet.swift */; };
@@ -1517,6 +1518,7 @@
 		F1VMCP04 /* SessionMCPsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionMCPsView.swift; sourceTree = "<group>"; };
 		F1VMCP05 /* ConnectorDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorDetailSheet.swift; sourceTree = "<group>"; };
 		F1VMCP08 /* ConnectorGlassCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorGlassCompat.swift; sourceTree = "<group>"; };
+		8B80DC412F9DA113761E2225 /* GrokSettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokSettingsComponents.swift; sourceTree = "<group>"; };
 		F1VMCP06 /* CustomConnectorForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomConnectorForm.swift; sourceTree = "<group>"; };
 		F1VMCP07 /* ConnectorsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorsView.swift; sourceTree = "<group>"; };
 		F1W00010 /* MinisShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinisShareSheet.swift; sourceTree = "<group>"; };
@@ -2888,6 +2890,7 @@
 				E5FIRE103 /* FireRenderer.swift */,
 				E5FIRE104 /* Shaders.metal */,
 				E5FIRE105 /* EffortSliderPreviewView.swift */,
+				8B80DC412F9DA113761E2225 /* GrokSettingsComponents.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -3972,6 +3975,7 @@
 				E5FIRE003 /* FireRenderer.swift in Sources */,
 				E5FIRE004 /* Shaders.metal in Sources */,
 				E5FIRE005 /* EffortSliderPreviewView.swift in Sources */,
+				F9775B730C1F2E57BEED3393 /* GrokSettingsComponents.swift in Sources */,
 				E5N0000042F3B941A00049557 /* MemoryManagementView.swift in Sources */,
 				E5N0000052F3B941A00049557 /* SessionMemoryView.swift in Sources */,
 				E5N0000062F3B941A00049557 /* AlarmListView.swift in Sources */,
