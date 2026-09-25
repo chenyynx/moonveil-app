@@ -285,7 +285,7 @@ extension ConnectorCatalog {
             // GitHub's OAuth endpoints are fixed and well-known.
             var cfg = MCPOAuthConfig()
             cfg.mode = "static"
-            cfg.clientId = "Ov23liTiQBZ9hlS9T9fl"
+            cfg.clientId = "Ov23lijLYa8wR0dMuWtg"
             cfg.authorizationEndpoint = "https://github.com/login/oauth/authorize"
             cfg.tokenEndpoint = "https://github.com/login/oauth/access_token"
             cfg.scopes = "repo read:org"
