@@ -90,6 +90,7 @@ struct ConnectorsView: View {
         }
         .navigationTitle(AppLocalized("Connectors"))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
     }
 
     // MARK: - Groups

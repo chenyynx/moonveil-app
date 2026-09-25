@@ -85,8 +85,22 @@ struct ConnectorDetailSheet: View {
         }
         .presentationDetents([.fraction(0.62), .large])
         .presentationCornerRadius(36)
-        .presentationBackground(connector.tintColor)
+        .presentationBackground(sheetBackground)
         .presentationDragIndicator(.hidden)
+    }
+
+    /// Grok-style sheet background: connector tint at the top fading to the
+    /// neutral canvas. Native LinearGradient as the presentation background.
+    private var sheetBackground: some View {
+        LinearGradient(
+            gradient: Gradient(stops: [
+                .init(color: connector.tintColor, location: 0),
+                .init(color: connector.tintColor.opacity(0.4), location: 0.35),
+                .init(color: ConnectorPalette.canvas, location: 0.65),
+            ]),
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 
     // MARK: - Header (grabber + liquid-glass close, no band — matches Grok)
