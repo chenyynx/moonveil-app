@@ -85,29 +85,6 @@ struct ConnectorDefinition: Identifiable, Hashable {
         return nil
     }
 
-    /// OAuth providers need a client id registered in OUR developer app
-    /// (Google/Microsoft/Slack consoles — free, but per-app and must be
-    /// embedded at build time). Returns the configured id or nil when the
-    /// provider isn't wired up yet; nil ⇒ connect() shows "not configured".
-    static func registeredOAuthClient(provider: String) -> MCPOAuthConfig? {
-        switch provider {
-        case "github":
-            // GitHub OAuth App (registered 2026-09-26, callback
-            // moonveil://oauth/callback). Public-client style: no secret.
-            // GitHub's OAuth endpoints are fixed and well-known.
-            var cfg = MCPOAuthConfig()
-            cfg.mode = "static"
-            cfg.clientId = "Ov23liTiQBZ9hlS9T9fl"
-            cfg.authorizationEndpoint = "https://github.com/login/oauth/authorize"
-            cfg.tokenEndpoint = "https://github.com/login/oauth/access_token"
-            cfg.scopes = "repo read:org"
-            cfg.redirectURI = "moonveil://oauth/callback"
-            return cfg
-        default:
-            // Google/Microsoft/Slack — pending app registration.
-            return nil
-        }
-    }
 }
 
 // MARK: - Color hex helper
@@ -292,3 +269,32 @@ enum ConnectorCatalog {
         return store.servers.first { $0.id == def.serverId }
     }
 }
+
+// MARK: - OAuth client registry
+
+extension ConnectorCatalog {
+    /// OAuth providers need a client id registered in OUR developer app
+    /// (Google/Microsoft/Slack consoles — free, but per-app and must be
+    /// embedded at build time). Returns the configured id or nil when the
+    /// provider isn't wired up yet; nil ⇒ connect() shows "not configured".
+    static func registeredOAuthClient(provider: String) -> MCPOAuthConfig? {
+        switch provider {
+        case "github":
+            // GitHub OAuth App (registered 2026-09-26, callback
+            // moonveil://oauth/callback). Public-client style: no secret.
+            // GitHub's OAuth endpoints are fixed and well-known.
+            var cfg = MCPOAuthConfig()
+            cfg.mode = "static"
+            cfg.clientId = "Ov23liTiQBZ9hlS9T9fl"
+            cfg.authorizationEndpoint = "https://github.com/login/oauth/authorize"
+            cfg.tokenEndpoint = "https://github.com/login/oauth/access_token"
+            cfg.scopes = "repo read:org"
+            cfg.redirectURI = "moonveil://oauth/callback"
+            return cfg
+        default:
+            // Google/Microsoft/Slack — pending app registration.
+            return nil
+        }
+    }
+}
+
