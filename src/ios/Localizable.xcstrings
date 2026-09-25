@@ -107655,6 +107655,22 @@
           }
         }
       }
+    },
+    "SSH Servers": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH Devices"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 设备"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
