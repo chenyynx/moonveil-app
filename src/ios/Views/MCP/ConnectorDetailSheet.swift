@@ -126,21 +126,9 @@ struct ConnectorDetailSheet: View {
     private var hero: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 20.5, style: .continuous)
-                .fill(Color.white)
                 .frame(width: 100, height: 100)
+                .modifier(GlassRoundedRectIfAvailable(cornerRadius: 20.5, tintOpacity: 0.7))
                 .shadow(color: .black.opacity(0.1), radius: 24, x: 0, y: 10)
-                .overlay(
-                    // Whisper of top inner highlight so the white isn't dead flat.
-                    RoundedRectangle(cornerRadius: 20.5, style: .continuous)
-                        .stroke(Color.white.opacity(0.9), lineWidth: 1)
-                        .mask(
-                            LinearGradient(
-                                gradient: Gradient(colors: [.white, .clear]),
-                                startPoint: .top,
-                                endPoint: .center
-                            )
-                        )
-                )
             connectorLogo
         }
     }

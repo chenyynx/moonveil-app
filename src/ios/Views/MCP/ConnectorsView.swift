@@ -211,8 +211,7 @@ private struct ConnectorRowView: View {
             }
         }
         .frame(width: ConnectorMetrics.well, height: ConnectorMetrics.well)
-        .background(ConnectorPalette.iconWell)
-        .clipShape(RoundedRectangle(cornerRadius: ConnectorMetrics.wellCorner, style: .continuous))
+        .modifier(GlassRoundedRectIfAvailable(cornerRadius: ConnectorMetrics.wellCorner, tintOpacity: 0.55))
     }
 
     @ViewBuilder private var trailing: some View {

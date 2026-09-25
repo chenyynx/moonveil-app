@@ -24,3 +24,19 @@ struct GlassCapsuleButtonIfAvailable: ViewModifier {
         }
     }
 }
+
+/// Liquid glass in a continuous-corner rounded rectangle (icon wells, hero).
+/// Falls back to the same translucent white fill pre-iOS 26.
+struct GlassRoundedRectIfAvailable: ViewModifier {
+    var cornerRadius: CGFloat
+    var tintOpacity: Double = 0.6
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular.tint(.white.opacity(tintOpacity)).interactive(), in: shape)
+        } else {
+            content.background(shape.fill(Color.white.opacity(tintOpacity)))
+        }
+    }
+}
