@@ -185,11 +185,12 @@ private struct ConnectorRowView: View {
         switch state {
         case .unconnected:
             // Grok's connect pill: 48×26 capsule, #EAEAEA fill, 11pt black
-            // label (measured from the reference screenshots). Display only —
-            // the whole row behind it is the button, so no nested Button.
+            // label (measured from the reference screenshots). The pill keeps
+            // its light look in dark mode (like Apple's own tinted capsules);
+            // display only — the whole row behind it is the button.
             Text(AppLocalized("Connect"))
                 .font(.system(size: 11))
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color(red: 0.1, green: 0.1, blue: 0.12))
                 .frame(width: ConnectorMetrics.pillWidth, height: ConnectorMetrics.pillHeight)
                 .background(ConnectorPalette.pill, in: Capsule())
         case .connected:
@@ -218,15 +219,33 @@ private enum ConnectorMetrics {
 }
 
 enum ConnectorPalette {
-    static let canvas = Color(red: 0xF5 / 255, green: 0xF5 / 255, blue: 0xF5 / 255)
-    static let card = Color.white
-    static let groupTitle = Color(red: 0x7E / 255, green: 0x7D / 255, blue: 0x82 / 255)
-    static let divider = Color(red: 0xC6 / 255, green: 0xC6 / 255, blue: 0xC6 / 255)
-    static let iconWell = Color(red: 0xEB / 255, green: 0xEB / 255, blue: 0xEB / 255)
-    static let pill = Color(red: 0xEA / 255, green: 0xEA / 255, blue: 0xEA / 255)
-    static let chevron = Color(red: 0xC7 / 255, green: 0xC7 / 255, blue: 0xC9 / 255)
+    /// Light values are the Grok-measured hexes; dark counterparts keep the
+    /// same hierarchy on the dark canvas (system-style adaptation).
+    static let canvas = dynamic(0xF5, 0xF5, 0xF5, dark: 0x0B, 0x0B, 0x0C)
+    static let card = dynamic(0xFF, 0xFF, 0xFF, dark: 0x1C, 0x1C, 0x1E)
+    static let groupTitle = dynamic(0x7E, 0x7D, 0x82, dark: 0x98, 0x98, 0x9E)
+    static let divider = dynamic(0xC6, 0xC6, 0xC6, dark: 0x38, 0x38, 0x3C)
+    static let iconWell = dynamic(0xEB, 0xEB, 0xEB, dark: 0x2C, 0x2C, 0x2E)
+    static let pill = dynamic(0xEA, 0xEA, 0xEA, dark: 0x2C, 0x2C, 0x2E)
+    static let chevron = dynamic(0xC7, 0xC7, 0xC9, dark: 0x48, 0x48, 0x4E)
     static let warning = Color(red: 0xE0 / 255, green: 0x32 / 255, blue: 0x37 / 255)
-    static let placeholderGlyph = Color(red: 0x8E / 255, green: 0x8E / 255, blue: 0x93 / 255)
+    static let placeholderGlyph = dynamic(0x8E, 0x8E, 0x93, dark: 0x98, 0x98, 0x9E)
+    /// Detail-sheet surfaces: hero tile / close key / info cards stay white in
+    /// light (Grok look), lift to elevated dark grays in dark mode.
+    static let sheetSurface = dynamic(0xFF, 0xFF, 0xFF, dark: 0x1C, 0x1C, 0x1E)
+    static let sheetSecondaryText = dynamic(0x8E, 0x8E, 0x93, dark: 0x98, 0x98, 0x9E)
+    static let sheetHairline = dynamic(0xC7, 0xC7, 0xC9, dark: 0x38, 0x38, 0x3C)
+    static let sheetCloseFill = dynamic(0xFF, 0xFF, 0xFF, dark: 0x2C, 0x2C, 0x2E)
+
+    /// UIColor trait-aware color: same hue family, tuned dark variants.
+    private static func dynamic(_ lr: UInt8, _ lg: UInt8, _ lb: UInt8,
+                                dark dr: UInt8, _ dg: UInt8, _ db: UInt8) -> Color {
+        Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark
+                ? UIColor(red: CGFloat(dr) / 255, green: CGFloat(dg) / 255, blue: CGFloat(db) / 255, alpha: 1)
+                : UIColor(red: CGFloat(lr) / 255, green: CGFloat(lg) / 255, blue: CGFloat(lb) / 255, alpha: 1)
+        })
+    }
 }
 
 // MARK: - Logo availability

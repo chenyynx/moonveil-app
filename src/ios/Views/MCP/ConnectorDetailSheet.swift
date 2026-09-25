@@ -30,6 +30,7 @@ struct ConnectorDetailSheet: View {
     var needsReauth: Bool = false
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var store = MCPStore.shared
 
     @State private var errorMessage: String?
@@ -62,6 +63,7 @@ struct ConnectorDetailSheet: View {
                 startRadius: 60,
                 endRadius: 420
             )
+            .opacity(colorScheme == .dark ? 0.12 : 1)
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -87,7 +89,7 @@ struct ConnectorDetailSheet: View {
 
                         Text(dynamicLocalized(connector.permissionTextKey))
                             .font(.system(size: 12))
-                            .foregroundColor(Color(red: 0.55, green: 0.55, blue: 0.57))
+                            .foregroundColor(ConnectorPalette.sheetSecondaryText)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.leading, 33)
                             .padding(.trailing, 24)
@@ -95,7 +97,7 @@ struct ConnectorDetailSheet: View {
 
                         Text(AppLocalized("About This Connector"))
                             .font(.system(size: 13))
-                            .foregroundColor(Color(red: 0.494, green: 0.49, blue: 0.51))
+                            .foregroundColor(ConnectorPalette.sheetSecondaryText)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.leading, 33)
                             .padding(.top, 20)
@@ -141,6 +143,19 @@ struct ConnectorDetailSheet: View {
     /// over the connector logo (see ConnectorCatalog.brandTint), cached.
     private var sheetBackground: LinearGradient {
         let tint = ConnectorCatalog.brandTint(for: connector.id)
+        if colorScheme == .dark {
+            // Dark: brand tint still leads, but pulled way down — canvas
+            // takes over sooner so text-bearing surfaces read on it.
+            return LinearGradient(
+                gradient: Gradient(stops: [
+                    .init(color: tint.opacity(0.35), location: 0),
+                    .init(color: tint.opacity(0.12), location: 0.22),
+                    .init(color: ConnectorPalette.canvas, location: 0.45),
+                ]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
         return LinearGradient(
             gradient: Gradient(stops: [
                 .init(color: tint, location: 0),
@@ -156,9 +171,9 @@ struct ConnectorDetailSheet: View {
 
     private var header: some View {
         ZStack(alignment: .top) {
-            // Grabber 35x5 #7D7D7F, centered
+            // Grabber 35x5, centered — neutral in both modes.
             RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color(red: 0.49, green: 0.49, blue: 0.498))
+                .fill(Color.primary.opacity(0.4))
                 .frame(width: 35, height: 5)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 8)
@@ -168,7 +183,7 @@ struct ConnectorDetailSheet: View {
                 Button(action: { dismiss() }) {
                     ZStack {
                         Circle()
-                            .fill(.white)
+                            .fill(ConnectorPalette.sheetCloseFill)
                             .frame(width: 44, height: 44)
                             .modifier(GlassCircleButtonIfAvailable())
                         Image(systemName: "xmark")
@@ -191,10 +206,10 @@ struct ConnectorDetailSheet: View {
     private var hero: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(.white)
+                .fill(ConnectorPalette.sheetSurface)
                 .frame(width: 100, height: 100)
                 .modifier(GlassRoundedRectIfAvailable(cornerRadius: 24, tintOpacity: 0.7))
-                .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: 10)
+                .shadow(color: .black.opacity(colorScheme == .dark ? 0.5 : 0.12), radius: 24, x: 0, y: 10)
             connectorLogo
         }
     }
@@ -210,7 +225,7 @@ struct ConnectorDetailSheet: View {
             // Asset not bundled yet — neutral placeholder until logos land.
             Image(systemName: "app.dashed")
                 .font(.system(size: 40, weight: .light))
-                .foregroundColor(Color(red: 0.56, green: 0.56, blue: 0.58))
+                .foregroundColor(ConnectorPalette.sheetSecondaryText)
                 .frame(width: 56, height: 56)
         }
     }
@@ -264,7 +279,7 @@ struct ConnectorDetailSheet: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 20, height: 20)
-                        .foregroundColor(Color(red: 0.537, green: 0.537, blue: 0.553))
+                        .foregroundColor(ConnectorPalette.sheetSecondaryText)
                         .padding(.top, 2)
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -273,7 +288,7 @@ struct ConnectorDetailSheet: View {
                             .foregroundColor(.primary)
                         Text(dynamicLocalized(item.descriptionKey))
                             .font(.system(size: 13))
-                            .foregroundColor(Color(red: 0.557, green: 0.557, blue: 0.576))
+                            .foregroundColor(ConnectorPalette.sheetSecondaryText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
@@ -283,14 +298,14 @@ struct ConnectorDetailSheet: View {
 
                 if index < connector.aboutItems.count - 1 {
                     Divider()
-                        .background(Color(red: 0.78, green: 0.78, blue: 0.79))
+                        .background(ConnectorPalette.sheetHairline)
                         .padding(.leading, 48)
                 }
             }
         }
-        .background(Color.white)
+        .background(ConnectorPalette.sheetSurface)
         .clipShape(RoundedRectangle(cornerRadius: 24))
-        .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 4)
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.06), radius: 12, x: 0, y: 4)
     }
 
     /// Lucide asset name for the about-item icon (aa- prefix, template rendering).
@@ -318,7 +333,7 @@ struct ConnectorDetailSheet: View {
                     .foregroundColor(.primary)
                 Text(AppLocalized("connector.reauth.subtitle"))
                     .font(.system(size: 13))
-                    .foregroundColor(Color(red: 0.557, green: 0.557, blue: 0.576))
+                    .foregroundColor(ConnectorPalette.sheetSecondaryText)
             }
             Spacer(minLength: 8)
             Button(action: reauth) {
@@ -332,9 +347,9 @@ struct ConnectorDetailSheet: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color.white)
+        .background(ConnectorPalette.sheetSurface)
         .clipShape(RoundedRectangle(cornerRadius: 24))
-        .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 4)
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.06), radius: 12, x: 0, y: 4)
     }
 
     // MARK: - Tools chip list
@@ -343,7 +358,7 @@ struct ConnectorDetailSheet: View {
         Group {
             Text(AppLocalized("connector.tools.header"))
                 .font(.system(size: 13))
-                .foregroundColor(Color(red: 0.494, green: 0.49, blue: 0.51))
+                .foregroundColor(ConnectorPalette.sheetSecondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.leading, 33)
                 .padding(.top, 26)
