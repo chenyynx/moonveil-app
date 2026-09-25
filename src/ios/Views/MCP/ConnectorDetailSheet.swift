@@ -373,15 +373,8 @@ struct ConnectorDetailSheet: View {
     /// configured; otherwise an honest "not configured" alert — never a
     /// fake connected state.
     private func connect() {
-        // 1) PAT connector with a real remote endpoint → collect the token.
-        if case .pat = connector.authType, let endpoint = connector.remoteMCPURL {
-            patPrompt = PATPrompt(
-                title: AppLocalized("connector.pat.prompt.github"),
-                endpoint: endpoint
-            )
-            return
-        }
-        // 2) OAuth connector → real flow when configured, honest alert when not.
+        // 1) OAuth-first when a client is registered (GitHub live);
+        //    PAT stays as fallback via the reauth card path.
         if case .oauth(let provider) = connector.authType {
             if let oauth = ConnectorCatalog.registeredOAuthClient(provider: provider) {
                 Task { await oauthConnect(oauth: oauth) }
@@ -389,6 +382,14 @@ struct ConnectorDetailSheet: View {
                 notConfiguredProvider = provider
                 showNotConfigured = true
             }
+            return
+        }
+        // 2) PAT connector with a real remote endpoint → collect the token.
+        if case .pat = connector.authType, let endpoint = connector.remoteMCPURL {
+            patPrompt = PATPrompt(
+                title: AppLocalized("connector.pat.prompt.github"),
+                endpoint: endpoint
+            )
             return
         }
         // 3) Anything else (shouldn't happen in the catalog) — plain register.
@@ -409,7 +410,11 @@ struct ConnectorDetailSheet: View {
             var cfg = MCPServerConfig(id: connector.serverId, enabled: true)
             cfg.note = connector.id
             cfg.oauth = oauth
+            // Remote MCP endpoint — the daemon uses the OAuth token for it.
+            if let endpoint = connector.remoteMCPURL { cfg.url = endpoint }
             store.add(cfg)
+            // Real handshake + tools/list via the in-guest daemon.
+            _ = try? await store.refreshTools(server: connector.serverId)
         } catch {
             await MainActor.run {
                 errorMessage = error.localizedDescription

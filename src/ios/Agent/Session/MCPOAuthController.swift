@@ -372,6 +372,9 @@ final class MCPOAuthController: NSObject, ObservableObject {
         var req = URLRequest(url: URL(string: oauth.tokenEndpoint)!)
         req.httpMethod = "POST"
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        // GitHub's token endpoint returns form-encoded unless JSON is
+        // explicitly requested; other providers ignore the header.
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
         req.httpBody = form.map { "\($0.key)=\(Self.formEncode($0.value))" }
             .joined(separator: "&").data(using: .utf8)
         let (data, resp) = try await URLSession.shared.data(for: req)

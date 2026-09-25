@@ -80,12 +80,9 @@ struct ConnectorDefinition: Identifiable, Hashable {
     /// the provider hosts one. GitHub's official remote server authenticates
     /// with a PAT header — no OAuth app registration needed.
     var remoteMCPURL: String? {
-        switch authType {
-        case .pat where id == "github":
-            return "https://api.githubcopilot.com/mcp/"
-        default:
-            return nil
-        }
+        // GitHub's official remote MCP server (PAT header or OAuth token).
+        if id == "github" { return "https://api.githubcopilot.com/mcp/" }
+        return nil
     }
 
     /// OAuth providers need a client id registered in OUR developer app
@@ -93,10 +90,23 @@ struct ConnectorDefinition: Identifiable, Hashable {
     /// embedded at build time). Returns the configured id or nil when the
     /// provider isn't wired up yet; nil ⇒ connect() shows "not configured".
     static func registeredOAuthClient(provider: String) -> MCPOAuthConfig? {
-        // Placeholder injection point: fill from build settings / remote
-        // config once the developer apps are registered. Until then every
-        // OAuth provider is honestly disabled.
-        return nil
+        switch provider {
+        case "github":
+            // GitHub OAuth App (registered 2026-09-26, callback
+            // moonveil://oauth/callback). Public-client style: no secret.
+            // GitHub's OAuth endpoints are fixed and well-known.
+            var cfg = MCPOAuthConfig()
+            cfg.mode = "static"
+            cfg.clientId = "Ov23liTiQBZ9hlS9T9fl"
+            cfg.authorizationEndpoint = "https://github.com/login/oauth/authorize"
+            cfg.tokenEndpoint = "https://github.com/login/oauth/access_token"
+            cfg.scopes = "repo read:org"
+            cfg.redirectURI = "moonveil://oauth/callback"
+            return cfg
+        default:
+            // Google/Microsoft/Slack — pending app registration.
+            return nil
+        }
     }
 }
 
@@ -130,7 +140,7 @@ enum ConnectorCatalog {
             nameKey: "connector.name.github",
             logoAssetName: "logo-github",
             tintColorHex: "#D9DCE0",
-            authType: .pat,
+            authType: .oauth(provider: "github"),
             permissionTextKey: "connector.permission.github",
             aboutItems: [
                 ConnectorAboutItem(iconName: "folder", titleKey: "connector.about.github.files.title", descriptionKey: "connector.about.github.files.desc"),
