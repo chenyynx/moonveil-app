@@ -222,7 +222,7 @@ private struct ConnectorRowView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.black)
                     .frame(width: ConnectorMetrics.pillWidth, height: ConnectorMetrics.pillHeight)
-                    .background(ConnectorPalette.pill, in: Capsule())
+                    .modifier(GlassCapsuleButtonIfAvailable())
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
