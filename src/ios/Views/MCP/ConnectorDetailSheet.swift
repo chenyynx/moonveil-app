@@ -41,20 +41,6 @@ struct ConnectorDetailSheet: View {
     @State private var notConfiguredProvider: String = ""
     @State private var showNotConfigured: Bool = false
 
-    /// Live link status — the REAL handshake outcome (guest CLI does
-    /// initialize + tools/list), not just "a config row exists". Idle
-    /// until checked; auto-verifies on open when connected.
-    private enum LinkState {
-        case idle
-        case checking
-        case linked(Int)        // handshake OK — N tools
-        case failed(String)     // handshake failed — surface the error
-    }
-    @State private var linkState: LinkState = .idle
-    /// Tools returned by the last successful handshake; falls back to the
-    /// catalog's static preview list before the first check.
-    @State private var liveTools: [MCPStore.MCPToolInfo] = []
-
     /// Parameters for the PAT collection sheet.
     struct PATPrompt: Identifiable {
         let id = UUID()
@@ -95,8 +81,6 @@ struct ConnectorDetailSheet: View {
                         ctaButton
                             .padding(.top, 22)
 
-                        linkStatus
-
                         if needsReauth {
                             reauthCard
                                 .padding(.horizontal, 16)
@@ -121,9 +105,9 @@ struct ConnectorDetailSheet: View {
                         infoCard
                             .padding(.horizontal, 16)
                             .padding(.top, 8)
-                            .padding(.bottom, displayedToolNames.isEmpty ? 40 : 0)
+                            .padding(.bottom, connector.toolNames.isEmpty ? 40 : 0)
 
-                        if !displayedToolNames.isEmpty {
+                        if !connector.toolNames.isEmpty {
                             toolsSection
                         }
                     }
@@ -142,13 +126,6 @@ struct ConnectorDetailSheet: View {
         .presentationCornerRadius(36)
         .presentationBackground(sheetBackground)
         .presentationDragIndicator(.hidden)
-        // Opening an already-linked connector → verify the real link right
-        // away so the status line reflects the remote, not just the config.
-        .task {
-            if isConnected, case .idle = linkState {
-                await verifyLink()
-            }
-        }
         .sheet(item: $patPrompt) { prompt in
             PATEntrySheet(prompt: prompt) { pat in
                 connectWithPAT(pat)
@@ -292,85 +269,6 @@ struct ConnectorDetailSheet: View {
         }
     }
 
-    // MARK: - Link status (real handshake state under the CTA)
-
-    @ViewBuilder private var linkStatus: some View {
-        switch linkState {
-        case .idle:
-            EmptyView()
-        case .checking:
-            HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                Text(AppLocalized("Reconnecting and fetching tools…"))
-                    .font(.system(size: 12))
-                    .foregroundColor(ConnectorPalette.sheetSecondaryText)
-            }
-            .padding(.top, 14)
-        case .linked(let toolCount):
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 13))
-                    .foregroundColor(.green)
-                Text(AppLocalized("Connected"))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.primary)
-                if toolCount > 0 {
-                    Text(String(format: AppLocalized("connector.status.toolcount"), toolCount))
-                        .font(.system(size: 13))
-                        .foregroundColor(ConnectorPalette.sheetSecondaryText)
-                }
-            }
-            .padding(.top, 14)
-        case .failed(let message):
-            VStack(spacing: 10) {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: 13))
-                        .foregroundColor(ConnectorPalette.warning)
-                    Text(AppLocalized("Connection failed"))
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.primary)
-                }
-                if !message.isEmpty {
-                    Text(message)
-                        .font(.system(size: 11))
-                        .foregroundColor(ConnectorPalette.sheetSecondaryText)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                }
-                Button(action: { Task { await verifyLink() } }) {
-                    Text(AppLocalized("Retry"))
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .frame(height: 28)
-                        .background(Color.black, in: Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.top, 14)
-            .frame(maxWidth: .infinity)
-        }
-    }
-
-    /// Real handshake check: force-reconnect + tools/list via the guest
-    /// CLI. Mirrors the honest-state rule — a config row alone is never
-    /// reported as "linked" until the remote actually answers.
-    @MainActor
-    private func verifyLink() async {
-        linkState = .checking
-        do {
-            let tools = try await store.refreshTools(server: connector.serverId)
-            liveTools = tools
-            linkState = .linked(tools.count)
-        } catch {
-            // kernel-not-booted / CLI failure / unreachable endpoint —
-            // all shown as an explicit failed state with retry.
-            linkState = .failed(error.localizedDescription)
-        }
-    }
-
     // MARK: - About card
 
     private var infoCard: some View {
@@ -456,12 +354,6 @@ struct ConnectorDetailSheet: View {
 
     // MARK: - Tools chip list
 
-    /// Real handshake tools once verified; the catalog's static list is
-    /// only the pre-connection preview.
-    private var displayedToolNames: [String] {
-        liveTools.isEmpty ? connector.toolNames : liveTools.map(\.name)
-    }
-
     private var toolsSection: some View {
         Group {
             Text(AppLocalized("connector.tools.header"))
@@ -472,7 +364,7 @@ struct ConnectorDetailSheet: View {
                 .padding(.top, 26)
 
             ToolChipFlow(spacing: 8) {
-                ForEach(displayedToolNames, id: \.self) { name in
+                ForEach(connector.toolNames, id: \.self) { name in
                     Text(name)
                         .font(.system(size: 13))
                         .foregroundColor(.primary)
@@ -536,9 +428,8 @@ struct ConnectorDetailSheet: View {
             // Remote MCP endpoint — the daemon uses the OAuth token for it.
             if let endpoint = connector.remoteMCPURL { cfg.url = endpoint }
             store.add(cfg)
-            // Real handshake + tools/list via the in-guest daemon — the
-            // status line below the CTA reports its actual outcome.
-            await verifyLink()
+            // Real handshake + tools/list via the in-guest daemon.
+            _ = try? await store.refreshTools(server: connector.serverId)
         } catch {
             await MainActor.run {
                 errorMessage = error.localizedDescription
@@ -555,10 +446,9 @@ struct ConnectorDetailSheet: View {
         cfg.url = endpoint
         cfg.headers = ["Authorization": "Bearer \(pat)"]
         store.add(cfg)
-        // Fire the real handshake + tools/list in the guest daemon; the
-        // status line shows whether the remote actually answered.
+        // Fire the real handshake + tools/list in the guest daemon.
         Task {
-            await verifyLink()
+            _ = try? await store.refreshTools(server: connector.serverId)
         }
     }
 
