@@ -66,7 +66,7 @@ struct SSHServersView: View {
                             advancedContent
                         },
                         label: {
-                            Label(AppLocalized("Advanced: Keys & Trust Records"), systemImage: "gearshape.2")
+                            Label(AppLocalized("Advanced: Keys & Trust Records"), systemImage: "key.fill")
                                 .font(.body)
                         }
                     )
@@ -283,8 +283,10 @@ struct SSHServersView: View {
     private func serverRow(_ server: SSHServerEntry) -> some View {
         HStack(spacing: 12) {
             let state = store.testStates[server.alias]
+            let statusColor: Color = state == nil ? .gray : (state! ? .green : .red)
+            let statusText: String = state == nil ? AppLocalized("Not tested") : (state! ? AppLocalized("Connected") : AppLocalized("Connection failed"))
             Circle()
-                .fill(state == nil ? Color.gray : (state! ? Color.green : Color.red))
+                .fill(statusColor)
                 .frame(width: 8, height: 8)
             VStack(alignment: .leading, spacing: 3) {
                 Text(server.alias)
@@ -302,6 +304,9 @@ struct SSHServersView: View {
                 }
             }
             Spacer()
+            Text(statusText)
+                .font(.caption)
+                .foregroundStyle(statusColor)
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
@@ -325,7 +330,7 @@ struct SSHServersView: View {
                         .foregroundStyle(.blue)
                     let refCount = store.servers.filter { $0.identityFileName == key.name }.count
                     if refCount > 0 {
-                        Text(String(format: AppLocalized("%@ referenced"), refCount))
+                        Text(String(format: AppLocalized("%@ referenced"), refCount as NSNumber))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -381,12 +386,11 @@ private struct SSHAddServerSheet: View {
     @StateObject private var store = SSHConfigStore.shared
     @Environment(\.dismiss) private var dismiss
     @State private var hostname = ""
-    @State private var port = "22"
+    @State private var port = ""
     @State private var user = ""
     @State private var authMode = "password"
     @State private var identityFileName: String?
     @State private var password = ""
-    @State private var alias = ""
     @State private var note = ""
     @State private var isSettingUp = false
     @State private var setupResult: SSHTestResult?
@@ -399,26 +403,19 @@ private struct SSHAddServerSheet: View {
     private var isValid: Bool {
         !hostname.trimmingCharacters(in: .whitespaces).isEmpty &&
         !user.trimmingCharacters(in: .whitespaces).isEmpty &&
-        Int(port) != nil &&
+        (port.isEmpty || Int(port) != nil) &&
         (authMode == "key" ? identityFileName != nil || currentKeys.isEmpty : true)
     }
 
     private var effectiveAlias: String {
-        let trimmed = alias.trimmingCharacters(in: .whitespaces)
-        if !trimmed.isEmpty { return trimmed }
-        return SSHConfigStore.generateAlias(from: hostname, existing: currentServers)
+        SSHConfigStore.generateAlias(from: hostname, existing: currentServers)
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section(AppLocalized("Connection")) {
-                    TextField(AppLocalized("Alias"), text: $alias, prompt: Text(AppLocalized("Leave empty to auto-generate")))
-                        .font(.system(.body, design: .monospaced))
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-
-                    TextField(AppLocalized("Hostname"), text: $hostname)
+                    TextField(AppLocalized("IP or Domain"), text: $hostname)
                         .font(.system(.body, design: .monospaced))
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
@@ -428,7 +425,7 @@ private struct SSHAddServerSheet: View {
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
 
-                    TextField(AppLocalized("Port"), text: $port)
+                    TextField(AppLocalized("Port"), text: $port, prompt: Text(AppLocalized("Default 22")))
                         .font(.system(.body, design: .monospaced))
                         .keyboardType(.numberPad)
                 }
@@ -616,7 +613,7 @@ private struct SSHServerDetailSheet: View {
                         .font(.system(.body, design: .monospaced))
                         .autocorrectionDisabled()
 
-                    TextField(AppLocalized("Hostname"), text: $hostname)
+                    TextField(AppLocalized("IP or Domain"), text: $hostname)
                         .font(.system(.body, design: .monospaced))
                         .autocorrectionDisabled()
 

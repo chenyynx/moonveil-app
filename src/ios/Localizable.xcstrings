@@ -24978,6 +24978,23 @@
         }
       }
     },
+    "Default 22": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default 22"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认 22"
+          }
+        }
+      }
+    },
     "Dark": {
       "localizations": {
         "de": {
@@ -40581,6 +40598,23 @@
         }
       }
     },
+    "IP or Domain": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IP or Domain"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IP或域名"
+          }
+        }
+      }
+    },
     "Image Generation": {
       "localizations": {
         "de": {
@@ -54343,6 +54377,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "新對話"
+          }
+        }
+      }
+    },
+    "Not tested": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not tested"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未测试"
           }
         }
       }
@@ -78770,23 +78821,6 @@
         }
       }
     },
-    "Hostname": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hostname"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "主机名"
-          }
-        }
-      }
-    },
     "Username": {
       "extractionState": "manual",
       "localizations": {
@@ -78868,23 +78902,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "测试"
-          }
-        }
-      }
-    },
-    "Leave empty to auto-generate": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leave empty to auto-generate"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "留空自动生成"
           }
         }
       }
