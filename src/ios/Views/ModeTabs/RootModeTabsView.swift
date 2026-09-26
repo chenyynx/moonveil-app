@@ -103,6 +103,11 @@ struct RootModeTabsView: View {
                 // 新会话信号，不切页；a11y 朗读的是 tabLabel 的 "New Chat"。
                 Tab(value: mode, role: mode == .compose ? .search : nil) {
                     tabContent(mode)
+                        // [FIX-tab-zoom] iOS 26 TabView 切 tab 自带缩放过渡
+                        //（页面内容轻微放大缩小、组件跟着浮）。identity = 无过渡，
+                        // 瞬切（延续 pp 2026-09-16「不带系统 crossfade」的拍板）。
+                        // 只作用于内容页，底栏选中 pill 的滑动不受影响。
+                        .transition(.identity)
                 } label: {
                     Self.tabImage(Self.tabIcon[mode] ?? "aa-Circle")
                         // [NATIVE-TABS] 选中态黑图标：iOS 26 新浮动 Tab 不吃
