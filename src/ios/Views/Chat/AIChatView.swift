@@ -1685,7 +1685,10 @@ struct AIChatView: View {
         .environmentObject(vm)
         // pp 2026-09-27「tab不进聊天页」：进会话后藏底栏（iPhone push / iPad
         // detail / 远程会话统一生效）。
-        .toolbarVisibility(.hidden, for: .tabBar)
+        // [FIX-2026-09-27] .toolbarVisibility(.hidden, for: .tabBar) 在 iOS 26
+        // 新 TabView 下构造 body 时直接 trap（build 359 闪退，符号化定位到
+        // AIChatView.body）；换回经典 .toolbar(.hidden, for:)。
+        .toolbar(.hidden, for: .tabBar)
     }
 
     // MARK: - Home Screen Quick Actions
