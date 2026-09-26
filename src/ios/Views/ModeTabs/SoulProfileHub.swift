@@ -98,7 +98,7 @@ struct SoulProfileHub: View {
                 .frame(width: 19, height: 19)
                 .foregroundStyle(Color.primary)
                 .frame(width: 44, height: 44)
-                .background(Circle().fill(Self.chromeSurface))
+                .circleLiquidGlass()
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -129,11 +129,12 @@ struct SoulProfileHub: View {
                         .frame(width: 15, height: 15)
                         .foregroundStyle(Color.primary)
                         .frame(width: 32, height: 32)
-                        .background(Circle().fill(Color(UIColor.secondarySystemBackground)))
+                        .circleLiquidGlass()
                         .overlay(Circle().stroke(Color(UIColor.systemBackground), lineWidth: 2))
                 }
                 .buttonStyle(.plain)
-                .offset(x: 2, y: 2)
+                // [pp 2026-09-27] 徽标往右下挪，少占头像。
+                .offset(x: 10, y: 12)
             }
             .frame(width: 78, height: 78)
             .padding(.top, 12)
@@ -308,7 +309,6 @@ struct SoulProfileHub: View {
 
     // MARK: - 色板（Muse 采色；全动态双模式）
 
-    private static let chromeSurface = Color(UIColor.secondarySystemBackground)
     /// 工具条轨道：Muse 参照浅色=纯白。
     private static let toolbarTrack = Color(UIColor { traits in
         traits.userInterfaceStyle == .dark
@@ -326,4 +326,21 @@ struct SoulProfileHub: View {
     private static let soulCardTint = Color(red: 0.55, green: 0.42, blue: 0.30)
     /// 记忆卡身份染色：薰衣草紫（极淡，透在毛玻璃下）。
     private static let memoryCardTint = Color(red: 0.45, green: 0.35, blue: 0.75)
+}
+
+// MARK: - 圆钮液态玻璃（资料页顶）
+
+extension View {
+    /// 圆钮液态玻璃：iOS 26+ 系统 glassEffect，低版本 ultraThinMaterial 降级。
+    /// 与 SoulProfileCapsule.capsuleLiquidGlass() 同源，只是形状换成圆。
+    @ViewBuilder
+    fileprivate func circleLiquidGlass() -> some View {
+        if #available(iOS 26.0, *) {
+            self.glassEffect(.regular, in: Circle())
+        } else {
+            self.background {
+                Circle().fill(.ultraThinMaterial)
+            }
+        }
+    }
 }
