@@ -45,6 +45,7 @@ struct RemoteSessionListView: View {
     /// @ObservedObject）：横滑切页判定胜出时冻结本列表竖滚，防切页时列表跟着跑——
     /// 卡片区现在能武装页切，没有这条会露馅。
     @ObservedObject private var tabRouter = RootTabRouter.shared
+    @Environment(\.colorScheme) private var colorScheme
     /// 审批计数与断开动作由 RemoteRootView 透传（本视图不持有连接生命周期）。
     var pendingNotices: Int = 0
     var onDisconnect: () -> Void = {}
@@ -586,45 +587,116 @@ struct RemoteSessionListView: View {
             .listRowBackground(Color.clear)
     }
 
-    /// 终端窗卡：mac 三色点 + mono 地址 + CONNECTED 标（在线 teal 点）。
+    /// 终端窗卡 v2（pp 2026-09-27 定稿）：暖炭/暖纸深浅反色——浅色模式用深卡、
+    /// 深色模式用浅卡；全 mono 排印；状态为 sans 半粗小字距；❯ + 呼吸块光标。
+    /// 三态：未配置（空终端）/ 已连接（设备名+地址+会话数）/ 离线（降灰+重连提示）。
     private var deviceTerminalCard: some View {
+        // 深浅反色：系统浅色→深卡，系统深色→浅卡
+        let darkCard = colorScheme == .light
         let connected = service.state == .ready
+        let configured = serverLabel != "—"
+        // 配色
+        let bgTop = darkCard ? Color(red: 38/255, green: 35/255, blue: 31/255)
+                             : Color(red: 253/255, green: 252/255, blue: 249/255)
+        let bgBottom = darkCard ? Color(red: 29/255, green: 27/255, blue: 23/255)
+                                : Color(red: 245/255, green: 242/255, blue: 236/255)
+        let ink = darkCard ? Color(red: 245/255, green: 241/255, blue: 232/255)
+                           : Color(red: 28/255, green: 28/255, blue: 30/255)
+        let subInk = darkCard ? Color(red: 163/255, green: 158/255, blue: 147/255)
+                              : Color(red: 120/255, green: 113/255, blue: 108/255)
+        let faint = darkCard ? Color(red: 110/255, green: 106/255, blue: 99/255)
+                             : Color(red: 168/255, green: 162/255, blue: 158/255)
+        let accent = darkCard ? Color(red: 125/255, green: 211/255, blue: 192/255)
+                              : Color(red: 15/255, green: 118/255, blue: 110/255)
+        let hairline = darkCard ? Color.white.opacity(0.08) : Color(red: 60/255, green: 52/255, blue: 40/255).opacity(0.09)
+        // 状态
+        let (statusText, statusColor, dotColor): (String, Color, Color) = {
+            if !configured { return ("NOT SET UP", faint, faint.opacity(0.5)) }
+            if connected { return ("CONNECTED", accent, accent) }
+            return ("OFFLINE", faint, faint.opacity(0.5))
+        }()
         return VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 6) {
-                Circle().fill(RemotePalette.trafficRed).frame(width: 9, height: 9)
-                Circle().fill(RemotePalette.trafficYellow).frame(width: 9, height: 9)
-                Circle().fill(RemotePalette.trafficGreen).frame(width: 9, height: 9)
+            // 顶行：三色点 + 状态
+            HStack(spacing: 7) {
+                Circle().fill(Color(red: 1, green: 95/255, blue: 87/255)).frame(width: 10, height: 10)
+                Circle().fill(Color(red: 1, green: 188/255, blue: 46/255)).frame(width: 10, height: 10)
+                Circle().fill(Color(red: 40/255, green: 200/255, blue: 64/255)).frame(width: 10, height: 10)
                 Spacer(minLength: 0)
-                Circle()
-                    .fill(connected ? RemotePalette.teal : RemotePalette.terminalFaint)
-                    .frame(width: 6, height: 6)
-                Text(connected ? "CONNECTED" : "OFFLINE")
-                    .font(.system(size: 10.5, design: .monospaced))
-                    .tracking(0.4)
-                    .foregroundStyle(RemotePalette.terminalFaint)
+                Circle().fill(dotColor).frame(width: 6, height: 6)
+                    .shadow(color: connected ? accent.opacity(0.8) : .clear, radius: 4)
+                Text(statusText)
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(1)
+                    .foregroundStyle(statusColor)
             }
-            .padding(.bottom, 10)
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(connected ? RemotePalette.teal : RemotePalette.terminalFaint)
-                    .frame(width: 7, height: 7)
-                Text(hostLabel)
-                    .font(.system(size: 15, design: .monospaced))
-                    .foregroundStyle(RemotePalette.terminalText)
-                    .lineLimit(1)
+            .padding(.bottom, 22)
+            if !configured {
+                // 未配置：空终端，只有 ❯ 和呼吸光标
+                HStack(spacing: 10) {
+                    Text("❯")
+                        .font(.system(size: 15, design: .monospaced))
+                        .foregroundStyle(faint.opacity(0.6))
+                    blinkCursor(color: faint.opacity(0.6))
+                }
+                .padding(.bottom, 14)
+                Text("尚未配置服务器，轻点开始配置 →")
+                    .font(.system(size: 12.5, design: .monospaced))
+                    .foregroundStyle(faint)
+            } else {
+                // 设备名行：❯ + 名 + 呼吸光标
+                HStack(spacing: 10) {
+                    Text("❯")
+                        .font(.system(size: 15, design: .monospaced))
+                        .foregroundStyle(connected ? accent : faint.opacity(0.6))
+                    Text(deviceConnector?.name ?? hostLabel)
+                        .font(.system(size: 19, design: .monospaced))
+                        .foregroundStyle(connected ? ink : faint)
+                        .lineLimit(1)
+                    if connected { blinkCursor(color: accent) }
+                }
+                .padding(.bottom, 10)
+                // 地址行
+                HStack(spacing: 6) {
+                    Text(hostLabel)
+                        .font(.system(size: 13, design: .monospaced))
+                        .foregroundStyle(connected ? subInk : faint)
+                        .lineLimit(1)
+                    if connected {
+                        Text("· \(sessions.count) sessions")
+                            .font(.system(size: 13, design: .monospaced))
+                            .foregroundStyle(faint)
+                    }
+                }
+                .padding(.bottom, connected ? 18 : 14)
+                if connected {
+                    Rectangle().fill(hairline).frame(height: 1)
+                        .padding(.bottom, 14)
+                    // 元信息：只有真实数据（会话数已在地址行，这里不再堆假数据）
+                    Text("\(sessions.count) active sessions")
+                        .font(.system(size: 11, design: .monospaced))
+                        .tracking(0.4)
+                        .foregroundStyle(faint)
+                } else {
+                    Text("tap to reconnect →")
+                        .font(.system(size: 12.5, design: .monospaced))
+                        .foregroundStyle(faint)
+                }
             }
-            Text(terminalSubLine)
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(RemotePalette.terminalFaint)
-                .lineLimit(1)
-                .padding(.top, 5)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.top, 13)
-        .padding(.bottom, 14)
-        .background(RemotePalette.terminal, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal, 22)
+        .padding(.top, 20)
+        .padding(.bottom, 18)
+        .background(
+            LinearGradient(colors: [bgTop, bgBottom], startPoint: .top, endPoint: .bottom),
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Color.white.opacity(darkCard ? 0.09 : 0.5), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(darkCard ? 0.28 : 0.14), radius: 20, y: 10)
+        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         // REMOTE-DEVICE-1：点按整卡进入设备详情页（pp 2026-09-21 改：原长按入口
         // 2026-09-20 版改单击——「现在是长按卡片才能进去 改为点一次就进入」）。
         // [PP-2026-09-27] 点按直接进设备页，不再按 service.state 分流到登录：
@@ -638,15 +710,17 @@ struct RemoteSessionListView: View {
         .listRowBackground(Color.clear)
     }
 
-    /// 终端副行：地址 — N sessions（预览数据期用真实计数，不假造）。
-    /// 终端副行：已连接 = 地址 — N sessions；未连接 = 提醒登录配对（整卡可点）。
-    private var terminalSubLine: String {
-        guard service.state == .ready else {
-            return "not connected — tap to log in & pair"
+    /// 终端卡呼吸块光标（TimelineView 驱动，无需 @State）。
+    private func blinkCursor(color: Color) -> some View {
+        TimelineView(.animation(minimumInterval: 1.1)) { timeline in
+            let visible = Int(timeline.date.timeIntervalSinceReferenceDate / 1.1) % 2 == 0
+            Rectangle()
+                .fill(color)
+                .frame(width: 8, height: 17)
+                .opacity(visible ? 0.85 : 0)
         }
-        let base = serverLabel == "—" ? "not configured" : serverLabel
-        return "\(base) — \(sessions.count) sessions"
     }
+
 
     /// 待处理提醒行（方案 B：琥珀胶囊）。
     private var pendingNoticesRow: some View {
