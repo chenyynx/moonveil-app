@@ -16,6 +16,7 @@
 #include "ish/kernel/task.h"
 #include "ish/kernel/calls.h"
 #include "ish/kernel/fs.h"
+#include "ish/kernel/mm.h"
 #include "ish/fs/fake.h"
 #include "ish/fs/tty.h"
 #include "ish/fs/dev.h"
@@ -31,6 +32,7 @@
 #include <signal.h>
 #include <setjmp.h>
 #include <unistd.h>     // usleep
+#include <os/proc.h>    // os_proc_available_memory
 #import <mach/mach.h>   // task_info / TASK_VM_INFO (phys_footprint)
 #include <execinfo.h>
 #include <netinet/in.h>
@@ -219,6 +221,40 @@ static uint64_t minis_current_phys_footprint(void) {
     if (kr != KERN_SUCCESS)
         return 0;
     return (uint64_t) info.phys_footprint;
+}
+
+static dispatch_source_t g_memstat_timer = nil;
+
+// [T-ish-footprint-feed] Feed live host memory status into the kernel's
+// footprint governor (ish/kernel/mm.h, stage 1). Once fed, the anon ledger
+// stops being admission control and becomes accounting only; admission is
+// judged by live phys_footprint against the jetsam allowance. Upstream treats
+// a feed older than 2s as BRAKE (fail closed), so this runs every 1s. If
+// task_info ever fails persistently we simply never enter footprint mode and
+// keep the legacy ledger behavior.
+static void minis_memstat_feed(void) {
+    uint64_t footprint = minis_current_phys_footprint();
+    if (footprint == 0)
+        return;
+    uint64_t avail = os_proc_available_memory();
+    uint32_t pressure = atomic_load_explicit(&g_fork_guard_pressure, memory_order_relaxed);
+    ish_set_memory_status(footprint + avail, avail, pressure == 2);
+}
+
+static void minis_memstat_start(void) {
+    if (g_memstat_timer != nil)
+        return;
+    g_memstat_timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0,
+                                             dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
+    if (g_memstat_timer == nil)
+        return;
+    dispatch_source_set_timer(g_memstat_timer,
+                              dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC),
+                              NSEC_PER_SEC, NSEC_PER_MSEC * 200);
+    dispatch_source_set_event_handler(g_memstat_timer, ^{
+        minis_memstat_feed();
+    });
+    dispatch_resume(g_memstat_timer);
 }
 
 static int minis_fork_memory_guard(void) {
@@ -687,6 +723,10 @@ static void handle_process_exit(struct task *task, int code) {
     debug_offload_register();
 
     _isBooted = YES;
+    // [T-ish-footprint-feed] Start the 1s memory-status feed now that the
+    // kernel is up. Without it the anon ledger stays at its 131072-page
+    // ceiling; with it the kernel judges admission by live footprint.
+    minis_memstat_start();
     NSLog(@"ISHKernel: Kernel initialized successfully");
 
     return 0;
@@ -953,6 +993,10 @@ static void handle_process_exit(struct task *task, int code) {
         return;
     }
     NSLog(@"ISHKernel: [DNS] bind mount OK: /etc/resolv.conf -> %@", _dnsHostPath);
+    // The process-shared path cache (upstream, post PR #43) doesn't see our
+    // private bind-mount path: invalidate so the guest can't resolve the
+    // pre-mount target for up to the cache TTL.
+    path_cache_invalidate();
 
     // Now populate with actual system DNS
     [self configureDns];
@@ -1136,11 +1180,21 @@ static void handle_process_exit(struct task *task, int code) {
 
         NSLog(@"ISHKernel: Starting shell process (PID %d)", current->pid);
 
-        // Start task - this runs the emulator loop and doesn't return
-        task_start(current);
+        // Start task. Upstream now returns negative guest errno on failure
+        // (e.g. host thread exhaustion) instead of die(): a task that never
+        // starts must be destroyed, and the "launch initiated" log must not
+        // print for it.
+        int start_err = task_start(current);
+        if (start_err < 0) {
+            NSLog(@"ISHKernel: task_start failed: %d — destroying never-started shell task", start_err);
+            lock(&pids_lock);
+            task_destroy(current);
+            unlock(&pids_lock);
+            return;
+        }
+        NSLog(@"ISHKernel: Shell launch initiated: %@", commandCopy[0]);
     });
 
-    NSLog(@"ISHKernel: Shell launch initiated: %@", command[0]);
     return 0;
 }
 
@@ -1185,6 +1239,9 @@ static void handle_process_exit(struct task *task, int code) {
     if (err < 0) {
         NSLog(@"ISHKernel: bindMount %@ -> %@ (ro=%d) failed: %d",
               linuxPath, hostPath, readOnly, err);
+    } else {
+        // See above: our bind mounts bypass the kernel's invalidation points.
+        path_cache_invalidate();
     }
     return err;
 }
@@ -1193,7 +1250,10 @@ static void handle_process_exit(struct task *task, int code) {
     if (!_isBooted) {
         return -1;
     }
-    return fakefs_bind_unmount(linuxPath.fileSystemRepresentation);
+    int err = fakefs_bind_unmount(linuxPath.fileSystemRepresentation);
+    if (err >= 0)
+        path_cache_invalidate();
+    return err;
 }
 
 #pragma mark - Command Execution with Completion

@@ -606,7 +606,24 @@ static int32_t _sweptContexts = 0;
     @synchronized(_activeExecutions) {
         _activeExecutions[@(ctx.guestPid)] = ctx;
     }
-    task_start(task);
+    // task_start can fail when the host is out of thread resources (new
+    // upstream contract: negative guest errno instead of die()). A task that
+    // never starts must not keep its registered context: unregister it,
+    // destroy the task (kernel/fork.c paradigm), and report failure instead
+    // of a pid that will never produce output.
+    int start_err = task_start(task);
+    if (start_err < 0) {
+        @synchronized(_activeExecutions) {
+            [_activeExecutions removeObjectForKey:@(ctx.guestPid)];
+        }
+        lock(&pids_lock);
+        task_destroy(task);
+        unlock(&pids_lock);
+        current = saved_current;
+        [ctx cleanup];
+        NSLog(@"ISHShellExecutor: task_start failed: %d", start_err);
+        return ISHShellExecutorErrorExecFailed;
+    }
     current = saved_current;
 
     // Write stdinData to pipe in background, then close write end
