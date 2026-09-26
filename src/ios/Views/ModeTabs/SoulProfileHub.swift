@@ -75,10 +75,10 @@ struct SoulProfileHub: View {
 
     private var topButtons: some View {
         HStack {
-            circleButton(system: "xmark", action: { dismiss() })
+            circleButton(asset: "aa-Tabler-X", action: { dismiss() })
                 .accessibilityLabel(Text("Close"))
             Spacer()
-            circleButton(system: "square.and.arrow.up", action: {
+            circleButton(asset: "aa-Tabler-Share", action: {
                 let text = "\(soulName) — Moonveil"
                 UIPasteboard.general.string = text
             })
@@ -88,10 +88,14 @@ struct SoulProfileHub: View {
         .padding(.top, 8)
     }
 
-    private func circleButton(system: String, action: @escaping () -> Void) -> some View {
+    private func circleButton(asset: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: system)
-                .font(.system(size: 15, weight: .semibold))
+            // [TABLER-ICONS 2026-09-27] pp 全都换：顶部圆钮改 Tabler 资产。
+            Image(asset)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 19, height: 19)
                 .foregroundStyle(Color.primary)
                 .frame(width: 44, height: 44)
                 .background(Circle().fill(Self.chromeSurface))
@@ -117,8 +121,12 @@ struct SoulProfileHub: View {
                 Button {
                     showSoulEditor = true
                 } label: {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 13, weight: .semibold))
+                    // [TABLER-ICONS 2026-09-27] pp 全都换。
+                    Image("aa-Tabler-Pencil")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 15, height: 15)
                         .foregroundStyle(Color.primary)
                         .frame(width: 32, height: 32)
                         .background(Circle().fill(Color(UIColor.secondarySystemBackground)))
@@ -138,8 +146,12 @@ struct SoulProfileHub: View {
                 .padding(.top, 28)
 
             HStack(spacing: 5) {
-                Image(systemName: "bolt.fill")
-                    .font(.system(size: 14, weight: .semibold))
+                // [TABLER-ICONS 2026-09-27] pp 全都换：状态闪电改 Tabler bolt。
+                Image("aa-Tabler-Bolt")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 15, height: 15)
                     .foregroundStyle(.white)
                     .frame(width: 26, height: 26)
                     .background(Circle().fill(Self.statusGreen))
@@ -154,7 +166,9 @@ struct SoulProfileHub: View {
 
     // MARK: - 四图标工具条（Muse：高46 全宽白胶囊，选中=36pt #F3F3F5 胶囊）
 
-    private let toolbarIcons = ["list.bullet", "checkmark.shield", "clock", "touchid"]
+    // [TABLER-ICONS 2026-09-27] pp 全都换：工具条四图标改 Tabler。
+    // 原 Muse 1:1 的 SF 版退役：list.bullet/checkmark.shield/clock/touchid。
+    private let toolbarIcons = ["aa-Tabler-List", "aa-Tabler-ShieldCheck", "aa-Tabler-Clock", "aa-Tabler-Fingerprint"]
 
     private var toolbar: some View {
         HStack(spacing: 0) {
@@ -166,8 +180,11 @@ struct SoulProfileHub: View {
                         toolbarSelection = idx
                     }
                 } label: {
-                    Image(systemName: toolbarIcons[idx])
-                        .font(.system(size: 18, weight: .medium))
+                    Image(toolbarIcons[idx])
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 22, height: 22)
                         .foregroundStyle(toolbarSelection == idx ? Color.primary : Color.primary.opacity(0.55))
                         .frame(maxWidth: .infinity)
                         .frame(height: 40)
@@ -212,8 +229,12 @@ struct SoulProfileHub: View {
             showSoulEditor = true
         } label: {
             HStack(spacing: 7) {
-                Image(systemName: "pencil")
-                    .font(.system(size: 14, weight: .medium))
+                // [TABLER-ICONS 2026-09-27] pp 全都换。
+                Image("aa-Tabler-Pencil")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
                 Text(AppLocalized("Edit"))
                     .font(.system(size: 16, weight: .medium))
             }
@@ -237,7 +258,7 @@ struct SoulProfileHub: View {
                 title: "SOUL",
                 subtitle: AppLocalized("Handle with care"),
                 tint: Self.soulCardTint,
-                symbol: "heart.fill",
+                symbol: "aa-Tabler-Heart",
                 date: soulDate
             ) {
                 showSoulEditor = true
@@ -246,7 +267,7 @@ struct SoulProfileHub: View {
                 title: AppLocalized("Memory"),
                 subtitle: AppLocalized("Handle with care"),
                 tint: Self.memoryCardTint,
-                symbol: "bubble.fill",
+                symbol: "aa-Tabler-MessageCircle",
                 date: memoryDate
             ) {
                 showMemoryEditor = true

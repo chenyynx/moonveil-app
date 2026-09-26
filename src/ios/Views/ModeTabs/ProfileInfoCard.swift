@@ -117,9 +117,12 @@ struct ProfileInfoCard: View {
                     }
                     .padding(ProfileInfoCardDesign.padding)
 
-                    // 9. 符号：深色半透明 + 浮动
-                    Image(systemName: symbol)
-                        .font(.system(size: ProfileInfoCardDesign.symbolSize, weight: .medium))
+                    // 9. 符号：深色半透明 + 浮动（Tabler 资产，模板渲染）
+                    Image(symbol)
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: ProfileInfoCardDesign.symbolSize, height: ProfileInfoCardDesign.symbolSize)
                         .foregroundStyle(.primary.opacity(0.35))
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                         .padding(ProfileInfoCardDesign.padding)
