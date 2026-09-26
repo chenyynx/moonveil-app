@@ -6207,16 +6207,18 @@ private struct SessionRow: View, Equatable {
     var body: some View {
         HStack(spacing: 8) {
             // Provider icon with optional spinning/suspended ring
+            // [PP-2026-09-27] 极简化：去 provider 配色，全单色（pp「不要花里胡哨的颜色」）。
             providerIcon
                 .frame(width: 44, height: 44)
-                .background(iconBackgroundColor.opacity(isHighlighted ? 0.35 : 0.18))
+                .background(Color.primary.opacity(isHighlighted ? 0.12 : 0.06))
                 .clipShape(Circle())
                 .overlay {
                     if isSuspended {
                         SuspendedRing(color: .yellow)
                             .frame(width: 42, height: 42)
                     } else if isActive {
-                        SpinningRing(color: iconBackgroundColor)
+                        // [PP-2026-09-27] 极简化：转圈去配色，用 primary 单色。
+                        SpinningRing(color: .primary)
                             .frame(width: 42, height: 42)
                     }
                 }
@@ -6427,11 +6429,8 @@ private struct SessionRow: View, Equatable {
         let size: CGFloat = (icon.systemName == "bubble.left.fill" || icon.systemName == "terminal.fill") ? 18 : 20
         Image(systemName: icon.systemName)
             .font(.system(size: size))
-            .foregroundStyle(icon.color)
-    }
-
-    private var iconBackgroundColor: Color {
-        categoryIcon.color
+            // [PP-2026-09-27] 极简化：图标去 provider 配色，用 primary 单色。
+            .foregroundStyle(.primary)
     }
 
     private func relativeDate(_ date: Date) -> String {
@@ -6514,9 +6513,10 @@ private struct RemoteSessionRow: View {
     var body: some View {
         HStack(spacing: 8) {
             // Category icon with iCloud badge
+            // [PP-2026-09-27] 极简化：去配色，全单色（跟本机行一致）。
             providerIcon
                 .frame(width: 44, height: 44)
-                .background(iconColor.opacity(0.18))
+                .background(Color.primary.opacity(0.06))
                 .clipShape(Circle())
                 .overlay(alignment: .bottomTrailing) {
                     Image(systemName: "icloud.fill")
@@ -6558,7 +6558,8 @@ private struct RemoteSessionRow: View {
         let size: CGFloat = (icon.systemName == "bubble.left.fill" || icon.systemName == "terminal.fill") ? 18 : 20
         Image(systemName: icon.systemName)
             .font(.system(size: size))
-            .foregroundStyle(icon.color)
+            // [PP-2026-09-27] 极简化：图标去配色，用 primary 单色。
+            .foregroundStyle(.primary)
     }
 }
 
