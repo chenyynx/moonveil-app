@@ -27,14 +27,16 @@ struct RemoteRootView: View {
             content
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    // [GEAR-PARITY] 与本机页左上角一致的设置入口（slider.horizontal.3，
+                    // [TABLER-ICONS] 与本机页左上角一致的设置入口（Tabler menu 两横，
                     // 走 tabRouter.showSettings，sheet 由壳层呈现）。
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
                             tabRouter.showSettings = true
                         } label: {
-                            Image(systemName: "slider.horizontal.3")
-                                .font(.system(size: 17, weight: .medium))
+                            Image("aa-Tabler-Menu")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
                         }
                         .accessibilityLabel(Text(String(localized: "Settings")))
                     }

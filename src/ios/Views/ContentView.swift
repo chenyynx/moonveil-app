@@ -3472,9 +3472,11 @@ struct ContentView: View {
                 Button {
                     tabRouter.showSettings = true
                 } label: {
-                    // [SF-TABS 2026-09-27] pp 亲自挑选：设置入口改用 slider.horizontal.3。
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 17, weight: .medium))
+                    // [TABLER-ICONS 2026-09-27] pp 钦定：设置入口改用 Tabler menu（两横）。
+                    Image("aa-Tabler-Menu")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
                 }
                 .accessibilityLabel(Text(String(localized: "Settings")))
             }
