@@ -3068,6 +3068,10 @@ struct ContentView: View {
         .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
+        // [MUSE-GLASS-BG 2026-09-27] 导航栏底不用系统 blur（会压平背后，
+        // 胶囊玻璃折射出来一片白显实）；改用简单半透明 tint（跟 Muse 同类），
+        // 玻璃透过它折射列表内容，显玻璃感。深浅色自适应。
+        .toolbarBackground(Color(UIColor.systemBackground).opacity(0.45), for: .navigationBar)
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
@@ -3261,6 +3265,10 @@ struct ContentView: View {
         .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
+        // [MUSE-GLASS-BG 2026-09-27] 导航栏底不用系统 blur（会压平背后，
+        // 胶囊玻璃折射出来一片白显实）；改用简单半透明 tint（跟 Muse 同类），
+        // 玻璃透过它折射列表内容，显玻璃感。深浅色自适应。
+        .toolbarBackground(Color(UIColor.systemBackground).opacity(0.45), for: .navigationBar)
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
