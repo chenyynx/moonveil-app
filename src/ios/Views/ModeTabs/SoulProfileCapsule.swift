@@ -34,9 +34,12 @@ struct SoulProfileCapsule: View {
     // Muse 参考实测（@3x 截图换算，估算值）
     private static let discDiameter: CGFloat = 44    // 白圆盘
     private static let avatarSize: CGFloat = 38     // 绒毛头像
-    private static let discPillOverlap: CGFloat = 15 // 圆盘压住胶囊顶部的量
+    private static let discPillOverlap: CGFloat = 8.5 // 圆盘轻压胶囊顶部（Muse 实测）
     private static let pillMinWidth: CGFloat = 57
     private static let pillHeight: CGFloat = 36
+    /// 圆盘与两边系统按钮垂直对齐：VStack 总高 (44+36-8.5)=71.5，圆盘中心比
+    /// VStack 中心高 (71.5/2-44/2)=13.75pt，整体下移让圆盘落在导航栏中线。
+    private static let alignOffsetY: CGFloat = 13.75
 
     var body: some View {
         Button {
@@ -63,7 +66,7 @@ struct SoulProfileCapsule: View {
                 .zIndex(1)
                 // 胶囊：iOS 26+ 液态玻璃，低版本磨砂白降级。宽度内容自适应。
                 Text(verbatim: soulName)
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Self.pillText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
@@ -89,6 +92,7 @@ struct SoulProfileCapsule: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text(verbatim: soulName))
+        .offset(y: Self.alignOffsetY)
     }
 
     /// pill 字色：light #11 / dark 白（玻璃底自适应深浅，字色随之反相）。
@@ -112,7 +116,9 @@ private extension View {
     @ViewBuilder
     func capsuleLiquidGlass() -> some View {
         if #available(iOS 26.0, *) {
-            self.glassEffect(.clear, in: Capsule())
+            // Muse 原版就是 .regular（pp 2026-09-27：Muse 自述）；.clear 高光
+            // 太亮。贴在导航栏上背后无物可透，实心白是正常效果。
+            self.glassEffect(.regular, in: Capsule())
         } else {
             self.background {
                 Capsule()

@@ -33,6 +33,8 @@ struct SoulProfileHub: View {
     /// 双卡 push（用 item 驱动，避免 NavigationStack 内多级 sheet 语义）。
     @State private var showSoulEditor = false
     @State private var showMemoryEditor = false
+    /// 工具条选中块的 matchedGeometryEffect 命名空间（滑动跟手）。
+    @Namespace private var toolbarNamespace
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -158,6 +160,8 @@ struct SoulProfileHub: View {
         HStack(spacing: 0) {
             ForEach(toolbarIcons.indices, id: \.self) { idx in
                 Button {
+                    // 触感反馈：轻点震动
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) {
                         toolbarSelection = idx
                     }
@@ -172,6 +176,7 @@ struct SoulProfileHub: View {
                                 if toolbarSelection == idx {
                                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                                         .fill(Self.toolbarSelected)
+                                        .matchedGeometryEffect(id: "toolbarSelection", in: toolbarNamespace)
                                         .padding(.vertical, 2)
                                 }
                             }
@@ -185,6 +190,11 @@ struct SoulProfileHub: View {
         .background(
             RoundedRectangle(cornerRadius: 23, style: .continuous)
                 .fill(Self.toolbarTrack)
+        )
+        // 浅色模式边框：轨道纯白时与背景融为一体，加 8% 透明度的描边
+        .overlay(
+            RoundedRectangle(cornerRadius: 23, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
         )
     }
 
@@ -207,12 +217,12 @@ struct SoulProfileHub: View {
                 Text(AppLocalized("Edit"))
                     .font(.system(size: 16, weight: .medium))
             }
-            .foregroundStyle(Color.primary)
+            .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 35)
             .background(
                 RoundedRectangle(cornerRadius: 17.5, style: .continuous)
-                    .fill(Color(UIColor.secondarySystemBackground))
+                    .fill(Color.accentColor)
             )
             .contentShape(RoundedRectangle(cornerRadius: 17.5, style: .continuous))
         }
@@ -223,19 +233,19 @@ struct SoulProfileHub: View {
 
     private var cards: some View {
         HStack(spacing: 16) {
-            profileCard(
+            ProfileInfoCard(
                 title: "SOUL",
                 subtitle: AppLocalized("Handle with care"),
-                gradient: Self.soulCardGradient,
+                tint: Self.soulCardTint,
                 symbol: "heart.fill",
                 date: soulDate
             ) {
                 showSoulEditor = true
             }
-            profileCard(
+            ProfileInfoCard(
                 title: AppLocalized("Memory"),
                 subtitle: AppLocalized("Handle with care"),
-                gradient: Self.memoryCardGradient,
+                tint: Self.memoryCardTint,
                 symbol: "bubble.fill",
                 date: memoryDate
             ) {
@@ -243,50 +253,6 @@ struct SoulProfileHub: View {
             }
         }
     }
-
-    private func profileCard(title: String, subtitle: String,
-                             gradient: LinearGradient, symbol: String, date: Date,
-                             action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            ZStack(alignment: .topLeading) {
-                gradient
-                // 胶片噪点：中性灰随机颗粒，overlay 混合 10% 透明度。
-                Image("NoiseTile")
-                    .resizable()
-                    .opacity(0.10)
-                    .blendMode(.overlay)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(verbatim: title)
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundStyle(.white)
-                    Text(subtitle)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.white.opacity(0.7))
-                    Spacer(minLength: 0)
-                    Text(Self.cardDateFormatter.string(from: date))
-                        .font(.system(size: 13))
-                        .foregroundStyle(.white.opacity(0.65))
-                }
-                .padding(14)
-                Image(systemName: symbol)
-                    .font(.system(size: 36, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.4))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                    .padding(14)
-            }
-            .frame(height: 150)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// 卡片左下日期：Muse 格式 MM.dd.yy（如 09.24.26）。
-    private static let cardDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MM.dd.yy"
-        return f
-    }()
 
     // MARK: - helpers
 
@@ -334,18 +300,8 @@ struct SoulProfileHub: View {
             : UIColor(red: 0xF3 / 255, green: 0xF3 / 255, blue: 0xF5 / 255, alpha: 1)
     })
     private static let statusGreen = Color(red: 0.30, green: 0.85, blue: 0.40)
-    /// SOUL 卡：暖棕渐变（Muse 采色 (133,111,100)→(124,102,88)→(114,86,72)）。
-    private static let soulCardGradient = LinearGradient(
-        colors: [Color(red: 0.52, green: 0.44, blue: 0.39),
-                 Color(red: 0.49, green: 0.40, blue: 0.35),
-                 Color(red: 0.45, green: 0.34, blue: 0.28)],
-        startPoint: .topLeading, endPoint: .bottomTrailing
-    )
-    /// 记忆卡：紫渐变（Muse 采色 (97,32,134)→(79,16,120)→(60,26,86)）。
-    private static let memoryCardGradient = LinearGradient(
-        colors: [Color(red: 0.38, green: 0.13, blue: 0.53),
-                 Color(red: 0.31, green: 0.06, blue: 0.47),
-                 Color(red: 0.24, green: 0.10, blue: 0.34)],
-        startPoint: .topLeading, endPoint: .bottomTrailing
-    )
+    /// SOUL 卡身份染色：暖棕（极淡，透在毛玻璃下）。
+    private static let soulCardTint = Color(red: 0.55, green: 0.42, blue: 0.30)
+    /// 记忆卡身份染色：薰衣草紫（极淡，透在毛玻璃下）。
+    private static let memoryCardTint = Color(red: 0.45, green: 0.35, blue: 0.75)
 }

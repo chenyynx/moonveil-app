@@ -36,15 +36,18 @@ struct RootModeTabsView: View {
     /// the remote tab. Once the user leaves it (直接用本地 AI / 关闭), the tab's
     /// 未登录三态卡 takes over and its 去登录 button re-raises the cover — which is
     /// what U1 §6 asked for and what made the old always-on gate unreachable.
-    @State private var loginCoverDismissed = false
+    /// B12-GATEFLASH 持久化：这次关过盖（选了本地 AI / 关闭），下次启动不再弹；
+    /// 终端卡"点按登录"（onOpenLogin）会清掉重唤。key 命名跟随 aa.* 惯例。
+    @AppStorage("aa.remote.login-cover-dismissed") private var loginCoverDismissed = false
 
-    /// [NATIVE-TABS] 各 tab 的 Lucide 图标（aa- 前缀资产，模板渲染），纯图标
-    /// tab（无文字），22pt 对齐 Muse，黑色。a11y 朗读文本由 tabLabel 提供。
+    /// [SF-TABS 2026-09-27] 底部 Tab 改用 SF Symbols（pp 亲自从画廊挑选），
+    /// 纯图标 tab（无文字），24pt medium 对齐之前 Lucide 栅格尺寸。a11y 朗读
+    /// 文本由 tabLabel 提供。
     private static let tabIcon: [AppSourceMode: String] = [
-        .local: "aa-MessagesSquare",
-        .remote: "aa-Cloud",
-        .works: "aa-Blocks",
-        .compose: "aa-SquarePen",
+        .local: "message",
+        .remote: "cloud",
+        .works: "rectangle.stack",
+        .compose: "square.and.pencil",
     ]
 
     init() {
@@ -58,18 +61,18 @@ struct RootModeTabsView: View {
         bar.unselectedItemTintColor = .label
     }
 
-    /// Lucide SVG 资产是 24pt viewBox；Muse 的 tab 图标约 19pt，这里栅格化到
-    /// 22pt 并保持 template 渲染，tab 栏 tint 照常生效。
-    private static func tabImage(_ asset: String) -> Image {
-        let side: CGFloat = 22
-        let ui = UIGraphicsImageRenderer(
-            size: CGSize(width: side, height: side)
-        ).image { _ in
-            UIImage(named: asset)?.draw(
-                in: CGRect(origin: .zero, size: CGSize(width: side, height: side))
-            )
-        }
-        return Image(uiImage: ui.withRenderingMode(.alwaysTemplate))
+    /// SF Symbol 直接按 24pt medium 模板渲染（之前 Lucide 栅格也是 24pt），
+    /// tab 栏 tint 照常生效。
+    private static func tabImage(_ systemName: String) -> Image {
+        Image(systemName: systemName)
+            .font(.system(size: 24, weight: .medium))
+    }
+
+    /// tab 图标颜色：选中 .primary（浅色黑/深色白），未选中 .secondary 灰。
+    /// .compose 是新建动作钮（永不选中），常黑。
+    private static func tabIconColor(_ mode: AppSourceMode, selected: AppSourceMode) -> Color {
+        if mode == .compose { return .primary }
+        return mode == selected ? .primary : .secondary
     }
 
     var body: some View {
@@ -82,19 +85,21 @@ struct RootModeTabsView: View {
                 Tab(value: mode, role: mode == .compose ? .search : nil) {
                     tabContent(mode)
                 } label: {
-                    Self.tabImage(Self.tabIcon[mode] ?? "aa-Circle")
+                    Self.tabImage(Self.tabIcon[mode] ?? "circle")
+                        // [NATIVE-TABS] 选中态黑图标：iOS 26 新浮动 Tab 不吃
+                        // UITabBar.appearance，在 label 上按选中态显式着色；
+                        // 不用 TabView 级 .tint（environment 会透进 tab 内容，
+                        // 把 accent 蓝的地方全染黑——pp 2026-09-27「好多地方都变黑了」）。
+                        .foregroundStyle(Self.tabIconColor(mode, selected: router.mode))
                         .accessibilityLabel(tabLabel(mode))
                 }
             }
         }
         // pp 2026-09-16 拍板延续：tap/横滑切 tab 内容层瞬切，不带系统 crossfade。
         .animation(nil, value: router.mode)
-        // [NATIVE-TABS] 选中态黑图标：iOS 26 新浮动 Tab 不吃 UITabBar.appearance，
-        // 用 SwiftUI tint；.primary 深浅色自适应（浅色黑/深色白）。
-        .tint(.primary)
-        // Q2: 胶囊 → 资料页 zoom 转场。sheet + navigationTransition(.zoom) 配对
-        // （Apple 文档标准形状；zoom 接管默认上弹转场）。
-        .sheet(isPresented: $showsSoulProfile) {
+        // Q2: 胶囊 → 资料页 zoom 转场。fullScreenCover + navigationTransition(.zoom)
+        // 配对（Apple 文档标准形状；zoom 接管默认转场）。pp 2026-09-27：改全屏。
+        .fullScreenCover(isPresented: $showsSoulProfile) {
             SoulProfileHub()
                 .navigationTransition(.zoom(sourceID: SoulProfileHub.zoomSourceID, in: soulProfileNS))
         }
@@ -196,9 +201,12 @@ struct RootModeTabsView: View {
         }
     }
 
-    /// 远程 tab 且未登录且本次启动还没离开过登录盖 → 盖登录页；登录成功(ready)自动收起。
+    /// 远程 tab 且从未配置（.idle）或正在配对（.pairing）、且没关过盖 → 盖登录页。
+    /// 连接断了（.degraded）不弹盖：走列表页"无设备+提醒连接"（pp 2026-09-20）。
+    /// .pairing 必须保留：扫码 sheet 寄生在盖子上，条件收掉会掐死配对流程。
     private var showsLoginGate: Bool {
-        router.mode == .remote && remoteService.state != .ready && !loginCoverDismissed
+        guard router.mode == .remote, !loginCoverDismissed else { return false }
+        return remoteService.state == .idle || remoteService.state == .pairing
     }
 
     private var needsLoginGate: Binding<Bool> {

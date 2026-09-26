@@ -3028,7 +3028,7 @@ struct ContentView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
-        .sheet(isPresented: $showsSoulProfile) { soulProfileSheet() }
+        .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
     }
 
@@ -3218,7 +3218,7 @@ struct ContentView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
-        .sheet(isPresented: $showsSoulProfile) { soulProfileSheet() }
+        .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
     }
     // MARK: - Sidebar Toolbar
@@ -3472,8 +3472,8 @@ struct ContentView: View {
                 Button {
                     tabRouter.showSettings = true
                 } label: {
-                    // AA's own drawer glyph, verbatim: AppSymbol("sidebar.left", size: 22)
-                    Image(systemName: "sidebar.left")
+                    // [SF-TABS 2026-09-27] pp 亲自挑选：设置入口改用 slider.horizontal.3。
+                    Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 17, weight: .medium))
                 }
                 .accessibilityLabel(Text(String(localized: "Settings")))

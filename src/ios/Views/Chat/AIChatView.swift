@@ -1683,6 +1683,9 @@ struct AIChatView: View {
         // descendants (e.g. ToolCapsuleView's long-press menu) can react to
         // `vm.isProcessing` without threading the vm through every level.
         .environmentObject(vm)
+        // pp 2026-09-27「tab不进聊天页」：进会话后藏底栏（iPhone push / iPad
+        // detail / 远程会话统一生效）。
+        .toolbarVisibility(.hidden, for: .tabBar)
     }
 
     // MARK: - Home Screen Quick Actions

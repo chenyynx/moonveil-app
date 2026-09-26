@@ -27,6 +27,17 @@ struct RemoteRootView: View {
             content
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
+                    // [GEAR-PARITY] 与本机页左上角一致的设置入口（slider.horizontal.3，
+                    // 走 tabRouter.showSettings，sheet 由壳层呈现）。
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            tabRouter.showSettings = true
+                        } label: {
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(size: 17, weight: .medium))
+                        }
+                        .accessibilityLabel(Text(String(localized: "Settings")))
+                    }
                     // [SEARCH-TOPRIGHT] pp 2026-09-26「搜索放右上角」。
                     ToolbarItem(placement: .topBarTrailing) {
                         SearchToolbarButton(showsSearch: $showsSearch)

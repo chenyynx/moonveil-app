@@ -82,7 +82,7 @@ struct WorksListView: View {
                 }
             }
             .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
-            .sheet(isPresented: $showsSoulProfile) { soulProfileSheet() }
+            .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
         .task { rescan() }
         .fullScreenCover(item: $gallery) { presentation in
