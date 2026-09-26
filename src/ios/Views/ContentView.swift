@@ -2933,7 +2933,10 @@ struct ContentView: View {
                                 .overlay {
                                     if regeneratingTitleSessionId == session.id {
                                         ZStack {
-                                            Color(.systemBackground).opacity(0.7)
+                                            // [LOCAL-CARD-2026-09-26] 遮罩色随画布：
+                                            // 用卡底色（暖纸/暖黑）替代 systemBackground，
+                                            // 否则暖卡上蒙灰白罩。
+                                            RemotePalette.card.opacity(0.7)
                                             ProgressView()
                                         }
                                     }
@@ -2942,13 +2945,17 @@ struct ContentView: View {
                                     NavigationLink(value: session.id) { EmptyView() }
                                         .opacity(0)
                                 )
-                            .listRowInsets(EdgeInsets())
+                            .listRowInsets(EdgeInsets(top: 4.5, leading: 16, bottom: 4.5, trailing: 16))
                             .listRowSeparator(.hidden)
+                            // [LOCAL-CARD-2026-09-26] 画布换 claudio 暖纸/暖黑
+                            // （RemotePalette.canvas）；普通行不再垫 systemBackground
+                            // （卡片自带卡底），文件夹组保持玻璃容器。行距对齐远端卡
+                            // （上下 4.5pt，RemoteSessionListView 同款）。
                             .listRowBackground(Group {
                                 if group.folderId != nil {
                                     FolderMemberRowBackground(isLast: sessionId == group.ids.last)
                                 } else {
-                                    Color(.systemBackground)
+                                    Color.clear
                                 }
                             })
                             .contextMenu {
@@ -2981,6 +2988,10 @@ struct ContentView: View {
 
         }
         .listStyle(.plain)
+        // [LOCAL-CARD-2026-09-26] 画布 = claudio 暖奶油/暖黑（与远端列表同源
+        // RemotePalette.canvas，dyn 深浅自动适配）； List 默认背景一并翻掉。
+        .scrollContentBackground(.hidden)
+        .background(RemotePalette.canvas.ignoresSafeArea())
         #if DEBUG
         // TEMPORARY scroll-phase markers to bracket the jitter window in the
         // log. Pair with the [ROWH] probe: a [ROWH] line appearing during
@@ -3076,7 +3087,10 @@ struct ContentView: View {
                                 .overlay {
                                     if regeneratingTitleSessionId == session.id {
                                         ZStack {
-                                            Color(.systemBackground).opacity(0.7)
+                                            // [LOCAL-CARD-2026-09-26] 遮罩色随画布：
+                                            // 用卡底色（暖纸/暖黑）替代 systemBackground，
+                                            // 否则暖卡上蒙灰白罩。
+                                            RemotePalette.card.opacity(0.7)
                                             ProgressView()
                                         }
                                     }
@@ -3121,36 +3135,18 @@ struct ContentView: View {
                                     }
                                 }
                                 .tag(session.id)
-                                .listRowInsets(EdgeInsets())
+                                .listRowInsets(EdgeInsets(top: 4.5, leading: 16, bottom: 4.5, trailing: 16))
                                 .listRowSeparator(.hidden)
+                                // [LOCAL-CARD-2026-09-26] 选中高亮迁入卡片描边
+                                // （SessionRow isHighlighted overlay）；列表层不再
+                                // 画灰底/色带，文件夹玻璃容器与透明行背景保留。
+                                // 行距对齐远端卡（上下 4.5pt）。
                                 .listRowBackground(
-                                    ZStack {
+                                    Group {
                                         if group.folderId != nil {
-                                            let isLast = sessionId == group.ids.last
-                                            FolderMemberRowBackground(isLast: isLast)
-                                            // Flush selection band inside the group;
-                                            // the last member's band takes the
-                                            // container's bottom radii so it stays
-                                            // wrapped by the corners.
-                                            if isSessionHighlighted(session.id) {
-                                                UnevenRoundedRectangle(
-                                                    topLeadingRadius: 0,
-                                                    bottomLeadingRadius: isLast ? 16 : 0,
-                                                    bottomTrailingRadius: isLast ? 16 : 0,
-                                                    topTrailingRadius: 0,
-                                                    style: .continuous
-                                                )
-                                                .fill(Color(red: 183/255.0, green: 175/255.0, blue: 150/255.0).opacity(0.3))
-                                                .padding(.horizontal, 6)
-                                                .padding(.bottom, isLast ? 4 : 0)
-                                            }
+                                            FolderMemberRowBackground(isLast: sessionId == group.ids.last)
                                         } else {
-                                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                                .fill(isSessionHighlighted(session.id)
-                                                      ? Color(red: 183/255.0, green: 175/255.0, blue: 150/255.0).opacity(0.3)
-                                                      : Color.clear)
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 2)
+                                            Color.clear
                                         }
                                     }
                                 )
@@ -3175,6 +3171,9 @@ struct ContentView: View {
 
         }
         .listStyle(.plain)
+        // [LOCAL-CARD-2026-09-26] 同 stackList：画布换 claudio 暖奶油/暖黑。
+        .scrollContentBackground(.hidden)
+        .background(RemotePalette.canvas.ignoresSafeArea())
         .navigationSplitViewColumnWidth(min: 340, ideal: 380, max: 500)
         .opacity(didInitialLoad ? 1 : 0)
         .overlay { if didInitialLoad, displaySessions.isEmpty, !isSearching { emptyState } }
@@ -4327,7 +4326,10 @@ struct ContentView: View {
         .padding(.bottom, 24)
         // [BOTTOM-FADE-3] 渐隐层：bar 的 background（z 序在列表之上、bar 内容之下），
         // alignment .bottom + 高度显式几何向上溢出覆盖栏上方的列表内容。见 BottomBarFadeView。
-        .background(alignment: .bottom) { BottomBarFadeView() }
+        // [LOCAL-CARD-2026-09-26] 收口色注入本页画布（RemotePalette.canvas）——
+        // 画布换暖纸/暖黑后默认 systemBackground 收口会色温错位（同远端页
+        // BOTTOM-FADE-PAGE 病根）。
+        .background(alignment: .bottom) { BottomBarFadeView(pageColor: RemotePalette.canvas) }
         // [BOTTOM-BAR-ALIGN] pp 2026-09-20「底部的胶囊尺寸和大小还有位置，对齐图二」。
         // 参照图（Claude 列表页底栏）逐像素实测：搜索文字中心距屏底 ~51pt、实机 ~81pt
         // → 整体下移 30pt 贴底；水平边距 16→22pt（参照 22-23pt）。胶囊↔搜索相对距
@@ -6271,19 +6273,23 @@ private struct SessionRow: View, Equatable {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            // Provider icon with optional spinning/suspended ring
+        HStack(spacing: 11) {
+            // [LOCAL-CARD-2026-09-26] claudio 方案 B 卡片化（pp「把本地列表的会话
+            // 卡片改成claudio的那种会话卡片 然后背景颜色也改」）：40pt 白圆头像井
+            // （avatarWash）承载分类彩标；运行中/挂起环与头像角标语义全保留，仅
+            // 视觉容器对齐远端卡。卡底/画布共用 RemotePalette tokens（dyn 深浅
+            // 自动适配，与 RemoteSessionListView.sessionRow 同规格）。
             providerIcon
-                .frame(width: 44, height: 44)
-                .background(iconBackgroundColor.opacity(isHighlighted ? 0.35 : 0.18))
+                .frame(width: 40, height: 40)
+                .background(RemotePalette.avatarWash, in: Circle())
                 .clipShape(Circle())
                 .overlay {
                     if isSuspended {
                         SuspendedRing(color: .yellow)
-                            .frame(width: 42, height: 42)
+                            .frame(width: 44, height: 44)
                     } else if isActive {
                         SpinningRing(color: iconBackgroundColor)
-                            .frame(width: 42, height: 42)
+                            .frame(width: 44, height: 44)
                     }
                 }
                 .overlay(alignment: .bottomTrailing) {
@@ -6306,27 +6312,18 @@ private struct SessionRow: View, Equatable {
                             .offset(x: 2, y: 2)
                     }
                 }
-                // [T-ios-session-unread-badge] Top-trailing red unread dot,
-                // independent of the bottom-trailing corner badge above so an
-                // unread session can also show ⏸ / iCloud without conflict.
-                .overlay(alignment: .topTrailing) {
-                    if showsUnreadDot {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 8, height: 8)
-                            .offset(x: -1, y: 1)
-                    }
-                }
+                // [LOCAL-CARD-2026-09-26] 头像 topTrailing 红点已迁到卡角
+                // （下方 body 尾部的卡级 overlay），头像井不再叠未读点。
 
             // Title + subtitle. For locked sessions both lines are blurred
             // so neither the conversation topic nor the last message reads
             // as plain text in the list. The avatar and trailing lock-icon
             // overlay sit outside this VStack so they stay crisp.
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 highlightedText(
                     session.title ?? "New Chat",
-                    font: .system(size: fontSettings.scaledApp(16), weight: .semibold),
-                    color: Color(UIColor.label)
+                    font: .system(size: fontSettings.scaledApp(15.5), weight: .semibold),
+                    color: RemotePalette.ink
                 )
                 .lineLimit(1)
 
@@ -6338,15 +6335,15 @@ private struct SessionRow: View, Equatable {
                     // keyword stands out inside the ~100-char window.
                     highlightedText(
                         snippet,
-                        font: .system(size: fontSettings.scaledApp(14)),
-                        color: Color(UIColor.secondaryLabel)
+                        font: .system(size: fontSettings.scaledApp(13)),
+                        color: RemotePalette.body
                     )
                     .lineLimit(2)
                 } else {
                     highlightedText(
                         session.lastMessage ?? "No messages yet",
-                        font: .system(size: fontSettings.scaledApp(14)),
-                        color: Color(UIColor.secondaryLabel)
+                        font: .system(size: fontSettings.scaledApp(13)),
+                        color: RemotePalette.body
                     )
                     .lineLimit(1)
                 }
@@ -6371,22 +6368,43 @@ private struct SessionRow: View, Equatable {
             VStack(alignment: .trailing, spacing: 4) {
                 // Date
                 Text(relativeDate(session.updatedAt))
-                    .font(.system(size: fontSettings.scaledApp(13)))
-                    .foregroundStyle(Color(UIColor.tertiaryLabel))
+                    .font(.system(size: fontSettings.scaledApp(12)))
+                    .foregroundStyle(RemotePalette.timeFaint)
                 if isVisuallyLocked {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 10))
-                        .foregroundStyle(Color(UIColor.tertiaryLabel))
+                        .foregroundStyle(RemotePalette.faint)
                 } else if session.isPinned {
                     Image(systemName: "pin.fill")
                         .font(.system(size: 10))
-                        .foregroundStyle(Color(UIColor.tertiaryLabel))
+                        .foregroundStyle(RemotePalette.faint)
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .contentShape(Rectangle())
+        .padding(.horizontal, 13)
+        .padding(.vertical, 11)
+        // [LOCAL-CARD-2026-09-26] 卡底 = claudio 暖纸卡（RemotePalette.card，12pt
+        // 圆角 continuous）；选中高亮改由卡描边表达（列表层灰底已随旧透明行删除，
+        // 见 stackList/splitList 的 listRowBackground 注释）。
+        .background(RemotePalette.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            if isHighlighted {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color(red: 183/255.0, green: 175/255.0, blue: 150/255.0).opacity(0.65), lineWidth: 1.5)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            // [T-ios-session-unread-badge] Top-trailing coral unread dot moved
+            // from the avatar to the card corner — same semantics as the
+            // remote line's card-corner dot (RemoteSessionListView.sessionRow).
+            if showsUnreadDot {
+                Circle()
+                    .fill(RemotePalette.coral)
+                    .frame(width: 10, height: 10)
+                    .offset(x: 4, y: -4)
+            }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         #if DEBUG
         // TEMPORARY height probe — confirms List self-sizing jitter source.
         // PreferenceKey fires on every real layout (incl. the self-size
