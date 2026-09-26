@@ -1923,7 +1923,7 @@
 			path = ModeTabs;
 			sourceTree = "<group>";
 		};
-		BD0000000000000000000004 /* Works */ = {
+		D05AF00D00000000000000C2 /* Works */ = {
 			isa = PBXGroup;
 			children = (
 				BD0000000000000000000003 /* WorksListView.swift */,
@@ -2369,7 +2369,7 @@
 				F1V00011 /* Settings */,
 				F1V00016 /* Skills */,
 				D05AF00D00000000000000C1 /* ModeTabs */,
-				BD0000000000000000000004 /* Works */,
+				D05AF00D00000000000000C2 /* Works */,
 				D05AF00F0000000000000F0 /* SettingsSkin */,
 				D05AF00E000000000000F100 /* AuthAA */,
 				D05AF00E000000000000G100 /* RemoteSessions */,
