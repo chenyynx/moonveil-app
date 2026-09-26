@@ -1086,6 +1086,22 @@ struct ContentView: View {
     /// back to "Moonveil". Refreshed whenever SoulStore posts .soulMdChanged.
     @State private var soulName: String = SoulStore.cachedMetadata.name.isEmpty
         ? "Moonveil" : SoulStore.cachedMetadata.name
+    /// [NATIVE-TABS] 身份胶囊（principal）→ 资料页的 zoom 转场对与呈现开关。
+    /// Namespace 必须与胶囊头像的 matchedTransitionSource 同源。
+    @Namespace private var soulProfileNS
+    @State private var showsSoulProfile = false
+    /// iCloud 同步是否启用（决定胶囊同步指示器与新胶囊点击语义）。原 principal
+    /// 内联计算上提为存储属性——principal 每次 body 重建都要用，抽出来避免重复
+    /// 判定（值本身仍是读时计算，SyncV2Bootstrap.setEnabled 写同一 key）。
+    private var canOpenSync: Bool {
+        if #available(iOS 17.0, *) { return SyncV2Bootstrap.isEnabled }
+        return false
+    }
+
+    /// [NATIVE-TABS] 壳层（RootModeTabsView）注入的 zoom 转场 namespace——胶囊头像
+    /// 的 matchedTransitionSource 必须与壳层 sheet 的 navigationTransition 同一
+    /// namespace 才能生效（同名 @Namespace 是独立实例，跨视图不互通）。
+    var soulProfileNS: Namespace.ID? = nil
     /// Subtitle state shown under the "Moonveil" sidebar title. nil hides the
     /// row; otherwise it renders as small capsules per type or a single
     /// status string. Refreshed by a 5s timer.
@@ -3041,6 +3057,11 @@ struct ContentView: View {
         // （点列表收键盘的 TapGesture 曾在此，实测干扰行点击，已移除；
         // 收起出口保留：滚动 / 键盘「搜索」键 / 有文字时的 X）。
         .scrollDismissesKeyboard(.immediately)
+        // [CAPSULE-PRINCIPAL] 身份胶囊（principal，总高 ~74pt）撑高原生导航栏；
+        // 系统对超大 principal 的 bar 高度自适应不完整（实机 26.2：List 首行会
+        // 钻进胶囊 pill 下方），这里显式补顶部内容边距让列表整体下移。数值 =
+        // 胶囊总高(40+30-6+阴影~4) − 标准 44pt 带 ≈ 26pt，装机后按截图微调。
+        .contentMargins(.top, 26, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
         }
@@ -3226,6 +3247,11 @@ struct ContentView: View {
         .ignoresSafeArea(.keyboard, edges: showSearchBar ? [] : .bottom)
         // [SEARCH-DISMISS] 同 compact 列表：滚动收起搜索键盘。
         .scrollDismissesKeyboard(.immediately)
+        // [CAPSULE-PRINCIPAL] 身份胶囊（principal，总高 ~74pt）撑高原生导航栏；
+        // 系统对超大 principal 的 bar 高度自适应不完整（实机 26.2：List 首行会
+        // 钻进胶囊 pill 下方），这里显式补顶部内容边距让列表整体下移。数值 =
+        // 胶囊总高(40+30-6+阴影~4) − 标准 44pt 带 ≈ 26pt，装机后按截图微调。
+        .contentMargins(.top, 26, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
         }
@@ -3434,66 +3460,22 @@ struct ContentView: View {
                 Text(selectedIds.isEmpty ? "Select Sessions" : "\(selectedIds.count) Selected")
                     .font(.headline)
             } else {
-                let canOpenSync: Bool = {
-                    if #available(iOS 17.0, *) { return SyncV2Bootstrap.isEnabled }
-                    return false
-                }()
-                // Title text comes from SOUL.md (falls back to "Moonveil"). The
-                // leading sync indicator floats as an overlay so it doesn't
-                // take layout space — title stays perfectly centered in the
-                // navigation bar regardless of whether the indicator is visible.
-                // When iCloud sync isn't enabled the title is a plain Text;
-                // wrapping it in a `.disabled` Button would drain SwiftUI's
-                // default disabled-button tint into the label and render the
-                // SOUL name grey, which read as a styling bug rather than the
-                // intended "no sync detail to open" state.
-                // [T-ios-soul-name-sidebar-stale] The `.onReceive(soulMdChanged)`
-                // that refreshes `soulName` used to live HERE. It was moved to the
-                // stable `sessionList(useNavigationLinks:)` body for the SAME reason
-                // the migration timer was (see the T-ios-migration-timer note below):
-                // this toolbar principal item rebuilds on every canOpenSync /
-                // soulName / migrationSubtitle / isSelecting change, so a sink
-                // attached here gets torn down and re-created constantly and can
-                // drop a .soulMdChanged notification that arrives during the gap.
-                // This Text now only READS `soulName`.
-                let titleLabel = Text(soulName)
-                    .font(.system(size: 18.5, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .overlay(alignment: .leading) {
-                        if canOpenSync {
-                            Button {
-                                activeToolSheet = .syncMigrationDetail
-                            } label: {
-                                titleSyncIndicator(for: migrationSubtitle)
-                                    .contentShape(Rectangle())
-                                    .padding(4)
-                            }
-                            .buttonStyle(.plain)
-                            .offset(x: -27)
-                        }
-                    }
-                // [T-ios-migration-timer-toolbar-uaf-crash] The migration-subtitle
-                // refresh driver used to live HERE, on this `titleLabel` Text inside
-                // the churny toolbar principal item. That item rebuilds whenever
-                // canOpenSync / soulName / migrationSubtitle / isSelecting change, so
-                // AttributeGraph repeatedly tore down the driver's sink — a
-                // use-after-free release in the setBody transaction (EXC_BAD_ACCESS,
-                // build 309). The driver now lives on the stable
-                // `sessionList(useNavigationLinks:)` body (identity-stable across the
-                // sidebar lifetime) as a `.task` async loop, not a Combine timer sink
-                // (see migrationSubtitleLoop, T-ios-migration-timer-sessionlist-uaf-crash);
-                // this Text only READS the `migrationSubtitle` @State.
-
-                if canOpenSync {
-                    Button {
-                        activeToolSheet = .syncMigrationDetail
-                    } label: {
-                        titleLabel
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    titleLabel
-                }
+                // [NATIVE-TABS 2026-09-26] pp 拍板保留的身份胶囊（Muse 形制：幽灵头像
+                // 40pt + SOUL 名 pill 56×30）迁入原生导航栏 principal 位——系统保证
+                // 居中、push/多选自动让位，替代上一版壳层 overlay 悬浮（与标题互遮）。
+                // 点击 = 打开 SoulProfileHub（zoom 转场，matchedTransitionSource 挂
+                // 胶囊头像上）。同步指示器保留：迁到胶囊 pill 左侧 overlay（原语义
+                // 不变——点开 sync 迁移详情）。
+                // [T-ios-soul-name-sidebar-stale] soulName 只读；.soulMdChanged 刷新
+                // sink 仍在 sessionList body（churny principal 不挂 sink 的不变量
+                // 保持）。
+                SoulProfileCapsule(
+                    soulName: soulName,
+                    namespace: soulProfileNS,
+                    onOpen: { showsSoulProfile = true },
+                    syncIndicator: canOpenSync ? AnyView(titleSyncIndicator(for: migrationSubtitle)) : nil,
+                    onSyncTap: canOpenSync ? { activeToolSheet = .syncMigrationDetail } : nil
+                )
             }
         }
         ToolbarItem(placement: .topBarLeading) {
@@ -3503,10 +3485,19 @@ struct ContentView: View {
                     selectedIds.removeAll()
                 }
             }
-            // B16: the gear moved to RootModeTabsView's fixed bar so it can show on
-            // BOTH tabs and never slide. Its action is unchanged — `showSettings`, now
-            // owned by the router because the sheet is presented by the shell.
+            // [NATIVE-TABS] ≡ 齿轮回到原生 toolbar（原 B16 自绘浮钮随壳层 overlay
+            // 一并退役）。Action 不变 —— `showSettings`，sheet 由壳层呈现。
             // Selection mode still draws Cancel HERE (upstream, system-drawn).
+            if !isSelecting {
+                Button {
+                    tabRouter.showSettings = true
+                } label: {
+                    // AA's own drawer glyph, verbatim: AppSymbol("sidebar.left", size: 22)
+                    Image(systemName: "sidebar.left")
+                        .font(.system(size: 17, weight: .medium))
+                }
+                .accessibilityLabel(Text(String(localized: "Settings")))
+            }
         }
         ToolbarItem(placement: .topBarTrailing) {
             if isSelecting {
@@ -4346,7 +4337,7 @@ struct ContentView: View {
     /// rather than an opaque fill, so the button keeps its colour identity while
     /// the system material supplies the depth. Below 26 it stays the flat fill
     /// it has always been.
-    private static let newChatBrandColor = Color(UIColor { $0.userInterfaceStyle == .dark
+    static let newChatBrandColor = Color(UIColor { $0.userInterfaceStyle == .dark
         ? UIColor(red: 80/255, green: 76/255, blue: 66/255, alpha: 1)
         : UIColor(red: 183/255, green: 175/255, blue: 150/255, alpha: 1) })
 
@@ -4462,7 +4453,7 @@ struct ContentView: View {
     /// heterogeneous content, so the flicker that forced that type onto a
     /// sampled constant does not apply.
     @ViewBuilder
-    private func fabCircleSurface<Icon: View>(
+    func fabCircleSurface<Icon: View>(
         tint: Color?,
         fallbackFill: Color,
         fallbackShadowOpacity: Double,
@@ -4515,7 +4506,7 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private var fabRow: some View {
+    var fabRow: some View {
         // [T-fab-glass-contextmenu-regression] NO GlassEffectContainer here.
         //
         // The row was briefly wrapped in `GlassEffectContainer(spacing: 10)` so the
@@ -4552,7 +4543,7 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private var fabRowContent: some View {
+    var fabRowContent: some View {
         ZStack {
             // New chat FAB (draggable)
             DraggableFAB(
@@ -6171,7 +6162,7 @@ private struct DocumentExportPicker: UIViewControllerRepresentable {
 /// A floating action button that can be dragged horizontally and snaps to the left or right edge.
 /// Uses UIKit's UIPanGestureRecognizer via UIViewRepresentable for reliable, low-latency drag tracking
 /// that doesn't conflict with SwiftUI's Button/tap gestures.
-private struct DraggableFAB<Label: View>: View {
+struct DraggableFAB<Label: View>: View {
     @Binding var fabOnLeft: Bool
     @Binding var dragOffset: CGFloat
     @Binding var didDrag: Bool

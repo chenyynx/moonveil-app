@@ -597,17 +597,10 @@ struct RemoteSessionListView: View {
             }
     }
 
-    // MARK: - 底部双圆 FAB 行（与本机 ContentView 原装 fabRow 同构，56pt 行 / FAB 56 /
-    // edge 16 / .padding(.bottom, 20)。DraggableFAB 在本文件写 private 同构副本——
-    // ContentView 的那份是文件私有的，跨文件不可见；两份语义逐字一致。
-    // 与本机差异：新会话 FAB 用实色 tan 盘（不挂 iOS26 glassEffect / contextMenu，
-    // 远端原胶囊栏也没有这两件）；展开条光束 borderRadius 随条高 56 → 28
-    // （原常驻胶囊 47 → 23.5 的旧字据见 [SEARCH-BEAM] 注释位）。
-
-    /// 新会话 FAB 的 tan 动态色（light 183/175/150，dark 80/76/66——本机原装同值）。
-    private static let newChatBrandColor = Color(UIColor { $0.userInterfaceStyle == .dark
-        ? UIColor(red: 80/255, green: 76/255, blue: 66/255, alpha: 1)
-        : UIColor(red: 183/255, green: 175/255, blue: 150/255, alpha: 1) })
+    // MARK: - 底部双圆 FAB 行（[NATIVE-TABS 2026-09-26] pp「远端页的搜索框和新会话
+    // 按钮也要用原装的」：直接复用本机 ContentView 的原装件——DraggableFAB 与
+    // newChatBrandColor 已提为 internal 共享，单一实现两端用，不再有同构副本。
+    // 行几何 56/16/20、展开条光束 borderRadius 28 与本机逐字一致。）
 
     @ViewBuilder
     private var fabRow: some View {
@@ -621,7 +614,7 @@ struct RemoteSessionListView: View {
                 if !fabDidDrag { startNewSession() }
             } label: {
                 Circle()
-                    .fill(Self.newChatBrandColor)
+                    .fill(ContentView.newChatBrandColor)
                     .overlay {
                         Image(systemName: {
                             if #available(iOS 17.0, *) { return "bubble.left.and.text.bubble.right" }
@@ -1004,65 +997,6 @@ struct RemoteSessionListView: View {
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(Color.primary)
         }
-    }
-}
-
-// MARK: - 可拖拽换边 FAB（ContentView 原装 DraggableFAB 的 private 同构副本，逐字一致；
-// 原件文件私有不可跨文件复用。拖动换边 → spring 吸附 + medium 触感，
-// 松手 0.15s 内吞掉拖拽尾部的 tap——与本机行为同源。）
-
-private struct DraggableFAB<Label: View>: View {
-    @Binding var fabOnLeft: Bool
-    @Binding var dragOffset: CGFloat
-    @Binding var didDrag: Bool
-    /// When true, this FAB sits on the opposite side of `fabOnLeft` and inverts the snap logic.
-    var inverted: Bool = false
-    var onTap: () -> Void
-    @ViewBuilder var label: () -> Label
-
-    private let fabSize: CGFloat = 56
-    private let edgePadding: CGFloat = 16
-
-    var body: some View {
-        GeometryReader { geo in
-            let screenWidth = geo.size.width
-            let leftX = edgePadding + fabSize / 2
-            let rightX = screenWidth - edgePadding - fabSize / 2
-            let onLeft = inverted ? !fabOnLeft : fabOnLeft
-            let restingX = onLeft ? leftX : rightX
-
-            label()
-                .frame(width: fabSize, height: fabSize)
-                .position(x: restingX + dragOffset, y: fabSize / 2)
-                .onTapGesture {
-                    onTap()
-                }
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 10)
-                        .onChanged { value in
-                            didDrag = true
-                            dragOffset = value.translation.width
-                        }
-                        .onEnded { value in
-                            let currentCenter = restingX + value.translation.width
-                            let droppedOnLeft = currentCenter < screenWidth / 2
-                            // For inverted FAB: dropping on left means the *other* FAB goes right
-                            let newFabOnLeft = inverted ? !droppedOnLeft : droppedOnLeft
-                            let changed = fabOnLeft != newFabOnLeft
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                fabOnLeft = newFabOnLeft
-                                dragOffset = 0
-                            }
-                            if changed {
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                didDrag = false
-                            }
-                        }
-                )
-        }
-        .frame(height: fabSize)
     }
 }
 

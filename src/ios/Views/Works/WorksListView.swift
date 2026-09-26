@@ -64,38 +64,15 @@ struct WorksListView: View {
         }
     }
 
-    // MARK: 分段胶囊
+    // MARK: 分段控件（[NATIVE-TABS] 原生 segmented Picker，替代自绘胶囊）
 
     private var segmentBar: some View {
-        HStack(spacing: 4) {
-            segmentButton(.components, "Components")
-            segmentButton(.media, "Media")
+        Picker("", selection: $section) {
+            Text("Components").tag(WorksSection.components)
+            Text("Media").tag(WorksSection.media)
         }
-        .padding(3)
-        .frame(height: 44)
-        .background(Capsule().fill(Self.trackColor))
-    }
-
-    private func segmentButton(_ target: WorksSection, _ key: LocalizedStringKey) -> some View {
-        let selected = section == target
-        return Button {
-            guard !selected else { return }
-            withAnimation(.spring(response: 0.36, dampingFraction: 0.78)) {
-                section = target
-            }
-        } label: {
-            Text(key)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(selected ? Self.selectedTextColor : Color.primary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 38)
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(selected ? Self.selectedColor : Color.clear)
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+        .pickerStyle(.segmented)
+        .padding(.horizontal, 16)
     }
 
     // MARK: 内容两段
@@ -288,25 +265,6 @@ struct WorksListView: View {
         results.sort { $0.modified > $1.modified }
         return results
     }
-
-    // MARK: 动态色
-
-    /// 分段轨道：light #F2F2F2 / dark #1C1C1E。
-    private static let trackColor = Color(UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 0x1C / 255, green: 0x1C / 255, blue: 0x1E / 255, alpha: 1)
-            : UIColor(white: 0xF2 / 255, alpha: 1)
-    })
-    /// 选中段：light 白 / dark #3A3833。
-    private static let selectedColor = Color(UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 0x3A / 255, green: 0x38 / 255, blue: 0x33 / 255, alpha: 1)
-            : .white
-    })
-    /// 选中段文字（亮字/深字随底反相）。
-    private static let selectedTextColor = Color(UIColor { traits in
-        traits.userInterfaceStyle == .dark ? .white : UIColor(white: 0x11 / 255, alpha: 1)
-    })
 
     // MARK: 视频抽帧（缩略图与全屏共用）
 
