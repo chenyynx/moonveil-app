@@ -7,62 +7,6 @@ import BorderBeamKit
 private let shareLog = AppLogger(category: "Share")
 private let draftLog = AppLogger(category: "DraftSession")
 
-// MARK: - claudio 设计 token（[T-session-list-card] 批搬运）
-// 原件住 claudio `src/ios/Views/Providers/RemoteNewSessionSheet.swift`（pp 2026-09-14
-// 「把背景颜色换成设置页的那个背景颜色」：设置家族全画 ClaudePalette.background）。
-// 本仓无 RemoteNewSessionSheet 同源文件 → 整段逐字搬入本文件（SessionRowCardBackground
-// 同批落位），SettingsPaletteBackground 未随搬（本仓设置页未采用 Claude 家族，搬即死代码）。
-
-/// Official Anthropic design tokens, extracted from the live anthropic.com
-/// stylesheet (2026-09-02; light surfaces hue-neutralized same day per pp —
-/// the ivory read too yellow on device): page bg #F7F7F5, slate-dark
-/// #141413 (text + primary button), cloud-dark #868684 (secondary text),
-/// borders slate @10%, and the app-level accent orange #D97757. Dark-mode
-/// surfaces follow the Claude app (#262624 background / #30302E cards).
-enum ClaudePalette {
-    static let background = dynamic(0xF7F7F5, 0x262624)
-    static let card = dynamic(0xFFFFFF, 0x30302E)
-    static let textPrimary = dynamic(0x141413, 0xFAF9F5)
-    static let textSecondary = dynamic(0x868684, 0xB0AEA5)
-    static let accent = Color(UIColor(hex: 0xD97757))
-    static let ctaBackground = dynamic(0x141413, 0xFAF9F5)
-    static let ctaForeground = dynamic(0xFAF9F5, 0x141413)
-    /// Card fill — one step darker than the page background, flat and
-    /// borderless (was anthropic.com ivory-medium #F0EEE6; hue neutralized —
-    /// pp: too yellow on device, 2026-09-02).
-    static let cardFill = dynamic(0xF0F0EE, 0x30302E)
-    /// Selection/link blue — the official app marks the chosen row and
-    /// inline links with a calm blue rather than the brand orange.
-    static let selectionBlue = dynamic(0x4A90D9, 0x6FB1E8)
-
-    static var border: Color {
-        adaptive(0x141413, alpha: 0.1, darkHex: 0xFAF9F5, darkAlpha: 0.14)
-    }
-
-    private static func dynamic(_ light: UInt32, _ dark: UInt32) -> Color {
-        Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(hex: dark) : UIColor(hex: light) })
-    }
-
-    private static func adaptive(_ light: UInt32, alpha: Double, darkHex: UInt32, darkAlpha: Double) -> Color {
-        Color(UIColor { trait in
-            trait.userInterfaceStyle == .dark
-                ? UIColor(hex: darkHex, alpha: darkAlpha)
-                : UIColor(hex: light, alpha: alpha)
-        })
-    }
-}
-
-private extension UIColor {
-    convenience init(hex: UInt32, alpha: Double = 1) {
-        self.init(
-            red: Double((hex >> 16) & 0xFF) / 255,
-            green: Double((hex >> 8) & 0xFF) / 255,
-            blue: Double(hex & 0xFF) / 255,
-            alpha: alpha
-        )
-    }
-}
-
 // MARK: - Session context-menu action channel
 
 /// [T-ios-crash-contextmenu-uaf] Action relay for the sidebar session context
@@ -519,112 +463,6 @@ private struct FolderMemberRowBackground: View {
             .modifier(FolderSurface(kind: isLast ? .bottom : .middle))
             .padding(.horizontal, 6)
             .padding(.bottom, isLast ? 4 : 0)
-    }
-}
-
-// MARK: - [T-session-list-card] Floating card face for plain session rows
-//
-// Layout is deliberately untouched: this paints *behind* the existing row via
-// `listRowBackground`, so not one glyph moves — the row keeps
-// `.listRowInsets(EdgeInsets())` and its own internal padding. Only the
-// material and the page tone changed.
-//
-// ITERATION LOG (read before "optimizing" this again)
-//
-// v1 shipped a FLAT sampled fill + an edge gradient and deliberately skipped
-// `glassEffect`, because `FolderSurface` records live glass on List rows being
-// rejected twice here (glass pieces cannot merge across rows; a live material
-// flickers as heterogeneous content passes behind). That reasoning was sound
-// but it answered a question the user had not asked — the ask was liquid
-// glass. Lesson: repo history is input to the decision, not a veto to be
-// exercised on the user's behalf. Try it, then report what it costs.
-//
-// v1 also took its absolute tones from pixel-sampling a PHOTOGRAPH of a screen.
-// Photos compress the luminance range (the reference "card" measured only ~5
-// levels over its page), so the port read as muddy/dark on a real display.
-// Lesson: sampling a photo gives you RELATIONSHIPS (card > page, bright top
-// edge, dark bottom edge), never absolute values. Lift the whole scale and let
-// the device be the judge.
-//
-// v2 = real glass, brighter page, and folder-card tone parity. Still no
-// `.shadow`: rows clip to bounds, so a cast shadow is sliced into a dark band
-// (and this list has two scroll-performance incidents on record,
-// [T-ios-session-list-equatable-jank], plus a ban on hand-rolled blur).
-// The one thing genuinely unproven here is glass INSIDE `listRowBackground`;
-// the expanded folder tiles do render `.regularMaterial` there, which is why
-// this is believed rather than guessed. If it renders nothing on device, the
-// flat fallback branch below is the shape of the fix.
-
-// Page and card tones now come from the app's own design tokens (`ClaudePalette`;
-// 本仓 ClaudePalette 见文件头 [T-session-list-card] 批搬运段 — 原件住 claudio
-// `src/ios/Views/Providers/RemoteNewSessionSheet.swift`) instead of numbers invented for
-// this list. pp 2026-09-14: "把背景颜色换成设置页的那个背景颜色" — the settings
-// family all paint `ClaudePalette.background` via `SettingsPaletteBackground`,
-// and a second page tone is exactly how a list and a settings sheet start
-// reading as two different apps.
-
-/// Card face (pre-26 fallback + the regenerating-title scrim) = `ClaudePalette.card`.
-private let sessionRowCardFill = ClaudePalette.card
-
-/// Edge top: the highlight that reads as glass catching light.
-private let sessionRowEdgeTop = Color(UIColor { traits in
-    traits.userInterfaceStyle == .dark
-        ? UIColor(white: 1, alpha: 0.16)
-        : UIColor(white: 1, alpha: 0.72)
-})
-/// Edge bottom: the contact shadow, faked as a stroke so nothing clips.
-private let sessionRowEdgeBottom = Color(UIColor { traits in
-    traits.userInterfaceStyle == .dark
-        ? UIColor(white: 0, alpha: 0.55)
-        : UIColor(white: 0, alpha: 0.10)
-})
-
-/// The gutter between cards, and how far the card pulls in from the screen
-/// edge. Both live here so a single-line tweak retunes the whole rhythm.
-private let sessionRowCardRadius: CGFloat = 22
-private let sessionRowCardInsetX: CGFloat = 8
-private let sessionRowCardGapY: CGFloat = 3
-
-private struct SessionRowCardBackground: View {
-    private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: sessionRowCardRadius, style: .continuous)
-    }
-
-    var body: some View {
-        Group {
-            if #available(iOS 26.0, *) {
-                // The ask. Glass brings its own edge highlight, so the hand-drawn
-                // gradient stroke below stays out of its way.
-                Color.clear.glassEffect(.regular, in: shape)
-            } else {
-                shape
-                    .fill(sessionRowCardFill)
-                    .overlay {
-                        shape.strokeBorder(
-                            LinearGradient(
-                                stops: [
-                                    .init(color: sessionRowEdgeTop, location: 0),
-                                    .init(color: .clear, location: 0.45),
-                                    .init(color: sessionRowEdgeBottom, location: 1)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom),
-                            lineWidth: 0.75)
-                    }
-            }
-        }
-        .padding(.horizontal, sessionRowCardInsetX)
-        .padding(.vertical, sessionRowCardGapY)
-    }
-}
-
-/// Backdrop for the iPhone session list: the settings-page color, token-identical.
-/// Kept as a named view (rather than inlining `ClaudePalette.background` at the
-/// call site) so the `.ignoresSafeArea()` coverage of the FAB inset stays in one
-/// place — settings screens have no bottom inset to worry about, this one does.
-private struct SessionListPageBackground: View {
-    var body: some View {
-        ClaudePalette.background
     }
 }
 
@@ -3063,20 +2901,6 @@ struct ContentView: View {
                             selectableRow(session)
                                 .id("select-\(session.id)")
                                 .listRowInsets(EdgeInsets())
-                                .listRowSeparator(.hidden)
-                                // [T-session-list-card] Selection mode never set a row
-                                // background, which was invisible while the page was
-                                // opaque white. On the new gray page it would read as
-                                // white stripes, so it gets the same face as the normal
-                                // rows — and folder members keep their tiled container
-                                // instead of splitting into per-row cards.
-                                .listRowBackground(Group {
-                                    if group.folderId != nil {
-                                        FolderMemberRowBackground(isLast: sessionId == group.ids.last)
-                                    } else {
-                                        SessionRowCardBackground()
-                                    }
-                                })
                         } else {
                             SessionRow(
                                 session: session,
@@ -3109,10 +2933,7 @@ struct ContentView: View {
                                 .overlay {
                                     if regeneratingTitleSessionId == session.id {
                                         ZStack {
-                                            // [T-session-list-card] Was page-white: on the new gray page a white
-                                            // scrim rendered as a bright box. Use the card face itself so
-                                            // the row still reads as one card while its title regenerates.
-                                            sessionRowCardFill.opacity(0.7)
+                                            Color(.systemBackground).opacity(0.7)
                                             ProgressView()
                                         }
                                     }
@@ -3127,8 +2948,7 @@ struct ContentView: View {
                                 if group.folderId != nil {
                                     FolderMemberRowBackground(isLast: sessionId == group.ids.last)
                                 } else {
-                                    // [T-session-list-card] Was a flat page-white slab.
-                                    SessionRowCardBackground()
+                                    Color(.systemBackground)
                                 }
                             })
                             .contextMenu {
@@ -3161,11 +2981,6 @@ struct ContentView: View {
 
         }
         .listStyle(.plain)
-        // [T-session-list-card] Neutral gray page tone, darkening downward, so the
-        // card faces read as lifted. Scoped to the iPhone list only — the iPad
-        // sidebar keeps its old page until the same recipe lands there.
-        .scrollContentBackground(.hidden)
-        .background(SessionListPageBackground().ignoresSafeArea())
         #if DEBUG
         // TEMPORARY scroll-phase markers to bracket the jitter window in the
         // log. Pair with the [ROWH] probe: a [ROWH] line appearing during
@@ -4512,9 +4327,7 @@ struct ContentView: View {
         .padding(.bottom, 24)
         // [BOTTOM-FADE-3] 渐隐层：bar 的 background（z 序在列表之上、bar 内容之下），
         // alignment .bottom + 高度显式几何向上溢出覆盖栏上方的列表内容。见 BottomBarFadeView。
-        // [T-session-list-card] 收口色 = 本页画布（ClaudePalette.background）——
-        // 默认 systemBackground 与灰页色温错位会显灰膜（同远端页 BOTTOM-FADE-PAGE 病根）。
-        .background(alignment: .bottom) { BottomBarFadeView(pageColor: ClaudePalette.background) }
+        .background(alignment: .bottom) { BottomBarFadeView() }
         // [BOTTOM-BAR-ALIGN] pp 2026-09-20「底部的胶囊尺寸和大小还有位置，对齐图二」。
         // 参照图（Claude 列表页底栏）逐像素实测：搜索文字中心距屏底 ~51pt、实机 ~81pt
         // → 整体下移 30pt 贴底；水平边距 16→22pt（参照 22-23pt）。胶囊↔搜索相对距
