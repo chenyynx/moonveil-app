@@ -6236,8 +6236,9 @@ private struct SessionRow: View, Equatable {
             // 44pt 格保留：给状态点/徽标 overlay 当锚点，行对齐不变。
             providerIcon
                 .frame(width: 44, height: 44)
-                // [PP-2026-09-27] 状态改呼吸灯圆点（pp「转圈不要，要高级」）：
-                // 运行中=实心圆点缓慢呼吸，挂起=空心静止圆点。右上，不跟徽标抢位。
+                // [PP-2026-09-27] 状态改静态圆点（pp「呼吸灯土」→要高级）：
+                // 高级=克制。Apple 的 live 指示器（Watch 录制点/灵动岛隐私点）
+                // 都是实心静止的。运行中=实心黑点，挂起=空心灰点，空闲=无点+图标变淡。
                 .overlay(alignment: .topTrailing) {
                     statusDot
                         .offset(x: 4, y: -4)
@@ -6442,26 +6443,27 @@ private struct SessionRow: View, Equatable {
     @ViewBuilder
     private var providerIcon: some View {
         // [PP-2026-09-27] Tabler 2px outline（跟 tab 栏同库），template 单色。
+        // 空闲时图标变淡（60%），运行/挂起全黑——用明暗对比表达状态，不加动画。
         Image(sessionTablerAsset(for: session.category))
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(width: 22, height: 22)
             .foregroundStyle(.primary)
+            .opacity(isActive || isSuspended ? 1.0 : 0.6)
     }
 
-    /// 状态呼吸灯：运行中=实心圆点缓慢呼吸；挂起=空心圆点静止。
-    /// [PP-2026-09-27] 替代转圈（pp「转圈就不要了，你想个另外的方式展示状态，要高级」）。
+    /// 状态圆点：运行中=实心黑点静止；挂起=空心灰点静止；空闲=无点。
+    /// [PP-2026-09-27] 呼吸版被 pp 否了（「很土」）→静态版。高级感来自克制。
     @ViewBuilder
     private var statusDot: some View {
         if isActive {
             Circle()
                 .fill(.primary)
-                .frame(width: 7, height: 7)
-                .modifier(BreatheModifier())
+                .frame(width: 6, height: 6)
         } else if isSuspended {
             Circle()
                 .stroke(.secondary, lineWidth: 1.5)
-                .frame(width: 7, height: 7)
+                .frame(width: 6, height: 6)
         }
     }
 
@@ -6584,23 +6586,6 @@ private struct RemoteSessionRow: View {
             .aspectRatio(contentMode: .fit)
             .frame(width: 22, height: 22)
             .foregroundStyle(.primary)
-    }
-}
-
-/// 呼吸动画：1.2s 一次的缓慢缩放+透明度脉动，用于状态呼吸灯。
-/// [PP-2026-09-27] 会话行状态点用（替代转圈）。
-private struct BreatheModifier: ViewModifier {
-    @State private var on = false
-
-    func body(content: Content) -> some View {
-        content
-            .scaleEffect(on ? 1.35 : 1.0)
-            .opacity(on ? 0.55 : 1.0)
-            .onAppear {
-                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-                    on = true
-                }
-            }
     }
 }
 
