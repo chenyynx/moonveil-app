@@ -16,7 +16,9 @@ extension AIChatViewModel {
 
     /// Execute a command via ISHExecutionCoordinator (serialized, mount-safe).
     /// Returns clean stdout+stderr output without any TTY artifacts, plus the exit code.
-    func executeCommand(_ command: String, timeout: TimeInterval? = nil, lineCallback: @escaping (String) -> Void) async throws -> CommandResult {
+    /// - Parameter toolId: identifies this invocation in `runningCommandPidsByTool`
+    ///   so concurrent shell tools each get their own pid slot (P0-2b).
+    func executeCommand(_ command: String, timeout: TimeInterval? = nil, toolId: String? = nil, lineCallback: @escaping (String) -> Void) async throws -> CommandResult {
         let effectiveTimeout = timeout ?? defaultCommandTimeout
         logger.info("Executing command via coordinator (timeout: \(Int(effectiveTimeout))s): \(command)")
 
@@ -39,7 +41,7 @@ extension AIChatViewModel {
                     // §3.2 M3: run the script via bash by self-writing it in the
                     // guest (base64, single line, no host→fakefs write, self-cleaning).
                     return try await runViaBash(command, sessionId: sid, timeout: effectiveTimeout,
-                                                lineCallback: lineCallback)
+                                                toolId: toolId, lineCallback: lineCallback)
                 }
                 // T1 only (script already invokes bash itself) — run as-is under sh.
             case .unavailable(let reason):
@@ -50,13 +52,16 @@ extension AIChatViewModel {
             }
         }
         return try await runWithReminder(command, sessionId: sid, timeout: effectiveTimeout,
-                                         reminder: bashReminder, silentClass: bashism.hasSilent,
+                                         toolId: toolId, reminder: bashReminder, silentClass: bashism.hasSilent,
                                          lineCallback: lineCallback)
     }
 
     /// Executor adapter handing OnDemandBash a way to run guest commands.
     private func ishExecutor(sessionId sid: String) -> OnDemandBash.Executor {
         OnDemandBash.Executor(run: { command, timeout in
+            // [P0-2c exemption] Probes share the chat sessionId, so a user
+            // Stop may kill one mid-install. Explicitly safe: a killed probe
+            // surfaces as unavailable and the shell path falls back to sh.
             let r = try? await ISHExecutionCoordinator.shared.execute(
                 sessionId: sid, command: command, timeout: timeout,
                 lineCallback: { _ in }, pidCallback: { _ in })
@@ -77,6 +82,7 @@ extension AIChatViewModel {
     /// precisely (M5) and self-healed inline rather than failing the command.
     private func runViaBash(_ script: String, sessionId sid: String,
                             timeout: TimeInterval,
+                            toolId: String? = nil,
                             lineCallback: @escaping (String) -> Void,
                             allowReinstall: Bool = true) async throws -> CommandResult {
         // [T-heredoc-trailing-newline] Same heredoc-terminator rule applies to
@@ -87,7 +93,7 @@ extension AIChatViewModel {
         let f = "/tmp/.minis-exec-$$.sh"
         let wrapped = "command -v bash >/dev/null 2>&1 || exit \(Self.bashMissingSentinel); "
             + "printf %s '\(b64)' | base64 -d > \(f) && bash \(f); rc=$?; rm -f \(f); exit $rc"
-        let result = try await runRaw(wrapped, sessionId: sid, timeout: timeout, lineCallback: lineCallback)
+        let result = try await runRaw(wrapped, sessionId: sid, timeout: timeout, toolId: toolId, lineCallback: lineCallback)
 
         // M5 self-heal: bash disappeared after we cached it available. Re-probe
         // and, once only, try to reinstall + rerun under bash inline so THIS
@@ -101,11 +107,11 @@ extension AIChatViewModel {
                 let outcome = await OnDemandBash.shared.ensureBash(executor: ishExecutor(sessionId: sid))
                 if case .available = outcome {
                     return try await runViaBash(script, sessionId: sid, timeout: timeout,
-                                                lineCallback: lineCallback, allowReinstall: false)
+                                                toolId: toolId, lineCallback: lineCallback, allowReinstall: false)
                 }
             }
             // Reinstall unavailable → degrade to sh so the script at least runs.
-            return try await runRaw(script, sessionId: sid, timeout: timeout, lineCallback: lineCallback)
+            return try await runRaw(script, sessionId: sid, timeout: timeout, toolId: toolId, lineCallback: lineCallback)
         }
         return result
     }
@@ -113,9 +119,9 @@ extension AIChatViewModel {
     /// Run `command` and, when a bash reminder applies, append it to the output
     /// per the §4.2 trigger rules (non-zero exit, OR any silent-class hit).
     private func runWithReminder(_ command: String, sessionId sid: String,
-                                 timeout: TimeInterval, reminder: String?, silentClass: Bool,
+                                 timeout: TimeInterval, toolId: String? = nil, reminder: String?, silentClass: Bool,
                                  lineCallback: @escaping (String) -> Void) async throws -> CommandResult {
-        let result = try await runRaw(command, sessionId: sid, timeout: timeout, lineCallback: lineCallback)
+        let result = try await runRaw(command, sessionId: sid, timeout: timeout, toolId: toolId, lineCallback: lineCallback)
         guard let reminder else { return result }
         let shouldAppend = result.exitCode != 0 || silentClass
         guard shouldAppend else { return result }
@@ -125,6 +131,7 @@ extension AIChatViewModel {
     /// The original coordinator call + output sanitation/truncation, factored
     /// out so the bash/sh/reminder wrappers share one implementation.
     private func runRaw(_ command: String, sessionId sid: String, timeout: TimeInterval,
+                        toolId: String? = nil,
                         lineCallback: @escaping (String) -> Void) async throws -> CommandResult {
         let effectiveTimeout = timeout
 
@@ -166,7 +173,18 @@ extension AIChatViewModel {
                     // can't MainActor.assumeIsolated here. It only fires 1-2
                     // times per command so a Task hop is fine.
                     Task { @MainActor in
-                        self?.runningCommandPid = pid
+                        // [P0-2b] Per-tool pid slot: pid > 0 inserts, pid <= 0
+                        // (completion/timeout, now symmetric on the
+                        // coordinator side) removes. The stop guard reads
+                        // the coordinator's hasInflight(sessionId:), so
+                        // this dict is a best-effort local view for display.
+                        if let toolId {
+                            if pid > 0 {
+                                self?.runningCommandPidsByTool[toolId] = pid
+                            } else {
+                                self?.runningCommandPidsByTool.removeValue(forKey: toolId)
+                            }
+                        }
                         self?.commandStartTime = pid > 0 ? Date() : nil
                     }
                 }

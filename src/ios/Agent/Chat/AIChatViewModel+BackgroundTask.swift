@@ -621,16 +621,23 @@ extension AIChatViewModel {
 
     func stopCurrentCommand() {
         // A tool can be in several cancellable states:
-        //   - one or more live iSH processes (runningCommandPids non-empty),
+        //   - one or more live iSH processes (coordinator snapshot non-empty),
         //   - a pre-execution delay countdown (toolDelayWaitActive),
         //   - an in-flight browser_use load (a tab is mid-navigation).
         // Any of these is a valid stop target. [T-ios-browser-tool-stop-button]
         // Browser tools don't go through iSH, so without the hasLoadingTab arm
         // the per-bubble stop button was a NOOP for a hung `navigate` — it bailed
-        // here because runningCommandPids was empty. Bail only when NONE apply,
+        // here because the pid snapshot was empty. Bail only when NONE apply,
         // so random taps don't poison the flag for a future real invocation.
         let browserLoading = browserTabPool.hasLoadingTab
-        guard !runningCommandPids.isEmpty || toolDelayWaitActive || browserLoading else { return }
+        // [P0-2a] The stop guard reads the coordinator's real per-session
+        // in-flight snapshot, not the VM's pid slot: the slot goes stale when
+        // the timeout path zeroes it via pidCallback(0), and a single slot
+        // collapses concurrent batches onto one pid. A nil sessionId (draft)
+        // never authorizes a shell kill — it must not fall through to the
+        // coordinator's kill-all semantic (P0-2c).
+        let shellInflight = sessionId.map { ISHExecutionCoordinator.hasInflight(sessionId: $0) } ?? false
+        guard shellInflight || toolDelayWaitActive || browserLoading else { return }
         commandCancelledByUser = true
         // Stop any in-flight browser page loads. stopLoading() resolves the
         // manager's navigationContinuation, so the awaited browserTabPool
@@ -639,10 +646,10 @@ extension AIChatViewModel {
             let n = browserTabPool.stopAllLoading()
             logger.info("⏹️ stopCurrentCommand — stopped \(n) loading browser tab(s)")
         }
-        // Stop ALL currently running shells — concurrent tool execution
-        // can have many in flight at once and a stop tap should cancel
+        // Stop ALL currently running shells for THIS session — concurrent tool
+        // execution can have many in flight at once and a stop tap should cancel
         // the entire batch. [T-concurrent-tools 2026-05-25]
-        if !runningCommandPids.isEmpty {
+        if shellInflight {
             // [T-shell-stop-blocked-by-actor] SYNCHRONOUS and nonisolated —
             // deliberately not `Task { await …stopCurrentCommand() }`.
             //
@@ -656,10 +663,18 @@ extension AIChatViewModel {
             //
             // Killing needs nothing from the actor but the pid, which is
             // mirrored under a lock, so this runs right here on the caller.
-            let killed = ISHExecutionCoordinator.stopAllNonisolated()
-            logger.info("⏹️ stopCurrentCommand — signalled \(killed) shell pid(s)")
+            if let sid = sessionId {
+                // [P0-2c] Session-scoped kill: never cross into another
+                // session's processes.
+                let killed = ISHExecutionCoordinator.stopAllNonisolated(sessionId: sid)
+                logger.info("⏹️ stopCurrentCommand — signalled \(killed) shell pid(s) for session \(sid.prefix(8))")
+            } else {
+                // Unreachable in practice (shellInflight requires a sessionId),
+                // but a draft nil must never be interpreted as kill-all (P0-2c).
+                logger.warning("⏹️ stopCurrentCommand — shell in-flight with nil sessionId; refusing kill-all")
+            }
         }
-        runningCommandPids.removeAll()
+        runningCommandPidsByTool.removeAll()
         commandStartTime = nil
     }
 

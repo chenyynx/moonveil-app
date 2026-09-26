@@ -2202,8 +2202,12 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
     /// Timer that logs tool execution status while the app is backgrounded.
     var backgroundStatusTimer: Timer?
     let defaultCommandTimeout: TimeInterval = 900 // 15 minutes
-    /// PID of the currently running shell command (0 = none).
-    @Published var runningCommandPid: Int32 = 0
+    /// Live shell PIDs keyed by tool id (P0-2b). Replaces the old single-slot
+    /// `runningCommandPid`, which went stale after normal completion (the
+    /// coordinator never cleared it) and collapsed concurrent batches onto
+    /// one pid. The stop guard reads the coordinator's `hasInflight`
+    /// snapshot instead; this dict is the VM-local view for display.
+    @Published var runningCommandPidsByTool: [String: Int32] = [:]
     /// Start time of the currently running command (nil = no command running).
     @Published var commandStartTime: Date?
     /// Set to `true` when the user explicitly stops a running command via the stop button.

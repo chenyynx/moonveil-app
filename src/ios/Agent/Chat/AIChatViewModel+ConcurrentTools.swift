@@ -24,21 +24,16 @@ extension AIChatViewModel {
     /// for emulator scheduling.
     static let maxConcurrentTools = 10
 
-    /// Set-typed view of currently-running shell PIDs.
+    /// Set-typed view of currently-running shell PIDs, backed by the real
+    /// per-tool dict `runningCommandPidsByTool` on AIChatViewModel (P0-2b).
     ///
-    /// Backed by the singular `runningCommandPid: Int32` slot on
-    /// AIChatViewModel so `AIChatViewModel+ISHCommand`'s pidCallback
-    /// (which assigns `runningCommandPid = pid`) keeps working
-    /// unchanged. The stop button enumerates this Set to kill every
-    /// in-flight shell across a concurrent batch. When per-task PID
-    /// tracking lands this can be promoted to true Set storage with
-    /// per-task insert/remove.
+    /// The stop guard itself no longer reads this — it uses the
+    /// coordinator's `hasInflight(sessionId:)` snapshot, which the timeout
+    /// path can't zero out from under it. This stays for the status
+    /// display and as a best-effort local view.
     ///
     /// [T-ios-concurrent-toolcall-dup-id]
-    var runningCommandPids: Set<Int32> {
-        get { runningCommandPid > 0 ? [runningCommandPid] : [] }
-        set { runningCommandPid = newValue.first ?? 0 }
-    }
+    var runningCommandPids: Set<Int32> { Set(runningCommandPidsByTool.values) }
 
     /// Tiny actor wrapping the per-turn image budget so concurrent tool
     /// tasks can race-free claim a slot for their image bytes.
@@ -440,7 +435,7 @@ extension AIChatViewModel {
                     "[ToolExec] STARTING shell_execute id=\(tu.id.prefix(20)) sid=\(sessionId?.prefix(8) ?? "nil") timeout=\(timeout)s command=\"\(command.prefix(500))\""
                 )
                 #endif
-                result = try await executeCommand(command, timeout: timeout) { [weak self] line in
+                result = try await executeCommand(command, timeout: timeout, toolId: tu.id) { [weak self] line in
                     guard let self else { return }
                     let (cleanedLine, capturedURLs) = MinisURLMarker.extract(from: line)
                     if !capturedURLs.isEmpty {

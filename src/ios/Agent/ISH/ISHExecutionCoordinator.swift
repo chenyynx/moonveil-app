@@ -61,6 +61,8 @@ actor ISHExecutionCoordinator {
         let id: UUID
         var pid: Int32 = 0
         let startTime: Date
+        /// Stop generation captured synchronously before fork (P0-2e).
+        let stopGeneration: UInt64
         var preempted: Bool = false
         var waiterContinuation: CheckedContinuation<Void, Error>?
     }
@@ -104,7 +106,12 @@ actor ISHExecutionCoordinator {
         // Register ourselves in the in-flight table purely for
         // stop/preempt visibility — we do NOT wait for prior entries.
         let myId = UUID()
-        let head = InflightExec(id: myId, startTime: Date())
+        // [P0-2e] Capture the stop generation synchronously on the actor
+        // BEFORE the fork: the pid backfill carries it, so a stop that
+        // bumps the generation between fork and backfill late-kills the
+        // pid instead of missing it in the snapshot copy.
+        let forkGeneration = Self.currentStopGeneration(sessionId: sessionId)
+        let head = InflightExec(id: myId, startTime: Date(), stopGeneration: forkGeneration)
         perSessionInflight[sessionId, default: []].append(head)
         syncInflightPidSnapshot()
 
@@ -132,7 +139,8 @@ actor ISHExecutionCoordinator {
             command: command,
             timeout: timeout,
             lineCallback: lineCallback,
-            pidCallback: pidCallback
+            pidCallback: pidCallback,
+            stopGeneration: forkGeneration
         )
     }
 
@@ -274,7 +282,8 @@ actor ISHExecutionCoordinator {
         command: String,
         timeout: TimeInterval?,
         lineCallback: @escaping (String) -> Void,
-        pidCallback: @escaping (Int32) -> Void
+        pidCallback: @escaping (Int32) -> Void,
+        stopGeneration: UInt64
     ) async throws -> ISHCommandResult {
         let effectiveTimeout = timeout ?? 300 // 5 minute default
 
@@ -351,7 +360,11 @@ actor ISHExecutionCoordinator {
                 guard claimResume() else { return }
                 timeoutWork?.cancel()
 
-                Task { await self?.recordInflightPid(sessionId: sessionId, id: myId, pid: 0) }
+                Task { await self?.recordInflightPid(sessionId: sessionId, id: myId, pid: 0, generation: stopGeneration) }
+                // [P0-2b] Symmetric with the timeout path below: tell the VM
+                // the pid slot is free so it doesn't go stale after normal
+                // completion (the old code never cleared it here).
+                pidCallback(0)
 
                 var output = result.output
                 let errOutput = result.errorOutput
@@ -392,7 +405,7 @@ actor ISHExecutionCoordinator {
             }
 
             // Track PID
-            Task { await self.recordInflightPid(sessionId: sessionId, id: myId, pid: pid) }
+            Task { await self.recordInflightPid(sessionId: sessionId, id: myId, pid: pid, generation: stopGeneration) }
             pidCallback(pid)
 
             // Timeout safety net
@@ -418,7 +431,7 @@ actor ISHExecutionCoordinator {
                 // is still readable, and it is a no-op if the command turned
                 // out to exit in time.
                 ISHShellExecutor.finalizeTimedOutPid(pid)
-                Task { await self?.recordInflightPid(sessionId: sessionId, id: myId, pid: 0) }
+                Task { await self?.recordInflightPid(sessionId: sessionId, id: myId, pid: 0, generation: stopGeneration) }
                 pidCallback(0)
                 logger.warning("Command timed out after \(effectiveTimeout)s — killing process group pid=\(pid)")
                 continuation.resume(returning: ISHCommandResult(output: "(command timed out after \(Int(effectiveTimeout))s)", exitCode: -1))
@@ -431,7 +444,31 @@ actor ISHExecutionCoordinator {
         }
     }
 
-    private func recordInflightPid(sessionId: String, id: UUID, pid: Int32) {
+    /// Backfills the real pid after fork (or 0 on completion/timeout).
+    /// - Parameter generation: the stop generation captured on the actor
+    ///   before fork. If a stop bumped the session's generation after the
+    ///   fork but before this backfill ran, the pid is late-killed: the
+    ///   stop's snapshot copy never saw it, so without this the process
+    ///   would escape the stop entirely (P0-2e).
+    private func recordInflightPid(sessionId: String, id: UUID, pid: Int32, generation: UInt64) {
+        // [P0-2e] This check MUST stay outside the dequeue guard below: when
+        // the entry is already gone the guard returns early and a late pid
+        // would be silently dropped, letting the process escape the stop.
+        if pid > 0 {
+            let currentGeneration = Self.currentStopGeneration(sessionId: sessionId)
+            if generation < currentGeneration {
+                logger.warning("[PidGen] LATE-KILL pid=\(pid) sid=\(sessionId.prefix(8)) forkGen=\(generation) stopGen=\(currentGeneration) — forked before stop, registered after; killing")
+                // Kill off-actor: killProcessGroup can wedge on the emulator
+                // pids_lock, and this method runs on the coordinator actor
+                // (cf. 2026-08-23 field note: never queue the kill behind
+                // the actor, and never hold inflightPidLock while killing).
+                let doomedPid = pid
+                Task.detached(priority: .utility) {
+                    ISHShellExecutor.killProcessGroup(doomedPid)
+                }
+                return
+            }
+        }
         guard var queue = perSessionInflight[sessionId],
               let idx = queue.firstIndex(where: { $0.id == id })
         else { return }
@@ -643,6 +680,16 @@ actor ISHExecutionCoordinator {
     private static let inflightPidLock = NSLock()
     nonisolated(unsafe) private static var inflightPidStorage: [String: [Int32]] = [:]
 
+    /// Per-session stop generation for late-pid kills (P0-2e). Bumped under
+    /// `inflightPidLock` every time `stopAllNonisolated` runs for that
+    /// session (nil sessionId bumps every known session). The fork path
+    /// captures the current generation synchronously on the actor BEFORE
+    /// forking; the pid backfill carries it back, so a stop that lands
+    /// between fork and backfill can late-kill the pid instead of missing
+    /// it in the snapshot copy. Per-session (not global) so stopping
+    /// session A never late-kills a pid forked by session B.
+    nonisolated(unsafe) private static var stopGenerationBySession: [String: UInt64] = [:]
+
     /// Mirror the actor's in-flight table into the lock-protected snapshot.
     /// Called from every site that mutates `perSessionInflight`.
     private func syncInflightPidSnapshot() {
@@ -660,8 +707,43 @@ actor ISHExecutionCoordinator {
     /// the actor. Safe to call from any thread; returns how many pids it
     /// signalled so the caller can log a real outcome.
     @discardableResult
+    /// Current stop generation for a session (P0-2e). The fork path captures
+    /// this synchronously on the actor BEFORE forking; the pid backfill
+    /// carries it so a stop that lands between fork and backfill can
+    /// late-kill the pid.
+    nonisolated static func currentStopGeneration(sessionId: String) -> UInt64 {
+        inflightPidLock.lock()
+        defer { inflightPidLock.unlock() }
+        return stopGenerationBySession[sessionId] ?? 0
+    }
+
+    /// Real in-flight check for the stop guard (P0-2a): does the
+    /// coordinator's pid snapshot show any live pid for this session?
+    /// `sessionId == nil` → any session. This replaces the VM's single-slot
+    /// `runningCommandPid`, which the timeout path zeroes via pidCallback(0)
+    /// and which collapses concurrent batches onto one pid.
+    nonisolated static func hasInflight(sessionId: String?) -> Bool {
+        inflightPidLock.lock()
+        defer { inflightPidLock.unlock() }
+        if let sid = sessionId {
+            return !(inflightPidStorage[sid]?.isEmpty ?? true)
+        }
+        return inflightPidStorage.values.contains { !$0.isEmpty }
+    }
+
     nonisolated static func stopAllNonisolated(sessionId: String? = nil) -> Int {
         inflightPidLock.lock()
+        // [P0-2e] Bump the stop generation BEFORE copying the snapshot: any
+        // pid that forks after this point but registers after the snapshot
+        // copy is late-killed by recordInflightPid's generation check.
+        // Per-session so stopping A never poisons B's in-flight forks.
+        if let sid = sessionId {
+            stopGenerationBySession[sid, default: 0] &+= 1
+        } else {
+            for key in stopGenerationBySession.keys {
+                stopGenerationBySession[key, default: 0] &+= 1
+            }
+        }
         let snapshot = inflightPidStorage
         inflightPidLock.unlock()
 
