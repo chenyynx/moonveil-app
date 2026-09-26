@@ -456,7 +456,8 @@ actor ISHExecutionCoordinator {
         // would be silently dropped, letting the process escape the stop.
         if pid > 0 {
             let currentGeneration = Self.currentStopGeneration(sessionId: sessionId)
-            if generation < currentGeneration {
+            if Self.shouldLateKillPid(pid: pid, forkGeneration: generation,
+                                      currentGeneration: currentGeneration) {
                 logger.warning("[PidGen] LATE-KILL pid=\(pid) sid=\(sessionId.prefix(8)) forkGen=\(generation) stopGen=\(currentGeneration) — forked before stop, registered after; killing")
                 // Kill off-actor: killProcessGroup can wedge on the emulator
                 // pids_lock, and this method runs on the coordinator actor
@@ -717,6 +718,26 @@ actor ISHExecutionCoordinator {
         return stopGenerationBySession[sessionId] ?? 0
     }
 
+    /// Pure in-flight predicate behind `hasInflight(sessionId:)` (P0-2a): a
+    /// session counts as in-flight only when its snapshot holds a live pid.
+    /// Extracted so the empty-snapshot and nil-session semantics are
+    /// unit-testable without touching the lock-guarded static storage.
+    nonisolated static func snapshotHasInflight(_ snapshot: [String: [Int32]], sessionId: String?) -> Bool {
+        if let sid = sessionId {
+            return !(snapshot[sid]?.isEmpty ?? true)
+        }
+        return snapshot.values.contains { !$0.isEmpty }
+    }
+
+    /// Pure late-kill decision (P0-2e): a pid that forked before a stop
+    /// (forkGeneration < currentGeneration) but only registered after must
+    /// be killed — the stop's snapshot copy never saw it, so without this
+    /// the process escapes the stop entirely.
+    nonisolated static func shouldLateKillPid(pid: Int32, forkGeneration: UInt64,
+                                              currentGeneration: UInt64) -> Bool {
+        pid > 0 && forkGeneration < currentGeneration
+    }
+
     /// Real in-flight check for the stop guard (P0-2a): does the
     /// coordinator's pid snapshot show any live pid for this session?
     /// `sessionId == nil` → any session. This replaces the VM's single-slot
@@ -725,10 +746,7 @@ actor ISHExecutionCoordinator {
     nonisolated static func hasInflight(sessionId: String?) -> Bool {
         inflightPidLock.lock()
         defer { inflightPidLock.unlock() }
-        if let sid = sessionId {
-            return !(inflightPidStorage[sid]?.isEmpty ?? true)
-        }
-        return inflightPidStorage.values.contains { !$0.isEmpty }
+        return snapshotHasInflight(inflightPidStorage, sessionId: sessionId)
     }
 
     nonisolated static func stopAllNonisolated(sessionId: String? = nil) -> Int {

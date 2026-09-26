@@ -5979,7 +5979,7 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
                     // Still recorded so the cross-turn detector accumulates.
                     let batchKey = toolLoopDetector.argsHashFor(tu.name, tu.args)
                     let batchSeen = batchCallCounts[batchKey, default: 0]
-                    if batchSeen >= 2 {
+                    if !Self.batchGateAllowsExecution(seenCount: batchSeen) {
                         let loopMsg = "[LOOP BLOCKED] CRITICAL: \(tu.name) was issued \(batchSeen + 1) times with identical arguments inside a single batch. Stop repeating the same call — verify the earlier results instead of re-issuing it."
                         logger.error("[ToolLoopDetector] batch-internal critical tool=\(tu.name) id=\(tu.id.prefix(8)) count=\(batchSeen + 1)")
                         if msgIdx < messages.count, tu.blockIdx < messages[msgIdx].blocks.count {

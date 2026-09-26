@@ -24,6 +24,18 @@ extension AIChatViewModel {
     /// for emulator scheduling.
     static let maxConcurrentTools = 10
 
+    /// P0-3: max identical (toolName, argsHash) calls that may RUN inside one
+    /// batch; the rest are critical-short-circuited without spawning a task
+    /// (but still recorded so the cross-turn detector accumulates).
+    static let maxIdenticalCallsPerBatch = 2
+
+    /// P0-3: pure batch-gate decision. `seenCount` identical calls were
+    /// already dispatched in this batch — true means this one may run.
+    /// Extracted so the "first two run, third blocked" contract is unit-testable.
+    static func batchGateAllowsExecution(seenCount: Int) -> Bool {
+        seenCount < maxIdenticalCallsPerBatch
+    }
+
     /// Set-typed view of currently-running shell PIDs, backed by the real
     /// per-tool dict `runningCommandPidsByTool` on AIChatViewModel (P0-2b).
     ///
@@ -70,6 +82,17 @@ extension AIChatViewModel {
         let cancelled: Bool
     }
 
+    /// P0-2d: pure cancel pre-check decision. A tool that hasn't started yet
+    /// short-circuits when the task was cancelled, the user cancelled, or
+    /// Stop set commandCancelledByUser. That flag is set WITHOUT cancelling
+    /// the Task, so without consulting it a not-yet-started sibling would
+    /// spawn a new process after Stop. Extracted so the contract is
+    /// unit-testable.
+    static func shouldCancelBeforeToolStart(taskCancelled: Bool, userDidCancel: Bool,
+                                            commandCancelledByUser: Bool) -> Bool {
+        taskCancelled || userDidCancel || commandCancelledByUser
+    }
+
     /// Execute a single tool use, returning a self-contained outcome.
     /// All mutations to `messages[msgIdx].blocks[blockIdx]` happen inside
     /// (the VM is @MainActor so this is safe even when invoked from
@@ -90,7 +113,9 @@ extension AIChatViewModel {
         // addition to Task/userDidCancel: stopCurrentCommand sets it without
         // cancelling the Task, so without this a sibling that hasn't started
         // yet would still spawn a new process after Stop.
-        if Task.isCancelled || self.userDidCancel || self.commandCancelledByUser {
+        if Self.shouldCancelBeforeToolStart(taskCancelled: Task.isCancelled,
+                                            userDidCancel: self.userDidCancel,
+                                            commandCancelledByUser: self.commandCancelledByUser) {
             let cancelContent = "<system-reminder>The user cancelled this operation. The returned result may be incomplete.</system-reminder>"
             if msgIdx < messages.count, blockIdx < messages[msgIdx].blocks.count {
                 messages[msgIdx].blocks[blockIdx].toolStatus = .cancelled

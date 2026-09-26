@@ -14,6 +14,17 @@ extension AIChatViewModel {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
+    /// P0-4: pure baseline decision. Returns nil when the edit may proceed
+    /// (no baseline recorded for this path, or the bytes still hash to the
+    /// recorded baseline); otherwise the (expected, actual) hash pair for
+    /// the abort message. Extracted so the mismatch contract is unit-testable.
+    static func fileBaselineMismatch(baseline: [String: String], hostPath: String,
+                                     currentData: Data) -> (expected: String, actual: String)? {
+        guard let expected = baseline[hostPath] else { return nil }
+        let actual = sha256Hex(currentData)
+        return actual == expected ? nil : (expected, actual)
+    }
+
     // MARK: - File Tool Execution
     //
     // iSH uses a fakefs format (SQLite meta.db + data/ directory).
@@ -624,17 +635,16 @@ extension AIChatViewModel {
         // the old_string was matched against stale content and applying it
         // would silently clobber the external change. No baseline → no check.
         let baselineKey = hostURL.path
-        if let expectedHash = fileBaselineByHostPath[baselineKey] {
-            let actualHash = Self.sha256Hex(fileData)
-            if actualHash != expectedHash {
-                return FileToolResult(
-                    output: "Error: \(path) changed since your last file_read "
-                        + "(baseline \(expectedHash.prefix(12))…, now \(actualHash.prefix(12))…). "
-                        + "Your old_string refers to stale content — re-run file_read to see the "
-                        + "current file, then retry the edit. Nothing was written.",
-                    success: false
-                )
-            }
+        if let mismatch = Self.fileBaselineMismatch(baseline: fileBaselineByHostPath,
+                                                    hostPath: baselineKey,
+                                                    currentData: fileData) {
+            return FileToolResult(
+                output: "Error: \(path) changed since your last file_read "
+                    + "(baseline \(mismatch.expected.prefix(12))…, now \(mismatch.actual.prefix(12))…). "
+                    + "Your old_string refers to stale content — re-run file_read to see the "
+                    + "current file, then retry the edit. Nothing was written.",
+                success: false
+            )
         }
 
         guard let fileContent = String(data: fileData, encoding: .utf8) else {
