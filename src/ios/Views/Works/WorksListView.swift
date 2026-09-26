@@ -59,7 +59,10 @@ struct WorksListView: View {
             VStack(spacing: 12) {
                 segmentBar
                     .padding(.horizontal, 16)
-                    .padding(.top, 12)
+                    // [CAPSULE-PRINCIPAL] 跟本机列表同值：导航栏超高胶囊
+                    // （~71.5pt）撑高原生 bar，内容顶部补 26pt 让分段 tab
+                    // 躲开胶囊（pp 2026-09-27「tab 往下移一点」）。
+                    .padding(.top, 26)
                 content
             }
             // 原生标题留空：导航栏 principal 位放身份胶囊（跟本机页同位置）。
