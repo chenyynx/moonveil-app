@@ -86227,55 +86227,55 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tippen Sie auf die Schaltfläche unten, um zu beginnen"
+            "value": "Tippen Sie hier, um zu beginnen"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tap the button below to begin"
+            "value": "Tap here to begin"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Toca el botón de abajo para empezar"
+            "value": "Toca aquí para empezar"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Appuyez sur le bouton ci-dessous pour commencer"
+            "value": "Appuyez ici pour commencer"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "下のボタンをタップして開始"
+            "value": "ここをタップして開始"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "아래 버튼을 눌러 시작하세요"
+            "value": "여기를 눌러 시작하세요"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Нажмите кнопку ниже, чтобы начать"
+            "value": "Нажмите здесь, чтобы начать"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "点击下方按钮开始"
+            "value": "点按此处开始对话"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "點擊下方按鈕開始"
+            "value": "點按此處開始對話"
           }
         }
       }

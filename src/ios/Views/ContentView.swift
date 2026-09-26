@@ -3019,7 +3019,13 @@ struct ContentView: View {
         .opacity(didInitialLoad ? 1 : 0)
         .overlay { if didInitialLoad, filteredSessions.isEmpty, !isSearching { emptyState } }
         .overlay(alignment: .top) { folderMiniBarOverlay(scrollProxy) }
-        .safeAreaInset(edge: .bottom) { if isSelecting { selectionToolbar } else { fabRow } }
+        // [WELCOME-NO-BOTTOMBAR] pp 2026-09-26「配置页这个页面不应该出现搜索框和
+        // 新会话按钮」：底栏与 emptyState overlay 同条件互斥（欢迎/配置页在场时
+        // 不挂底栏；搜空态 isSearching 时栏照常在，与 overlay 同判据）。
+        .safeAreaInset(edge: .bottom) {
+            if isSelecting { selectionToolbar }
+            else if !(didInitialLoad && filteredSessions.isEmpty && !isSearching) { fabRow }
+        }
         // [T-home-fab-keyboard-inset] Mirror of the voice panel's structural
         // immunity (604a9947 / T-voice-bg-fg-gap): with the inline search bar
         // closed, nothing down here accepts text — any keyboard inset reaching
@@ -3207,7 +3213,12 @@ struct ContentView: View {
         .opacity(didInitialLoad ? 1 : 0)
         .overlay { if didInitialLoad, displaySessions.isEmpty, !isSearching { emptyState } }
         .overlay(alignment: .top) { folderMiniBarOverlay(scrollProxy) }
-        .safeAreaInset(edge: .bottom) { if isSelecting { selectionToolbar } else { fabRow } }
+        // [WELCOME-NO-BOTTOMBAR] 同 compact 列表：欢迎/配置页在场时底栏退场
+        // （pp 2026-09-26；判据与本处 emptyState overlay 逐字相同）。
+        .safeAreaInset(edge: .bottom) {
+            if isSelecting { selectionToolbar }
+            else if !(didInitialLoad && displaySessions.isEmpty && !isSearching) { fabRow }
+        }
         // [T-home-fab-keyboard-inset] Same structural immunity as the compact
         // list above — see that call site for the full rationale. On iPad the
         // sidebar column never hosts a keyboard unless the inline search bar
