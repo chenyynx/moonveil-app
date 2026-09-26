@@ -6027,6 +6027,31 @@ func sessionCategoryIcon(for category: String?) -> (systemName: String, color: C
     }
 }
 
+/// 会话分类 → Tabler asset（2px outline，跟 tab 栏同库）。
+/// [PP-2026-09-27] 会话行头像极简化：SF Symbols 配色换 Tabler 单色。
+/// 文件夹图标（FolderGlyph）继续用 sessionCategoryIcon，不动。
+func sessionTablerAsset(for category: String?) -> String {
+    switch category {
+    case "code":         return "aa-Tabler-Terminal2"
+    case "writing":      return "aa-Tabler-Edit"
+    case "research":     return "aa-Tabler-Globe"
+    case "analysis":     return "aa-Tabler-ChartPie"
+    case "creative":     return "aa-Tabler-Brush"
+    case "chat":         return "aa-Tabler-MessageCircle"
+    case "math":         return "aa-Tabler-Calculator"
+    case "translation":  return "aa-Tabler-Language"
+    case "health":       return "aa-Tabler-Heart"
+    case "finance":      return "aa-Tabler-Wallet"
+    case "travel":       return "aa-Tabler-Plane"
+    case "education":    return "aa-Tabler-Book"
+    case "design":       return "aa-Tabler-Palette"
+    case "productivity": return "aa-Tabler-List"
+    case "support":      return "aa-Tabler-Lifebuoy"
+    case "other":        return "aa-Tabler-Puzzle"
+    default:             return "aa-Tabler-MessageCircle"
+    }
+}
+
 /// Folder icon composed from the folder's top member glyphs: a rounded-rect
 /// "group" container tinted with the first member's category color, holding up
 /// to 3 distinct category symbols. Empty folder → plain gray folder glyph.
@@ -6207,11 +6232,10 @@ private struct SessionRow: View, Equatable {
     var body: some View {
         HStack(spacing: 8) {
             // Provider icon with optional spinning/suspended ring
-            // [PP-2026-09-27] 极简化：去 provider 配色，全单色（pp「不要花里胡哨的颜色」）。
+            // [PP-2026-09-27] 极简化：去底（pp 定 B 方案），纯 Tabler 图标。
+            // 44pt 格保留：给转圈/徽标 overlay 当锚点，行对齐不变。
             providerIcon
                 .frame(width: 44, height: 44)
-                .background(Color.primary.opacity(isHighlighted ? 0.12 : 0.06))
-                .clipShape(Circle())
                 .overlay {
                     if isSuspended {
                         SuspendedRing(color: .yellow)
@@ -6419,17 +6443,13 @@ private struct SessionRow: View, Equatable {
     }
 
 
-    private var categoryIcon: (systemName: String, color: Color) {
-        sessionCategoryIcon(for: session.category)
-    }
-
     @ViewBuilder
     private var providerIcon: some View {
-        let icon = categoryIcon
-        let size: CGFloat = (icon.systemName == "bubble.left.fill" || icon.systemName == "terminal.fill") ? 18 : 20
-        Image(systemName: icon.systemName)
-            .font(.system(size: size))
-            // [PP-2026-09-27] 极简化：图标去 provider 配色，用 primary 单色。
+        // [PP-2026-09-27] Tabler 2px outline（跟 tab 栏同库），template 单色。
+        Image(sessionTablerAsset(for: session.category))
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 22, height: 22)
             .foregroundStyle(.primary)
     }
 
@@ -6513,11 +6533,9 @@ private struct RemoteSessionRow: View {
     var body: some View {
         HStack(spacing: 8) {
             // Category icon with iCloud badge
-            // [PP-2026-09-27] 极简化：去配色，全单色（跟本机行一致）。
+            // [PP-2026-09-27] 极简化：去底（pp 定 B 方案），纯 Tabler 图标。
             providerIcon
                 .frame(width: 44, height: 44)
-                .background(Color.primary.opacity(0.06))
-                .clipShape(Circle())
                 .overlay(alignment: .bottomTrailing) {
                     Image(systemName: "icloud.fill")
                         .font(.system(size: 7, weight: .bold))
@@ -6546,19 +6564,13 @@ private struct RemoteSessionRow: View {
         .contentShape(Rectangle())
     }
 
-    private var categoryIcon: (systemName: String, color: Color) {
-        sessionCategoryIcon(for: session.category)
-    }
-
-    private var iconColor: Color { categoryIcon.color }
-
     @ViewBuilder
     private var providerIcon: some View {
-        let icon = categoryIcon
-        let size: CGFloat = (icon.systemName == "bubble.left.fill" || icon.systemName == "terminal.fill") ? 18 : 20
-        Image(systemName: icon.systemName)
-            .font(.system(size: size))
-            // [PP-2026-09-27] 极简化：图标去配色，用 primary 单色。
+        // [PP-2026-09-27] Tabler 2px outline（跟 tab 栏同库），template 单色。
+        Image(sessionTablerAsset(for: session.category))
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 22, height: 22)
             .foregroundStyle(.primary)
     }
 }
