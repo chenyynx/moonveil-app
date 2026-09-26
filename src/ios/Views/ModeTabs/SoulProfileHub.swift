@@ -244,8 +244,7 @@ struct SoulProfileHub: View {
                              action: @escaping () -> Void) -> some View {
         Button(action: action) {
             ZStack(alignment: .topLeading) {
-                LinearGradient(colors: gradient.colors,
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                gradient
                 VStack(alignment: .leading, spacing: 4) {
                     Text(verbatim: title)
                         .font(.system(size: 26, weight: .bold))

@@ -1088,7 +1088,9 @@ struct ContentView: View {
         ? "Moonveil" : SoulStore.cachedMetadata.name
     /// [NATIVE-TABS] 身份胶囊（principal）→ 资料页的 zoom 转场对与呈现开关。
     /// Namespace 必须与胶囊头像的 matchedTransitionSource 同源。
-    @Namespace private var soulProfileNS
+    /// [NATIVE-TABS] 壳层注入的 zoom 转场 namespace（matchedTransitionSource 必须与
+    /// 壳层 sheet 的 navigationTransition 同一 namespace；同名 @Namespace 是独立实例）。
+    var soulProfileNS: Namespace.ID? = nil
     @State private var showsSoulProfile = false
     /// iCloud 同步是否启用（决定胶囊同步指示器与新胶囊点击语义）。原 principal
     /// 内联计算上提为存储属性——principal 每次 body 重建都要用，抽出来避免重复
@@ -1098,10 +1100,6 @@ struct ContentView: View {
         return false
     }
 
-    /// [NATIVE-TABS] 壳层（RootModeTabsView）注入的 zoom 转场 namespace——胶囊头像
-    /// 的 matchedTransitionSource 必须与壳层 sheet 的 navigationTransition 同一
-    /// namespace 才能生效（同名 @Namespace 是独立实例，跨视图不互通）。
-    var soulProfileNS: Namespace.ID? = nil
     /// Subtitle state shown under the "Moonveil" sidebar title. nil hides the
     /// row; otherwise it renders as small capsules per type or a single
     /// status string. Refreshed by a 5s timer.
