@@ -14,10 +14,10 @@ struct SearchToolbarButton: View {
         Button {
             showsSearch = true
         } label: {
+            // [FIX-toolbar-flash] SF Symbol 用 font 定尺寸，不用 .resizable()
+            //（切 tab toolbar 重建时 resizable 要等布局才渲染，会闪一帧）。
             Image(systemName: "magnifyingglass")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 22, height: 22)
+                .font(.system(size: 22))
         }
         .accessibilityLabel(Text(String(localized: "Search")))
     }

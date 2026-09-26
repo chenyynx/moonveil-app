@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 // [SEARCH-BEAM] 本地 SPM 包，vendored 自 libraries.dev border-beam 的官方 iOS
 // 移植（`packages/border-beam/ports/ios/BorderBeamKit`，上游 MIT）。只挂在本机
 // 搜索栏；远端列表同款栏是 AA 冻结件不碰。
@@ -1090,6 +1091,28 @@ struct ContentView: View {
     /// onGeometryChange 采样真实值后冻结，列表内部断开系统的反复重算。
     /// 单调取最大，收敛后不再更新。
     @State private var frozenTopContentMargin: CGFloat = 100
+
+    /// [FIX-toolbar-flash] toolbar 按钮图标预栅格化缓存。`.resizable()` 的图
+    /// 在 toolbar 重建（切 tab）时要等布局定尺寸后才渲染，中间空一帧 → 按钮
+    /// 闪一下。这里按目标 pt 尺寸一次栅格化缓存，之后直接用位图，不 resizable。
+    /// 只在 body（主线程）调用。
+    private static var toolbarIconCache: [String: UIImage] = [:]
+    private static func toolbarIcon(_ asset: String, pointSize: CGFloat, template: Bool = false) -> Image {
+        let key = "\(asset)@\(Int(pointSize))\(template ? "t" : "")"
+        if let cached = toolbarIconCache[key] {
+            return Image(uiImage: cached)
+        }
+        let ui = UIGraphicsImageRenderer(
+            size: CGSize(width: pointSize, height: pointSize)
+        ).image { _ in
+            UIImage(named: asset)?.draw(
+                in: CGRect(origin: .zero, size: CGSize(width: pointSize, height: pointSize))
+            )
+        }
+        let final = template ? ui.withRenderingMode(.alwaysTemplate) : ui
+        toolbarIconCache[key] = final
+        return Image(uiImage: final)
+    }
 
     enum SyncSubtitleState: Equatable {
         case paused
@@ -3494,10 +3517,9 @@ struct ContentView: View {
                     tabRouter.showSettings = true
                 } label: {
                     // [TABLER-ICONS 2026-09-27] pp 钦定：设置入口改用 Tabler menu（两横）。
-                    Image("aa-Tabler-Menu")
-                        .renderingMode(.template)
-                        .resizable()
-                        .frame(width: 20, height: 20)
+                    // [FIX-toolbar-flash] 预栅格化位图，不用 .resizable()（切 tab
+                    // toolbar 重建时 resizable 要等布局才渲染，会闪一帧）。
+                    Self.toolbarIcon("aa-Tabler-Menu", pointSize: 20, template: true)
                 }
                 .accessibilityLabel(Text(String(localized: "Settings")))
             }
@@ -3564,10 +3586,9 @@ struct ContentView: View {
                     }
                     #endif
                 } label: {
-                    Image("TerminalCircle")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 24, height: 24)
+                    // [FIX-toolbar-flash] 预栅格化位图，不用 .resizable()（切 tab
+                    // toolbar 重建时 resizable 要等布局才渲染，会闪一帧）。
+                    Self.toolbarIcon("TerminalCircle", pointSize: 24)
                 }
             }
         }
