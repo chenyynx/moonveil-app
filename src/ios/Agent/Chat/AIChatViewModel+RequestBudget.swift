@@ -370,12 +370,22 @@ extension AIChatViewModel {
 
     /// Save large tool output to persistent storage.
     /// With bind mounts, writing to persistent storage is automatically visible to iSH.
-    func offloadToolOutput(_ output: String, toolName: String, toolId: String) -> OffloadResult {
+    ///
+    /// `nonisolated` + off the MainActor: the UTF-8 encode and the atomic write
+    /// used to run on the main thread, which was tolerable while the caller
+    /// handed over at most ~15 KB (the head/tail cut that used to happen in
+    /// `runRaw`). With that cut removed, the input can be up to
+    /// `kMaxToolOutputBytes`, so the encode/write belongs on a background
+    /// executor. `sessionId` is passed in rather than read off `self` — reading
+    /// MainActor state here would require hopping back to the main actor and
+    /// defeat the point. The size bound itself is not duplicated here: the
+    /// caller's single cap already covers what reaches this function.
+    nonisolated static func offloadToolOutput(_ output: String, toolName: String, toolId: String,
+                                              sessionId sid: String) async -> OffloadResult {
         let fm = FileManager.default
-        let sid = sessionId ?? "unknown"
 
         // Write to persistent storage (bind-mounted, so iSH sees it automatically)
-        let persistDir = Self.minisOffloadsPersistentDir(for: sid)
+        let persistDir = minisOffloadsPersistentDir(for: sid)
         try? fm.createDirectory(at: persistDir, withIntermediateDirectories: true)
 
         let timestamp = Int(Date().timeIntervalSince1970)
@@ -384,7 +394,7 @@ extension AIChatViewModel {
         let persistPath = persistDir.appendingPathComponent(fileName)
         try? output.write(to: persistPath, atomically: true, encoding: .utf8)
 
-        let linuxPath = "\(Self.minisOffloadsLinuxDir)/\(fileName)"
+        let linuxPath = "\(minisOffloadsLinuxDir)/\(fileName)"
         return OffloadResult(linuxPath: linuxPath)
     }
 

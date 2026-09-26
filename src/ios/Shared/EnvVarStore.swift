@@ -4,6 +4,16 @@ import os.log
 
 private let logger = AppLogger(category: "EnvVarStore")
 
+/// Guards `EnvVarStore`'s key-list cache. File-private so the lock sits next to
+/// the state it protects instead of being MainActor-isolated by the class.
+private let envVarEntriesCacheLock = NSLock()
+
+/// Memoised env-var key list, keyed by the metadata file's mtime.
+private struct EnvVarEntriesCache {
+    let mtime: Date?
+    let entries: [EnvVarEntry]
+}
+
 // MARK: - EnvVarEntry
 
 struct EnvVarEntry: Identifiable, Codable {
@@ -42,11 +52,22 @@ final class EnvVarStore: ObservableObject {
     private let fileURL: URL
     nonisolated private static let keychainService = "com.moonveil.app.envvar"
 
-    init() {
+    /// Key list cache backing `cachedEntries()`; guarded by
+    /// `envVarEntriesCacheLock`.
+    nonisolated(unsafe) private static var entriesCache: EnvVarEntriesCache?
+
+    /// Single source of truth for the metadata file's location. `allAsDict()`
+    /// reads it from a nonisolated context and used to carry its own hardcoded
+    /// copy of the path — two strings that had to agree but were free to drift.
+    nonisolated private static var metadataFileURL: URL {
         let libraryURL = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
-        let baseURL = libraryURL.appendingPathComponent("MinisChat", isDirectory: true)
+        return libraryURL.appendingPathComponent("MinisChat/env-vars.json")
+    }
+
+    init() {
+        let baseURL = Self.metadataFileURL.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: baseURL, withIntermediateDirectories: true)
-        self.fileURL = baseURL.appendingPathComponent("env-vars.json")
+        self.fileURL = Self.metadataFileURL
         self.entries = Self.loadEntries(from: fileURL)
         scheduleLegacyRecordCleanupIfNeeded()
     }
@@ -94,7 +115,7 @@ final class EnvVarStore: ObservableObject {
 
     // MARK: - Persistence (key list)
 
-    private static func loadEntries(from url: URL) -> [EnvVarEntry] {
+    nonisolated private static func loadEntries(from url: URL) -> [EnvVarEntry] {
         guard let data = try? Data(contentsOf: url),
               let entries = try? JSONDecoder().decode([EnvVarEntry].self, from: data) else {
             return []
@@ -441,20 +462,94 @@ final class EnvVarStore: ObservableObject {
     }
 
     /// Returns all env vars as a dictionary for injection into shell execution.
+    ///
+    /// Two steps, and O(1) Keychain round-trips instead of O(N):
+    ///   1. `cachedEntries()` — the key list, read from the JSON file once and
+    ///      memoised on that file's mtime.
+    ///   2. `loadAllValuesBulk()` — one `SecItemCopyMatching` for every value.
+    ///
+    /// The *values* are deliberately not cached. Items are written with
+    /// `kSecAttrSynchronizable: true`, so another device can change one through
+    /// iCloud Keychain without touching this process, its JSON file, or any of
+    /// its write functions. A cached value would therefore be stale for an
+    /// unbounded window. Querying the Keychain on every call keeps that window
+    /// at zero while still collapsing N×(1–2) IPC into one.
     nonisolated func allAsDict() -> [String: String] {
+        let entries = Self.cachedEntries()
+        let bulk = Self.loadAllValuesBulk()
         var dict: [String: String] = [:]
-        // Read entries from the JSON file directly (avoid MainActor requirement)
-        let libraryURL = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
-        let fileURL = libraryURL.appendingPathComponent("MinisChat/env-vars.json")
-        guard let data = try? Data(contentsOf: fileURL),
-              let entries = try? JSONDecoder().decode([EnvVarEntry].self, from: data) else {
-            return dict
-        }
         for entry in entries {
-            if let val = Self.loadValue(forKey: entry.key) {
+            if let val = bulk[entry.key] {
                 dict[entry.key] = val
             }
         }
         return dict
+    }
+
+    /// The env-var key list (names + notes, never a value), memoised on the
+    /// metadata file's mtime. Costs one `stat` per call and re-decodes only
+    /// when the file actually changed.
+    ///
+    /// This file lives in the app's private container and is written solely by
+    /// `saveEntries()` — always with `.atomic`, so every save replaces the inode
+    /// and bumps the mtime. That is what makes mtime a sufficient cache key: no
+    /// write can change the contents without changing the mtime.
+    nonisolated private static func cachedEntries() -> [EnvVarEntry] {
+        let url = metadataFileURL
+        let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+
+        envVarEntriesCacheLock.lock()
+        let cached = entriesCache
+        envVarEntriesCacheLock.unlock()
+        if let cached, cached.mtime == mtime { return cached.entries }
+
+        // Decode outside the lock. The only caller is the coordinator actor's
+        // per-command env load, which is serialised, so losing a race costs one
+        // duplicate decode rather than any correctness.
+        let entries = loadEntries(from: url)
+        envVarEntriesCacheLock.lock()
+        entriesCache = EnvVarEntriesCache(mtime: mtime, entries: entries)
+        envVarEntriesCacheLock.unlock()
+        return entries
+    }
+
+    /// Every env-var value in a single `SecItemCopyMatching`.
+    ///
+    /// `kSecAttrSynchronizableAny` is what makes one query enough: a query with
+    /// no synchronizable attribute matches only non-synchronizable items, which
+    /// is exactly why `loadValue(forKey:)` needs two round-trips per key.
+    ///
+    /// Precedence mirrors `loadValue(forKey:)` — the synchronizable item wins
+    /// over a legacy non-sync one. Both existing at once is a transient
+    /// replication race (`saveValue` deletes the legacy item right after a
+    /// successful sync write), but the rule is kept explicit so this can never
+    /// disagree with what `loadValue(forKey:)` would have returned.
+    nonisolated private static func loadAllValuesBulk() -> [String: String] {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
+            kSecReturnAttributes as String: true,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitAll,
+        ]
+        var result: AnyObject?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let items = result as? [[String: Any]] else { return [:] }
+
+        var values: [String: String] = [:]
+        for item in items {
+            guard let account = item[kSecAttrAccount as String] as? String,
+                  let data = item[kSecValueData as String] as? Data,
+                  let value = String(data: data, encoding: .utf8) else { continue }
+            // Absent on legacy non-sync items queried via `...Any`; such an item
+            // is treated as non-sync, so it can never displace a sync value that
+            // was already collected.
+            let isSync = (item[kSecAttrSynchronizable as String] as? NSNumber)?.boolValue ?? false
+            if values[account] == nil || isSync {
+                values[account] = value
+            }
+        }
+        return values
     }
 }

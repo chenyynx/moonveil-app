@@ -36,6 +36,51 @@ extension AIChatViewModel {
         seenCount < maxIdenticalCallsPerBatch
     }
 
+    // MARK: - Output size bounds
+
+    /// Maximum characters echoed into a chat bubble or a tool snapshot.
+    ///
+    /// Bounds what the UI has to lay out, not what the model receives (that is
+    /// `kMaxToolResultChars`/offload). A huge string rendered inline is a known
+    /// hazard here — see the 800 KB / 43 s layout stall noted in FileTools.
+    static let kMaxToolDisplayChars = 30_000
+
+    /// Bound `text` for display, keeping the tail: for command output the most
+    /// recent lines are the interesting end, and it is the same window the
+    /// streaming flush path shows while the command is still running.
+    static func cappedForDisplay(_ text: String) -> String {
+        guard text.count > kMaxToolDisplayChars else { return text }
+        return "…[output truncated]…\n" + String(text.suffix(kMaxToolDisplayChars))
+    }
+
+    /// Hard cap on a single tool result, applied once as the result enters the
+    /// tool layer — before display, redaction, snapshotting and offload — so
+    /// every downstream consumer sees the same bytes.
+    ///
+    /// 8 MB sits far above the 15k the model is shown, on purpose: output below
+    /// this stays byte-for-byte complete on its way to the offload file, which
+    /// is what makes `file_read` on that path trustworthy. The cap exists
+    /// because removing the old 15k head/tail truncation in `runRaw` means the
+    /// tool layer can now be handed an unbounded string (a multi-hundred-MB
+    /// `cat` would otherwise be encoded, redacted, copied into a snapshot and
+    /// written to disk).
+    static let kMaxToolOutputBytes = 8 * 1024 * 1024
+
+    /// Clip a raw tool result to `kMaxToolOutputBytes` in UTF-8 terms, stating
+    /// plainly that the dropped bytes were not saved anywhere.
+    static func cappedToolOutput(_ raw: String) -> String {
+        let byteCount = raw.utf8.count
+        guard byteCount > kMaxToolOutputBytes else { return raw }
+        // `String(decoding:)` repairs an incomplete trailing sequence with
+        // U+FFFD rather than dropping the prefix — the bound is on bytes, so
+        // cutting mid-scalar is possible and harmless here.
+        let head = String(decoding: raw.utf8.prefix(kMaxToolOutputBytes), as: UTF8.self)
+        return head
+            + "\n\n[OUTPUT TRUNCATED AT 8MB] Kept the first 8MB of \(byteCount) bytes (\(raw.count) chars);"
+            + " the remainder was discarded and was NOT saved."
+            + "\nNarrow the command (head/tail/grep) to see the rest."
+    }
+
     /// Set-typed view of currently-running shell PIDs, backed by the real
     /// per-tool dict `runningCommandPidsByTool` on AIChatViewModel (P0-2b).
     ///
@@ -426,7 +471,6 @@ extension AIChatViewModel {
             do {
                 var lineBuffer: [String] = []
                 var lastFlush = Date.distantPast
-                let kMaxStreamingDisplayChars = 30_000
                 let flushLines: () -> Void = { [weak self] in
                     guard let self, !lineBuffer.isEmpty else { return }
                     let joined = lineBuffer.joined(separator: "\n")
@@ -440,9 +484,7 @@ extension AIChatViewModel {
                         } else {
                             newContent = current + "\n" + joined
                         }
-                        if newContent.count > kMaxStreamingDisplayChars {
-                            newContent = "…[output truncated]…\n" + String(newContent.suffix(kMaxStreamingDisplayChars))
-                        }
+                        newContent = Self.cappedForDisplay(newContent)
                         self.messages[msgIdx].blocks[blockIdx].content = newContent
                         self.scrollToBottomSignal.send()
                     }
@@ -493,19 +535,32 @@ extension AIChatViewModel {
                 "[ToolExec] FINISHED shell_execute id=\(tu.id.prefix(20)) exit=\(result.exitCode)"
             )
             #endif
+            // Single size bound for this result, taken here so everything below
+            // — bubble text, redaction, snapshot, offload — works from one
+            // identical string. A silent trim somewhere further down is how you
+            // end up with an offload file that quietly disagrees with what the
+            // model was told it contains.
+            let toolResultText = Self.cappedToolOutput(result.output)
             if msgIdx < messages.count, blockIdx < messages[msgIdx].blocks.count {
                 let existingContent = messages[msgIdx].blocks[blockIdx].content
                 let hasStreamedContent = !existingContent.isEmpty
                     && !existingContent.hasSuffix("Executing...")
                 if !hasStreamedContent {
-                    let (cleaned, capturedURLs) = MinisURLMarker.extract(from: result.output)
+                    let (cleaned, capturedURLs) = MinisURLMarker.extract(from: toolResultText)
                     for raw in capturedURLs {
                         if let u = URL(string: raw),
                            MinisOpenURLBroker.isSupportedScheme(u.scheme) {
                             MinisOpenURLBroker.shared.offer(u)
                         }
                     }
-                    let resultTrimmed = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+                    // This backfill has no cap of its own, unlike the streaming
+                    // path above — and unlike the offload path below, it never
+                    // truncated. It was bounded only by the head/tail cut that
+                    // used to live in `runRaw`; with that gone, an uncapped
+                    // write here would hand the bubble a multi-megabyte string.
+                    let resultTrimmed = Self.cappedForDisplay(
+                        cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+                    )
                     if !resultTrimmed.isEmpty {
                         messages[msgIdx].blocks[blockIdx].content = resultTrimmed
                     }
@@ -516,10 +571,10 @@ extension AIChatViewModel {
                 // concurrent execution — sibling shell tasks still need
                 // the signal to abort their own delay loops. The outer
                 // dispatcher resets it once per batch.
-                toolOutput = "<system-reminder>The user cancelled this operation. The returned result may be incomplete.</system-reminder>\n" + result.output
+                toolOutput = "<system-reminder>The user cancelled this operation. The returned result may be incomplete.</system-reminder>\n" + toolResultText
                 cancelledHere = true
             } else {
-                toolOutput = result.output
+                toolOutput = toolResultText
             }
             toolSuccess = result.exitCode == 0
 
@@ -905,6 +960,12 @@ extension AIChatViewModel {
         }()
 
         // Create snapshot from tool output.
+        //
+        // Snapshot text is held on `AIChatViewModel.toolSnapshots` (@Published,
+        // and rebuilt on session load), so it is a second copy of the output
+        // sitting in memory and in the floating toolbar's render path — bound it
+        // like the bubble text for the same reason.
+        let snapshotText = Self.cappedForDisplay(toolOutput)
         let snapshot: ToolSnapshot
         switch tu.name {
         case "browser_use":
@@ -920,7 +981,9 @@ extension AIChatViewModel {
                 snapshot = ToolSnapshot(type: .image, text: nil, mediaRef: ref, duration: toolDuration)
             } else {
                 let lines = toolOutput.components(separatedBy: "\n")
-                let lastLines = lines.suffix(20).joined(separator: "\n")
+                // Last-20 *lines* is not a size bound — one of those lines can
+                // itself be megabytes.
+                let lastLines = Self.cappedForDisplay(lines.suffix(20).joined(separator: "\n"))
                 snapshot = ToolSnapshot(type: .text, text: lastLines, mediaRef: nil, duration: toolDuration)
             }
         case "read_image":
@@ -937,7 +1000,7 @@ extension AIChatViewModel {
                 )
                 snapshot = ToolSnapshot(type: .image, text: nil, mediaRef: ref, duration: toolDuration)
             } else {
-                snapshot = ToolSnapshot(type: .text, text: toolOutput, mediaRef: nil, duration: toolDuration)
+                snapshot = ToolSnapshot(type: .text, text: snapshotText, mediaRef: nil, duration: toolDuration)
             }
         case "file_write", "file_edit":
             if let path = toolArgs["path"] as? String,
@@ -947,10 +1010,10 @@ extension AIChatViewModel {
                 let preview = lines.prefix(200).joined(separator: "\n")
                 snapshot = ToolSnapshot(type: .text, text: preview, mediaRef: nil, duration: toolDuration)
             } else {
-                snapshot = ToolSnapshot(type: .text, text: toolOutput, mediaRef: nil, duration: toolDuration)
+                snapshot = ToolSnapshot(type: .text, text: snapshotText, mediaRef: nil, duration: toolDuration)
             }
         default:
-            snapshot = ToolSnapshot(type: .text, text: toolOutput, mediaRef: nil, duration: toolDuration)
+            snapshot = ToolSnapshot(type: .text, text: snapshotText, mediaRef: nil, duration: toolDuration)
         }
 
         let snapshotResolver = await ChatStore.shared.mediaFileURLResolver()
@@ -988,7 +1051,9 @@ extension AIChatViewModel {
         if toolOutput.isEmpty {
             finalOutput = "(no output)"
         } else if toolOutput.count > maxToolResultLength {
-            let offloadResult = offloadToolOutput(toolOutput, toolName: tu.name, toolId: tu.id)
+            let offloadResult = await Self.offloadToolOutput(
+                toolOutput, toolName: tu.name, toolId: tu.id, sessionId: sessionId ?? "unknown"
+            )
             let offloadMinisURL = linuxPathToMinisURL(offloadResult.linuxPath)
             let truncatedBody: String
             if tu.name == "shell_execute" || tu.name == "browser_use" {
