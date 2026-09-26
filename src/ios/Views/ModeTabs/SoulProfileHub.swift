@@ -238,12 +238,13 @@ struct SoulProfileHub: View {
                 Text(AppLocalized("Edit"))
                     .font(.system(size: 16, weight: .medium))
             }
-            .foregroundStyle(.white)
+            // [MUSE-SPEC 2026-09-27] 全宽灰条 #F5F5F5，字黑（pp 钦定）。
+            .foregroundStyle(.black)
             .frame(maxWidth: .infinity)
             .frame(height: 35)
             .background(
                 RoundedRectangle(cornerRadius: 17.5, style: .continuous)
-                    .fill(Color.accentColor)
+                    .fill(Color(red: 0xF5 / 255, green: 0xF5 / 255, blue: 0xF5 / 255))
             )
             .contentShape(RoundedRectangle(cornerRadius: 17.5, style: .continuous))
         }
