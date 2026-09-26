@@ -1085,6 +1085,12 @@ struct ContentView: View {
     /// status string. Refreshed by a 5s timer.
     @State private var migrationSubtitle: SyncSubtitleState?
 
+    /// [FIX-list-top-jitter] 冻结后的列表顶部边距。导航栏超高胶囊导致系统
+    /// 自动 top inset 在 iOS 26 上抖动（实测列表内容上下窜 30px+），这里用
+    /// onGeometryChange 采样真实值后冻结，列表内部断开系统的反复重算。
+    /// 单调取最大，收敛后不再更新。
+    @State private var frozenTopContentMargin: CGFloat = 100
+
     enum SyncSubtitleState: Equatable {
         case paused
         case migrating(percent: Int, byType: [(label: String, count: Int)])
@@ -2877,6 +2883,15 @@ struct ContentView: View {
             let n = SoulStore.cachedMetadata.name
             soulName = n.isEmpty ? "Kite" : n
         }
+        // [FIX-list-top-jitter] 采样顶部安全区并冻结：取最大值 + 26pt 微调值
+        // （26pt 是之前按截图调好的胶囊补偿量）。Group 在导航栈内、不忽略
+        // 安全区，所以这里拿到的是真实值（含状态栏+导航栏）。
+        .onGeometryChange(for: CGFloat.self, of: { $0.safeAreaInsets.top }) { top in
+            let candidate = top + 26
+            if candidate > frozenTopContentMargin {
+                frozenTopContentMargin = candidate
+            }
+        }
     }
 
     /// Plain List with NavigationLink for stack (iPhone) layout.
@@ -3020,11 +3035,14 @@ struct ContentView: View {
         // （点列表收键盘的 TapGesture 曾在此，实测干扰行点击，已移除；
         // 收起出口保留：滚动 / 键盘「搜索」键 / 有文字时的 X）。
         .scrollDismissesKeyboard(.immediately)
-        // [CAPSULE-PRINCIPAL] 身份胶囊（principal，总高 ~74pt）撑高原生导航栏；
-        // 系统对超大 principal 的 bar 高度自适应不完整（实机 26.2：List 首行会
-        // 钻进胶囊 pill 下方），这里显式补顶部内容边距让列表整体下移。数值 =
-        // 胶囊总高(40+30-6+阴影~4) − 标准 44pt 带 ≈ 26pt，装机后按截图微调。
-        .contentMargins(.top, 26, for: .scrollContent)
+        // [CAPSULE-PRINCIPAL] 身份胶囊（principal，总高 ~74pt）撑高原生导航栏。
+        // [FIX-list-top-jitter] 系统对超大 principal 的 bar 高度自适应不完整，
+        // 自动 top inset 在 iOS 26 上抖动（列表内容上下窜）。这里断开系统的
+        // 自动边距（ignoresSafeArea top），改用冻结值：sessionList 用
+        // onGeometryChange 采样真实 top safe area 取最大 + 26pt（26pt 是之前
+        // 按截图调好的胶囊补偿量）。视觉位置与之前一致，但不再抖动。
+        .ignoresSafeArea(edges: .top)
+        .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
@@ -3210,11 +3228,14 @@ struct ContentView: View {
         .ignoresSafeArea(.keyboard, edges: showSearchBar ? [] : .bottom)
         // [SEARCH-DISMISS] 同 compact 列表：滚动收起搜索键盘。
         .scrollDismissesKeyboard(.immediately)
-        // [CAPSULE-PRINCIPAL] 身份胶囊（principal，总高 ~74pt）撑高原生导航栏；
-        // 系统对超大 principal 的 bar 高度自适应不完整（实机 26.2：List 首行会
-        // 钻进胶囊 pill 下方），这里显式补顶部内容边距让列表整体下移。数值 =
-        // 胶囊总高(40+30-6+阴影~4) − 标准 44pt 带 ≈ 26pt，装机后按截图微调。
-        .contentMargins(.top, 26, for: .scrollContent)
+        // [CAPSULE-PRINCIPAL] 身份胶囊（principal，总高 ~74pt）撑高原生导航栏。
+        // [FIX-list-top-jitter] 系统对超大 principal 的 bar 高度自适应不完整，
+        // 自动 top inset 在 iOS 26 上抖动（列表内容上下窜）。这里断开系统的
+        // 自动边距（ignoresSafeArea top），改用冻结值：sessionList 用
+        // onGeometryChange 采样真实 top safe area 取最大 + 26pt（26pt 是之前
+        // 按截图调好的胶囊补偿量）。视觉位置与之前一致，但不再抖动。
+        .ignoresSafeArea(edges: .top)
+        .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
