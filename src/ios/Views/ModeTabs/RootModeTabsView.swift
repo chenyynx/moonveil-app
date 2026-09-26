@@ -40,14 +40,14 @@ struct RootModeTabsView: View {
     /// 终端卡"点按登录"（onOpenLogin）会清掉重唤。key 命名跟随 aa.* 惯例。
     @AppStorage("aa.remote.login-cover-dismissed") private var loginCoverDismissed = false
 
-    /// [SF-TABS 2026-09-27] 底部 Tab 改用 SF Symbols（pp 亲自从画廊挑选），
-    /// 纯图标 tab（无文字），24pt medium 对齐之前 Lucide 栅格尺寸。a11y 朗读
-    /// 文本由 tabLabel 提供。
+    /// [NATIVE-TABS] 各 tab 的 Lucide 图标（aa- 前缀资产，模板渲染），纯图标
+    /// tab（无文字），22pt 对齐 Muse，黑色。a11y 朗读文本由 tabLabel 提供。
+    /// 2026-09-27：pp 试过 SF Symbols 后决定换回 Lucide 库。
     private static let tabIcon: [AppSourceMode: String] = [
-        .local: "message",
-        .remote: "cloud",
-        .works: "rectangle.stack",
-        .compose: "square.and.pencil",
+        .local: "aa-MessagesSquare",
+        .remote: "aa-Cloud",
+        .works: "aa-Blocks",
+        .compose: "aa-SquarePen",
     ]
 
     init() {
@@ -61,11 +61,19 @@ struct RootModeTabsView: View {
         bar.unselectedItemTintColor = .label
     }
 
-    /// SF Symbol 直接按 24pt medium 模板渲染（之前 Lucide 栅格也是 24pt），
-    /// tab 栏 tint 照常生效。
-    private static func tabImage(_ systemName: String) -> some View {
-        Image(systemName: systemName)
-            .font(.system(size: 24, weight: .medium))
+    /// Lucide SVG 资产是 24pt viewBox；Muse 的 tab 图标约 19pt，这里栅格化到
+    /// 22pt 并保持 template 渲染；颜色由调用处的 .foregroundStyle 按选中态给
+    ///（TabView 级 .tint 会透进 tab 内容染黑 accent——pp 2026-09-27）。
+    private static func tabImage(_ asset: String) -> Image {
+        let side: CGFloat = 22
+        let ui = UIGraphicsImageRenderer(
+            size: CGSize(width: side, height: side)
+        ).image { _ in
+            UIImage(named: asset)?.draw(
+                in: CGRect(origin: .zero, size: CGSize(width: side, height: side))
+            )
+        }
+        return Image(uiImage: ui.withRenderingMode(.alwaysTemplate))
     }
 
     /// tab 图标颜色：选中 .primary（浅色黑/深色白），未选中 .secondary 灰。
@@ -85,7 +93,7 @@ struct RootModeTabsView: View {
                 Tab(value: mode, role: mode == .compose ? .search : nil) {
                     tabContent(mode)
                 } label: {
-                    Self.tabImage(Self.tabIcon[mode] ?? "circle")
+                    Self.tabImage(Self.tabIcon[mode] ?? "aa-Circle")
                         // [NATIVE-TABS] 选中态黑图标：iOS 26 新浮动 Tab 不吃
                         // UITabBar.appearance，在 label 上按选中态显式着色；
                         // 不用 TabView 级 .tint（environment 会透进 tab 内容，
