@@ -610,10 +610,10 @@ struct RemoteSessionListView: View {
                               : Color(red: 15/255, green: 118/255, blue: 110/255)
         let hairline = darkCard ? Color.white.opacity(0.08) : Color(red: 60/255, green: 52/255, blue: 40/255).opacity(0.09)
         // 状态
-        let (statusText, statusColor, dotColor): (String, Color, Color) = {
-            if !configured { return ("未配置", faint, faint.opacity(0.5)) }
-            if connected { return ("已连接", accent, accent) }
-            return ("未连接", faint, faint.opacity(0.5))
+        let (statusText, statusColor): (String, Color) = {
+            if !configured { return ("未配置", faint) }
+            if connected { return ("已连接", accent) }
+            return ("未连接", faint)
         }()
         return VStack(alignment: .leading, spacing: 0) {
             // 顶行：三色点 + 状态
@@ -622,8 +622,12 @@ struct RemoteSessionListView: View {
                 Circle().fill(Color(red: 1, green: 188/255, blue: 46/255)).frame(width: 10, height: 10)
                 Circle().fill(Color(red: 40/255, green: 200/255, blue: 64/255)).frame(width: 10, height: 10)
                 Spacer(minLength: 0)
-                Circle().fill(dotColor).frame(width: 6, height: 6)
-                    .shadow(color: connected ? accent.opacity(0.8) : .clear, radius: 4)
+                // [PP-2026-09-27] 状态指示：圆点灯 → Tabler 云图标（template 渲染，随状态变色）
+                Image("aa-Tabler-Cloud")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 15, height: 15)
+                    .foregroundStyle(statusColor)
                 Text(statusText)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(statusColor)
