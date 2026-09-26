@@ -6233,16 +6233,11 @@ private struct SessionRow: View, Equatable {
         HStack(spacing: 8) {
             // Provider icon with optional spinning/suspended ring
             // [PP-2026-09-27] 极简化：去底（pp 定 B 方案），纯 Tabler 图标。
-            // 44pt 格保留：给状态点/徽标 overlay 当锚点，行对齐不变。
+            // 44pt 格保留：给徽标 overlay 当锚点，行对齐不变。
+            // [PP-2026-09-27] 状态无任何附加元素（pp「不要点」）：只用图标深浅——
+            // 运行/挂起=全黑，空闲=60% 淡。极简到只剩图标本身。
             providerIcon
                 .frame(width: 44, height: 44)
-                // [PP-2026-09-27] 状态改静态圆点（pp「呼吸灯土」→要高级）：
-                // 高级=克制。Apple 的 live 指示器（Watch 录制点/灵动岛隐私点）
-                // 都是实心静止的。运行中=实心黑点，挂起=空心灰点，空闲=无点+图标变淡。
-                .overlay(alignment: .topTrailing) {
-                    statusDot
-                        .offset(x: 4, y: -4)
-                }
                 .overlay(alignment: .bottomTrailing) {
                     // Lock badge takes precedence over source / remote
                     // badges: the locked state is the most important
@@ -6450,21 +6445,6 @@ private struct SessionRow: View, Equatable {
             .frame(width: 22, height: 22)
             .foregroundStyle(.primary)
             .opacity(isActive || isSuspended ? 1.0 : 0.6)
-    }
-
-    /// 状态圆点：运行中=实心黑点静止；挂起=空心灰点静止；空闲=无点。
-    /// [PP-2026-09-27] 呼吸版被 pp 否了（「很土」）→静态版。高级感来自克制。
-    @ViewBuilder
-    private var statusDot: some View {
-        if isActive {
-            Circle()
-                .fill(.primary)
-                .frame(width: 6, height: 6)
-        } else if isSuspended {
-            Circle()
-                .stroke(.secondary, lineWidth: 1.5)
-                .frame(width: 6, height: 6)
-        }
     }
 
     private func relativeDate(_ date: Date) -> String {
