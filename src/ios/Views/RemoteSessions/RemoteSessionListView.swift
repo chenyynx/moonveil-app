@@ -627,15 +627,12 @@ struct RemoteSessionListView: View {
         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         // REMOTE-DEVICE-1：点按整卡进入设备详情页（pp 2026-09-21 改：原长按入口
         // 2026-09-20 版改单击——「现在是长按卡片才能进去 改为点一次就进入」）。
-        // 未连接时点按整卡 → 登录/配对（pp 2026-09-20「要提醒用户连接」）。
+        // [PP-2026-09-27] 点按直接进设备页，不再按 service.state 分流到登录：
+        // 未登录时设备身份未到位，目的地显示「正在同步设备信息…+重试」。
         .onTapGesture {
-            if service.state == .ready {
-                showsDeviceDetail = true
-            } else {
-                onOpenLogin()
-            }
+            showsDeviceDetail = true
         }
-        .accessibilityHint(Text(service.state == .ready ? "查看设备详情" : "点按登录并配对设备"))
+        .accessibilityHint(Text("查看设备详情"))
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 6, trailing: 16))
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
