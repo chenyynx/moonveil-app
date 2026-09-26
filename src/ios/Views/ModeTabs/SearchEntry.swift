@@ -6,7 +6,7 @@
 
 import SwiftUI
 
-/// 各 tab 页右上角的 🔍 按钮（Lucide aa-Search，17pt 配原生 toolbar 图标）。
+/// 各 tab 页右上角的 🔍 按钮（系统 magnifyingglass，22pt）。
 struct SearchToolbarButton: View {
     @Binding var showsSearch: Bool
 
@@ -14,10 +14,10 @@ struct SearchToolbarButton: View {
         Button {
             showsSearch = true
         } label: {
-            Image("aa-Search")
+            Image(systemName: "magnifyingglass")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 17, height: 17)
+                .frame(width: 22, height: 22)
         }
         .accessibilityLabel(Text(String(localized: "Search")))
     }
@@ -30,7 +30,7 @@ struct SearchPlaceholderView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 12) {
-                Image("aa-Search")
+                Image(systemName: "magnifyingglass")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 28, height: 28)

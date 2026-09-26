@@ -39,10 +39,10 @@ struct RootModeTabsView: View {
     @State private var loginCoverDismissed = false
 
     /// [NATIVE-TABS] 各 tab 的 Lucide 图标（aa- 前缀资产，模板渲染），纯图标
-    /// tab（无文字），20pt 对齐 Muse，黑色。a11y 朗读文本由 tabLabel 提供。
+    /// tab（无文字），22pt 对齐 Muse，黑色。a11y 朗读文本由 tabLabel 提供。
     private static let tabIcon: [AppSourceMode: String] = [
         .local: "aa-MessagesSquare",
-        .remote: "aa-SquareTerminal",
+        .remote: "aa-Cloud",
         .works: "aa-Blocks",
         .compose: "aa-SquarePen",
     ]
@@ -58,10 +58,10 @@ struct RootModeTabsView: View {
         bar.unselectedItemTintColor = .label
     }
 
-    /// Lucide SVG 资产是 24pt viewBox；Muse 的 tab 图标是 20pt，这里栅格化到
-    /// 20pt 并保持 template 渲染，tab 栏 tint 照常生效。
+    /// Lucide SVG 资产是 24pt viewBox；Muse 的 tab 图标约 19pt，这里栅格化到
+    /// 22pt 并保持 template 渲染，tab 栏 tint 照常生效。
     private static func tabImage(_ asset: String) -> Image {
-        let side: CGFloat = 20
+        let side: CGFloat = 22
         let ui = UIGraphicsImageRenderer(
             size: CGSize(width: side, height: side)
         ).image { _ in
@@ -89,6 +89,9 @@ struct RootModeTabsView: View {
         }
         // pp 2026-09-16 拍板延续：tap/横滑切 tab 内容层瞬切，不带系统 crossfade。
         .animation(nil, value: router.mode)
+        // [NATIVE-TABS] 选中态黑图标：iOS 26 新浮动 Tab 不吃 UITabBar.appearance，
+        // 用 SwiftUI tint；.primary 深浅色自适应（浅色黑/深色白）。
+        .tint(.primary)
         // Q2: 胶囊 → 资料页 zoom 转场。sheet + navigationTransition(.zoom) 配对
         // （Apple 文档标准形状；zoom 接管默认上弹转场）。
         .sheet(isPresented: $showsSoulProfile) {
@@ -160,7 +163,7 @@ struct RootModeTabsView: View {
                 Color(UIColor.systemBackground)
             }
         case .works:
-            WorksListView()
+            WorksListView(soulProfileNS: soulProfileNS)
         case .compose:
             // ACTION tab：mode 永不变为 .compose（tabSelection 写拦截），这里永不渲染。
             EmptyView()

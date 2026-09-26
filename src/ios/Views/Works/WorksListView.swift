@@ -38,6 +38,8 @@ private enum WorksSection: Hashable {
 // MARK: - View
 
 struct WorksListView: View {
+    /// zoom 转场 namespace（壳层注入；nil 时胶囊不挂转场源，sheet 降级普通）。
+    var soulProfileNS: Namespace.ID? = nil
     @State private var section: WorksSection = .components
     @State private var files: [WorkFile] = []
     @State private var media: [MediaItem] = []
@@ -47,29 +49,59 @@ struct WorksListView: View {
     @State private var gallery: GalleryPresentation?
     /// 右上角 🔍（pp 2026-09-26「搜索放右上角」）：sheet 出搜索占位页。
     @State private var showsSearch = false
+    /// 身份胶囊 → 资料页。
+    @State private var showsSoulProfile = false
+    @State private var soulName: String = SoulStore.cachedMetadata.name.isEmpty
+        ? "Moonveil" : SoulStore.cachedMetadata.name
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 12) {
                 segmentBar
                     .padding(.horizontal, 16)
-                    .padding(.top, 6)
+                    .padding(.top, 12)
                 content
             }
-            // 原生标题留空：壳层顶部是身份胶囊（pp 终稿），此页不占标题位。
+            // 原生标题留空：导航栏 principal 位放身份胶囊（跟本机页同位置）。
             .navigationTitle(Text(verbatim: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    SoulProfileCapsule(
+                        soulName: soulName,
+                        namespace: soulProfileNS,
+                        onOpen: {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            showsSoulProfile = true
+                        }
+                    )
+                }
                 // [SEARCH-TOPRIGHT] pp 2026-09-26「搜索放右上角」。
                 ToolbarItem(placement: .topBarTrailing) {
                     SearchToolbarButton(showsSearch: $showsSearch)
                 }
             }
             .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
+            .sheet(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
         .task { rescan() }
         .fullScreenCover(item: $gallery) { presentation in
             MessageImageGallery(items: presentation.items, startIndex: presentation.startIndex)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
+            let n = SoulStore.cachedMetadata.name
+            soulName = n.isEmpty ? "Moonveil" : n
+        }
+    }
+
+    /// 胶囊 → 资料页 sheet（跟 ContentView 同逻辑：有 namespace 走 zoom 转场）。
+    @ViewBuilder
+    private func soulProfileSheet() -> some View {
+        if let ns = soulProfileNS {
+            SoulProfileHub()
+                .navigationTransition(.zoom(sourceID: SoulProfileHub.zoomSourceID, in: ns))
+        } else {
+            SoulProfileHub()
         }
     }
 

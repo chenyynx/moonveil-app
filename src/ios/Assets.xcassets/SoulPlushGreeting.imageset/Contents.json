@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "soul-greeting-512.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

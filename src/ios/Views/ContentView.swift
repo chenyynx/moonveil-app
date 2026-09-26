@@ -3028,6 +3028,7 @@ struct ContentView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
+        .sheet(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
     }
 
@@ -3217,9 +3218,22 @@ struct ContentView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
+        .sheet(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
     }
     // MARK: - Sidebar Toolbar
+
+    /// 胶囊 → 资料页 sheet。namespace 为 nil（preview）时降级为普通 sheet；
+    /// 正常注入时带 zoom 转场，与胶囊头像的 matchedTransitionSource 配对。
+    @ViewBuilder
+    private func soulProfileSheet() -> some View {
+        if let ns = soulProfileNS {
+            SoulProfileHub()
+                .navigationTransition(.zoom(sourceID: SoulProfileHub.zoomSourceID, in: ns))
+        } else {
+            SoulProfileHub()
+        }
+    }
 
     /// Refresh cadence for the sidebar migration subtitle, in seconds.
     private static let migrationSubtitleRefreshInterval: UInt64 = 5
@@ -3435,7 +3449,10 @@ struct ContentView: View {
                 SoulProfileCapsule(
                     soulName: soulName,
                     namespace: soulProfileNS,
-                    onOpen: { showsSoulProfile = true },
+                    onOpen: {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        showsSoulProfile = true
+                    },
                     syncIndicator: canOpenSync ? AnyView(titleSyncIndicator(for: migrationSubtitle)) : nil,
                     onSyncTap: canOpenSync ? { activeToolSheet = .syncMigrationDetail } : nil
                 )

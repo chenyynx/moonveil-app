@@ -269,8 +269,10 @@ struct RemoteSessionListView: View {
 
     private var sessionList: some View {
         List {
-            // —— 设备（终端窗卡 = 页面主语；无板块头）——
+            // —— 设备（终端窗卡 = 页面主语；pp 2026-09-26「组头弄这样」：历史消息式
+            // 大标题组头）——
             Section {
+                deviceSectionTitle
                 deviceTerminalCard
                 if pendingNotices > 0 {
                     pendingNoticesRow
@@ -570,6 +572,19 @@ struct RemoteSessionListView: View {
     }
 
     // MARK: - 设备（方案 B / REMOTE-REDESIGN-4：深色终端窗卡，pp 2026-09-20 定稿）
+
+    /// 设备组头：大标题「远程Agent」（pp 2026-09-26「组头弄这样」：历史消息式 largeTitle
+    /// 组头，34pt 粗体，左 16pt）。
+    private var deviceSectionTitle: some View {
+        Text("远程Agent")
+            .font(.largeTitle)
+            .bold()
+            .foregroundStyle(RemotePalette.ink)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 4, trailing: 16))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+    }
 
     /// 终端窗卡：mac 三色点 + mono 地址 + CONNECTED 标（在线 teal 点）。
     private var deviceTerminalCard: some View {

@@ -1,16 +1,16 @@
 // SoulProfileCapsule.swift — [NATIVE-TABS] 本机页导航栏 principal 位身份胶囊。
-// Muse 形制复刻（2026-09-26）：白圆盘 50pt 托住幽灵头像 44pt，
-// 整体压在液态玻璃胶囊（min 57×41pt）顶部约 17pt，三层水平同中心。
+// Muse 形制复刻（2026-09-26）：白圆盘 44pt 托住绒毛头像 38pt，
+// 整体压在液态玻璃胶囊（min 57×36pt）顶部约 15pt，三层水平同中心。
 // 放在原生 ToolbarItem(.principal) 里。
 //
 // 转场：头像挂 matchedTransitionSource（zoom 源），点击由壳层/本机页呈现
 // SoulProfileHub（.navigationTransition(.zoom)）——打开从胶囊放大长出、关闭缩回。
 //
-// 头像两态：isWorking 预留（Muse 参考里干活时头像切"耳机+笔记本"版）；
-// 当前用 SoulPlush 绒毛头像（2026-09-26 生成，米白 blob 笑脸），
-// 工作态资源到位后再区分。
+// 头像两态：isWorking=true 时切 SoulPlushWorking（耳机+笔记本版）；
+// 默认 SoulPlush 小老鼠 IP（2026-09-26 用户指定，星空睡帽灰老鼠）。
+// SoulPlushGreeting / SoulPlushStar 已入库备用，位置待定。
 //
-// 列表下移：胶囊总高 ~74pt 超出标准 44pt 导航栏带，principal 内容会自然撑高
+// 列表下移：胶囊总高 ~65pt 超出标准 44pt 导航栏带，principal 内容会自然撑高
 // UINavigationBar（系统行为，List 的 contentInsetAdjustment 自动跟随）；若
 // 实机验证撑高不足，用 `topOverscrollCompensation` 常量在列表侧补
 // .contentMargins(.top, …)（见 ContentView stackList/splitList 注释锚）。
@@ -28,15 +28,15 @@ struct SoulProfileCapsule: View {
     /// nil = 不显示（iCloud 未启用）。点击 = 打开 sync 迁移详情。
     var syncIndicator: AnyView? = nil
     var onSyncTap: (() -> Void)? = nil
-    /// 工作态头像预留（默认 false）。当前两态同图占位，美术资源到位后区分。
+    /// 工作态头像：isWorking=true 时切耳机+笔记本版。
     var isWorking: Bool = false
 
     // Muse 参考实测（@3x 截图换算，估算值）
-    private static let discDiameter: CGFloat = 50    // 白圆盘
-    private static let avatarSize: CGFloat = 44     // 幽灵头像
-    private static let discPillOverlap: CGFloat = 17 // 圆盘压住胶囊顶部的量
+    private static let discDiameter: CGFloat = 44    // 白圆盘
+    private static let avatarSize: CGFloat = 38     // 绒毛头像
+    private static let discPillOverlap: CGFloat = 15 // 圆盘压住胶囊顶部的量
     private static let pillMinWidth: CGFloat = 57
-    private static let pillHeight: CGFloat = 41
+    private static let pillHeight: CGFloat = 36
 
     var body: some View {
         Button {
@@ -50,11 +50,12 @@ struct SoulProfileCapsule: View {
                         .fill(.white)
                         .frame(width: Self.discDiameter, height: Self.discDiameter)
                         .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
-                    Image("SoulPlush")
+                    Image(isWorking ? "SoulPlushWorking" : "SoulPlush")
                         .resizable()
                         .scaledToFill()
                         .frame(width: Self.avatarSize, height: Self.avatarSize)
                         .clipShape(Circle())
+                        // [MUSE-1:1] 站立式 idle：呼吸起伏，不飘浮不摇摆
                         .modifier(PlushIdleMotion())
                         .modifier(ProfileZoomSource(namespace: namespace))
                         .accessibilityHidden(true)
@@ -62,11 +63,11 @@ struct SoulProfileCapsule: View {
                 .zIndex(1)
                 // 胶囊：iOS 26+ 液态玻璃，低版本磨砂白降级。宽度内容自适应。
                 Text(verbatim: soulName)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(Self.pillText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    .padding(.horizontal, 14)
+                    .padding(.horizontal, 12)
                     .frame(minWidth: Self.pillMinWidth, minHeight: Self.pillHeight)
                     .capsuleLiquidGlass()
                     .shadow(color: .black.opacity(0.10), radius: 5, x: 0, y: 2)
@@ -111,7 +112,7 @@ private extension View {
     @ViewBuilder
     func capsuleLiquidGlass() -> some View {
         if #available(iOS 26.0, *) {
-            self.glassEffect(.regular, in: Capsule())
+            self.glassEffect(.clear, in: Capsule())
         } else {
             self.background {
                 Capsule()
@@ -122,8 +123,8 @@ private extension View {
     }
 }
 
-/// 绒毛头像 idle 动画：上下浮动 + 轻微摇摆 + 呼吸缩放。
-/// 三组相位不同拍，观感自然不机械；Reduce Motion 开启时静止。
+/// 绒毛头像 idle 动画：站立式呼吸——原地轻微起伏 + 挤压拉伸，
+/// 脚不离地，不飘浮不摇摆。Reduce Motion 开启时静止。
 struct PlushIdleMotion: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -135,11 +136,13 @@ struct PlushIdleMotion: ViewModifier {
             content
                 .phaseAnimator([0, 1, 2, 3]) { view, phase in
                     view
-                        .offset(y: [-1.5, -3.5, -1.5, 0.5][phase])
-                        .rotationEffect(.degrees([-2.5, 1.5, 2.5, -1.0][phase]))
-                        .scaleEffect([1.0, 1.035, 1.0, 0.99][phase])
+                        .offset(y: [0, 1.0, 0, -1.0][phase])
+                        .scaleEffect(
+                            x: [1.0, 1.03, 1.0, 0.98][phase],
+                            y: [1.0, 0.97, 1.0, 1.02][phase]
+                        )
                 } animation: { _ in
-                    .easeInOut(duration: 0.85)
+                    .easeInOut(duration: 1.1)
                 }
         }
     }
