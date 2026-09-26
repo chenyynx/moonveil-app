@@ -611,9 +611,9 @@ struct RemoteSessionListView: View {
         let hairline = darkCard ? Color.white.opacity(0.08) : Color(red: 60/255, green: 52/255, blue: 40/255).opacity(0.09)
         // 状态
         let (statusText, statusColor, dotColor): (String, Color, Color) = {
-            if !configured { return ("NOT SET UP", faint, faint.opacity(0.5)) }
-            if connected { return ("CONNECTED", accent, accent) }
-            return ("OFFLINE", faint, faint.opacity(0.5))
+            if !configured { return ("未配置", faint, faint.opacity(0.5)) }
+            if connected { return ("已连接", accent, accent) }
+            return ("未连接", faint, faint.opacity(0.5))
         }()
         return VStack(alignment: .leading, spacing: 0) {
             // 顶行：三色点 + 状态
@@ -625,8 +625,7 @@ struct RemoteSessionListView: View {
                 Circle().fill(dotColor).frame(width: 6, height: 6)
                     .shadow(color: connected ? accent.opacity(0.8) : .clear, radius: 4)
                 Text(statusText)
-                    .font(.system(size: 11, weight: .semibold))
-                    .tracking(1)
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(statusColor)
             }
             .padding(.bottom, 22)
