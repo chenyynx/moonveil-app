@@ -6437,13 +6437,15 @@ private struct SessionRow: View, Equatable {
 
     @ViewBuilder
     private var providerIcon: some View {
-        // [PP-2026-09-27] Tabler 2px outline（跟 tab 栏同库），template 单色。
-        // 空闲时图标变淡（60%），运行/挂起全黑——用明暗对比表达状态，不加动画。
-        Image(sessionTablerAsset(for: session.category))
+        // [PP-2026-09-27] Tabler 2px outline（跟 tab 栏同库）。
+        // pp「运行中就是有颜色的」：平时全单色极简，运行中恢复 provider 配色——
+        // 克制让 accent 更有力。空闲 60% 淡，挂起全黑无色。
+        let activeColor = sessionCategoryIcon(for: session.category).color
+        return Image(sessionTablerAsset(for: session.category))
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(width: 22, height: 22)
-            .foregroundStyle(.primary)
+            .foregroundStyle(isActive ? activeColor : .primary)
             .opacity(isActive || isSuspended ? 1.0 : 0.6)
     }
 
