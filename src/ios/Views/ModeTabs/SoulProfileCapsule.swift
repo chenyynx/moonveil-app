@@ -65,8 +65,10 @@ struct SoulProfileCapsule: View {
                 }
                 .zIndex(1)
                 // 胶囊：iOS 26+ 液态玻璃，低版本磨砂白降级。宽度内容自适应。
+                // [PP-2026-09-27] 字 16→14（pp「胶囊字体缩小一点」）；min 57×36
+                // 不动，字+padding 未超下限，胶囊尺寸保持原样。
                 Text(verbatim: soulName)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Self.pillText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
