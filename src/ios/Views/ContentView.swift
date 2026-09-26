@@ -278,8 +278,8 @@ struct SearchBarSurface: ViewModifier {
 /// 叠一层**随主题的页面色渐变**（与 mask 同步 0.35→0.80）：亮色 白≈材质零视觉差；
 /// 暗色 灰膜被页面黑吃掉、屏底过浓的雾被实色盖掉 → 收口＝页面色。
 /// pageColor 由调用方注入（两页画布不同）：本机默认 systemBackground（FolderSurface
-/// 实测字据：暗色纯黑 24 点零方差 / 亮色白）；远端 = RemotePalette.canvas（暖纸/
-/// 暖黑）。
+/// 实测字据：暗色纯黑 24 点零方差 / 亮色白）；远端 = RemotePalette.canvas（2026-09-26
+/// 起同为 systemBackground，token 同源保两边永不漂移）。
 struct BottomBarFadeView: View {
     var pageColor: Color = Color(UIColor.systemBackground)
 

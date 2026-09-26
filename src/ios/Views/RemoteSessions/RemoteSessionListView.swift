@@ -1,7 +1,8 @@
 // RemoteSessionListView.swift — 远端会话列表（R0，batch 8）
 //
 // 形态（pp 2026-09-20 定稿，REMOTE-REDESIGN-4 = 方案 B「Claude 设计语言」落地）：
-// 暖奶油画布 → 深色终端窗卡（设备）→ 液态玻璃操作 → 13pt tertiary 项目头 → 暖卡堆
+// 暖奶油画布（→ 2026-09-26 pp「远端背景改成和本地一样」起改 systemBackground）
+//   → 深色终端窗卡（设备）→ 液态玻璃操作 → 13pt tertiary 项目头 → 暖卡堆
 // 会话（琥珀待批准 / teal running / 珊瑚未读点）；冻结三件（顶栏/新会话/搜索栏）原样
 //   ——[SEARCH-BEAM] pp 2026-09-24「远端也加」显式修订：搜索栏追加 border-beam 光束
 //   （参数与本机栏一致，见 searchBarCapsule 处注释）；顶栏 / 新会话仍原样；
@@ -141,7 +142,8 @@ struct RemoteSessionListView: View {
     // 本视图不再另挂右上角菜单。
     var body: some View {
         content
-            // 方案 B（REMOTE-REDESIGN-4）：整页暖奶油画布（深色 = 暖黑），列表背景让位
+            // 页面画布与本机一致 = systemBackground（pp 2026-09-26「远端背景改成和
+            // 本地背景颜色一样」；原方案 B 暖奶油画布退役），列表背景让位
             .background(RemotePalette.canvas.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -601,9 +603,9 @@ struct RemoteSessionListView: View {
         .padding(.horizontal, 22)
         .padding(.top, 8)
         .padding(.bottom, 24)
-        // [BOTTOM-FADE-PAGE] pp 2026-09-24 暗黑适配批：远端画布是暖纸/暖黑
-        // （RemotePalette.canvas），与本机 systemBackground 不同 → 收口色注入本页
-        // 画布，否则暖黑页面上会收在纯黑（色温错位，同灰膜病根）。
+        // [BOTTOM-FADE-PAGE] pp 2026-09-24 暗黑适配批注入页面收口色；2026-09-26 起
+        // 远端画布（RemotePalette.canvas）已改为 systemBackground、与本机同款，
+        // 注入仍保留（收口色随画布 token 走，两页永远同源）。
         .background(alignment: .bottom) { BottomBarFadeView(pageColor: RemotePalette.canvas) }
         .offset(y: searchFocused ? 0 : 30)
     }

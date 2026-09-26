@@ -36,8 +36,11 @@ struct RemoteSpinningRing: View {
 // MARK: - 方案 B 调色板（claude.md tokens；dynamic 深浅适配——REMOTE-REDESIGN-4）
 
 enum RemotePalette {
-    /// 页面画布：暖奶油 / 暖黑
-    static let canvas = dyn(0xFAF9F5, 0x181715)
+    /// 页面画布：与本机页同款 systemBackground（pp 2026-09-26「把远端聊天页的背景
+    /// 颜色改成和本地背景颜色一样」——本机画布 = 亮白/暗黑 systemBackground，
+    /// 见 ContentView BottomBarFadeView 字据）。原方案 B 暖奶油 #FAF9F5 / 暖黑
+    /// #181715 退役（dyn 仍服务 card/ink 等其余 token）。
+    static let canvas = Color(UIColor.systemBackground)
     /// 会话卡：暖纸 / elevated
     static let card = dyn(0xEFE9DE, 0x252320)
     /// 终端窗卡底（深一档于画布，保证窗口感）
