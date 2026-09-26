@@ -6233,18 +6233,14 @@ private struct SessionRow: View, Equatable {
         HStack(spacing: 8) {
             // Provider icon with optional spinning/suspended ring
             // [PP-2026-09-27] 极简化：去底（pp 定 B 方案），纯 Tabler 图标。
-            // 44pt 格保留：给转圈/徽标 overlay 当锚点，行对齐不变。
+            // 44pt 格保留：给状态点/徽标 overlay 当锚点，行对齐不变。
             providerIcon
                 .frame(width: 44, height: 44)
-                .overlay {
-                    if isSuspended {
-                        SuspendedRing(color: .yellow)
-                            .frame(width: 42, height: 42)
-                    } else if isActive {
-                        // [PP-2026-09-27] 极简化：转圈去配色，用 primary 单色。
-                        SpinningRing(color: .primary)
-                            .frame(width: 42, height: 42)
-                    }
+                // [PP-2026-09-27] 状态改呼吸灯圆点（pp「转圈不要，要高级」）：
+                // 运行中=实心圆点缓慢呼吸，挂起=空心静止圆点。右上，不跟徽标抢位。
+                .overlay(alignment: .topTrailing) {
+                    statusDot
+                        .offset(x: 4, y: -4)
                 }
                 .overlay(alignment: .bottomTrailing) {
                     // Lock badge takes precedence over source / remote
@@ -6453,6 +6449,22 @@ private struct SessionRow: View, Equatable {
             .foregroundStyle(.primary)
     }
 
+    /// 状态呼吸灯：运行中=实心圆点缓慢呼吸；挂起=空心圆点静止。
+    /// [PP-2026-09-27] 替代转圈（pp「转圈就不要了，你想个另外的方式展示状态，要高级」）。
+    @ViewBuilder
+    private var statusDot: some View {
+        if isActive {
+            Circle()
+                .fill(.primary)
+                .frame(width: 7, height: 7)
+                .modifier(BreatheModifier())
+        } else if isSuspended {
+            Circle()
+                .stroke(.secondary, lineWidth: 1.5)
+                .frame(width: 7, height: 7)
+        }
+    }
+
     private func relativeDate(_ date: Date) -> String {
         PerfTrace.measure("SessionRow.relativeDate") {
             Self.relativeDateImpl(date)
@@ -6572,6 +6584,23 @@ private struct RemoteSessionRow: View {
             .aspectRatio(contentMode: .fit)
             .frame(width: 22, height: 22)
             .foregroundStyle(.primary)
+    }
+}
+
+/// 呼吸动画：1.2s 一次的缓慢缩放+透明度脉动，用于状态呼吸灯。
+/// [PP-2026-09-27] 会话行状态点用（替代转圈）。
+private struct BreatheModifier: ViewModifier {
+    @State private var on = false
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(on ? 1.35 : 1.0)
+            .opacity(on ? 0.55 : 1.0)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    on = true
+                }
+            }
     }
 }
 
