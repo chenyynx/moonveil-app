@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import SQLite3
 import UIKit
 
@@ -7,6 +8,11 @@ private let logger = AppLogger(category: "AIChatVM")
 // MARK: - File Tool Execution
 
 extension AIChatViewModel {
+
+    /// Hex-encoded SHA-256 of data, for the file_edit baseline check (P0-4).
+    private static func sha256Hex(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
 
     // MARK: - File Tool Execution
     //
@@ -265,6 +271,10 @@ extension AIChatViewModel {
         } catch {
             return FileToolResult(output: "Error reading \(path): \(error.localizedDescription)", success: false)
         }
+
+        // [P0-4] Record the baseline hash of the FULL file bytes (not the
+        // paged/truncated view below — file_edit operates on the whole file).
+        fileBaselineByHostPath[hostURL.path] = Self.sha256Hex(fileData)
 
         let sampleSize = min(fileData.count, 512)
         let sample = fileData.prefix(sampleSize)
@@ -604,7 +614,30 @@ extension AIChatViewModel {
             return FileToolResult(output: "Error: File does not exist: \(path). Use file_write to create new files.", success: false)
         }
 
-        guard let fileContent = try? String(contentsOf: hostURL, encoding: .utf8) else {
+        guard let fileData = try? Data(contentsOf: hostURL) else {
+            return FileToolResult(output: "Error: Could not read \(path)", success: false)
+        }
+
+        // [P0-4] Cross-turn baseline: when a previous file_read recorded a
+        // hash for this file and the bytes changed since (e.g. a shell
+        // `sed -i` between the read and this edit), abort WITHOUT writing —
+        // the old_string was matched against stale content and applying it
+        // would silently clobber the external change. No baseline → no check.
+        let baselineKey = hostURL.path
+        if let expectedHash = fileBaselineByHostPath[baselineKey] {
+            let actualHash = Self.sha256Hex(fileData)
+            if actualHash != expectedHash {
+                return FileToolResult(
+                    output: "Error: \(path) changed since your last file_read "
+                        + "(baseline \(expectedHash.prefix(12))…, now \(actualHash.prefix(12))…). "
+                        + "Your old_string refers to stale content — re-run file_read to see the "
+                        + "current file, then retry the edit. Nothing was written.",
+                    success: false
+                )
+            }
+        }
+
+        guard let fileContent = String(data: fileData, encoding: .utf8) else {
             return FileToolResult(output: "Error: Could not read \(path) as UTF-8 text", success: false)
         }
 
@@ -699,6 +732,10 @@ extension AIChatViewModel {
         } catch {
             return FileToolResult(output: "Error writing \(path): \(error.localizedDescription)", success: false)
         }
+
+        // [P0-4] This edit is now the newest known state — a second edit in
+        // a later turn must compare against THESE bytes, not the older read.
+        fileBaselineByHostPath[baselineKey] = Self.sha256Hex(writeData)
 
         ensureFakefsMetadata(for: path, isDirectory: false)
 

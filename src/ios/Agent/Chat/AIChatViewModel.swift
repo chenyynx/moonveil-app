@@ -2208,6 +2208,13 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
     /// one pid. The stop guard reads the coordinator's `hasInflight`
     /// snapshot instead; this dict is the VM-local view for display.
     @Published var runningCommandPidsByTool: [String: Int32] = [:]
+    /// SHA-256 baselines of files the agent has read, keyed by resolved host
+    /// path (P0-4). `file_read` records the hash of the full file bytes;
+    /// `file_edit` aborts when the bytes changed since (e.g. a shell `sed -i`
+    /// in between) instead of applying a stale old_string onto new bytes.
+    /// No baseline → no check (never blocks a first-time edit). `file_write`
+    /// does not participate in this mechanism.
+    var fileBaselineByHostPath: [String: String] = [:]
     /// Start time of the currently running command (nil = no command running).
     @Published var commandStartTime: Date?
     /// Set to `true` when the user explicitly stops a running command via the stop button.
