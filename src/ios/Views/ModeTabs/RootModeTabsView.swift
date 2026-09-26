@@ -30,7 +30,7 @@ struct RootModeTabsView: View {
     /// 胶囊名字 —— 与 RemoteRootView 同一真源（SOUL.md name，回退 Moonveil）。
     @State private var soulName: String = {
         let n = SoulStore.cachedMetadata.name
-        return n.isEmpty ? "Moonveil" : n
+        return n.isEmpty ? "Kite" : n
     }()
     /// B12-GATEFLASH: the full-screen login is the 首启 entry, not a permanent lid on
     /// the remote tab. Once the user leaves it (直接用本地 AI / 关闭), the tab's
@@ -114,7 +114,7 @@ struct RootModeTabsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
             let n = SoulStore.cachedMetadata.name
-            soulName = n.isEmpty ? "Moonveil" : n
+            soulName = n.isEmpty ? "Kite" : n
         }
         // B16: ONE settings presentation for both tabs, hosted by the always-visible
         // shell. On the Remote tab ContentView is alive but invisible, and "can an

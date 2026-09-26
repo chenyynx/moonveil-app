@@ -1061,9 +1061,9 @@ struct ContentView: View {
     /// when `sessions` changes (see .onChange below).
     @State private var sessionsByIdCache: [String: ChatSession] = [:]
     /// Soul name shown as the sidebar title. Sourced from SOUL.md, falls
-    /// back to "Moonveil". Refreshed whenever SoulStore posts .soulMdChanged.
+    /// back to "Kite". Refreshed whenever SoulStore posts .soulMdChanged.
     @State private var soulName: String = SoulStore.cachedMetadata.name.isEmpty
-        ? "Moonveil" : SoulStore.cachedMetadata.name
+        ? "Kite" : SoulStore.cachedMetadata.name
     /// [NATIVE-TABS] 身份胶囊（principal）→ 资料页的 zoom 转场对与呈现开关。
     /// Namespace 必须与胶囊头像的 matchedTransitionSource 同源。
     /// [NATIVE-TABS] 壳层注入的 zoom 转场 namespace（matchedTransitionSource 必须与
@@ -2875,7 +2875,7 @@ struct ContentView: View {
         // and can't drop a .soulMdChanged notification arriving during reconstruction.
         .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
             let n = SoulStore.cachedMetadata.name
-            soulName = n.isEmpty ? "Moonveil" : n
+            soulName = n.isEmpty ? "Kite" : n
         }
     }
 

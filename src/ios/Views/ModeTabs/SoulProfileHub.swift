@@ -279,10 +279,10 @@ struct SoulProfileHub: View {
 
     // MARK: - helpers
 
-    /// 与 RemoteRootView 同源的回退链：SOUL.md name → "Moonveil"。
+    /// 与 RemoteRootView 同源的回退链：SOUL.md name → "Kite"。
     static func displayName() -> String {
         let n = SoulStore.cachedMetadata.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return n.isEmpty ? "Moonveil" : n
+        return n.isEmpty ? "Kite" : n
     }
 
     static func mtime(of url: URL) -> Date {

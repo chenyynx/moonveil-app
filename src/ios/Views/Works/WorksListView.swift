@@ -52,7 +52,7 @@ struct WorksListView: View {
     /// 身份胶囊 → 资料页。
     @State private var showsSoulProfile = false
     @State private var soulName: String = SoulStore.cachedMetadata.name.isEmpty
-        ? "Moonveil" : SoulStore.cachedMetadata.name
+        ? "Kite" : SoulStore.cachedMetadata.name
 
     var body: some View {
         NavigationStack {
@@ -90,7 +90,7 @@ struct WorksListView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
             let n = SoulStore.cachedMetadata.name
-            soulName = n.isEmpty ? "Moonveil" : n
+            soulName = n.isEmpty ? "Kite" : n
         }
     }
 

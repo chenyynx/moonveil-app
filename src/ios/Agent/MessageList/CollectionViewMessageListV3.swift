@@ -254,7 +254,7 @@ private struct BridgedAssistantHeaderV3: View {
                     endPoint: .bottomTrailing
                 )
             )
-            Text(soulMeta.name.isEmpty ? "Moonveil" : soulMeta.name)
+            Text(soulMeta.name.isEmpty ? "Kite" : soulMeta.name)
                 .font(.body.weight(.semibold))
                 .foregroundStyle(ChatColors.primaryText)
         }
