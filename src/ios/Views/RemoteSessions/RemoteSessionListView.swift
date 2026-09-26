@@ -622,8 +622,8 @@ struct RemoteSessionListView: View {
                 Circle().fill(Color(red: 1, green: 188/255, blue: 46/255)).frame(width: 10, height: 10)
                 Circle().fill(Color(red: 40/255, green: 200/255, blue: 64/255)).frame(width: 10, height: 10)
                 Spacer(minLength: 0)
-                // [PP-2026-09-27] 状态指示：圆点灯 → Tabler 云图标（template 渲染，随状态变色）
-                Image("aa-Tabler-Cloud")
+                // [PP-2026-09-27] 状态指示：圆点灯 → 云图标（aa-Cloud 圆润版，template 渲染随状态变色）
+                Image("aa-Cloud")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 15, height: 15)
