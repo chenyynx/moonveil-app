@@ -63,7 +63,7 @@ struct RootModeTabsView: View {
 
     /// SF Symbol 直接按 24pt medium 模板渲染（之前 Lucide 栅格也是 24pt），
     /// tab 栏 tint 照常生效。
-    private static func tabImage(_ systemName: String) -> Image {
+    private static func tabImage(_ systemName: String) -> some View {
         Image(systemName: systemName)
             .font(.system(size: 24, weight: .medium))
     }
