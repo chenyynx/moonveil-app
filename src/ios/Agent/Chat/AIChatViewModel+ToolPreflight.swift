@@ -226,6 +226,48 @@ extension AIChatViewModel {
         preflightEmptyStringAllowedFields[tool]?.contains(field) ?? false
     }
 
+    // MARK: - P0-1 高危字段值变异拦截
+
+    /// (tool name → field names) where a VALUE-mutating argument repair must
+    /// refuse execution instead of running with silently altered arguments.
+    /// A coerced `{"path": 123}` → `"123"` or `{"old_string": 0}` → `"0"`
+    /// can redirect a write at the wrong path or replace the wrong text —
+    /// for these fields a partial/wrong artifact is strictly worse than none.
+    /// Key-only renames (`fuzzy:`) and repairs on other fields stay allowed
+    /// (with a transparency hint, see P1-A).
+    static let highRiskFieldsForWriteTools: [String: Set<String>] = [
+        "file_edit": ["old_string", "new_string", "path"],
+        "file_write": ["content", "path"],
+    ]
+
+    /// The field a repair tag acted on, when the tag is field-scoped:
+    /// - `fuzzy:oldKey->field` → `field` (the `->` suffix)
+    /// - `type-coerce:field`, `null-strip:field` → `field`
+    /// - `truncation+…` → nil (whole-args reconstruction, not field-scoped)
+    nonisolated static func repairTagField(_ tag: String) -> String? {
+        if tag.hasPrefix("fuzzy:"), let arrow = tag.range(of: "->") {
+            return String(tag[arrow.upperBound...])
+        }
+        if tag.hasPrefix("truncation+") { return nil }
+        guard let colon = tag.firstIndex(of: ":") else { return nil }
+        return String(tag[tag.index(after: colon)...])
+    }
+
+    /// First repair tag that is a VALUE mutation on a high-risk field of the
+    /// named write tool — the repairs that must refuse execution (P0-1).
+    /// `truncation+` is handled by the existing truncation-refusal branch;
+    /// this covers the remaining value-mutating strategy (`type-coerce:`).
+    /// `fuzzy:` only renames keys (value intact) and `null-strip:` lets the
+    /// downstream required-field check fail loudly — neither is intercepted.
+    nonisolated static func highRiskMutationTag(toolName: String, repairs: [String]) -> String? {
+        guard let highRisk = highRiskFieldsForWriteTools[toolName] else { return nil }
+        return repairs.first { tag in
+            guard tag.hasPrefix("type-coerce:"),
+                  let field = repairTagField(tag) else { return false }
+            return highRisk.contains(field)
+        }
+    }
+
     nonisolated static func preflightValidateToolCall(name: String,
                                                       args: [String: Any],
                                                       tools: [AgentToolDefinition]) -> String? {

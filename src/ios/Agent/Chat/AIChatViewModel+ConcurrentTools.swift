@@ -166,6 +166,10 @@ extension AIChatViewModel {
         // arguments arrived truncated and were glued shut by the repair pass.
         // Non-nil ⇒ the args are not what the model actually emitted.
         var truncationRepairTag: String? = nil
+        // P0-1: value-mutating repair (type-coerce) on a high-risk write field.
+        var highRiskMutationTag: String? = nil
+        // P1-A: repair transparency — tags that were applied but not refused.
+        var appliedRepairTags: [String] = []
         if needsRepair {
             let rawJoined = tu.inputChunkRing.joined()
             let repairOutcome = Self.repairToolArgs(
@@ -180,7 +184,66 @@ extension AIChatViewModel {
                 // short". Type-coercion and fuzzy-name repairs fix the SHAPE of
                 // a fully-received argument and are not a data-loss signal.
                 truncationRepairTag = repairOutcome.repairs.first { $0.hasPrefix("truncation+") }
+                // P0-1: intercept value mutations on high-risk write fields.
+                highRiskMutationTag = Self.highRiskMutationTag(toolName: tu.name, repairs: repairOutcome.repairs)
+                appliedRepairTags = repairOutcome.repairs
             }
+        }
+
+        // Shared refusal tail for writes that must not execute (P0-1): UI text +
+        // failed status, detector record, snapshot, outcome. Both the
+        // truncation branch and the high-risk-mutation branch go through this
+        // so the five pieces stay in lockstep.
+        func refuseWrite(uiMessage: String, modelMessage: String) async -> ToolExecOutcome {
+            if msgIdx < messages.count, blockIdx < messages[msgIdx].blocks.count {
+                messages[msgIdx].blocks[blockIdx].content = uiMessage
+                messages[msgIdx].blocks[blockIdx].toolStatus = .failed(message: uiMessage)
+            }
+            toolLoopDetector.record(
+                toolName: tu.name, params: tu.args,
+                result: nil, errorMessage: modelMessage, toolCallId: tu.id
+            )
+            let refusedSnap = ToolSnapshot(type: .text, text: modelMessage, mediaRef: nil, duration: nil)
+            let item = ToolSnapshotItem(
+                id: tu.id, toolName: tu.name, snapshot: refusedSnap,
+                mediaResolver: await ChatStore.shared.mediaFileURLResolver()
+            )
+            return ToolExecOutcome(
+                toolId: tu.id, toolName: tu.name,
+                resultPart: .toolResult(id: tu.id, name: tu.name, content: modelMessage, isError: true),
+                snapshotEntry: (toolName: tu.name, snapshot: refusedSnap),
+                snapshotItem: item,
+                cancelled: false
+            )
+        }
+
+        // P0-1: refuse a WRITE whose high-risk field was value-mutated by
+        // repair (e.g. `{"path": 123}` → `"123"`, `{"old_string": 0}` → `"0"`).
+        // Checked after truncation so a truncated stream keeps the more
+        // actionable truncation guidance. Key-only renames (fuzzy:) and
+        // non-high-risk coercions stay allowed and are disclosed to the model
+        // via the P1-A hint below instead.
+        if highRiskMutationTag != nil, truncationRepairTag == nil,
+           tu.name == "file_write" || tu.name == "file_edit",
+           let tag = highRiskMutationTag,
+           let field = Self.repairTagField(tag) {
+            let path = (toolArgs["path"] as? String) ?? (toolArgs["file_path"] as? String) ?? ""
+            AppLogger(category: "ToolPreflight").warning(
+                "[ToolRepair] REFUSED write with repaired high-risk field tool=\(tu.name) id=\(tu.id) strategy=\(tag) field=\(field) path=\(path)"
+            )
+            let uiMessage = AppLocalized("Blocked: a required field was altered by argument repair")
+            let modelMessage = """
+            Error: This call was NOT executed. Argument repair changed the VALUE of required \
+            field `\(field)` (repair strategy: \(tag)) — for example a non-string value was \
+            coerced to text. Running with the altered value could write to the wrong path or \
+            replace the wrong text\(path.isEmpty ? "" : " (target: \(path))"), so the call was \
+            refused. Nothing was written to disk — the target file is unchanged.
+
+            Re-issue the call with `\(field)` as a proper string exactly as you intend it. \
+            Do not rely on the client to coerce the value for you, and do not retry with the \
+            same non-string value.
+            """
+            return await refuseWrite(uiMessage: uiMessage, modelMessage: modelMessage)
         }
 
         // [T-truncated-args-visibility #119] Refuse to execute a WRITE whose
@@ -217,26 +280,7 @@ extension AIChatViewModel {
             Re-issue this write in smaller pieces: write the first part, then append the rest \
             with follow-up calls, rather than repeating the same oversized call.
             """
-            if msgIdx < messages.count, blockIdx < messages[msgIdx].blocks.count {
-                messages[msgIdx].blocks[blockIdx].content = uiMessage
-                messages[msgIdx].blocks[blockIdx].toolStatus = .failed(message: uiMessage)
-            }
-            toolLoopDetector.record(
-                toolName: tu.name, params: tu.args,
-                result: nil, errorMessage: modelMessage, toolCallId: tu.id
-            )
-            let refusedSnap = ToolSnapshot(type: .text, text: modelMessage, mediaRef: nil, duration: nil)
-            let item = ToolSnapshotItem(
-                id: tu.id, toolName: tu.name, snapshot: refusedSnap,
-                mediaResolver: await ChatStore.shared.mediaFileURLResolver()
-            )
-            return ToolExecOutcome(
-                toolId: tu.id, toolName: tu.name,
-                resultPart: .toolResult(id: tu.id, name: tu.name, content: modelMessage, isError: true),
-                snapshotEntry: (toolName: tu.name, snapshot: refusedSnap),
-                snapshotItem: item,
-                cancelled: false
-            )
+            return await refuseWrite(uiMessage: uiMessage, modelMessage: modelMessage)
         }
 
         // Preflight: reject empty / missing-required-field tool calls.
@@ -986,6 +1030,25 @@ extension AIChatViewModel {
                 + "transit and auto-closed by the client (repair strategy: \(tag)) before execution. "
                 + "The arguments actually used may be incomplete — verify the result and re-issue "
                 + "the call with complete arguments if anything is missing.</system-reminder>"
+        }
+
+        // P1-A (+ P0-1 safety net): disclose repairs that were applied but not
+        // refused. fuzzy: only renames a key (value intact) — the model must
+        // see old->new so it can spot a mis-rename; type-coerce: on
+        // non-high-risk fields is allowed but the model should know the value
+        // was changed. (High-risk coercions never reach here: refused above.)
+        for tag in appliedRepairTags {
+            if tag.hasPrefix("fuzzy:") {
+                finalOutput += "\n\n<system-reminder>Argument repair renamed a field for this call "
+                    + "(repair: \(tag)). The value was kept exactly as you sent it — if the rename "
+                    + "is wrong, re-issue the call with the correct field name.</system-reminder>"
+            } else if tag.hasPrefix("type-coerce:"),
+                      let field = Self.repairTagField(tag),
+                      !(Self.highRiskFieldsForWriteTools[tu.name]?.contains(field) ?? false) {
+                finalOutput += "\n\n<system-reminder>Argument repair coerced field `\(field)` to text "
+                    + "for this call (repair: \(tag)). The call executed with the coerced value — "
+                    + "verify it is what you intended.</system-reminder>"
+            }
         }
 
         let resultPart = AgentContentPart.toolResult(
