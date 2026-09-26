@@ -65,7 +65,16 @@ struct RootModeTabsView: View {
     /// Lucide SVG 资产是 24pt viewBox；Muse 的 tab 图标约 19pt，这里栅格化到
     /// 22pt 并保持 template 渲染；颜色由调用处的 .foregroundStyle 按选中态给
     ///（TabView 级 .tint 会透进 tab 内容染黑 accent——pp 2026-09-27）。
+    ///
+    /// [FIX-tab-icon-flash] 栅格化结果按 asset 缓存：切 tab 时 router.mode 变
+    /// 化会重建 4 个 label，若每次都 new 出 UIImage，底栏 image view 会闪一下
+    /// 重绘。复用同一张图后，切 tab 只变 .foregroundStyle 颜色，不换图，不闪。
+    /// （struct 是 @MainActor，body 内调用，无线程问题。）
+    private static var tabImageCache: [String: UIImage] = [:]
     private static func tabImage(_ asset: String) -> Image {
+        if let cached = tabImageCache[asset] {
+            return Image(uiImage: cached)
+        }
         let side: CGFloat = 22
         let ui = UIGraphicsImageRenderer(
             size: CGSize(width: side, height: side)
@@ -73,8 +82,9 @@ struct RootModeTabsView: View {
             UIImage(named: asset)?.draw(
                 in: CGRect(origin: .zero, size: CGSize(width: side, height: side))
             )
-        }
-        return Image(uiImage: ui.withRenderingMode(.alwaysTemplate))
+        }.withRenderingMode(.alwaysTemplate)
+        tabImageCache[asset] = ui
+        return Image(uiImage: ui)
     }
 
     /// tab 图标颜色：选中 .primary（浅色黑/深色白），未选中 .secondary 灰。
