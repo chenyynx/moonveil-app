@@ -220,7 +220,7 @@ struct WorksListView: View {
 
     /// 工作区 = 各 session 的持久 workspace 目录 + shared（/var/minis 下
     /// workspace/shared 的宿主持久层，见 FileMentionIndex 头注释的同步语义）。
-    nonisolated static func scanComponents() -> [WorkFile] {
+    fileprivate nonisolated static func scanComponents() -> [WorkFile] {
         var roots: [URL] = [AIChatViewModel.minisSharedPersistentDir]
         let fm = FileManager.default
         let base = AIChatViewModel.minisPersistentBase
@@ -258,7 +258,7 @@ struct WorksListView: View {
 
     /// 影音源两处：/var/minis/attachments/uploads 的宿主换算目录（resolveHostPath
     /// 同款拼接：rootfs data + dropFirst('/')）+ Caches/InputAttachments。
-    nonisolated static func scanMedia() -> [MediaItem] {
+    fileprivate nonisolated static func scanMedia() -> [MediaItem] {
         let dirs = [
             RootfsManager.shared.dataPath
                 .appendingPathComponent("var/minis/attachments/uploads", isDirectory: true),
