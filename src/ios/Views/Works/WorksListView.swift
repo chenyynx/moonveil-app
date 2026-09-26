@@ -91,6 +91,9 @@ struct WorksListView: View {
             .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
         .task { rescan() }
+        // [PP-2026-09-27] 切分段也重扫：.task 只在 view appear 跑一次，
+        // 构件↔影音内容是同 view 的 @State 切换，不触发重扫。
+        .onChange(of: section) { _, _ in rescan() }
         .fullScreenCover(item: $gallery) { presentation in
             MessageImageGallery(items: presentation.items, startIndex: presentation.startIndex)
         }
@@ -282,6 +285,7 @@ struct WorksListView: View {
 
     /// 影音源两处：/var/minis/attachments/uploads 的宿主换算目录（resolveHostPath
     /// 同款拼接：rootfs data + dropFirst('/')）+ Caches/InputAttachments。
+    /// [PP-2026-09-27] 改递归：照片可能存在子目录里，顶层 contentsOfDirectory 会漏。
     fileprivate nonisolated static func scanMedia() -> [MediaItem] {
         let dirs = [
             RootfsManager.shared.dataPath
@@ -293,12 +297,12 @@ struct WorksListView: View {
         let fm = FileManager.default
         var results: [MediaItem] = []
         for dir in dirs {
-            guard let items = try? fm.contentsOfDirectory(
+            guard let enumerator = fm.enumerator(
                 at: dir,
                 includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey],
-                options: [.skipsHiddenFiles]
+                options: [.skipsHiddenFiles, .skipsPackageDescendants]
             ) else { continue }
-            for url in items {
+            for case let url as URL in enumerator {
                 let ext = url.pathExtension.lowercased()
                 let isVideo = mediaVideoExts.contains(ext)
                 guard isVideo || mediaImageExts.contains(ext),
