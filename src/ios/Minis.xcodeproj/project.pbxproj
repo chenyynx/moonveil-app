@@ -92,10 +92,12 @@
 		BKP000143 /* BackupTransferStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = BKP000243 /* BackupTransferStatus.swift */; };
 		BKP000144 /* BackupSkippedFilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BKP000244 /* BackupSkippedFilesView.swift */; };
 		C0B1AF9A75C90C3C178A8804 /* VoiceTextSanitizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7656F4130247E4002A3AC0C /* VoiceTextSanitizer.swift */; };
-		D05AF00D00000000000000B1 /* ModeTabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A1 /* ModeTabPicker.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00D00000000000000B2 /* RootTabRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A2 /* RootTabRouter.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00D00000000000000B3 /* RootModeTabsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A3 /* RootModeTabsView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00D00000000000000B4 /* RemoteRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A4 /* RemoteRootView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		BD0000000000000000000011 /* BottomModeDock.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD0000000000000000000001 /* BottomModeDock.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		BD0000000000000000000012 /* SoulProfileHub.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD0000000000000000000002 /* SoulProfileHub.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		BD0000000000000000000013 /* WorksListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD0000000000000000000003 /* WorksListView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B100 /* AAWordmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A100 /* AAWordmark.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B101 /* AppFontRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A101 /* AppFontRegistry.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B102 /* AppGlassButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A102 /* AppGlassButton.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
@@ -971,7 +973,9 @@
 		BKP000242 /* BackupZipWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupZipWriter.swift; sourceTree = "<group>"; };
 		BKP000243 /* BackupTransferStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupTransferStatus.swift; sourceTree = "<group>"; };
 		BKP000244 /* BackupSkippedFilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupSkippedFilesView.swift; sourceTree = "<group>"; };
-		D05AF00D00000000000000A1 /* ModeTabPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModeTabPicker.swift; sourceTree = "<group>"; };
+		BD0000000000000000000001 /* BottomModeDock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomModeDock.swift; sourceTree = "<group>"; };
+		BD0000000000000000000002 /* SoulProfileHub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoulProfileHub.swift; sourceTree = "<group>"; };
+		BD0000000000000000000003 /* WorksListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorksListView.swift; sourceTree = "<group>"; };
 		D05AF00D00000000000000A2 /* RootTabRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabRouter.swift; sourceTree = "<group>"; };
 		D05AF00D00000000000000A3 /* RootModeTabsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootModeTabsView.swift; sourceTree = "<group>"; };
 		D05AF00D00000000000000A4 /* RemoteRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteRootView.swift; sourceTree = "<group>"; };
@@ -1910,12 +1914,21 @@
 		D05AF00D00000000000000C1 /* ModeTabs */ = {
 			isa = PBXGroup;
 			children = (
-				D05AF00D00000000000000A1 /* ModeTabPicker.swift */,
 				D05AF00D00000000000000A2 /* RootTabRouter.swift */,
 				D05AF00D00000000000000A3 /* RootModeTabsView.swift */,
 				D05AF00D00000000000000A4 /* RemoteRootView.swift */,
+				BD0000000000000000000001 /* BottomModeDock.swift */,
+				BD0000000000000000000002 /* SoulProfileHub.swift */,
 			);
 			path = ModeTabs;
+			sourceTree = "<group>";
+		};
+		BD0000000000000000000004 /* Works */ = {
+			isa = PBXGroup;
+			children = (
+				BD0000000000000000000003 /* WorksListView.swift */,
+			);
+			path = Works;
 			sourceTree = "<group>";
 		};
 		D05AF00E000000000000F100 /* AuthAA */ = {
@@ -2356,6 +2369,7 @@
 				F1V00011 /* Settings */,
 				F1V00016 /* Skills */,
 				D05AF00D00000000000000C1 /* ModeTabs */,
+				BD0000000000000000000004 /* Works */,
 				D05AF00F0000000000000F0 /* SettingsSkin */,
 				D05AF00E000000000000F100 /* AuthAA */,
 				D05AF00E000000000000G100 /* RemoteSessions */,
@@ -4089,10 +4103,12 @@
 				8B886DA8A270E8FB58A9A1FA /* SpeechPlayerControl.swift in Sources */,
 				7A49962E84F115865D41B933 /* AudioSessionCoordinator.swift in Sources */,
 				C0B1AF9A75C90C3C178A8804 /* VoiceTextSanitizer.swift in Sources */,
-				D05AF00D00000000000000B1 /* ModeTabPicker.swift in Sources */,
 				D05AF00D00000000000000B2 /* RootTabRouter.swift in Sources */,
 				D05AF00D00000000000000B3 /* RootModeTabsView.swift in Sources */,
 				D05AF00D00000000000000B4 /* RemoteRootView.swift in Sources */,
+				BD0000000000000000000011 /* BottomModeDock.swift in Sources */,
+				BD0000000000000000000012 /* SoulProfileHub.swift in Sources */,
+				BD0000000000000000000013 /* WorksListView.swift in Sources */,
 				D05AF00E000000000000B100 /* AAWordmark.swift in Sources */,
 				D05AF00E000000000000B101 /* AppFontRegistry.swift in Sources */,
 				D05AF00E000000000000B102 /* AppGlassButton.swift in Sources */,

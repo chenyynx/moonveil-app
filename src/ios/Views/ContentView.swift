@@ -256,6 +256,28 @@ struct SearchBarSurface: ViewModifier {
     }
 }
 
+/// Tags the search FAB and the expanded search bar with ONE shared
+/// `glassEffectID`.
+///
+/// Currently INERT: `glassEffectID` only does anything inside a
+/// `GlassEffectContainer`, and the FAB row no longer has one — that container
+/// suppressed the new-chat FAB's context menu, see the note on `fabRow`. The
+/// modifier is kept (harmless, and it costs nothing) so that if the container
+/// is ever reinstated with the menu problem solved, the morph works again
+/// without re-deriving the id plumbing. The row's scale+opacity transition is
+/// what actually animates the swap today.
+private struct FABGlassMorphID: ViewModifier {
+    let namespace: Namespace.ID
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffectID("fabSearch", in: namespace)
+        } else {
+            content
+        }
+    }
+}
+
 /// [BOTTOM-FADE-3] pp 2026-09-20「底部做渐隐」→「渐隐做反了？」→「位置完全不对」→
 /// 「注意位置。上一版的这个底部有缺口」：列表内容滚到底部栏区域时逐渐融入背景。
 /// 从 ContentView 的 bottomFade 提取为共享视图（同 BottomBarRecipe 的理由——
@@ -1145,6 +1167,8 @@ struct ContentView: View {
 
     /// [LAUNCH-ROOT-ONLY] `@AppStorage("launchScreen")` 已删除——冷启动一律落列表根
     /// （pp 2026-09-21 拍板），启动跳页只剩显式意图，该键不再有消费者。
+    /// FAB position preference: false = right (default), true = left.
+    @AppStorage("fabOnLeft") private var fabOnLeft = false
     /// Mirror of `SyncV2Bootstrap.isEnabled` so SwiftUI re-evaluates
     /// the iCloud-gated menu entries (per-session Force Sync / Force
     /// Pull and the multi-select Force Sync) the moment the user
@@ -1152,6 +1176,8 @@ struct ContentView: View {
     /// static getter inline would only re-read on the next unrelated
     /// state change. `SyncV2Bootstrap.setEnabled` writes the same key.
     @AppStorage("cloudSync.v2.enabled") private var iCloudSyncEnabled: Bool = false
+    /// Current drag offset of the FAB (reset to 0 on drop).
+    @State private var fabDragOffset: CGFloat = 0
 
     // Multi-select
     @State private var isSelecting = false
@@ -1189,7 +1215,8 @@ struct ContentView: View {
     @State private var menuActions = SessionMenuActionChannel()
 
     // Search
-    private var isSearching: Bool { !searchText.trimmingCharacters(in: .whitespaces).isEmpty }
+    @State private var showSearchBar = false
+    private var isSearching: Bool { showSearchBar && !searchText.trimmingCharacters(in: .whitespaces).isEmpty }
     @State private var searchText = ""
     /// Session IDs that matched the current search query (nil = no active filter).
     @State private var searchMatchedIds: Set<String>?
@@ -2836,7 +2863,8 @@ struct ContentView: View {
         }
         // [T-ios-migration-timer-toolbar-uaf-crash / T-ios-migration-timer-sessionlist-uaf-crash]
         // Own the migration-subtitle refresh driver here, on the stable sidebar list
-        // body, instead of on the churny toolbar principal item (now the ModeTabPicker capsule, B7-UI).
+        // body, instead of on the churny toolbar principal item (the native SOUL-name
+        // title; rebuilds on every canOpenSync/soulName/migrationSubtitle/isSelecting change).
         // This Group has identity-stable lifetime across the sidebar's life — the
         // inner if/else only swaps which List renders, the wrapper itself is never
         // torn down — so the driver isn't rebuilt when the list content changes.
@@ -2855,7 +2883,7 @@ struct ContentView: View {
         // refreshMigrationSubtitle is idempotent (Task{@MainActor} + diff-before-assign).
         .task { await migrationSubtitleLoop() }
         // [T-ios-soul-name-sidebar-stale] Refresh the sidebar title from SOUL.md.
-        // Moved here off the churny toolbar principal item (B7-UI capsule; rebuilds on
+        // Moved here off the churny toolbar principal item (rebuilds on
         // every canOpenSync/soulName/migrationSubtitle/isSelecting change) for the
         // same reason as the migration timer above: this Group's identity is stable
         // across the sidebar's life, so the sink is never torn down mid-transaction
@@ -2991,7 +3019,7 @@ struct ContentView: View {
         .opacity(didInitialLoad ? 1 : 0)
         .overlay { if didInitialLoad, filteredSessions.isEmpty, !isSearching { emptyState } }
         .overlay(alignment: .top) { folderMiniBarOverlay(scrollProxy) }
-        .safeAreaInset(edge: .bottom) { if isSelecting { selectionToolbar } else { bottomBar } }
+        .safeAreaInset(edge: .bottom) { if isSelecting { selectionToolbar } else { fabRow } }
         // [T-home-fab-keyboard-inset] Mirror of the voice panel's structural
         // immunity (604a9947 / T-voice-bg-fg-gap): with the inline search bar
         // closed, nothing down here accepts text — any keyboard inset reaching
@@ -2999,7 +3027,7 @@ struct ContentView: View {
         // bg-snapshot dismiss) and must not push the 新建/搜索 FABs up. With
         // the search bar open its TextField legitimately rises with the
         // keyboard, so normal avoidance is restored.
-        .ignoresSafeArea(.keyboard, edges: searchFocused ? [] : .bottom)
+        .ignoresSafeArea(.keyboard, edges: showSearchBar ? [] : .bottom)
         // [SEARCH-DISMISS] pp 2026-09-20「只要弹出来输入搜索了 就弹不回去了」：
         // 聚焦后此前没有任何收起出口（清除 X 仅在有文字时显示；SwiftUI 列表的
         // scrollDismissesKeyboard 默认 .automatic 在非 searchable 场景等于 .never，
@@ -3179,12 +3207,12 @@ struct ContentView: View {
         .opacity(didInitialLoad ? 1 : 0)
         .overlay { if didInitialLoad, displaySessions.isEmpty, !isSearching { emptyState } }
         .overlay(alignment: .top) { folderMiniBarOverlay(scrollProxy) }
-        .safeAreaInset(edge: .bottom) { if isSelecting { selectionToolbar } else { bottomBar } }
+        .safeAreaInset(edge: .bottom) { if isSelecting { selectionToolbar } else { fabRow } }
         // [T-home-fab-keyboard-inset] Same structural immunity as the compact
         // list above — see that call site for the full rationale. On iPad the
         // sidebar column never hosts a keyboard unless the inline search bar
         // is open (the chat column's composer avoidance is its own subtree).
-        .ignoresSafeArea(.keyboard, edges: searchFocused ? [] : .bottom)
+        .ignoresSafeArea(.keyboard, edges: showSearchBar ? [] : .bottom)
         // [SEARCH-DISMISS] 同 compact 列表：滚动收起搜索键盘。
         .scrollDismissesKeyboard(.immediately)
         .navigationBarTitleDisplayMode(.inline)
@@ -3399,32 +3427,61 @@ struct ContentView: View {
                     if #available(iOS 17.0, *) { return SyncV2Bootstrap.isEnabled }
                     return false
                 }()
-                // B7-UI (pp 2026-09-15): the sidebar title position now hosts the
-                // Grok-style source-mode capsule (Moonveil / Remote). Upstream
-                // title behaviours PRESERVED, not deleted: tapping the selected
-                // local segment still opens sync-migration detail (onLocalRetap),
-                // the sync indicator still floats at the leading edge, and the
-                // isSelecting branch above is untouched. The [T-ios-soul-name-
-                // sidebar-stale] / [T-ios-migration-timer-toolbar-uaf-crash]
-                // invariants hold unchanged: this item only READS soulName /
-                // migrationSubtitle — their sinks live on the stable sessionList body.
-                ModeTabPicker(
-                    selection: $tabRouter.mode,
-                    localLabel: soulName,
-                    onLocalRetap: canOpenSync ? { activeToolSheet = .syncMigrationDetail } : nil
-                )
-                .overlay(alignment: .leading) {
-                    if canOpenSync {
-                        Button {
-                            activeToolSheet = .syncMigrationDetail
-                        } label: {
-                            titleSyncIndicator(for: migrationSubtitle)
-                                .contentShape(Rectangle())
-                                .padding(4)
+                // Title text comes from SOUL.md (falls back to "Moonveil"). The
+                // leading sync indicator floats as an overlay so it doesn't
+                // take layout space — title stays perfectly centered in the
+                // navigation bar regardless of whether the indicator is visible.
+                // When iCloud sync isn't enabled the title is a plain Text;
+                // wrapping it in a `.disabled` Button would drain SwiftUI's
+                // default disabled-button tint into the label and render the
+                // SOUL name grey, which read as a styling bug rather than the
+                // intended "no sync detail to open" state.
+                // [T-ios-soul-name-sidebar-stale] The `.onReceive(soulMdChanged)`
+                // that refreshes `soulName` used to live HERE. It was moved to the
+                // stable `sessionList(useNavigationLinks:)` body for the SAME reason
+                // the migration timer was (see the T-ios-migration-timer note below):
+                // this toolbar principal item rebuilds on every canOpenSync /
+                // soulName / migrationSubtitle / isSelecting change, so a sink
+                // attached here gets torn down and re-created constantly and can
+                // drop a .soulMdChanged notification that arrives during the gap.
+                // This Text now only READS `soulName`.
+                let titleLabel = Text(soulName)
+                    .font(.system(size: 18.5, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .overlay(alignment: .leading) {
+                        if canOpenSync {
+                            Button {
+                                activeToolSheet = .syncMigrationDetail
+                            } label: {
+                                titleSyncIndicator(for: migrationSubtitle)
+                                    .contentShape(Rectangle())
+                                    .padding(4)
+                            }
+                            .buttonStyle(.plain)
+                            .offset(x: -27)
                         }
-                        .buttonStyle(.plain)
-                        .offset(x: -27)
                     }
+                // [T-ios-migration-timer-toolbar-uaf-crash] The migration-subtitle
+                // refresh driver used to live HERE, on this `titleLabel` Text inside
+                // the churny toolbar principal item. That item rebuilds whenever
+                // canOpenSync / soulName / migrationSubtitle / isSelecting change, so
+                // AttributeGraph repeatedly tore down the driver's sink — a
+                // use-after-free release in the setBody transaction (EXC_BAD_ACCESS,
+                // build 309). The driver now lives on the stable
+                // `sessionList(useNavigationLinks:)` body (identity-stable across the
+                // sidebar lifetime) as a `.task` async loop, not a Combine timer sink
+                // (see migrationSubtitleLoop, T-ios-migration-timer-sessionlist-uaf-crash);
+                // this Text only READS the `migrationSubtitle` @State.
+
+                if canOpenSync {
+                    Button {
+                        activeToolSheet = .syncMigrationDetail
+                    } label: {
+                        titleLabel
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    titleLabel
                 }
             }
         }
@@ -4189,6 +4246,7 @@ struct ContentView: View {
     }
 
     private func dismissSearch() {
+        withAnimation(.easeInOut(duration: 0.2)) { showSearchBar = false }
         searchText = ""
         searchMatchedIds = nil
         searchMatchSnippets = [:]
@@ -4203,8 +4261,9 @@ struct ContentView: View {
     /// without searching used to leave the field revealed + focused on return,
     /// forcing a manual tap on the ✕. If there IS a non-blank query, we keep the
     /// search state intact so the user returns to their results. Whitespace-only
-    /// text counts as empty.
+    /// text counts as empty. No-op when the search bar isn't shown.
     private func dismissSearchIfEmptyOnNavigate() {
+        guard showSearchBar else { return }
         guard searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         dismissSearch()
     }
@@ -4249,15 +4308,56 @@ struct ContentView: View {
         }
     }
 
-    /// Focus the always-present search text field. Bound to the hardware ⌘F
-    /// shortcut while the session list is on screen.
+    /// Reveal the search bar (if hidden) and focus its text field. Bound to the
+    /// hardware ⌘F shortcut while the session list is on screen. Focusing inside
+    /// the reveal animation is unreliable, so set focus on the next runloop tick
+    /// once the field exists in the view tree.
     private func focusSearch() {
+        if !showSearchBar {
+            withAnimation(.easeInOut(duration: 0.2)) { showSearchBar = true }
+        }
         DispatchQueue.main.async { searchFocused = true }
     }
 
-    // MARK: - Search focus
+    // MARK: - FAB Row (New Chat + Search)
 
+    @State private var fabDidDrag = false
     @FocusState private var searchFocused: Bool
+
+    @State private var searchDragOffset: CGFloat = 0
+    @State private var searchDidDrag = false
+
+    /// Namespace tying the search FAB and the expanded search bar together as one
+    /// glass fragment, so the two morph instead of cross-fading (iOS 26+).
+    @Namespace private var fabGlassNamespace
+
+    /// Brand fill for the new-chat FAB. On iOS 26 this becomes the glass TINT
+    /// rather than an opaque fill, so the button keeps its colour identity while
+    /// the system material supplies the depth. Below 26 it stays the flat fill
+    /// it has always been.
+    private static let newChatBrandColor = Color(UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 80/255, green: 76/255, blue: 66/255, alpha: 1)
+        : UIColor(red: 183/255, green: 175/255, blue: 150/255, alpha: 1) })
+
+    /// Glass TINT for the new-chat FAB — deliberately NOT `newChatBrandColor`.
+    ///
+    /// Tinting with the raw brand colour at full strength produced an opaque
+    /// disc with no refraction at all (measured on device: ring pixel std 1.1
+    /// against ~20 for untinted glass), which is what read as "not glass".
+    /// Simply lowering that colour's alpha fixed light mode but vanished in
+    /// dark: the dark brand value (80/76/66) sits so close to the near-black
+    /// page that 0.15–0.25 alpha yielded a warmth (R−B) of only 1.6–3.1,
+    /// indistinguishable from the untinted button.
+    ///
+    /// So the dark variant is lifted and warmed rather than just faded. At
+    /// alpha 0.30 the measured result is better than the old opaque version on
+    /// BOTH axes in dark mode — warmth 22.6 vs 14.0 (more brand identity) with
+    /// ring std 9.3 vs 1.1 (real show-through) — and light mode keeps a warm
+    /// cast (warmth 9.9) while staying visibly translucent.
+    /// `Glass.tint` honours the colour's alpha, so the strength is baked in here.
+    private static let newChatGlassTint = Color(UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 196/255, green: 176/255, blue: 120/255, alpha: 0.30)
+        : UIColor(red: 183/255, green: 175/255, blue: 150/255, alpha: 0.30) })
 
     /// Clear/dismiss control inside the expanded search capsule.
     ///
@@ -4303,135 +4403,285 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Bottom Bar (static capsules)
-    //
-    // Replaced the two draggable circular glass FABs (new-chat + search, the
-    // latter morphing into an inline bar) with a static bar: a right-aligned
-    // "New chat" prominent capsule over a full-width always-present search
-    // capsule. The new-chat pill reuses AppGlassButton (.prominent), which
-    // already inverts for dark mode (white pill + black text) and degrades to
-    // .borderedProminent below iOS 26. The search capsule reuses SearchBarSurface.
-    @ViewBuilder
-    private var bottomBar: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Spacer()
-                newChatPill
-            }
-            searchBarCapsule
-        }
-        .padding(.horizontal, 22)
-        .padding(.top, 8)
-        // [SEARCHBAR-HEIGHT] 栏矮 9pt 后补 4pt：栏底距屏底保持 ~28pt、
-        // 栏内文字中心保持 ~51.5pt（参照 51.3）。
-        .padding(.bottom, 24)
-        // [BOTTOM-FADE-3] 渐隐层：bar 的 background（z 序在列表之上、bar 内容之下），
-        // alignment .bottom + 高度显式几何向上溢出覆盖栏上方的列表内容。见 BottomBarFadeView。
-        .background(alignment: .bottom) { BottomBarFadeView() }
-        // [BOTTOM-BAR-ALIGN] pp 2026-09-20「底部的胶囊尺寸和大小还有位置，对齐图二」。
-        // 参照图（Claude 列表页底栏）逐像素实测：搜索文字中心距屏底 ~51pt、实机 ~81pt
-        // → 整体下移 30pt 贴底；水平边距 16→22pt（参照 22-23pt）。胶囊↔搜索相对距
-        // 已一致（65.2pt），spacing/高度/字号均保持。offset 只移动视觉、不改布局：
-        // safeAreaInset 高度与列表 inset 不变。聚焦时归零——键盘抬起后回到「栏贴键盘
-        // 上沿」的原行为，避免 30pt 压进键盘。
-        .offset(y: searchFocused ? 0 : 30)
-        // [BOTTOM-BAR-FENCE] 把底部栏在窗口坐标里的顶边上报给页切手势（精确排除，
-        // 不再依赖屏幕高度/安全区推算）。见 RootModeTabsView.BottomBarFence。
-        .background {
-            GeometryReader { proxy in
-                Color.clear
-                    .onAppear { BottomBarFence.topY = proxy.frame(in: .global).minY }
-                    .onChange(of: proxy.frame(in: .global).minY) { _, y in BottomBarFence.topY = y }
-            }
+    /// Glyph colour for the new-chat FAB.
+    ///
+    /// Was hardcoded `.white`, which worked when the button was an opaque
+    /// mid-tone brand disc. Once the fill became 0.30-alpha glass the light-mode
+    /// surface turned pale and a white glyph nearly vanished into it.
+    ///
+    /// Note this can't simply be `Color(UIColor.label)` like the search FAB uses:
+    /// that FAB is glass on 26+ AND `secondarySystemBackground` below it, both
+    /// light-ish surfaces, so `label` is right in every case. The new-chat FAB's
+    /// sub-26 fallback is still the OPAQUE brand colour (183/175/150 light,
+    /// 80/76/66 dark) — mid-tone in light mode, where `label` (near-black) has
+    /// less contrast than the white that shipped there for years. So the choice
+    /// is made per rendering path: adaptive on glass, unchanged white on the
+    /// opaque fallback.
+    private static var newChatIconColor: Color {
+        if #available(iOS 26.0, *) {
+            // Translucent glass: follow the interface style. Not pure black in
+            // light mode — the brand surface is warm, so a slightly softened
+            // near-black sits better on it than #000 while still reading clearly.
+            return Color(UIColor { $0.userInterfaceStyle == .dark
+                ? UIColor.white
+                : UIColor(white: 0.13, alpha: 1) })
+        } else {
+            // Opaque brand disc, as before.
+            return .white
         }
     }
 
-    // [NEWCHAT-INK]/[NEWCHAT-WIDTH]/[NEWCHAT-HEIGHT] 值已上移至 BottomBarRecipe
-    // （远端列表同款底栏复用）；此处保留别名，本机调用点不动。
-    private static let newChatPillTint = BottomBarRecipe.newChatTint
-    private static let newChatPillLabelMinWidth = BottomBarRecipe.newChatLabelMinWidth
-    private static let newChatPillHeightTightening = BottomBarRecipe.newChatHeightTightening
-
-    private var newChatPill: some View {
-        AppGlassButton(
-            AppLocalized("New chat"),
-            // [NEWCHAT-ICON] pp 2026-09-20「把图标换成➕号吧」：与参照图（+ New chat）
-            // 一致。只动底部胶囊这一处；菜单/聊天页的 square.and.pencil 各处不动。
-            systemImage: "plus",
-            style: .prominent,
-            maxWidth: nil,
-            tintOverride: Self.newChatPillTint,
-            labelMinWidth: Self.newChatPillLabelMinWidth,
-            heightTightening: Self.newChatPillHeightTightening
-        ) {
-            openSession(Self.makeNewSessionId())
+    /// Circular FAB surface wrapping its `icon`.
+    ///
+    /// The icon has to be passed IN rather than `.overlay`-ed on afterwards:
+    /// `.glassEffect` draws the material over the view it modifies, so an
+    /// overlay applied to the surface ends up UNDER the glass and disappears
+    /// (verified on device — the tinted disc rendered with no glyph, pixel
+    /// variance ~1.2 across its centre). Putting the icon inside means the glass
+    /// is the background and the glyph rides on top of it.
+    ///
+    /// iOS 26+: `.glassEffect(.regular[.tint], in: .circle)`. The old manual
+    /// `.shadow` is dropped on that path on purpose — Liquid Glass renders its
+    /// own shadow/edge, and stacking the hand-rolled one on top reads as a dark
+    /// halo rather than depth. Sub-26 keeps the original opaque circle AND its
+    /// shadow, unchanged.
+    ///
+    /// Unlike `FolderSurface`, live glass is safe here: the FAB floats in a
+    /// `safeAreaInset` over a stable backdrop and never scrolls past
+    /// heterogeneous content, so the flicker that forced that type onto a
+    /// sampled constant does not apply.
+    @ViewBuilder
+    private func fabCircleSurface<Icon: View>(
+        tint: Color?,
+        fallbackFill: Color,
+        fallbackShadowOpacity: Double,
+        @ViewBuilder icon: () -> Icon
+    ) -> some View {
+        if #available(iOS 26.0, *) {
+            icon()
+                .frame(width: 56, height: 56)
+                .glassEffect(
+                    tint.map { Glass.regular.tint($0) } ?? Glass.regular,
+                    in: .circle
+                )
+                // [T-fab-glass-contextmenu-regression] Without this the long-press
+                // menu on the new-chat FAB stops opening.
+                //
+                // The pre-glass label was `Circle().fill(...)`, a filled shape,
+                // so its hit-test region was the whole 56x56 disc and
+                // `.contextMenu` (attached to that same view) picked up a
+                // long-press anywhere on the button. The glass version's content
+                // is a bare `Image` — `.frame` only reserves space, and
+                // `.glassEffect` draws a material without contributing a
+                // hit-testable shape — so the only interactive pixels left were
+                // the glyph's own strokes. A long press on the surrounding
+                // (visually filled) area hit nothing and no menu appeared.
+                //
+                // Tapping still worked, which is what made this look like a
+                // gesture-priority fight with glassEffect rather than a hit-test
+                // hole: DraggableFAB re-applies `.frame` and `.onTapGesture` at
+                // ITS level, one layer out, so taps were being caught there.
+                // `.contextMenu` is the only one of the three attached inside.
+                //
+                // Restoring an explicit circular content shape gives the glass
+                // surface the same hit region the filled Circle had. Applied
+                // AFTER glassEffect so it covers the rendered disc.
+                .contentShape(.circle)
+                // …and the same shape again for the context-menu PREVIEW.
+                // `.contentShape(_:)` only sets the INTERACTION region; the
+                // lifted platter resolves its shape separately and otherwise
+                // falls back to the view's rectangular bounds, which is what
+                // showed a grey rounded-rect slab peeking out from under the
+                // circular button on long press. `ChatMessageRow` already
+                // declares the two shapes separately for the same reason.
+                .contentShape(.contextMenuPreview, Circle())
+        } else {
+            Circle()
+                .fill(fallbackFill)
+                .overlay { icon() }
+                .shadow(color: .black.opacity(fallbackShadowOpacity), radius: 8, x: 0, y: 4)
         }
-        .contextMenu {
-            let groups = Array(ProviderConfigStore.shared.config.modelGroups.prefix(10))
-            if !groups.isEmpty {
-                Section(AppLocalized("New Chat with Group")) {
-                    ForEach(groups) { group in
-                        Button {
-                            openSession(Self.makeNewSessionId(groupId: group.id))
-                        } label: {
-                            Label(group.name, systemImage: "square.stack.3d.up")
+    }
+
+    @ViewBuilder
+    private var fabRow: some View {
+        // [T-fab-glass-contextmenu-regression] NO GlassEffectContainer here.
+        //
+        // The row was briefly wrapped in `GlassEffectContainer(spacing: 10)` so the
+        // search FAB and the expanded search bar (which share a `glassEffectID`)
+        // would morph into one another like the system Dock. That container is what
+        // broke the new-chat FAB's long-press "New Chat with Group" menu.
+        //
+        // Verified on device by A/B-ing the view tree with the debug inspector, same
+        // screen both times, looking for views owning a `UIContextMenuInteraction`:
+        //   with the container:  [WKContentView, UpdateCoalescingCollectionView]
+        //   without it:          [WKContentView, HostingView, UpdateCoalescingCollectionView]
+        // The `HostingView` that hosts this row only gets its context-menu
+        // interaction when the container is absent — inside it, SwiftUI never
+        // materialises one, so no long press can ever raise the menu no matter how
+        // the hit region is shaped. (That is why the earlier `.contentShape(.circle)`
+        // fix did not help: it widened a hit region for an interaction that was
+        // never created.)
+        //
+        // Dropping the container costs only the FAB→search-bar morph animation,
+        // which falls back to the scale+opacity transition the row already declares.
+        // The glass MATERIAL is unaffected — `.glassEffect` does not require a
+        // container, and the FABs still render as glass (verified by screenshot).
+        fabRowContent
+        // [BOTTOM-BAR-FENCE] 底部条带顶边上报给页切手势（精确排除，不再依赖屏幕
+        // 高度/安全区推算）。原挂在胶囊版底栏上，随 FAB 行恢复一并
+        // 迁移至此。见 RootModeTabsView.BottomBarFence。
+            .background {
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear { BottomBarFence.topY = proxy.frame(in: .global).minY }
+                        .onChange(of: proxy.frame(in: .global).minY) { _, y in BottomBarFence.topY = y }
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var fabRowContent: some View {
+        ZStack {
+            // New chat FAB (draggable)
+            DraggableFAB(
+                fabOnLeft: $fabOnLeft,
+                dragOffset: $fabDragOffset,
+                didDrag: $fabDidDrag
+            ) {
+                if !fabDidDrag { openSession(Self.makeNewSessionId()) }
+            } label: {
+                fabCircleSurface(
+                    tint: Self.newChatGlassTint,
+                    fallbackFill: Self.newChatBrandColor,
+                    fallbackShadowOpacity: 0.2
+                ) {
+                    Image(systemName: {
+                        if #available(iOS 17.0, *) { return "bubble.left.and.text.bubble.right" }
+                        return "plus.message.fill"
+                    }())
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(Self.newChatIconColor)
+                }
+                    .contextMenu {
+                        let groups = Array(ProviderConfigStore.shared.config.modelGroups.prefix(10))
+                        if !groups.isEmpty {
+                            Section(AppLocalized("New Chat with Group")) {
+                                ForEach(groups) { group in
+                                    Button {
+                                        openSession(Self.makeNewSessionId(groupId: group.id))
+                                    } label: {
+                                        Label(group.name, systemImage: "square.stack.3d.up")
+                                    }
+                                }
+                            }
                         }
                     }
+            }
+
+            // Search FAB or inline search bar (hidden when no sessions)
+            if !sessions.isEmpty {
+                if showSearchBar {
+                    // Inline search bar — fills space between edges, leaving room for New Chat
+                    GeometryReader { geo in
+                        let fabSize: CGFloat = 56
+                        let edgePad: CGFloat = 16
+                        let gap: CGFloat = 10
+                        let barX: CGFloat = fabOnLeft
+                            ? edgePad + fabSize + gap
+                            : edgePad
+                        let barWidth: CGFloat = geo.size.width - edgePad * 2 - fabSize - gap
+
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(ChatColors.inputIconFg)
+                            TextField("Search chats", text: $searchText)
+                                .textFieldStyle(.plain)
+                                .autocorrectionDisabled()
+                                .focused($searchFocused)
+                                // [SEARCH-DISMISS] 键盘右下角键显示「搜索」，按下即收起。
+                                .submitLabel(.search)
+                                .onSubmit { searchFocused = false }
+                                .onChange(of: searchText) { _ in scheduleSearch() }
+                            searchClearButton
+                        }
+                        // [T-ios-search-bar-glass-hit-hole] Trailing padding is
+                        // trimmed to 8 so the X button's 32pt-wide target sits
+                        // closer to the capsule edge instead of behind 18pt of
+                        // dead space (the button keeps its own internal
+                        // padding, so the glyph barely moves). Leading stays 18
+                        // — that side holds the magnifier and needs the inset.
+                        .padding(.leading, 18)
+                        .padding(.trailing, 8)
+                        .frame(width: barWidth, height: fabSize)
+                        // [SEARCH-BEAM] 9/23 光束随胶囊版一并迁回展开条：line
+                        // family、theme .auto、常在；borderRadius 显式 28（条高
+                        // 56 的一半，不传光带会画在错误弧度上）。挂在
+                        // SearchBarSurface 内侧——BorderBeam 只加 background/
+                        // overlay，不参与父视图测量 → 尺寸位置零改动。
+                        .borderBeam(.line, theme: .auto, active: true, borderRadius: 28)
+                        .modifier(SearchBarSurface())
+                        // [T-ios-search-bar-glass-hit-hole] `glassEffect(in:)`
+                        // RENDERS a capsule but contributes no hit region of
+                        // its own, and this row sits in a `safeAreaInset` over
+                        // the session List — an inset does not swallow touches
+                        // where it has nothing hit-testable. So every point of
+                        // the bar not covered by a real control (icon,
+                        // TextField, X button) passed the touch straight
+                        // through to the cell scrolling underneath and opened
+                        // whatever session or folder was there.
+                        //
+                        // Declaring the capsule's shape restores the hit region
+                        // to match what is drawn. NOTE this is necessary but
+                        // not sufficient on its own: verified on device that
+                        // the capsule still cannot fully consume taps (the
+                        // a11y tree exposes no element for it, only its
+                        // children), so the durable part of this fix is the
+                        // enlarged, explicitly-shaped X target in
+                        // `searchClearButton` — that is what the user actually
+                        // aims at, and it now hits at all four corners.
+                        .contentShape(.capsule)
+                        .modifier(FABGlassMorphID(namespace: fabGlassNamespace))
+                        .position(x: barX + barWidth / 2, y: fabSize / 2)
+                    }
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.85, anchor: fabOnLeft ? .leading : .trailing).combined(with: .opacity),
+                        removal: .scale(scale: 0.85, anchor: fabOnLeft ? .leading : .trailing).combined(with: .opacity)
+                    ))
+                    .onAppear { searchFocused = true }
+                } else {
+                    // Search FAB (draggable, inverted side)
+                    DraggableFAB(
+                        fabOnLeft: $fabOnLeft,
+                        dragOffset: $searchDragOffset,
+                        didDrag: $searchDidDrag,
+                        inverted: true
+                    ) {
+                        if !searchDidDrag {
+                            withAnimation(.easeInOut(duration: 0.2)) { showSearchBar = true }
+                        }
+                    } label: {
+                        fabCircleSurface(
+                            tint: nil,
+                            fallbackFill: Color(UIColor.secondarySystemBackground),
+                            fallbackShadowOpacity: 0.15
+                        ) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundStyle(Color(UIColor.label))
+                        }
+                            .modifier(FABGlassMorphID(namespace: fabGlassNamespace))
+                    }
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.85, anchor: fabOnLeft ? .leading : .trailing).combined(with: .opacity),
+                        removal: .scale(scale: 0.85, anchor: fabOnLeft ? .leading : .trailing).combined(with: .opacity)
+                    ))
                 }
             }
         }
-    }
-
-    private var searchBarCapsule: some View {
-        HStack(spacing: 8) {
-            // [SEARCH-BAR-ICON-INK] pp 2026-09-20「搜索的那个图标是不是用的黑色」：
-            // `.secondary` → 图标黑（输入栏三图标同一常数，B16-INPUTBAR：浅色纯黑 /
-            // 深色 secondaryLabel）；与参照图放大镜像素实测（≈纯黑）对齐。
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(ChatColors.inputIconFg)
-            TextField("Search chats", text: $searchText)
-                .textFieldStyle(.plain)
-                .autocorrectionDisabled()
-                .focused($searchFocused)
-                // [SEARCH-DISMISS] 键盘右下角键显示「搜索」，按下即收起。
-                .submitLabel(.search)
-                .onSubmit { searchFocused = false }
-                .onChange(of: searchText) { _ in scheduleSearch() }
-            if !searchText.isEmpty {
-                searchClearButton
-            }
-        }
-        // [T-ios-search-bar-glass-hit-hole] Trailing padding is trimmed to 8 so
-        // the X button's 32pt-wide target sits closer to the capsule edge; leading
-        // stays 18 for the magnifier inset.
-        .padding(.leading, 18)
-        .padding(.trailing, 8)
-        // [SEARCHBAR-HEIGHT] pp 2026-09-20「搜索栏也太肥了啊 你只调了开启会话胶囊？」：
-        // 逐像素实测——实机栏高 56pt、参照 46.7pt（栏顶 74.7 / 栏底 28 / 文字中心
-        // 51.3pt 均已对齐）。56 → 47 对齐参照高度。
-        .frame(maxWidth: .infinity)
-        .frame(height: 47)
-        // [SEARCH-BEAM] pp 2026-09-23「搜索栏大小的位置不要动」「常在」：要的是
-        // libraries.dev/beam 官方 Search 胶囊那款 = **line family**（r2 demo 的
-        // `beam-travel 3.1s` 从左到右横扫 + breathe 4.0s + 双轨 spike + edge-fade，
-        // 不是 r0 大输入框的 rotate 环绕 1.96s）；colorVariant 取默认 colorful、
-        // theme .auto 跟随系统深浅。borderRadius 必须显式 23.5 —— beam-spec 的
-        // sizePresets.line 默认 16，不传光带会画在错误弧度上（＝光跑错位置）。
-        // 挂在 SearchBarSurface **内侧**：BorderBeam 只加 .background/.overlay，
-        // 二者不参与父视图测量 → 高 47 / 位置零改动；shader 的光带是
-        // `outerCov - innerCov` 向内 1pt（BeamShaders.metal:141-144），整条都在
-        // bounds 内侧，不会被玻璃层的 capsule clip 切掉，且能跟 .interactive()
-        // 的按压缩放同步。热区由 .contentShape(.capsule) 决定，两层
-        // allowsHitTesting(false) 不接管点击。
-        .borderBeam(.line, theme: .auto, active: true, borderRadius: 23.5)
-        .modifier(SearchBarSurface())
-        // [T-ios-search-bar-glass-hit-hole] `glassEffect(in:)` renders a capsule
-        // but contributes no hit region of its own; this row sits in a
-        // `safeAreaInset` over the session List, so untouched points would pass
-        // touches through to the cells underneath. Declaring the capsule shape
-        // restores the hit region to match what is drawn.
-        .contentShape(.capsule)
+        .frame(height: 56)
+        .padding(.bottom, 20)
     }
 
     // MARK: - Selectable Row
@@ -5903,6 +6153,66 @@ private struct DocumentExportPicker: UIViewControllerRepresentable {
         return picker
     }
     func updateUIViewController(_ vc: UIDocumentPickerViewController, context: Context) {}
+}
+
+// MARK: - Draggable FAB
+
+/// A floating action button that can be dragged horizontally and snaps to the left or right edge.
+/// Uses UIKit's UIPanGestureRecognizer via UIViewRepresentable for reliable, low-latency drag tracking
+/// that doesn't conflict with SwiftUI's Button/tap gestures.
+private struct DraggableFAB<Label: View>: View {
+    @Binding var fabOnLeft: Bool
+    @Binding var dragOffset: CGFloat
+    @Binding var didDrag: Bool
+    /// When true, this FAB sits on the opposite side of `fabOnLeft` and inverts the snap logic.
+    var inverted: Bool = false
+    var onTap: () -> Void
+    @ViewBuilder var label: () -> Label
+
+    private let fabSize: CGFloat = 56
+    private let edgePadding: CGFloat = 16
+
+    var body: some View {
+        GeometryReader { geo in
+            let screenWidth = geo.size.width
+            let leftX = edgePadding + fabSize / 2
+            let rightX = screenWidth - edgePadding - fabSize / 2
+            let onLeft = inverted ? !fabOnLeft : fabOnLeft
+            let restingX = onLeft ? leftX : rightX
+
+            label()
+                .frame(width: fabSize, height: fabSize)
+                .position(x: restingX + dragOffset, y: fabSize / 2)
+                .onTapGesture {
+                    onTap()
+                }
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 10)
+                        .onChanged { value in
+                            didDrag = true
+                            dragOffset = value.translation.width
+                        }
+                        .onEnded { value in
+                            let currentCenter = restingX + value.translation.width
+                            let droppedOnLeft = currentCenter < screenWidth / 2
+                            // For inverted FAB: dropping on left means the *other* FAB goes right
+                            let newFabOnLeft = inverted ? !droppedOnLeft : droppedOnLeft
+                            let changed = fabOnLeft != newFabOnLeft
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                fabOnLeft = newFabOnLeft
+                                dragOffset = 0
+                            }
+                            if changed {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                didDrag = false
+                            }
+                        }
+                )
+        }
+        .frame(height: fabSize)
+    }
 }
 
 // MARK: - Equatable-gated context menu

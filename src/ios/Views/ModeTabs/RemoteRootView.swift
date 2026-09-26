@@ -1,5 +1,5 @@
-// RemoteRootView.swift — 远程 tab 三态壳（U1 终案；pp 2026-09-15 定稿：顶栏标题位
-// 与本机侧渲染同一个 ModeTabPicker，切换时胶囊位置不动）。
+// RemoteRootView.swift — 远程 tab 三态壳（U1 终案；bottom-dock 批次起顶栏胶囊已迁壳层，
+// 本壳顶栏留空——不补标题、不补词条）。
 //
 // Consumes ONLY RemoteKit's public facade (RemoteService / RemoteServiceState).
 // Staged with deadlines (完整性铁律 — 明示不藏):
@@ -14,12 +14,6 @@ struct RemoteRootView: View {
     @ObservedObject var service: RemoteService
     @ObservedObject private var tabRouter = RootTabRouter.shared
 
-    /// 与本机侧标题同源（SOUL.md name，回退 Moonveil）——同一真源，非平行命名通道。
-    @State private var soulName: String = {
-        let n = SoulStore.cachedMetadata.name
-        return n.isEmpty ? "Moonveil" : n
-    }()
-
     @State private var pendingNotices = 0
     /// 官方 RootView.swift:52 的全局染色数据源（黑/白自适应）。
     @Environment(\.colorScheme) private var colorScheme
@@ -30,18 +24,6 @@ struct RemoteRootView: View {
         NavigationStack {
             content
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .principal) {
-                        ModeTabPicker(
-                            selection: $tabRouter.mode,
-                            localLabel: soulName
-                        )
-                    }
-                }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
-            let n = SoulStore.cachedMetadata.name
-            soulName = n.isEmpty ? "Moonveil" : n
         }
         // 子树拆卸兜底：content 按 service.state 分支，.pairing 会把整棵
         // RemoteSessionListView 换成 pairingPending——它的 @State 随葬，详情页 push
@@ -81,7 +63,7 @@ struct RemoteRootView: View {
     }
 
     // MARK: State 3 — 已连接（R0 列表已接线：RemoteSessionListView 挂进本 NavigationStack，
-    // 顶栏 ModeTabPicker 由此处提供，列表不再自建导航栈；断开入口在列表右上角菜单）
+    // 顶栏留空（胶囊已迁壳层，bottom-dock 批次），断开入口在列表右上角菜单）
 
     private var connected: some View {
         RemoteSessionListView(service: service,

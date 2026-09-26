@@ -3,9 +3,10 @@
 // 形态（pp 2026-09-20 定稿，REMOTE-REDESIGN-4 = 方案 B「Claude 设计语言」落地）：
 // 暖奶油画布（→ 2026-09-26 pp「远端背景改成和本地一样」起改 systemBackground）
 //   → 深色终端窗卡（设备）→ 液态玻璃操作 → 13pt tertiary 项目头 → 暖卡堆
-// 会话（琥珀待批准 / teal running / 珊瑚未读点）；冻结三件（顶栏/新会话/搜索栏）原样
-//   ——[SEARCH-BEAM] pp 2026-09-24「远端也加」显式修订：搜索栏追加 border-beam 光束
-//   （参数与本机栏一致，见 searchBarCapsule 处注释）；顶栏 / 新会话仍原样；
+// 会话（琥珀待批准 / teal running / 珊瑚未读点）；底栏 = 与本机同构的双圆 FAB 行
+//   ——bottom-dock 批次：原「新会话胶囊 + 常驻搜索胶囊」退役，换回本机原装
+//   双圆 FAB（搜索 FAB 点开 inline 搜索条，光束参数与本机栏一致、随条高改 28）；
+//   [SEARCH-BEAM] pp 2026-09-24「远端也加」的光束随条保留。顶栏胶囊已迁壳层。
 // AA 视觉只出现在点进去的弹窗页（PairDeviceSheet / ProjectEditor / 详情 / 归档）。
 // 数据源只走 RemoteKit 的 public facade（RemoteService / RemotePairingPayload），
 // 不读 ChatStore、不碰 ContentView 的 stackList（死隔离：远端列表与本机列表文件级零交集）。
@@ -124,6 +125,13 @@ struct RemoteSessionListView: View {
     // 底栏搜索（与本机同款交互：即时过滤标题、键盘收起三出口）
     @State private var searchText = ""
     @FocusState private var searchFocused: Bool
+    // 双圆 FAB 底栏（bottom-dock 批次，与本机原装同构）：换边状态 + 拖拽 + 展开态
+    @State private var fabOnLeft = false
+    @State private var fabDragOffset: CGFloat = 0
+    @State private var fabDidDrag = false
+    @State private var showSearchBar = false
+    @State private var searchDragOffset: CGFloat = 0
+    @State private var searchDidDrag = false
     // 项目板块折叠（官方「项目 ▾」）
     @State private var projectsCollapsed = false
     /// 侧栏显示（AA 官方 ChatSidebarListMenu 同 key 持久化）：false = 按项目 / true = 全部会话。
@@ -137,8 +145,8 @@ struct RemoteSessionListView: View {
     /// P3-3：页面级错误 toast 存储（官方一槽一错语义，AAV2 冻结件）。
     @State private var toasts = ChatToastStore()
 
-    // 导航容器与 ModeTabPicker 顶栏由 RemoteRootView 的 NavigationStack 提供
-    // （pp 定稿：胶囊切换位置不动）；列表选项菜单在板块结构的项目头 …，
+    // 导航容器由 RemoteRootView 的 NavigationStack 提供（bottom-dock 批次：顶栏胶囊
+    // 已迁壳层，本页顶栏只剩右上角控件）；列表选项菜单在板块结构的项目头 …，
     // 本视图不再另挂右上角菜单。
     var body: some View {
         content
@@ -382,7 +390,7 @@ struct RemoteSessionListView: View {
         // [SESSION-SWIPE-TO-LONGPRESS] 页切手势胜出时冻结竖滚（本机 ContentView:2826
         // 同款对称物——远端此前因卡堆区被 RemoteRowsFence 排除而一直没接）。
         .scrollDisabled(tabRouter.pageSwipeArmed)
-        .safeAreaInset(edge: .bottom) { bottomBar }
+        .safeAreaInset(edge: .bottom) { fabRow }
         .refreshable { await refresh() }
         // REMOTE-DEVICE-1 + P2-A：设备详情页（单击终端卡进入）；per-connector 数据面
         // （官方 ChatShellView:107-143 形状：connector 从 dashboardRepository.connectors
@@ -589,79 +597,124 @@ struct RemoteSessionListView: View {
             }
     }
 
-    // MARK: - 底部栏（与本机同一套配方：BottomBarRecipe + SearchBarSurface +
-    // BottomBarFadeView，值全部来自 ContentView 的逐像素实测批次，不再手搓）
+    // MARK: - 底部双圆 FAB 行（与本机 ContentView 原装 fabRow 同构，56pt 行 / FAB 56 /
+    // edge 16 / .padding(.bottom, 20)。DraggableFAB 在本文件写 private 同构副本——
+    // ContentView 的那份是文件私有的，跨文件不可见；两份语义逐字一致。
+    // 与本机差异：新会话 FAB 用实色 tan 盘（不挂 iOS26 glassEffect / contextMenu，
+    // 远端原胶囊栏也没有这两件）；展开条光束 borderRadius 随条高 56 → 28
+    // （原常驻胶囊 47 → 23.5 的旧字据见 [SEARCH-BEAM] 注释位）。
 
-    private var bottomBar: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Spacer()
-                newChatPill
+    /// 新会话 FAB 的 tan 动态色（light 183/175/150，dark 80/76/66——本机原装同值）。
+    private static let newChatBrandColor = Color(UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 80/255, green: 76/255, blue: 66/255, alpha: 1)
+        : UIColor(red: 183/255, green: 175/255, blue: 150/255, alpha: 1) })
+
+    @ViewBuilder
+    private var fabRow: some View {
+        ZStack {
+            // 新会话 FAB（可拖拽，正侧）
+            DraggableFAB(
+                fabOnLeft: $fabOnLeft,
+                dragOffset: $fabDragOffset,
+                didDrag: $fabDidDrag
+            ) {
+                if !fabDidDrag { startNewSession() }
+            } label: {
+                Circle()
+                    .fill(Self.newChatBrandColor)
+                    .overlay {
+                        Image(systemName: {
+                            if #available(iOS 17.0, *) { return "bubble.left.and.text.bubble.right" }
+                            return "plus.message.fill"
+                        }())
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
             }
-            searchBarCapsule
-        }
-        .padding(.horizontal, 22)
-        .padding(.top, 8)
-        .padding(.bottom, 24)
-        // [BOTTOM-FADE-PAGE] pp 2026-09-24 暗黑适配批注入页面收口色；2026-09-26 起
-        // 远端画布（RemotePalette.canvas）已改为 systemBackground、与本机同款，
-        // 注入仍保留（收口色随画布 token 走，两页永远同源）。
-        .background(alignment: .bottom) { BottomBarFadeView(pageColor: RemotePalette.canvas) }
-        .offset(y: searchFocused ? 0 : 30)
-    }
 
-    private var newChatPill: some View {
-        AppGlassButton(
-            AppLocalized("New chat"),
-            systemImage: "plus",
-            style: .prominent,
-            maxWidth: nil,
-            tintOverride: BottomBarRecipe.newChatTint,
-            labelMinWidth: BottomBarRecipe.newChatLabelMinWidth,
-            heightTightening: BottomBarRecipe.newChatHeightTightening,
-            action: startNewSession
-        )
-    }
+            // 搜索 FAB 或 inline 搜索条（无会话时隐藏，数据源 = loader.items）
+            if !sessions.isEmpty {
+                if showSearchBar {
+                    // inline 搜索条——占满两侧，给另一头的 FAB 让位
+                    GeometryReader { geo in
+                        let fabSize: CGFloat = 56
+                        let edgePad: CGFloat = 16
+                        let gap: CGFloat = 10
+                        let barX: CGFloat = fabOnLeft
+                            ? edgePad + fabSize + gap
+                            : edgePad
+                        let barWidth: CGFloat = geo.size.width - edgePad * 2 - fabSize - gap
 
-    private var searchBarCapsule: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(ChatColors.inputIconFg)
-            TextField("Search chats", text: $searchText)
-                .textFieldStyle(.plain)
-                .autocorrectionDisabled()
-                .focused($searchFocused)
-                .submitLabel(.search)
-                .onSubmit { searchFocused = false }
-            if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 32, height: 44)
-                        .contentShape(Rectangle())
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(ChatColors.inputIconFg)
+                            TextField("Search chats", text: $searchText)
+                                .textFieldStyle(.plain)
+                                .autocorrectionDisabled()
+                                .focused($searchFocused)
+                                .submitLabel(.search)
+                                .onSubmit { searchFocused = false }
+                            if !searchText.isEmpty {
+                                Button {
+                                    searchText = ""
+                                    searchFocused = false
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 32, height: 44)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.leading, 18)
+                        .padding(.trailing, 8)
+                        .frame(width: barWidth, height: fabSize)
+                        // [SEARCH-BEAM] 参数与本机栏一致（line family / theme .auto /
+                        // active 常在）；borderRadius 28 = 条高 56 的胶囊半径。
+                        .borderBeam(.line, theme: .auto, active: true, borderRadius: 28)
+                        .modifier(SearchBarSurface())
+                        .contentShape(.capsule)
+                        .position(x: barX + barWidth / 2, y: fabSize / 2)
+                    }
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.85, anchor: fabOnLeft ? .leading : .trailing).combined(with: .opacity),
+                        removal: .scale(scale: 0.85, anchor: fabOnLeft ? .leading : .trailing).combined(with: .opacity)
+                    ))
+                    .onAppear { searchFocused = true }
+                } else {
+                    // 搜索 FAB（可拖拽，反侧）
+                    DraggableFAB(
+                        fabOnLeft: $fabOnLeft,
+                        dragOffset: $searchDragOffset,
+                        didDrag: $searchDidDrag,
+                        inverted: true
+                    ) {
+                        if !searchDidDrag {
+                            withAnimation(.easeInOut(duration: 0.2)) { showSearchBar = true }
+                        }
+                    } label: {
+                        Circle()
+                            .fill(Color(UIColor.secondarySystemBackground))
+                            .overlay {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 22, weight: .semibold))
+                                    .foregroundStyle(Color(UIColor.label))
+                            }
+                            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                    }
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.85, anchor: fabOnLeft ? .leading : .trailing).combined(with: .opacity),
+                        removal: .scale(scale: 0.85, anchor: fabOnLeft ? .leading : .trailing).combined(with: .opacity)
+                    ))
                 }
-                .buttonStyle(.plain)
             }
         }
-        .padding(.leading, 18)
-        .padding(.trailing, 8)
-        .frame(maxWidth: .infinity)
-        .frame(height: 47)
-        // [SEARCH-BEAM] pp 2026-09-24「远端也加」：本栏原属文件头「冻结三件（顶栏/
-        // 新会话/搜索栏）原样」的冻结项——pp 显式指示加光束，即对该设计决策的显式
-        // 修订（字据同步写在文件头）。参数与本机栏逐字一致：line family / theme .auto /
-        // active 常在 / borderRadius 23.5（栏高 47 的胶囊；beam-spec 的 sizePresets
-        // 默认 16 不传会画错弧度），保证两端观感统一。
-        // 尺寸位置零改动依据同本机栏：BorderBeam 只加 .background/.overlay 不参与父视
-        // 图测量；shader 光带 outerCov-innerCov 向内 1pt 全在 bounds 内，不被玻璃层
-        // capsule clip 切；热区仍由 .contentShape(.capsule) 决定。
-        .borderBeam(.line, theme: .auto, active: true, borderRadius: 23.5)
-        .modifier(SearchBarSurface())
-        .contentShape(.capsule)
+        .frame(height: 56)
+        .padding(.bottom, 20)
     }
 
     // MARK: - 设备（方案 B / REMOTE-REDESIGN-4：深色终端窗卡，pp 2026-09-20 定稿）
@@ -899,7 +952,7 @@ struct RemoteSessionListView: View {
 
     // 列表选项（归档/断开）= 页面级操作，挂顶栏右上角 …（本机同位；
     // REMOTE-REDESIGN-3 从项目头 … 迁回，项目头只留 ▾ 折叠与 ＋ 新建）。
-    // 导航容器与 ModeTabPicker 顶栏仍由 RemoteRootView 提供。
+    // 导航容器仍由 RemoteRootView 提供（顶栏胶囊已迁壳层）。
     @ViewBuilder
     private var listOptionsMenuContent: some View {
         // AA 官方「侧栏显示」：按项目 / 全部会话（同 key 持久化，默认按项目）。
@@ -951,6 +1004,65 @@ struct RemoteSessionListView: View {
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(Color.primary)
         }
+    }
+}
+
+// MARK: - 可拖拽换边 FAB（ContentView 原装 DraggableFAB 的 private 同构副本，逐字一致；
+// 原件文件私有不可跨文件复用。拖动换边 → spring 吸附 + medium 触感，
+// 松手 0.15s 内吞掉拖拽尾部的 tap——与本机行为同源。）
+
+private struct DraggableFAB<Label: View>: View {
+    @Binding var fabOnLeft: Bool
+    @Binding var dragOffset: CGFloat
+    @Binding var didDrag: Bool
+    /// When true, this FAB sits on the opposite side of `fabOnLeft` and inverts the snap logic.
+    var inverted: Bool = false
+    var onTap: () -> Void
+    @ViewBuilder var label: () -> Label
+
+    private let fabSize: CGFloat = 56
+    private let edgePadding: CGFloat = 16
+
+    var body: some View {
+        GeometryReader { geo in
+            let screenWidth = geo.size.width
+            let leftX = edgePadding + fabSize / 2
+            let rightX = screenWidth - edgePadding - fabSize / 2
+            let onLeft = inverted ? !fabOnLeft : fabOnLeft
+            let restingX = onLeft ? leftX : rightX
+
+            label()
+                .frame(width: fabSize, height: fabSize)
+                .position(x: restingX + dragOffset, y: fabSize / 2)
+                .onTapGesture {
+                    onTap()
+                }
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 10)
+                        .onChanged { value in
+                            didDrag = true
+                            dragOffset = value.translation.width
+                        }
+                        .onEnded { value in
+                            let currentCenter = restingX + value.translation.width
+                            let droppedOnLeft = currentCenter < screenWidth / 2
+                            // For inverted FAB: dropping on left means the *other* FAB goes right
+                            let newFabOnLeft = inverted ? !droppedOnLeft : droppedOnLeft
+                            let changed = fabOnLeft != newFabOnLeft
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                fabOnLeft = newFabOnLeft
+                                dragOffset = 0
+                            }
+                            if changed {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                didDrag = false
+                            }
+                        }
+                )
+        }
+        .frame(height: fabSize)
     }
 }
 

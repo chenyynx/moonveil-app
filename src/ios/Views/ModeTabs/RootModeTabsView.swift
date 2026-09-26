@@ -34,6 +34,15 @@ struct RootModeTabsView: View {
     @State private var showsQRLogin = false
     @State private var showsManualLogin = false
     @State private var didRestore = false
+    /// Q2: 身份胶囊 → 资料页（zoom 转场对）。NS 挂在胶囊头像的
+    /// matchedTransitionSource 上，SoulProfileHub 的 sheet 内容消费同一对。
+    @Namespace private var soulProfileNS
+    @State private var showsSoulProfile = false
+    /// 胶囊名字 —— 与 RemoteRootView 同一真源（SOUL.md name，回退 Moonveil）。
+    @State private var soulName: String = {
+        let n = SoulStore.cachedMetadata.name
+        return n.isEmpty ? "Moonveil" : n
+    }()
     /// B12-GATEFLASH: the full-screen login is the 首启 entry, not a permanent lid on
     /// the remote tab. Once the user leaves it (直接用本地 AI / 关闭), the tab's
     /// 未登录三态卡 takes over and its 去登录 button re-raises the cover — which is
@@ -77,9 +86,39 @@ struct RootModeTabsView: View {
                 // [TAB-SWAP-FLASH] 同上：远端内容层瞬切（胶囊动画见 ModeTabPicker）。
                 .animation(nil, value: router.mode)
             }
+
+            // Q2: 第三 tab「构件 | 影音内容」。瞬切手法与上两分支一致（ZStack 无
+            // 外层动画，if 插拔即瞬变）；离开即拆树，回到本页 .task 重扫。
+            if router.mode == .works {
+                WorksListView()
+            }
         }
         .overlay(alignment: .topLeading) {
             if gearVisible { gearButton }
+        }
+        // Q2: 顶部身份胶囊（唯一实例，两列表页共用；远端/works 由闸门恒绝）。
+        // 与 topLeading 齿轮并存不冲突（此处 alignment: .top 水平居中）。
+        .overlay(alignment: .top) {
+            if soulCapsuleVisible { soulCapsule }
+        }
+        // Q2: 底部三段 dock。safeAreaInset 挂在壳层主 ZStack → 作用于整棵子树：
+        // 子视图自己的 safeAreaInset（两列表页 bottomBar）会被压缩后的安全区顶到
+        // dock 之上，works 页/聊天 push 页同理（常驻是拍板决策）。水平 margin 16
+        // 由 BottomModeDock 自带，这里不再加。
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            BottomModeDock()
+                // 键盘起落不应带着 dock：先按官方口径试 ignoresSafeArea(.keyboard)。
+                .ignoresSafeArea(.keyboard, edges: .bottom)
+        }
+        // Q2: 胶囊 → 资料页 zoom 转场。sheet + navigationTransition(.zoom) 配对
+        // （Apple 文档标准形状；不用默认上弹 —— zoom 会接管转场风格）。
+        .sheet(isPresented: $showsSoulProfile) {
+            SoulProfileHub()
+                .navigationTransition(.zoom(sourceID: SoulProfileHub.zoomSourceID, in: soulProfileNS))
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
+            let n = SoulStore.cachedMetadata.name
+            soulName = n.isEmpty ? "Moonveil" : n
         }
         // B16: ONE settings presentation for both tabs, hosted by the always-visible
         // shell. On the Remote tab ContentView is alive but `opacity 0`, and "can an
@@ -150,6 +189,9 @@ struct RootModeTabsView: View {
         DragGesture(minimumDistance: 12, coordinateSpace: .global)   // pp 2026-09-16: directionLockDistance = 12pt
             .updating($swipeInFlight) { _, state, _ in state = true }
             .onChanged { value in
+                // Q2: works 页禁横滑页切（三段下点切即可；左滑右滑语义只属于
+                // 本机⟷远程两页）。
+                guard router.mode != .works else { return }
                 if swipeRejected || swipeArmed { return }   // verdict is final per gesture
 
                 let dx = value.translation.width
@@ -315,6 +357,61 @@ struct RootModeTabsView: View {
     private var showsLoginGate: Bool {
         router.mode == .remote && remoteService.state != .ready && !loginCoverDismissed
     }
+
+    // MARK: - Q2 身份胶囊（顶部，唯一实例）
+
+    /// 闸门四条件：本机线在列表根、非多选、没盖登录盖。mode == .local 已把
+    /// 远端与 works 恒绝（pp：远端「暂不显示」）。
+    private var soulCapsuleVisible: Bool {
+        router.mode == .local && router.localAtRoot && !router.localSelecting && !showsLoginGate
+    }
+
+    /// 几何（Muse 实测）：头像 40 圆 + 名字 pill 56×30 r15、15pt semibold，
+    /// -6 叠压（头像踩 pill 上沿）；整体水平居中，头像顶 = 安全区顶 +4
+    /// （overlay(alignment: .top) 落在 safe area 内，padding(.top, 4) 补足）。
+    private var soulCapsule: some View {
+        Button {
+            showsSoulProfile = true
+        } label: {
+            VStack(spacing: -6) {
+                Image("CaduGhost")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+                    .matchedTransitionSource(id: SoulProfileHub.zoomSourceID, in: soulProfileNS)
+                    .accessibilityHidden(true)
+                Text(verbatim: soulName)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Self.soulPillText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(width: 56, height: 30)
+                    .background(
+                        RoundedRectangle(cornerRadius: 15, style: .continuous)
+                            .fill(Self.soulPillSurface)
+                    )
+            }
+            .shadow(color: .black.opacity(0.10), radius: 5, x: 0, y: 2)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 4)
+        .accessibilityLabel(Text(verbatim: soulName))
+    }
+
+    /// pill 底：light 纯白 / dark #1C1C1E。
+    private static let soulPillSurface = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0x1C / 255, green: 0x1C / 255, blue: 0x1E / 255, alpha: 1)
+            : .white
+    })
+    /// pill 字色随底反相：light 深字 / dark 白字。
+    private static let soulPillText = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? .white
+            : UIColor(white: 0x11 / 255, alpha: 1)
+    })
 
     /// Same haptic the capsule uses for a mode switch (UIImpactFeedbackGenerator .soft).
     private static func softTick() {

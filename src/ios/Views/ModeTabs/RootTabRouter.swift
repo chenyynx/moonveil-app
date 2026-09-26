@@ -5,6 +5,14 @@
 import SwiftUI
 import Combine
 
+// Moved from ModeTabPicker.swift (bottom-dock batch) — the picker is gone.
+/// The app's source modes (D4: the single fork point).
+/// CaseIterable order = [.local, .remote, .works].
+enum AppSourceMode: String, CaseIterable, Identifiable {
+    case local, remote, works
+    var id: String { rawValue }
+}
+
 // NOTE B8-FIX: intentionally NOT @MainActor — ContentView (nonisolated struct)
 // initializes it as a stored property; all mutations originate from UI (main).
 final class RootTabRouter: ObservableObject {
