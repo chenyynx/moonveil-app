@@ -40,14 +40,15 @@ struct RootModeTabsView: View {
     /// 终端卡"点按登录"（onOpenLogin）会清掉重唤。key 命名跟随 aa.* 惯例。
     @AppStorage("aa.remote.login-cover-dismissed") private var loginCoverDismissed = false
 
-    /// [NATIVE-TABS] 各 tab 的 Lucide 图标（aa- 前缀资产，模板渲染），纯图标
-    /// tab（无文字），22pt 对齐 Muse，黑色。a11y 朗读文本由 tabLabel 提供。
-    /// 2026-09-27：pp 试过 SF Symbols 后决定换回 Lucide 库。
+    /// [NATIVE-TABS] 各 tab 的 Tabler 图标（aa-Tabler- 前缀资产，模板渲染），
+    /// 纯图标 tab（无文字），22pt 对齐 Muse，黑色。a11y 朗读文本由 tabLabel 提供。
+    /// 2026-09-27：pp 从 Tabler 库四组候选中钦定（tab1 message-circle /
+    /// tab2 cloud / tab3 puzzle / tab4 edit）。
     private static let tabIcon: [AppSourceMode: String] = [
-        .local: "aa-MessagesSquare",
-        .remote: "aa-Cloud",
-        .works: "aa-Blocks",
-        .compose: "aa-SquarePen",
+        .local: "aa-Tabler-MessageCircle",
+        .remote: "aa-Tabler-Cloud",
+        .works: "aa-Tabler-Puzzle",
+        .compose: "aa-Tabler-Edit",
     ]
 
     init() {
