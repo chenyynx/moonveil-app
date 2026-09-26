@@ -193,6 +193,11 @@ struct RootModeTabsView: View {
         }
     }
 
+    /// 远程 tab 且未登录且本次启动还没离开过登录盖 → 盖登录页；登录成功(ready)自动收起。
+    private var showsLoginGate: Bool {
+        router.mode == .remote && remoteService.state != .ready && !loginCoverDismissed
+    }
+
     private var needsLoginGate: Binding<Bool> {
         Binding(
             get: { showsLoginGate },
