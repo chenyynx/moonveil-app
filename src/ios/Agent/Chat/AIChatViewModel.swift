@@ -5946,6 +5946,10 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
             // every task completes.
             let toolsSnapshot = tools
             var outcomesByIndex: [Int: ToolExecOutcome] = [:]
+            // P0-3: batch-internal (toolName, argsHash) counts. check() only
+            // reads history and record() runs after execution, so identical
+            // calls inside one batch all see the same snapshot.
+            var batchCallCounts: [String: Int] = [:]
             await withTaskGroup(of: (Int, ToolExecOutcome).self) { group in
                 var added = 0
                 var harvested = 0
@@ -5959,6 +5963,37 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
                             break
                         }
                     }
+                    // P0-3: the first two identical calls run; the third and
+                    // on are critical-short-circuited WITHOUT spawning a task.
+                    // Still recorded so the cross-turn detector accumulates.
+                    let batchKey = toolLoopDetector.argsHashFor(tu.name, tu.args)
+                    let batchSeen = batchCallCounts[batchKey, default: 0]
+                    if batchSeen >= 2 {
+                        let loopMsg = "[LOOP BLOCKED] CRITICAL: \(tu.name) was issued \(batchSeen + 1) times with identical arguments inside a single batch. Stop repeating the same call — verify the earlier results instead of re-issuing it."
+                        logger.error("[ToolLoopDetector] batch-internal critical tool=\(tu.name) id=\(tu.id.prefix(8)) count=\(batchSeen + 1)")
+                        if msgIdx < messages.count, tu.blockIdx < messages[msgIdx].blocks.count {
+                            messages[msgIdx].blocks[tu.blockIdx].content = loopMsg
+                            messages[msgIdx].blocks[tu.blockIdx].toolStatus = .failed(message: "loop blocked")
+                        }
+                        toolLoopDetector.record(
+                            toolName: tu.name, params: tu.args,
+                            result: nil, errorMessage: loopMsg, toolCallId: tu.id
+                        )
+                        let blockedSnap = ToolSnapshot(type: .text, text: loopMsg, mediaRef: nil, duration: nil)
+                        let item = ToolSnapshotItem(
+                            id: tu.id, toolName: tu.name, snapshot: blockedSnap,
+                            mediaResolver: await ChatStore.shared.mediaFileURLResolver()
+                        )
+                        outcomesByIndex[idx] = ToolExecOutcome(
+                            toolId: tu.id, toolName: tu.name,
+                            resultPart: .toolResult(id: tu.id, name: tu.name, content: loopMsg, isError: true),
+                            snapshotEntry: (toolName: tu.name, snapshot: blockedSnap),
+                            snapshotItem: item,
+                            cancelled: false
+                        )
+                        continue
+                    }
+                    batchCallCounts[batchKey] = batchSeen + 1
                     logger.info("[ToolLifecycle] DISPATCHED toolId=\(tu.id.prefix(20)) tool=\(tu.name) sid=\(self.sessionId?.prefix(8) ?? "nil") appState=\(UIApplication.shared.applicationState == .active ? "fg" : "bg") suspended=\(self.streamingUIUpdatesSuspended) isProcessing=\(self.isProcessing)")
                     group.addTask { [weak self] in
                         guard let self else {

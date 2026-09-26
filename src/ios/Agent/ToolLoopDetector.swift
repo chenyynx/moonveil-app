@@ -258,7 +258,9 @@ final class ToolLoopDetector {
         "tool_title",
     ]
 
-    private func argsHashFor(_ toolName: String, _ params: [String: Any]) -> String {
+    /// Shared with the batch dispatcher (P0-3 batch-internal counting) and
+    /// P1-C threshold work — must stay identical to what check()/record() use.
+    func argsHashFor(_ toolName: String, _ params: [String: Any]) -> String {
         var filtered = params
         for k in Self.argsHashIgnoredKeys { filtered.removeValue(forKey: k) }
         return sha256("\(toolName):\(stableJson(filtered))")

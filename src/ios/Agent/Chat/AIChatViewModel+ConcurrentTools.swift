@@ -91,8 +91,11 @@ extension AIChatViewModel {
 
         // Graceful cancel pre-check: any task that begins after the user
         // tapped Stop short-circuits with a synthetic cancellation result
-        // so history stays paired.
-        if Task.isCancelled || self.userDidCancel {
+        // so history stays paired. Reads commandCancelledByUser (P0-2d) in
+        // addition to Task/userDidCancel: stopCurrentCommand sets it without
+        // cancelling the Task, so without this a sibling that hasn't started
+        // yet would still spawn a new process after Stop.
+        if Task.isCancelled || self.userDidCancel || self.commandCancelledByUser {
             let cancelContent = "<system-reminder>The user cancelled this operation. The returned result may be incomplete.</system-reminder>"
             if msgIdx < messages.count, blockIdx < messages[msgIdx].blocks.count {
                 messages[msgIdx].blocks[blockIdx].toolStatus = .cancelled
