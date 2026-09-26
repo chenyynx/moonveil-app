@@ -91,16 +91,6 @@ struct RemoteSessionListView: View {
         sessions
     }
 
-    /// 搜索过滤：标题/摘要本地过滤（本机搜索走 ChatStore 后端，远端数据面接通后再对齐）
-    private var filteredSessions: [RemoteSessionItem] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return sourceSessions }
-        return sourceSessions.filter {
-            $0.title.localizedCaseInsensitiveContains(query)
-                || $0.previewText.localizedCaseInsensitiveContains(query)
-        }
-    }
-
 
     @State private var showsArchives = false
     @State private var showsPairSheet = false
@@ -122,16 +112,6 @@ struct RemoteSessionListView: View {
     /// 官方 AgentsAnywhereApp.swift:23 的后台钩子（方案 B：App 根属本机线，
     /// 死隔离禁动 → 挂远端线页面根；services 未就绪时短路）。
     @Environment(\.scenePhase) private var scenePhase
-    // 底栏搜索（与本机同款交互：即时过滤标题、键盘收起三出口）
-    @State private var searchText = ""
-    @FocusState private var searchFocused: Bool
-    // 双圆 FAB 底栏（bottom-dock 批次，与本机原装同构）：换边状态 + 拖拽 + 展开态
-    @State private var fabOnLeft = false
-    @State private var fabDragOffset: CGFloat = 0
-    @State private var fabDidDrag = false
-    @State private var showSearchBar = false
-    @State private var searchDragOffset: CGFloat = 0
-    @State private var searchDidDrag = false
     // 项目板块折叠（官方「项目 ▾」）
     @State private var projectsCollapsed = false
     /// 侧栏显示（AA 官方 ChatSidebarListMenu 同 key 持久化）：false = 按项目 / true = 全部会话。
@@ -155,9 +135,8 @@ struct RemoteSessionListView: View {
             .background(RemotePalette.canvas.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // 顶栏右上角：＋ 配对新设备（pp 2026-09-20「把配对新设备的按钮放进
-                // 右上角算了」——替代设备卡下方全宽玻璃胶囊）+ ⋯ 菜单（归档/断开）。
-                ToolbarItem(placement: .topBarTrailing) { topBarTrailingControls }
+                // 顶栏右上角：⋯ 菜单（配对新设备已收进菜单第一项，pp 2026-09-26）。
+                ToolbarItem(placement: .topBarTrailing) { topBarOptionsButton }
             }
             // P3-3（2026-09-21）错误 toast 细化：官方 ChatErrorToasts + ChatToastStore
             // 分类逐字（网络已断开 / 登录状态需要验证 / 会话数据格式不兼容 / 操作未完成，
@@ -362,13 +341,10 @@ struct RemoteSessionListView: View {
                             }
                         }
                         if projectItems.isEmpty {
-                            // 搜索无结果 ≠ 没数据——文案分开，保持诚实；
-                            // 有项目无会话 vs 没项目 再分开（空态内嵌后）。
-                            Text(searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                 ? (archiveFilter == .archived
-                                    ? "还没有归档的会话。"
-                                    : (loader.projectNames.isEmpty ? "还没有项目。" : "还没有会话。点右下角「新对话」开始。"))
-                                 : "没有匹配的会话。")
+                            // 空态：有项目无会话 vs 没项目分开，保持诚实。
+                            Text(archiveFilter == .archived
+                                 ? "还没有归档的会话。"
+                                 : (loader.projectNames.isEmpty ? "还没有项目。" : "还没有会话。点底部 tab 栏的新建按钮开始。"))
                                 .font(.system(size: 16))
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 16)
@@ -387,10 +363,6 @@ struct RemoteSessionListView: View {
         // 方案 B：列表滚动背景让位给页面画布（画布挂在 body 级 background 上）
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.immediately)
-        // [SESSION-SWIPE-TO-LONGPRESS] 页切手势胜出时冻结竖滚（本机 ContentView:2826
-        // 同款对称物——远端此前因卡堆区被 RemoteRowsFence 排除而一直没接）。
-        .scrollDisabled(tabRouter.pageSwipeArmed)
-        .safeAreaInset(edge: .bottom) { fabRow }
         .refreshable { await refresh() }
         // REMOTE-DEVICE-1 + P2-A：设备详情页（单击终端卡进入）；per-connector 数据面
         // （官方 ChatShellView:107-143 形状：connector 从 dashboardRepository.connectors
@@ -597,119 +569,6 @@ struct RemoteSessionListView: View {
             }
     }
 
-    // MARK: - 底部双圆 FAB 行（[NATIVE-TABS 2026-09-26] pp「远端页的搜索框和新会话
-    // 按钮也要用原装的」：直接复用本机 ContentView 的原装件——DraggableFAB 与
-    // newChatBrandColor 已提为 internal 共享，单一实现两端用，不再有同构副本。
-    // 行几何 56/16/20、展开条光束 borderRadius 28 与本机逐字一致。）
-
-    @ViewBuilder
-    private var fabRow: some View {
-        ZStack {
-            // 新会话 FAB（可拖拽，正侧）
-            DraggableFAB(
-                fabOnLeft: $fabOnLeft,
-                dragOffset: $fabDragOffset,
-                didDrag: $fabDidDrag
-            ) {
-                if !fabDidDrag { startNewSession() }
-            } label: {
-                Circle()
-                    .fill(ContentView.newChatBrandColor)
-                    .overlay {
-                        Image(systemName: {
-                            if #available(iOS 17.0, *) { return "bubble.left.and.text.bubble.right" }
-                            return "plus.message.fill"
-                        }())
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
-                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-            }
-
-            // 搜索 FAB 或 inline 搜索条（无会话时隐藏，数据源 = loader.items）
-            if !sessions.isEmpty {
-                if showSearchBar {
-                    // inline 搜索条——占满两侧，给另一头的 FAB 让位
-                    GeometryReader { geo in
-                        let fabSize: CGFloat = 56
-                        let edgePad: CGFloat = 16
-                        let gap: CGFloat = 10
-                        let barX: CGFloat = fabOnLeft
-                            ? edgePad + fabSize + gap
-                            : edgePad
-                        let barWidth: CGFloat = geo.size.width - edgePad * 2 - fabSize - gap
-
-                        HStack(spacing: 8) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundStyle(ChatColors.inputIconFg)
-                            TextField("Search chats", text: $searchText)
-                                .textFieldStyle(.plain)
-                                .autocorrectionDisabled()
-                                .focused($searchFocused)
-                                .submitLabel(.search)
-                                .onSubmit { searchFocused = false }
-                            if !searchText.isEmpty {
-                                Button {
-                                    searchText = ""
-                                    searchFocused = false
-                                } label: {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(.secondary)
-                                        .frame(width: 32, height: 44)
-                                        .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.leading, 18)
-                        .padding(.trailing, 8)
-                        .frame(width: barWidth, height: fabSize)
-                        // [SEARCH-BEAM] 参数与本机栏一致（line family / theme .auto /
-                        // active 常在）；borderRadius 28 = 条高 56 的胶囊半径。
-                        .borderBeam(.line, theme: .auto, active: true, borderRadius: 28)
-                        .modifier(SearchBarSurface())
-                        .contentShape(.capsule)
-                        .position(x: barX + barWidth / 2, y: fabSize / 2)
-                    }
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.85, anchor: fabOnLeft ? .leading : .trailing).combined(with: .opacity),
-                        removal: .scale(scale: 0.85, anchor: fabOnLeft ? .leading : .trailing).combined(with: .opacity)
-                    ))
-                    .onAppear { searchFocused = true }
-                } else {
-                    // 搜索 FAB（可拖拽，反侧）
-                    DraggableFAB(
-                        fabOnLeft: $fabOnLeft,
-                        dragOffset: $searchDragOffset,
-                        didDrag: $searchDidDrag,
-                        inverted: true
-                    ) {
-                        if !searchDidDrag {
-                            withAnimation(.easeInOut(duration: 0.2)) { showSearchBar = true }
-                        }
-                    } label: {
-                        Circle()
-                            .fill(Color(UIColor.secondarySystemBackground))
-                            .overlay {
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 22, weight: .semibold))
-                                    .foregroundStyle(Color(UIColor.label))
-                            }
-                            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
-                    }
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.85, anchor: fabOnLeft ? .leading : .trailing).combined(with: .opacity),
-                        removal: .scale(scale: 0.85, anchor: fabOnLeft ? .leading : .trailing).combined(with: .opacity)
-                    ))
-                }
-            }
-        }
-        .frame(height: 56)
-        .padding(.bottom, 20)
-    }
-
     // MARK: - 设备（方案 B / REMOTE-REDESIGN-4：深色终端窗卡，pp 2026-09-20 定稿）
 
     /// 终端窗卡：mac 三色点 + mono 地址 + CONNECTED 标（在线 teal 点）。
@@ -866,10 +725,6 @@ struct RemoteSessionListView: View {
         showsChat = true
     }
 
-    private func startNewSession() {
-        showsNewSession = true
-    }
-
     private func togglePin(_ item: RemoteSessionItem) {
         loader.togglePin(item.id, service: service)
     }
@@ -910,10 +765,10 @@ struct RemoteSessionListView: View {
 
     // MARK: - 派生
 
-    /// 项目板块的会话 = 筛选+搜索后的会话（置顶项排前）。
+    /// 项目板块的会话（置顶项排前）。
     /// 完整项目抽屉（文件夹行/逐项展开/按项目新建）随数据面批对齐官方。
     private var projectItems: [RemoteSessionItem] {
-        filteredSessions.sorted { ($0.isPinned ? 0 : 1) < ($1.isPinned ? 0 : 1) }
+        sourceSessions.sorted { ($0.isPinned ? 0 : 1) < ($1.isPinned ? 0 : 1) }
     }
 
     /// 按项目分组的渲染单元（AA「项目」模式：项目小标题 + 组内会话；未分组殿后）。
@@ -948,6 +803,9 @@ struct RemoteSessionListView: View {
     // 导航容器仍由 RemoteRootView 提供（顶栏胶囊已迁壳层）。
     @ViewBuilder
     private var listOptionsMenuContent: some View {
+        // pp 2026-09-26：＋ 配对新设备收进 ⋯ 菜单第一项，右上角只剩 🔍 + ⋯。
+        Button("配对新设备", systemImage: "plus") { showsPairSheet = true }
+        Divider()
         // AA 官方「侧栏显示」：按项目 / 全部会话（同 key 持久化，默认按项目）。
         Picker("侧栏显示", selection: $showsAllSessions) {
             Text("按项目").tag(false)
@@ -966,23 +824,6 @@ struct RemoteSessionListView: View {
         Divider()
         // 断开连接入口从 RemoteRootView 的状态卡迁移至此（接线时不丢）
         Button("断开连接", role: .destructive, action: onDisconnect)
-    }
-
-    /// 顶栏右上角控件组：＋ 配对新设备（pp 2026-09-20「把配对新设备的按钮放进
-    /// 右上角算了」）+ ⋯ 菜单。均原生裸字形——与本机 tab 工具栏惯例一致，
-    /// 系统提供标准热区与按压反馈。
-    private var topBarTrailingControls: some View {
-        HStack(spacing: 16) {
-            Button {
-                showsPairSheet = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(Color.primary)
-            }
-            .accessibilityLabel(Text("配对新设备"))
-            topBarOptionsButton
-        }
     }
 
     /// 顶栏右上角 …——**原生工具栏样式**（pp 2026-09-20「没用苹果原生？」）：

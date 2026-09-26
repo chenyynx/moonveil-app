@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "soul-plush-512.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

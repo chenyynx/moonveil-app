@@ -7,9 +7,15 @@ import Combine
 
 // Moved from ModeTabPicker.swift (bottom-dock batch) — the picker is gone.
 /// The app's source modes (D4: the single fork point).
-/// CaseIterable order = [.local, .remote, .works].
+/// CaseIterable order = [.local, .remote, .works, .compose].
 enum AppSourceMode: String, CaseIterable, Identifiable {
     case local, remote, works
+    /// 新会话按钮（pp 2026-09-26「新会话按钮入口加进tab」→「改到刚刚tab分离
+    /// 在右边的圆按钮」：借 TabRole.search 的独立圆形外观，iOS 26 原生）。
+    /// ACTION tab，不是页面：点它走 QuickActionRouter 新建本机会话，`mode`
+    /// 永不变为 .compose（tabSelection 写拦截），所以不进 lastTab 记忆、
+    /// 不参与横滑（手势已删）、tabContent 永不渲染。
+    case compose
     var id: String { rawValue }
 }
 
@@ -65,13 +71,5 @@ final class RootTabRouter: ObservableObject {
     @Published var localSelecting: Bool = false
 
     /// `remoteAtRoot` — 远端线是否在列表根（REMOTE-DEVICE-1：设备详情页 push 时为 false）。
-    /// 页切手势与固定栏 ☰ 与 localAtRoot 同规则消费；远端线此前没有 push，恒 true。
     @Published var remoteAtRoot: Bool = true
-
-    /// True while a horizontal page swipe is ARMED (the shell has committed to switching
-    /// tabs for this gesture). The session lists read this and freeze their scroll, so a
-    /// horizontal swipe can no longer also scroll the list vertically
-    /// (pp 2026-09-16「左右滑动页面的时候容易滑到上下」). Reset when the finger lifts or
-    /// the mode settles.
-    @Published var pageSwipeArmed: Bool = false
 }

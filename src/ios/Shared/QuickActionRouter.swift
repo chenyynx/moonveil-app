@@ -111,6 +111,13 @@ final class QuickActionRouter: ObservableObject {
         }
     }
 
+    /// In-app "new session" entry (tab bar ＋ button): the same signal as the
+    /// Home Screen quick action — ContentView observes `newChatTrigger` and
+    /// opens a fresh local session (routing back to the local tab first).
+    func requestNewChat() {
+        postNewChat()
+    }
+
     private func postNewChat() {
         // Bump the @Published counter — ContentView's `.onChange(of:
         // newChatTrigger)` + `.onAppear` belt-and-braces drives the

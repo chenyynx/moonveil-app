@@ -95,6 +95,7 @@
 		D05AF00D00000000000000B2 /* RootTabRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A2 /* RootTabRouter.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00D00000000000000B3 /* RootModeTabsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A3 /* RootModeTabsView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00D00000000000000B4 /* RemoteRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A4 /* RemoteRootView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00D00000000000000B5 /* SearchEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00D00000000000000A5 /* SearchEntry.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		BD0000000000000000000014 /* SoulProfileCapsule.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD0000000000000000000004 /* SoulProfileCapsule.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		BD0000000000000000000012 /* SoulProfileHub.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD0000000000000000000002 /* SoulProfileHub.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		BD0000000000000000000013 /* WorksListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD0000000000000000000003 /* WorksListView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
@@ -979,6 +980,7 @@
 		D05AF00D00000000000000A2 /* RootTabRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabRouter.swift; sourceTree = "<group>"; };
 		D05AF00D00000000000000A3 /* RootModeTabsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootModeTabsView.swift; sourceTree = "<group>"; };
 		D05AF00D00000000000000A4 /* RemoteRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteRootView.swift; sourceTree = "<group>"; };
+		D05AF00D00000000000000A5 /* SearchEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchEntry.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A100 /* AAWordmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AAWordmark.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A101 /* AppFontRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFontRegistry.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A102 /* AppGlassButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGlassButton.swift; sourceTree = "<group>"; };
@@ -1919,6 +1921,7 @@
 				D05AF00D00000000000000A4 /* RemoteRootView.swift */,
 				BD0000000000000000000004 /* SoulProfileCapsule.swift */,
 				BD0000000000000000000002 /* SoulProfileHub.swift */,
+				D05AF00D00000000000000A5 /* SearchEntry.swift */,
 			);
 			path = ModeTabs;
 			sourceTree = "<group>";
@@ -4108,6 +4111,7 @@
 				D05AF00D00000000000000B4 /* RemoteRootView.swift in Sources */,
 				BD0000000000000000000014 /* SoulProfileCapsule.swift in Sources */,
 				BD0000000000000000000012 /* SoulProfileHub.swift in Sources */,
+				D05AF00D00000000000000B5 /* SearchEntry.swift in Sources */,
 				BD0000000000000000000013 /* WorksListView.swift in Sources */,
 				D05AF00E000000000000B100 /* AAWordmark.swift in Sources */,
 				D05AF00E000000000000B101 /* AppFontRegistry.swift in Sources */,

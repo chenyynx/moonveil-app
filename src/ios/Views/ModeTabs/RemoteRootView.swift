@@ -15,6 +15,8 @@ struct RemoteRootView: View {
     @ObservedObject private var tabRouter = RootTabRouter.shared
 
     @State private var pendingNotices = 0
+    /// 右上角 🔍（pp 2026-09-26「搜索放右上角」）：sheet 出搜索占位页。
+    @State private var showsSearch = false
     /// 官方 RootView.swift:52 的全局染色数据源（黑/白自适应）。
     @Environment(\.colorScheme) private var colorScheme
 
@@ -24,6 +26,13 @@ struct RemoteRootView: View {
         NavigationStack {
             content
                 .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    // [SEARCH-TOPRIGHT] pp 2026-09-26「搜索放右上角」。
+                    ToolbarItem(placement: .topBarTrailing) {
+                        SearchToolbarButton(showsSearch: $showsSearch)
+                    }
+                }
+                .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         }
         // 子树拆卸兜底：content 按 service.state 分支，.pairing 会把整棵
         // RemoteSessionListView 换成 pairingPending——它的 @State 随葬，详情页 push

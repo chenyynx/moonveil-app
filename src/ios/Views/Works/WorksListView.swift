@@ -45,6 +45,8 @@ struct WorksListView: View {
     @State private var scanToken = UUID()
     /// 复用 MessageImageGallery 的呈现载荷（同文件已定义，memberwise init 可用）。
     @State private var gallery: GalleryPresentation?
+    /// 右上角 🔍（pp 2026-09-26「搜索放右上角」）：sheet 出搜索占位页。
+    @State private var showsSearch = false
 
     var body: some View {
         NavigationStack {
@@ -57,6 +59,13 @@ struct WorksListView: View {
             // 原生标题留空：壳层顶部是身份胶囊（pp 终稿），此页不占标题位。
             .navigationTitle(Text(verbatim: ""))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                // [SEARCH-TOPRIGHT] pp 2026-09-26「搜索放右上角」。
+                ToolbarItem(placement: .topBarTrailing) {
+                    SearchToolbarButton(showsSearch: $showsSearch)
+                }
+            }
+            .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         }
         .task { rescan() }
         .fullScreenCover(item: $gallery) { presentation in
