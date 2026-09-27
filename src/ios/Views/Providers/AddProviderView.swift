@@ -272,6 +272,9 @@ struct AddProviderView: View {
         List {
             steppedContent
         }
+        // [FIX-add-provider-top-gap 2026-09-27] iOS 26 的 List 在 sheet 里顶部
+        // inset 异常留白，强制顶部无额外边距。
+        .contentMargins(.top, 0, for: .scrollContent)
         .animation(.spring(response: 0.35, dampingFraction: 0.88), value: currentStep)
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
