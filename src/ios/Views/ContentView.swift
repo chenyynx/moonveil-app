@@ -1566,9 +1566,9 @@ struct ContentView: View {
                         .toolbar {
                             ToolbarItem(placement: .topBarTrailing) {
                                 Button("Done") { activeToolSheet = nil }
+                                    // [TINT-FIX2] 盖住 AccentColor 蓝。
+                                    .tint(.primary)
                             }
-                            // [TINT-FIX2] 盖住 AccentColor 蓝。
-                            .tint(.primary)
                         }
                 }
             case .browser:
@@ -5677,8 +5677,6 @@ private struct ExportPreviewSheet: View {
                     }
                     actionButton(icon: "folder", label: AppLocalized("Save to Files")) {
                         showFilePicker = true
-                        // [TINT-FIX2] 盖住 AccentColor 蓝。
-                        .tint(.primary)
                     }
                 }
                 .padding(.vertical, 12)

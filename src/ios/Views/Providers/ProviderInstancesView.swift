@@ -121,9 +121,9 @@ struct ProviderInstancesView: View {
             if !store.instances.isEmpty {
                 ToolbarItem(placement: .topBarLeading) {
                     EditButton()
+                    // [TINT-FIX2] 盖住 AccentColor 蓝。
+                    .tint(.primary)
                 }
-                // [TINT-FIX2] 盖住 AccentColor 蓝。
-                .tint(.primary)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
