@@ -488,8 +488,7 @@ struct RemoteSessionListView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(RemotePalette.canvas.ignoresSafeArea())
-        // [DOCK-ON-PAGE 2026-09-28] 设备详情兜底页与真详情页同待遇：dock 在场。
-        .safeAreaInset(edge: .bottom) { BottomDock() }
+        // [DOCK-ON-PAGE 2026-09-28] 设备详情兜底页是二级页：不挂导航 dock。
     }
 
     /// 会话区内的状态行（加载 / 错误）——保持页面骨架完整，不替换整页
