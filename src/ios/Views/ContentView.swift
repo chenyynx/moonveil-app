@@ -7784,7 +7784,16 @@ Label {
                 }
             }
             .onAppear {
-                applyPendingDeepLink()
+                // [deep-link top inset] Pre-pushing the destination in the SAME
+                // frame the sheet presents skips UIKit's content-inset pass for
+                // the large title / .searchable drawer, so the destination
+                // renders under the top chrome (skills: search bar overlaps the
+                // first row; usage: large title touches the card). One runloop
+                // later the stack has rendered at root and the push lays itself
+                // out like a normal tap.
+                DispatchQueue.main.async {
+                    applyPendingDeepLink()
+                }
                 // Legacy flags — kept so older call sites keep working.
                 if deepLink.showEnvironmentVariables {
                     navPath.append(SettingsDestination.environments)
