@@ -92,9 +92,8 @@ struct RemoteRootView: View {
             Text("等待配对完成…").font(.callout)
             Button("取消，回到引导") { service.reset() }.font(.callout)
         }
-        // [DOCK-ON-PAGE 2026-09-28] 配对等待态也在远程 tab 根部，底栏照常在场
-        //（与被替换的系统栏表现一致）。
-        .safeAreaInset(edge: .bottom) { BottomDock() }
+        // [TAB-RESTORE 2026-09-28 pp] 配对等待态的页面内嵌 BottomDock 已退场，
+        // 系统 tab 栏恢复原生渲染（等待态仍在远程 tab 根部，原生栏自然在场）。
     }
 
     // MARK: State 3 — 已连接（R0 列表已接线：RemoteSessionListView 挂进本 NavigationStack，

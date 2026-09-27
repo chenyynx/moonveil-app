@@ -384,7 +384,11 @@ struct RemoteSessionListView: View {
         // （官方 ChatShellView:107-143 形状：connector 从 dashboardRepository.connectors
         // 取、删除回调走组合根 removeConnector、.id(connectorId) 官方 190 行）。
         .navigationDestination(isPresented: $showsDeviceDetail) {
-            if let connector = deviceConnector, let services = service.chat {
+            // [TAB-RESTORE pp 拍板 ffd2d84] 终端卡进去的设备详情 = push 二级页，
+            // 无底部 tab。系统栏恢复原生渲染后，由目的地显式声明（hidesBottomBar
+            // WhenPushed 的 SwiftUI 等价，与聊天页 chatDestination 同款）。
+            Group {
+                if let connector = deviceConnector, let services = service.chat {
                 // [BATCH-A/A3-同族][SEAM-LOSSLESS] 设备页四条归档写路径无损回传真实
                 // 变更集（[RemoteSessionMeta]）：服务端与 dashboard 仓库在写路径内部
                 // 已推进（setSessionsArchived/archiveProject/updateSessions 均回写
@@ -405,9 +409,11 @@ struct RemoteSessionListView: View {
                         loader.applyRemoteChange(changed)
                     })
                     .id(connector.id)
-            } else {
-                deviceDetailPending
+                } else {
+                    deviceDetailPending
+                }
             }
+            .toolbar(.hidden, for: .tabBar)
         }
         // 页切栅栏 + 顶栏齿轮的归属从「详情页 onAppear 自报」改成「push 状态」：
         // 原写法把 remoteAtRoot 挂在 RemoteDeviceDetailView.onAppear 上，目的地
@@ -443,11 +449,9 @@ struct RemoteSessionListView: View {
                 }
             }
         }
-        // [DOCK-ON-PAGE 2026-09-28] 底部 dock 长在远端列表页上（远程 tab 根部，
-        // 系统栏静态隐藏后的唯一底栏）。
-        // [1:1-RESTORE] 键盘免疫与本机列表同款（原生栏从不被键盘顶起）。
-        .safeAreaInset(edge: .bottom) { BottomDock() }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
+        // [TAB-RESTORE 2026-09-28 pp] 页面内嵌 BottomDock 及其键盘免疫已退场：
+        // 系统 tab 栏恢复原生渲染（远端列表 = 远程 tab 根部，原生栏自然在场；
+        // 键盘与底栏的关系系统自管）。
     }
 
     /// 官方 agentSetupBinding（ChatShellView:53-59；本仓 coordinator 为 app 层
