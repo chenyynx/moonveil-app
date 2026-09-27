@@ -11,6 +11,8 @@ struct ManualLoginView: View {
     @State private var statusMessage: String?
     @State private var alertMessage: String?
     @State private var alertTitle = String(localized: "Sign In Failed")
+    /// [AUTH-LOG 2026-09-27] 这条链路此前 0 日志，静默退回无从定位。
+    private let log = AppLogger(category: "AuthAA")
 
     private static let cloudServer = "https://web.agents-anywhere.com"
 
@@ -73,11 +75,11 @@ struct ManualLoginView: View {
         }
         .onChange(of: path) { previous, next in
             if next.count < previous.count {
-                cancelSignIn()
+                cancelSignIn("path-pop")
                 statusMessage = nil
             }
         }
-        .onDisappear { cancelSignIn() }
+        .onDisappear { cancelSignIn("onDisappear") }
         .alert(alertTitle, isPresented: Binding(
             get: { alertMessage != nil },
             set: { if !$0 { alertMessage = nil } },
@@ -98,7 +100,7 @@ struct ManualLoginView: View {
 
     @ViewBuilder private var loginStatus: some View {
         if isSigningIn {
-            Button(String(localized: "Cancel Sign In"), action: cancelSignIn)
+            Button(String(localized: "Cancel Sign In")) { cancelSignIn("user-tap") }
                 .font(.subheadline)
         }
         if let statusMessage { Text(statusMessage).font(.footnote).foregroundStyle(.secondary) }
@@ -111,13 +113,14 @@ struct ManualLoginView: View {
         loginRequest = WebLoginRequest(server: server)
     }
 
-    private func cancelSignIn() {
+    private func cancelSignIn(_ reason: String) {
+        log.warning("cancelSignIn(\(reason)) — aborting any in-flight auth")
         loginRequest = nil
         oauthLogin.cancel()
     }
 
     private func close() {
-        cancelSignIn()
+        cancelSignIn("close")
         dismiss()
     }
 
@@ -125,8 +128,10 @@ struct ManualLoginView: View {
         // Snapshot the chosen server. Closing, going Back, or starting another
         // attempt invalidates late results before they can open a browser.
         defer { if loginRequest?.id == request.id { loginRequest = nil } }
+        log.info("signIn begin: \(request.server)")
         guard let url = await service.checkServer(request.server) else {
             guard isCurrent(request) else { return }
+            log.warning("checkServer failed: \(service.authErrorText ?? "unknown")")
             alertTitle = service.needsLocalNetworkSettings ? String(localized: "Local Network Access") : String(localized: "Server Unavailable")
             alertMessage = service.authErrorText ?? String(localized: "The server could not be reached.")
             return
@@ -134,17 +139,31 @@ struct ManualLoginView: View {
         guard isCurrent(request) else { return }
         do {
             let token = try await oauthLogin.authenticate(serverURL: url)
-            guard isCurrent(request) else { return }
+            log.info("oauth authenticate returned")
+            guard isCurrent(request) else {
+                log.warning("result dropped — request superseded or cancelled")
+                return
+            }
             await service.completeManualLogin(serverURL: url, token: token)
             guard isCurrent(request) else { return }
-            if service.authErrorText == nil, service.profile != nil { path.append(.success) }
-            else { alertTitle = String(localized: "Sign In Failed"); alertMessage = service.authErrorText ?? String(localized: "The login could not be completed.") }
-        } catch is CancellationError { }
-        catch OAuthLoginError.cancelled {
+            if service.authErrorText == nil, service.profile != nil {
+                log.info("manual login complete")
+                path.append(.success)
+            } else {
+                log.error("completeManualLogin failed: \(service.authErrorText ?? "unknown")")
+                alertTitle = String(localized: "Sign In Failed"); alertMessage = service.authErrorText ?? String(localized: "The login could not be completed.")
+            }
+        } catch is CancellationError {
+            log.warning("signIn: CancellationError — task/session cancelled mid-flight (silent branch)")
+        } catch OAuthLoginError.cancelled {
+            log.warning("signIn: OAuthLoginError.cancelled (canceledLogin or access_denied)")
             if isCurrent(request) { statusMessage = OAuthLoginError.cancelled.localizedDescription }
-        }
-        catch {
-            guard isCurrent(request) else { return }
+        } catch {
+            log.error("signIn failed: \(error.localizedDescription)")
+            guard isCurrent(request) else {
+                log.warning("error dropped — request superseded or cancelled")
+                return
+            }
             alertTitle = String(localized: "Sign In Failed"); alertMessage = error.localizedDescription
         }
     }

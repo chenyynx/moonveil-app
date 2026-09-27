@@ -40,6 +40,10 @@ import BorderBeamKit
 import SwiftUI
 
 struct RemoteSessionListView: View {
+    /// [FIX-auth-sheet-seq] 手动/扫码登录的延后弹出队列：AddDeviceSheet 退场
+    /// 动画走完（onDismiss）后才真正弹登录表，防同帧叠表抖掉 OAuth 网页弹层。
+    private enum PendingAuthSheet { case qr, manual }
+
     @ObservedObject var service: RemoteService
     /// [SESSION-SWIPE-TO-LONGPRESS] 页切冻结观察（与本机 ContentView 同款单例
     /// @ObservedObject）：横滑切页判定胜出时冻结本列表竖滚，防切页时列表跟着跑——
@@ -127,6 +131,7 @@ struct RemoteSessionListView: View {
     /// （添加设备表已是 sheet，内嵌再弹会导致 OAuth 网页消失）。
     @State private var showsQRLogin = false
     @State private var showsManualLogin = false
+    @State private var pendingAuthSheet: PendingAuthSheet?
     /// 远端会话数据层（共享单例：列表页 / 设备页 / 弹窗同源）。
     @StateObject private var loader = RemoteSessionLoader.shared
     /// P3-3：页面级错误 toast 存储（官方一槽一错语义，AAV2 冻结件）。
@@ -723,7 +728,21 @@ struct RemoteSessionListView: View {
                 showsAddDevice = true
             }
         }
-        .sheet(isPresented: $showsAddDevice) {
+        .sheet(isPresented: $showsAddDevice, onDismiss: {
+            // [FIX-auth-sheet-seq 2026-09-27 pp「连接aa的云刚弹出网站就退回来」]
+            // 等 AddDeviceSheet 退场动画走完（onDismiss）再弹登录表。此前
+            // dismiss() 与 presents 同一 tick 叠在三连 .sheet 链上，呈现宿主在
+            // 退场期抖动，OAuth 网页（ASWebAuthenticationSession）锚上去即被
+            // 取消——症状就是「刚弹出网站就退回来」。同类教训见 AddDeviceSheet
+            // 注释（本表已是 sheet，内嵌再弹 sheet 会导致 OAuth 网页弹层消失）。
+            let pending = pendingAuthSheet
+            pendingAuthSheet = nil
+            switch pending {
+            case .qr: showsQRLogin = true
+            case .manual: showsManualLogin = true
+            case nil: break
+            }
+        }) {
             AddDeviceSheet(
                 service: service,
                 onLoginSucceeded: {
@@ -731,10 +750,10 @@ struct RemoteSessionListView: View {
                     showsDeviceDetail = true
                 },
                 onQRLoginRequested: {
-                    showsQRLogin = true
+                    pendingAuthSheet = .qr
                 },
                 onManualLoginRequested: {
-                    showsManualLogin = true
+                    pendingAuthSheet = .manual
                 }
             )
         }

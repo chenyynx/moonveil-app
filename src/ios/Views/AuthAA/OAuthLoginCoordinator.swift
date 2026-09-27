@@ -18,6 +18,7 @@ final class OAuthLoginCoordinator: NSObject, ObservableObject {
     private var attemptID: UUID?
     private var callback: AsyncResultGate<URL>?
     private var context: OAuthPresentationContext?
+    private let log = AppLogger(category: "AuthAA")
 
     func authenticate(serverURL: URL) async throws -> OAuthTokenResponse {
         guard attemptID == nil else { throw OAuthLoginError.busy }
@@ -39,6 +40,7 @@ final class OAuthLoginCoordinator: NSObject, ObservableObject {
     }
 
     func cancel() {
+        log.warning("OAuthLoginCoordinator.cancel() called — gate resolved with CancellationError")
         callback?.resolve(.failure(CancellationError()))
         callback = nil
         let previous = session; session = nil; attemptID = nil; context = nil
@@ -64,23 +66,41 @@ final class OAuthLoginCoordinator: NSObject, ObservableObject {
                 result.install(continuation)
                 guard !Task.isCancelled else { result.resolve(.failure(CancellationError())); return }
                 let browser = ASWebAuthenticationSession(url: url, callbackURLScheme: callbackScheme) { [weak self] url, error in
+                    let slog = AppLogger(category: "AuthAA")
                     Task { @MainActor in
                         if self?.attemptID == attempt { self?.session = nil }
                     }
                     if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin {
+                        slog.warning("authSession completion: cancelledLogin (system dismissed or app-side cancel)")
                         result.resolve(.failure(OAuthLoginError.cancelled))
-                    } else if let error { result.resolve(.failure(error)) }
-                    else if let url { result.resolve(.success(url)) }
-                    else { result.resolve(.failure(OAuthLoginError.invalidCallback)) }
+                    } else if let error {
+                        slog.error("authSession completion error: \(error.localizedDescription)")
+                        result.resolve(.failure(error))
+                    } else if let url {
+                        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                        let names = items.map(\.name).joined(separator: ",")
+                        let errVal = items.first(where: { $0.name == "error" })?.value
+                            ?? items.first(where: { $0.name == "error_description" })?.value
+                        slog.info("authSession callback: params=[\(names)]\(errVal.map { " error=\($0)" } ?? "")")
+                        result.resolve(.success(url))
+                    } else {
+                        slog.error("authSession completion: empty url and error")
+                        result.resolve(.failure(OAuthLoginError.invalidCallback))
+                    }
                 }
                 browser.presentationContextProvider = context
                 browser.prefersEphemeralWebBrowserSession = false
                 session = browser
-                if !browser.start() {
+                let started = browser.start()
+                log.info("authSession start=\(started) url=\(url.absoluteString.prefix(100))")
+                if !started {
                     session = nil; result.resolve(.failure(OAuthLoginError.couldNotStart))
                 }
             }
-        } onCancel: { result.resolve(.failure(CancellationError())) }
+        } onCancel: {
+            log.warning("auth gate onCancel — task cancelled while waiting for browser")
+            result.resolve(.failure(CancellationError()))
+        }
     }
 
     private func mobileOAuthURL(serverURL: URL, pkce: PKCEPair, state: String) throws -> URL {
