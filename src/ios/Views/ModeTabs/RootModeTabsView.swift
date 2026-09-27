@@ -199,8 +199,12 @@ struct RootModeTabsView: View {
                     }
                 )
             }
-            // [TAB-TINT] 盖回 App 蓝（挂在 NavigationStack 上，里层两个 sheet 跟着吃到）。
-            .tint(Color("AccentColor"))
+            // [AA-MONO 2026-09-27 pp] AA 登录流程是官方黑白设计（按钮原样黑色）。
+            // 之前为底栏选中变黑加了 TabView 级 .tint(.primary)，批量「盖回 App 蓝」
+            // 时把本页也一起染蓝了（pp：「原本是黑色」）。这里钉回 .primary：
+            // AppGlassButton.regular 自身无色、跟随环境 tint，黑 = 本来的样子；
+            // 里层两个 sheet（扫码/手动登录）一并跟随。
+            .tint(.primary)
             .sheet(isPresented: $showsQRLogin) {
                 QRCodeLoginView(
                     service: remoteService,
