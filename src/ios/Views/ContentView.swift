@@ -7633,8 +7633,12 @@ Label {
                             } icon: {
                                 // Match SF Symbol to the device's actual sensor — Touch ID
                                 // devices showed a Face ID glyph here before.
+                                // [ICON-SIZE 2026-09-27] 跟其他行统一 20x20：SF Symbol
+                                // 用 font 定尺寸视觉偏小，改 resizable + frame。
                                 Image(systemName: BiometricAuth.biometryIconName)
-                                    .font(.system(size: 20))
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 20, height: 20)
                                     .foregroundStyle(ChatColors.settingsIcon)
                             }
                         }
