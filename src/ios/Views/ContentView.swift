@@ -3594,7 +3594,9 @@ struct ContentView: View {
                 } label: {
                     // [FIX-toolbar-flash] 预栅格化位图，不用 .resizable()（切 tab
                     // toolbar 重建时 resizable 要等布局才渲染，会闪一帧）。
-                    Self.toolbarIcon("TerminalCircle", pointSize: 24)
+                    // [FIX-terminal-dark 2026-09-27] template: true，否则原图黑色
+                    // 在暗色下看不见。
+                    Self.toolbarIcon("TerminalCircle", pointSize: 24, template: true)
                 }
                 // [TINT-FIX2] 跟 ≡ 菜单/搜索统一，盖住 toolbar 的 AccentColor 蓝。
                 .tint(.primary)
