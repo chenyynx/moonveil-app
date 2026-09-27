@@ -25,8 +25,8 @@ struct RootModeTabsView: View {
     @State private var didRestore = false
     /// [TABBAR-STATE-DRIVEN 2026-09-27] 底栏显隐的唯一真相源：进聊天页藏。
     /// 由 syncTabBarVisibility() 从 router.localAtRoot / remoteChatPushed /
-    /// router.mode 纯函数推导，0.22s 显式动画与 push/pop 转场解耦（转场里的
-    /// toolbar 显隐在 iOS 26 下卡顿、偶发 trap、还会卡死在列表页）。
+    /// router.mode 纯函数推导，0.35s easeInOut + 0.03s 延迟跟 push/pop 转场
+    /// 同步（转场里的 toolbar 显隐在 iOS 26 下卡顿、偶发 trap、还会卡死在列表页）。
     @State private var tabBarHidden = false
     /// 身份胶囊 → 资料页（zoom 转场对）。NS 挂在胶囊头像的
     /// matchedTransitionSource 上，SoulProfileHub 的 sheet 内容消费同一对。
@@ -119,11 +119,11 @@ struct RootModeTabsView: View {
                         // 底栏选中黑，内容里的 accent 蓝不能丢。
                         .tint(Color("AccentColor"))
                         // [TABBAR-STATE-DRIVEN 2026-09-27] 底栏显隐纯状态驱动
-                        //（进聊天页藏），0.22s 显式动画与 push/pop 转场解耦。
-                        // 必须挂在 Tab 内容里侧——挂在 TabView 本体上 iOS 26 不认，
-                        // 底栏藏不住。不回 AIChatView.body 的逐项 modifier：它在
-                        // 转场协调里动画卡顿、偶发 trap（build 359/363 闪退）、
-                        // 隐藏态还会卡死在聊天列表页。
+                        //（进聊天页藏），0.35s easeInOut + 0.03s 延迟跟 push/pop
+                        // 转场同步。必须挂在 Tab 内容里侧——挂在 TabView 本体上
+                        // iOS 26 不认，底栏藏不住。不回 AIChatView.body 的逐项
+                        // modifier：它在转场协调里动画卡顿、偶发 trap（build
+                        // 359/363 闪退）、隐藏态还会卡死在聊天列表页。
                         .toolbar(tabBarHidden ? .hidden : .visible, for: .tabBar)
                 } label: {
                     Self.tabImage(Self.tabIcon[mode] ?? "aa-Circle")
@@ -264,13 +264,13 @@ struct RootModeTabsView: View {
     /// 本机页看 localAtRoot（push 聊天即非根；iPad 选中会话进 detail 也非根，
     /// 与旧 modifier 行为一致），远端页看 remoteChatPushed（设备详情页不藏，
     /// 延续历史行为）。mode 门控防止把旧 tab 的隐藏态带到新 tab。
-    /// 显式 0.22s smooth 动画与 push/pop 转场解耦——转场自带的 toolbar 显隐
-    /// 在 iOS 26 下就是卡顿/trap/卡死的来源。pop 回列表时必恢复显态，卡死
-    /// 不可能再出现。
+    /// 0.35s easeInOut + 0.03s 延迟：跟 push/pop 转场（约 0.35s）同步，
+    /// tab 栏随页面一起滑走，不抢布局。2026-09-27 前的 0.22s smooth 太快，
+    /// tab 先藏完页面还在滑，体感突兀+卡一下。
     private func syncTabBarVisibility() {
         let hidden = (router.mode == .local && !router.localAtRoot)
             || (router.mode == .remote && router.remoteChatPushed)
-        withAnimation(.smooth(duration: 0.22)) {
+        withAnimation(.easeInOut(duration: 0.35).delay(0.03)) {
             tabBarHidden = hidden
         }
     }
