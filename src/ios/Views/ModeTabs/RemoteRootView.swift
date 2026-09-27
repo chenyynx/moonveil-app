@@ -54,7 +54,13 @@ struct RemoteRootView: View {
         // 复位必须挂在活着的壳上，不能挂回被销毁的子树。
         // .idle/.degraded 仍渲染列表（同 switch），故只有 .pairing 需要。
         .onChange(of: service.state) { _, newState in
-            if newState == .pairing { tabRouter.remoteAtRoot = true }
+            if newState == .pairing {
+                tabRouter.remoteAtRoot = true
+                // [TABBAR-STATE-DRIVEN 2026-09-27] pairing 会把整棵
+                // RemoteSessionListView 换掉（@State 随葬），若当时聊天页正 push
+                // 着，remoteChatPushed 会卡 true → 底栏一直藏着。这里一起复位。
+                tabRouter.remoteChatPushed = false
+            }
         }
         // 官方 RootView.swift:52 逐字同源：全局 tint = 主文本色（黑/白），官方
         // Assets 无 AccentColor、仅靠这行把 Menu/Label 图标/裸 Button 全染黑。

@@ -19543,6 +19543,22 @@
         }
       }
     },
+    "Concise": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concise"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "简洁"
+          }
+        }
+      }
+    },
     "Config Changes": {
       "localizations": {
         "de": {
@@ -27782,6 +27798,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "降序"
+          }
+        }
+      }
+    },
+    "Describe the personality and tone you want, e.g. direct and to the point, no fluff": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Describe the personality and tone you want, e.g. direct and to the point, no fluff"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "描述你想要的人格和语气，例如：说话直接了当，不说废话"
           }
         }
       }
@@ -37473,6 +37505,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "分叉後繼續"
+          }
+        }
+      }
+    },
+    "Formal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Formal"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正式"
           }
         }
       }
@@ -59309,6 +59357,70 @@
         }
       }
     },
+    "Provide concise, to-the-point responses. Get straight to the answer without filler.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provide concise, to-the-point responses. Get straight to the answer without filler."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供简洁明了的回答，直击要点，不说废话。"
+          }
+        }
+      }
+    },
+    "Provide thorough, detailed responses that explore topics from multiple angles. Include relevant context, examples, and details, structured clearly.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provide thorough, detailed responses that explore topics from multiple angles. Include relevant context, examples, and details, structured clearly."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供全面、详细的回答，从多个角度探讨问题，包含相关背景、示例和细节，结构清晰。"
+          }
+        }
+      }
+    },
+    "Respond in a formal, professional tone with precise and proper wording.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Respond in a formal, professional tone with precise and proper wording."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用正式、专业的语气回答，用词严谨规范。"
+          }
+        }
+      }
+    },
+    "Responds with default behavior.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Responds with default behavior."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将以默认行为进行响应。"
+          }
+        }
+      }
+    },
     "This password will be used once to set up key-based login — you won't need it again afterwards.": {
       "extractionState": "manual",
       "localizations": {
@@ -78817,6 +78929,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "别名"
+          }
+        }
+      }
+    },
+    "Thorough": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thorough"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全面情况"
           }
         }
       }

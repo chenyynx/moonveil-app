@@ -6,7 +6,7 @@
 
 import SwiftUI
 
-/// 各 tab 页右上角的 🔍 按钮（系统 magnifyingglass，22pt）。
+/// 各 tab 页右上角的 🔍 按钮（系统 magnifyingglass，19pt）。
 struct SearchToolbarButton: View {
     @Binding var showsSearch: Bool
 
@@ -16,8 +16,9 @@ struct SearchToolbarButton: View {
         } label: {
             // [FIX-toolbar-flash] SF Symbol 用 font 定尺寸，不用 .resizable()
             //（切 tab toolbar 重建时 resizable 要等布局才渲染，会闪一帧）。
+            // 2026-09-27：22→19，之前在液态玻璃 pill 里显得比旁边的终端圆钮大一圈。
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 22))
+                .font(.system(size: 19))
         }
         .accessibilityLabel(Text(String(localized: "Search")))
     }

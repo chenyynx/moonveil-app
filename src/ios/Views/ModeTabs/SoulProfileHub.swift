@@ -101,7 +101,7 @@ struct SoulProfileHub: View {
                 .circleLiquidGlass()
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SpringPressButtonStyle())
     }
 
     // MARK: - 头像 + 名字 + 状态行
@@ -122,7 +122,7 @@ struct SoulProfileHub: View {
                     showSoulEditor = true
                 } label: {
                     // [TABLER-ICONS 2026-09-27] pp 全都换。
-                    Image("aa-Tabler-Pencil")
+                    Image("aa-Tabler-Edit")
                         .renderingMode(.template)
                         .resizable()
                         .scaledToFit()
@@ -132,7 +132,7 @@ struct SoulProfileHub: View {
                         .circleLiquidGlass()
                         .overlay(Circle().stroke(Color(UIColor.systemBackground), lineWidth: 2))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SpringPressButtonStyle())
                 // [pp 2026-09-27] 徽标往右下挪，少占头像。
                 .offset(x: 10, y: 12)
             }
@@ -201,7 +201,7 @@ struct SoulProfileHub: View {
                         )
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SpringPressButtonStyle())
             }
         }
         .padding(3)
@@ -231,7 +231,7 @@ struct SoulProfileHub: View {
         } label: {
             HStack(spacing: 7) {
                 // [TABLER-ICONS 2026-09-27] pp 全都换。
-                Image("aa-Tabler-Pencil")
+                Image("aa-Tabler-Edit")
                     .renderingMode(.template)
                     .resizable()
                     .scaledToFit()
@@ -249,7 +249,7 @@ struct SoulProfileHub: View {
             )
             .contentShape(RoundedRectangle(cornerRadius: 17.5, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SpringPressButtonStyle())
     }
 
     // MARK: - 双卡（SOUL / 记忆，Muse 实测 172×150 圆角24 gap16，带胶片噪点）
@@ -326,6 +326,19 @@ struct SoulProfileHub: View {
     private static let soulCardTint = Color(red: 0.55, green: 0.42, blue: 0.30)
     /// 记忆卡身份染色：薰衣草紫（极淡，透在毛玻璃下）。
     private static let memoryCardTint = Color(red: 0.45, green: 0.35, blue: 0.75)
+}
+
+// MARK: - 按压缩放回弹（资料页按钮统一）
+
+/// 系统 Button 的按压反馈：`.plain` 去掉了蓝色染色，但也去掉了按压动画，
+/// 所以本页按钮点上去是"死"的。这个 style 保留"不染色"，只加
+/// 按下缩到 0.92、松开 spring 回弹。
+struct SpringPressButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .animation(.spring(response: 0.28, dampingFraction: 0.55), value: configuration.isPressed)
+    }
 }
 
 // MARK: - 圆钮液态玻璃（资料页顶）

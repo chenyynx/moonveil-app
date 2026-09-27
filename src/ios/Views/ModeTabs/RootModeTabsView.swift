@@ -23,6 +23,11 @@ struct RootModeTabsView: View {
     @State private var showsQRLogin = false
     @State private var showsManualLogin = false
     @State private var didRestore = false
+    /// [TABBAR-STATE-DRIVEN 2026-09-27] 底栏显隐的唯一真相源：进聊天页藏。
+    /// 由 syncTabBarVisibility() 从 router.localAtRoot / remoteChatPushed /
+    /// router.mode 纯函数推导，0.22s 显式动画与 push/pop 转场解耦（转场里的
+    /// toolbar 显隐在 iOS 26 下卡顿、偶发 trap、还会卡死在列表页）。
+    @State private var tabBarHidden = false
     /// 身份胶囊 → 资料页（zoom 转场对）。NS 挂在胶囊头像的
     /// matchedTransitionSource 上，SoulProfileHub 的 sheet 内容消费同一对。
     @Namespace private var soulProfileNS
@@ -63,8 +68,10 @@ struct RootModeTabsView: View {
     }
 
     /// Lucide SVG 资产是 24pt viewBox；Muse 的 tab 图标约 19pt，这里栅格化到
-    /// 22pt 并保持 template 渲染；颜色由调用处的 .foregroundStyle 按选中态给
+    /// 27pt 并保持 template 渲染；颜色由调用处的 .foregroundStyle 按选中态给
     ///（TabView 级 .tint 会透进 tab 内容染黑 accent——pp 2026-09-27）。
+    /// 2026-09-27：22→27 —— Tabler 2px 描边在 22pt 框里光学只有约 18pt，
+    /// 在 iOS 26 浮动 pill 里显小；27pt 光学约 22.5pt，描边约 2.25px。
     ///
     /// [FIX-tab-icon-flash] 栅格化结果按 asset 缓存：切 tab 时 router.mode 变
     /// 化会重建 4 个 label，若每次都 new 出 UIImage，底栏 image view 会闪一下
@@ -75,7 +82,7 @@ struct RootModeTabsView: View {
         if let cached = tabImageCache[asset] {
             return Image(uiImage: cached)
         }
-        let side: CGFloat = 22
+        let side: CGFloat = 27
         let ui = UIGraphicsImageRenderer(
             size: CGSize(width: side, height: side)
         ).image { _ in
@@ -108,12 +115,14 @@ struct RootModeTabsView: View {
                         // 瞬切（延续 pp 2026-09-16「不带系统 crossfade」的拍板）。
                         // 只作用于内容页，底栏选中 pill 的滑动不受影响。
                         .transition(.identity)
+                        // [TAB-TINT] 盖回 App 蓝：TabView 级 .tint(.primary) 只管
+                        // 底栏选中黑，内容里的 accent 蓝不能丢。
+                        .tint(Color("AccentColor"))
                 } label: {
                     Self.tabImage(Self.tabIcon[mode] ?? "aa-Circle")
-                        // [NATIVE-TABS] 选中态黑图标：iOS 26 新浮动 Tab 不吃
-                        // UITabBar.appearance，在 label 上按选中态显式着色；
-                        // 不用 TabView 级 .tint（environment 会透进 tab 内容，
-                        // 把 accent 蓝的地方全染黑——pp 2026-09-27「好多地方都变黑了」）。
+                        // [NATIVE-TABS] 未选中灰图标走这里；选中态黑由 TabView 级
+                        // .tint(.primary) 接管（iOS 26 浮动 tab 的选中 tint 会盖掉
+                        // label 的 foregroundStyle，UITabBar.appearance 也不吃）。
                         .foregroundStyle(Self.tabIconColor(mode, selected: router.mode))
                         .accessibilityLabel(tabLabel(mode))
                 }
@@ -121,11 +130,28 @@ struct RootModeTabsView: View {
         }
         // pp 2026-09-16 拍板延续：tap/横滑切 tab 内容层瞬切，不带系统 crossfade。
         .animation(nil, value: router.mode)
+        // [TAB-TINT] 选中 tab 黑图标：iOS 26 浮动 tab 的选中态会被系统 tint
+        //（蓝）盖掉 label 上的 foregroundStyle，只能 TabView 级 .tint(.primary)。
+        // tint 是 environment，会透进 tab 内容和本层 sheet——下面 4 处用
+        // Color("AccentColor")（读资产，不受 tint 影响）把 App 蓝盖回去。
+        .tint(.primary)
+        // [TABBAR-STATE-DRIVEN 2026-09-27] 底栏显隐挂 TabView 级、由 tabBarHidden
+        // 纯状态驱动（进聊天页藏）。不再用 AIChatView.body 里的逐项 modifier——
+        // 它在 iOS 26 转场协调里动画卡顿、偶发 trap（build 359/363 闪退）、隐藏态
+        // 还会卡死在聊天列表页。显式 0.22s smooth 动画见 syncTabBarVisibility。
+        .toolbar(tabBarHidden ? .hidden : .visible, for: .tabBar)
+        .onAppear { syncTabBarVisibility() }
+        .onChange(of: router.localAtRoot) { _, _ in syncTabBarVisibility() }
+        .onChange(of: router.remoteChatPushed) { _, _ in syncTabBarVisibility() }
+        .onChange(of: router.mode) { _, _ in syncTabBarVisibility() }
         // Q2: 胶囊 → 资料页 zoom 转场。fullScreenCover + navigationTransition(.zoom)
         // 配对（Apple 文档标准形状；zoom 接管默认转场）。pp 2026-09-27：改全屏。
         .fullScreenCover(isPresented: $showsSoulProfile) {
             SoulProfileHub()
                 .navigationTransition(.zoom(sourceID: SoulProfileHub.zoomSourceID, in: soulProfileNS))
+                // [TAB-TINT] 本层 sheet 挂在 TabView 下，会吃到 .tint(.primary)，
+                // 盖回 App 蓝。
+                .tint(Color("AccentColor"))
         }
         .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
             let n = SoulStore.cachedMetadata.name
@@ -138,6 +164,8 @@ struct RootModeTabsView: View {
         // binding keeps the upstream signature and behaviour intact.
         .sheet(isPresented: $router.showSettings) {
             SettingsSheet(showTerminal: .constant(false))
+                // [TAB-TINT] 同上，盖回 App 蓝。
+                .tint(Color("AccentColor"))
         }
         .task {
             guard !didRestore else { return }
@@ -153,6 +181,8 @@ struct RootModeTabsView: View {
                     onLocalEntry: { router.route(to: .local) }
                 )
             }
+            // [TAB-TINT] 盖回 App 蓝（挂在 NavigationStack 上，里层两个 sheet 跟着吃到）。
+            .tint(Color("AccentColor"))
             .sheet(isPresented: $showsQRLogin) {
                 QRCodeLoginView(
                     service: remoteService,
@@ -226,6 +256,21 @@ struct RootModeTabsView: View {
     }
 
     /// 远程 tab 且从未配置（.idle）或正在配对（.pairing）、且没关过盖 → 盖登录页。
+    /// [TABBAR-STATE-DRIVEN 2026-09-27] 底栏显隐纯函数：进聊天页藏。
+    /// 本机页看 localAtRoot（push 聊天即非根；iPad 选中会话进 detail 也非根，
+    /// 与旧 modifier 行为一致），远端页看 remoteChatPushed（设备详情页不藏，
+    /// 延续历史行为）。mode 门控防止把旧 tab 的隐藏态带到新 tab。
+    /// 显式 0.22s smooth 动画与 push/pop 转场解耦——转场自带的 toolbar 显隐
+    /// 在 iOS 26 下就是卡顿/trap/卡死的来源。pop 回列表时必恢复显态，卡死
+    /// 不可能再出现。
+    private func syncTabBarVisibility() {
+        let hidden = (router.mode == .local && !router.localAtRoot)
+            || (router.mode == .remote && router.remoteChatPushed)
+        withAnimation(.smooth(duration: 0.22)) {
+            tabBarHidden = hidden
+        }
+    }
+
     /// 连接断了（.degraded）不弹盖：走列表页"无设备+提醒连接"（pp 2026-09-20）。
     /// .pairing 必须保留：扫码 sheet 寄生在盖子上，条件收掉会掐死配对流程。
     private var showsLoginGate: Bool {

@@ -19,6 +19,15 @@ struct SoulSettingsView: View {
     @State private var photoItem: PhotosPickerItem? = nil
     @State private var iconError: String? = nil
     @State private var style: String = SoulMetadata.default.style
+    /// Selected style preset id. "custom" = user-authored (also the
+    /// normalized value for legacy files that have no `stylePreset:` key —
+    /// their existing style/body is never reinterpreted as a preset).
+    @State private var stylePreset: String = "custom"
+    /// Style phrase stashed when leaving Custom for a preset, restored on
+    /// return — trying a preset never destroys the user's own phrase
+    /// within a session.
+    @State private var customStyleBackup: String = ""
+    @State private var previousStylePreset: String = "custom"
     @State private var lang: String = SoulMetadata.default.lang
     @State private var bodyText: String = ""
     @State private var saveError: String? = nil
@@ -52,9 +61,29 @@ struct SoulSettingsView: View {
                         .textInputAutocapitalization(.words)
                         .submitLabel(.done)
                 }
-                LabeledContent(AppLocalized("Style")) {
-                    TextField(AppLocalized("e.g. Warm, direct, opinionated"), text: $style)
-                        .multilineTextAlignment(.trailing)
+                Picker(AppLocalized("Style"), selection: $stylePreset) {
+                    ForEach(SoulStylePreset.all, id: \.id) { preset in
+                        Text(preset.name).tag(preset.id)
+                    }
+                    Text(AppLocalized("Custom")).tag("custom")
+                }
+                .onChange(of: stylePreset) { _ in
+                    // Picking a preset stamps its fixed style phrase; the
+                    // personality editor shows the preset's locked copy.
+                    // Leaving Custom stashes the user's own phrase so coming
+                    // back restores it. Switching to Custom never seeds the
+                    // editor with preset text — it shows the preserved user
+                    // draft (empty for first-time users, hence the
+                    // placeholder).
+                    if let preset = SoulStylePreset.preset(id: stylePreset) {
+                        if SoulStylePreset.isCustom(id: previousStylePreset) {
+                            customStyleBackup = style
+                        }
+                        style = preset.stylePhrase
+                    } else {
+                        style = customStyleBackup
+                    }
+                    previousStylePreset = stylePreset
                 }
                 Picker(AppLocalized("Language"), selection: $lang) {
                     ForEach(Self.langOptions, id: \.value) { opt in
@@ -64,11 +93,26 @@ struct SoulSettingsView: View {
             }
 
             Section {
-                personalityEditor
+                if SoulStylePreset.isCustom(id: stylePreset) {
+                    personalityEditor
+                } else if let preset = SoulStylePreset.preset(id: stylePreset) {
+                    // Preset copy is fixed (mirrors Grok: preset
+                    // descriptions can't be edited, only Custom can).
+                    // Greyed out, same monospaced voice as the editor.
+                    Text(preset.displayDescription)
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+                        .padding(.vertical, 8)
+                }
             } header: {
                 Text(AppLocalized("Personality Prompt"))
             } footer: {
-                bodyLengthFooter
+                // Token budget only applies to the editable draft; the
+                // preset's fixed copy is short by construction.
+                if SoulStylePreset.isCustom(id: stylePreset) {
+                    bodyLengthFooter
+                }
             }
 
             Section {
@@ -246,7 +290,7 @@ struct SoulSettingsView: View {
             // typed into. allowsHitTesting(false) so taps fall through
             // to the editor below.
             if bodyText.isEmpty {
-                Text(AppLocalized("Describe the personality and voice you want for your agent"))
+                Text(AppLocalized("Describe the personality and tone you want, e.g. direct and to the point, no fluff"))
                     .font(.system(.body, design: .monospaced))
                     .foregroundStyle(.tertiary)
                     .padding(.top, 8)
@@ -284,8 +328,14 @@ struct SoulSettingsView: View {
         return AppLocalized("\(count) / \(SoulStore.bodyTokenLimit) tokens")
     }
 
+    /// The personality text that actually reaches the model: the preset's
+    /// fixed copy while a preset is active, otherwise the editable draft.
+    private var effectiveBodyText: String {
+        SoulStylePreset.preset(id: stylePreset)?.promptText ?? bodyText
+    }
+
     private var isBodyOverLimit: Bool {
-        SoulStore.isOverLimit(bodyText).isOverLimit
+        SoulStore.isOverLimit(effectiveBodyText).isOverLimit
     }
 
     // MARK: - Persistence
@@ -300,6 +350,9 @@ struct SoulSettingsView: View {
                 // rewritten on save.
                 emoji: rawEmoji,
                 style: style,
+                // "custom" (and legacy "") serialize without the line —
+                // the parser treats a missing key as user-authored.
+                stylePreset: stylePreset == "custom" ? "" : stylePreset,
                 lang: lang,
                 icon: icon
             ),
@@ -317,6 +370,12 @@ struct SoulSettingsView: View {
         rawEmoji = file.metadata.emoji
         icon = file.metadata.icon
         style = file.metadata.style
+        // Legacy files have no `stylePreset:` key ("") — normalize to
+        // "custom" so existing user content is never reinterpreted as a
+        // preset. Saves map "custom" back to "" (key omitted).
+        stylePreset = file.metadata.stylePreset.isEmpty ? "custom" : file.metadata.stylePreset
+        previousStylePreset = stylePreset
+        customStyleBackup = ""
         lang = file.metadata.lang
         bodyText = file.body
         loadedRef.value = file

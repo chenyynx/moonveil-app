@@ -32,6 +32,9 @@ struct SoulProfileCapsule: View {
     var isWorking: Bool = false
 
     // Muse 参考实测（@3x 截图换算，估算值）
+    /// 圆盘色：微暖白 #FDF8F3。pp 2026-09-27 对照 Muse 确认"有圆盘，暖一点，
+    /// 不是很暖"——纯白贴在磨砂 pill 上显生硬。
+    private static let discColor = Color(red: 0xFD / 255, green: 0xF8 / 255, blue: 0xF3 / 255)
     private static let discDiameter: CGFloat = 44    // 白圆盘
     private static let avatarSize: CGFloat = 38     // 绒毛头像
     private static let discPillOverlap: CGFloat = 8.5 // 圆盘轻压胶囊顶部（Muse 实测）
@@ -50,9 +53,10 @@ struct SoulProfileCapsule: View {
                 // zIndex(1)：VStack 里后出现的 view 默认盖在上面，圆盘必须压住胶囊。
                 ZStack {
                     Circle()
-                        .fill(.white)
+                        .fill(Self.discColor)
                         .frame(width: Self.discDiameter, height: Self.discDiameter)
-                        .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
+                    // [PP-2026-09-27] 去阴影：Muse 原版胶囊组无投影，圆盘/胶囊
+                    // 上的 shadow 会在导航栏底上晕出一圈灰，看着像"旁边的阴影"。
                     Image(isWorking ? "SoulPlushWorking" : "SoulPlush")
                         .resizable()
                         .scaledToFill()
@@ -75,7 +79,7 @@ struct SoulProfileCapsule: View {
                     .padding(.horizontal, 12)
                     .frame(minWidth: Self.pillMinWidth, minHeight: Self.pillHeight)
                     .capsuleLiquidGlass()
-                    .shadow(color: .black.opacity(0.10), radius: 5, x: 0, y: 2)
+                    // [PP-2026-09-27] 去阴影（同上，Muse 原版无）。
                     .overlay(alignment: .leading) {
                         if let syncIndicator {
                             Button {

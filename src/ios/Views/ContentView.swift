@@ -3068,10 +3068,24 @@ struct ContentView: View {
         .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
-        // [MUSE-GLASS-BG 2026-09-27] 导航栏底不用系统 blur（会压平背后，
-        // 胶囊玻璃折射出来一片白显实）；改用简单半透明 tint（跟 Muse 同类），
-        // 玻璃透过它折射列表内容，显玻璃感。深浅色自适应。
-        .toolbarBackground(Color(UIColor.systemBackground).opacity(0.45), for: .navigationBar)
+        // [MUSE-TOPFADE 2026-09-27] 顶部渐隐罩：导航栏底全透明（系统"滚出 blur"
+        // 的行为也关掉），另在列表顶部叠 160pt 纵向渐变——内容滚到顶栏区域
+        // 时柔化隐入，没有生硬分区线（pp：照 Muse 的做法，渐隐要回来）。
+        // 不吞手势，深浅色自适应。两处列表（本机/iPad 分栏）都要。
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .overlay(alignment: .top) {
+            LinearGradient(
+                stops: [
+                    .init(color: Color(UIColor.systemBackground), location: 0.0),
+                    .init(color: Color(UIColor.systemBackground).opacity(0.55), location: 0.55),
+                    .init(color: .clear, location: 1.0),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 160)
+            .allowsHitTesting(false)
+        }
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
@@ -3265,10 +3279,24 @@ struct ContentView: View {
         .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
-        // [MUSE-GLASS-BG 2026-09-27] 导航栏底不用系统 blur（会压平背后，
-        // 胶囊玻璃折射出来一片白显实）；改用简单半透明 tint（跟 Muse 同类），
-        // 玻璃透过它折射列表内容，显玻璃感。深浅色自适应。
-        .toolbarBackground(Color(UIColor.systemBackground).opacity(0.45), for: .navigationBar)
+        // [MUSE-TOPFADE 2026-09-27] 顶部渐隐罩：导航栏底全透明（系统"滚出 blur"
+        // 的行为也关掉），另在列表顶部叠 160pt 纵向渐变——内容滚到顶栏区域
+        // 时柔化隐入，没有生硬分区线（pp：照 Muse 的做法，渐隐要回来）。
+        // 不吞手势，深浅色自适应。两处列表（本机/iPad 分栏）都要。
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .overlay(alignment: .top) {
+            LinearGradient(
+                stops: [
+                    .init(color: Color(UIColor.systemBackground), location: 0.0),
+                    .init(color: Color(UIColor.systemBackground).opacity(0.55), location: 0.55),
+                    .init(color: .clear, location: 1.0),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 160)
+            .allowsHitTesting(false)
+        }
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
@@ -3527,7 +3555,8 @@ struct ContentView: View {
                     // [TABLER-ICONS 2026-09-27] pp 钦定：设置入口改用 Tabler menu（两横）。
                     // [FIX-toolbar-flash] 预栅格化位图，不用 .resizable()（切 tab
                     // toolbar 重建时 resizable 要等布局才渲染，会闪一帧）。
-                    Self.toolbarIcon("aa-Tabler-Menu", pointSize: 20, template: true)
+                    // 2026-09-27：20→22pt，之前光学偏小，跟右上搜索（19pt）不配。
+                    Self.toolbarIcon("aa-Tabler-Menu", pointSize: 22, template: true)
                 }
                 .accessibilityLabel(Text(String(localized: "Settings")))
             }

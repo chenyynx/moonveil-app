@@ -72,4 +72,11 @@ final class RootTabRouter: ObservableObject {
 
     /// `remoteAtRoot` — 远端线是否在列表根（REMOTE-DEVICE-1：设备详情页 push 时为 false）。
     @Published var remoteAtRoot: Bool = true
+
+    /// 远端聊天页是否已 push（RemoteSessionListView.showsChat 的一线镜像，
+    /// 写法同 localAtRoot：只写标志，不反向驱动）。
+    /// 底栏显隐数据源之一：进远端聊天页藏底栏（pp 2026-09-27「tab不进聊天页」延续）。
+    /// 注意 remoteAtRoot 在设备详情页 push 时也为 false，但设备详情页不藏底栏
+    /// （历史行为），所以这里用独立标志，不复用 remoteAtRoot。
+    @Published var remoteChatPushed: Bool = false
 }

@@ -56,7 +56,7 @@ extension ConfigRegistry {
     // MARK: Soul — SOUL.md (persistent personality / identity file)
     //
     // Each field reads/writes one piece of SOUL.md (path:
-    // <minisMemoryPersistentDir>/SOUL.md). The four fields below mirror
+    // <minisMemoryPersistentDir>/SOUL.md). The five fields below mirror
     // the SOUL Settings UI exactly; everything goes through SoulStore so
     // the on-disk file, the cached metadata, the chat bubble header, the
     // sidebar title, and the system-prompt builder all observe the same
@@ -116,6 +116,41 @@ extension ConfigRegistry {
             writer: { v in
                 guard case .string(let s) = v else { throw ConfigError.typeMismatch(expected: "string") }
                 try updateMetadata { $0.style = s }
+            }
+        ))
+
+        r.register(ClosureField(
+            path: "soul.style_preset",
+            displayName: "Soul style preset",
+            description: "Built-in style preset, mirroring the Style picker in Settings → Soul: "
+                + "default / concise / formal / thorough / custom. "
+                + "Setting a preset stamps its fixed style tag and the preset's personality takes effect immediately "
+                + "(preset copy is not editable — only custom unlocks editing, same as the Settings UI). "
+                + "Setting custom keeps the current style tag and personality body untouched; "
+                + "use soul.style / soul.body to change them afterwards.",
+            valueSchema: .stringEnum(["default", "concise", "formal", "thorough", "custom"]),
+            risk: .normal, revertable: true,
+            reader: {
+                // Files written before presets existed have no `stylePreset:`
+                // key — surface "custom" so the contract matches the enum
+                // and the effective behavior (user-authored style/body).
+                let raw = currentFile().metadata.stylePreset
+                let normalized = raw.isEmpty ? "custom" : raw
+                return .string(SoulStylePreset.preset(id: normalized) != nil ? normalized : "custom")
+            },
+            writer: { v in
+                guard case .string(let s) = v else { throw ConfigError.typeMismatch(expected: "string") }
+                try updateMetadata {
+                    if let preset = SoulStylePreset.preset(id: s) {
+                        // Stamp the preset id + its fixed style tag, exactly
+                        // like picking it in Settings → Soul does.
+                        $0.stylePreset = preset.id
+                        $0.style = preset.stylePhrase
+                    } else {
+                        // "custom": keep the user's own style tag and body.
+                        $0.stylePreset = ""
+                    }
+                }
             }
         ))
 

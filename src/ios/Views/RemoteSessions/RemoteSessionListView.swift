@@ -414,6 +414,9 @@ struct RemoteSessionListView: View {
         // 和 ChatPageToolbar 自己的 topBarLeading 返回键叠在一起。
         .onChange(of: showsChat) { _, pushed in
             RootTabRouter.shared.remoteAtRoot = !pushed
+            // [TABBAR-STATE-DRIVEN 2026-09-27] 进远端聊天页藏底栏（纯状态驱动，
+            // 动画与转场解耦，见 RootModeTabsView.syncTabBarVisibility）。
+            RootTabRouter.shared.remoteChatPushed = pushed
         }
         // PAIRING-FULL 收尾（P2-B）：官方 ChatShellView:39-45/53-59 形状——配对就绪的
         // 设备弹 AgentSetupSheet（原「跳设备详情页」过渡移除）；关闭 = finish + 刷 dashboard。
@@ -702,12 +705,17 @@ struct RemoteSessionListView: View {
         .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         // REMOTE-DEVICE-1：点按整卡进入设备详情页（pp 2026-09-21 改：原长按入口
         // 2026-09-20 版改单击——「现在是长按卡片才能进去 改为点一次就进入」）。
-        // [PP-2026-09-27] 点按直接进设备页，不再按 service.state 分流到登录：
-        // 未登录时设备身份未到位，目的地显示「正在同步设备信息…+重试」。
+        // [PP-2026-09-27] 未配置时不进设备页：没有 connector 的情况下「正在同步
+        // 设备信息…」没有意义，直接回跳添加 agent 页（登录盖：扫码/手动登录）。
+        // onOpenLogin 之前传了三层但从未被调用，这次接上。
         .onTapGesture {
-            showsDeviceDetail = true
+            if !configured {
+                onOpenLogin()
+            } else {
+                showsDeviceDetail = true
+            }
         }
-        .accessibilityHint(Text("查看设备详情"))
+        .accessibilityHint(Text(!configured ? "添加 Agent" : "查看设备详情"))
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 6, trailing: 16))
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)

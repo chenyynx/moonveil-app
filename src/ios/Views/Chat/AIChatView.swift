@@ -1683,12 +1683,12 @@ struct AIChatView: View {
         // descendants (e.g. ToolCapsuleView's long-press menu) can react to
         // `vm.isProcessing` without threading the vm through every level.
         .environmentObject(vm)
-        // pp 2026-09-27「tab不进聊天页」：进会话后藏底栏（iPhone push / iPad
-        // detail / 远程会话统一生效）。
-        // [FIX-2026-09-27] .toolbarVisibility(.hidden, for: .tabBar) 在 iOS 26
-        // 新 TabView 下构造 body 时直接 trap（build 359 闪退，符号化定位到
-        // AIChatView.body）；换回经典 .toolbar(.hidden, for:)。
-        .toolbar(.hidden, for: .tabBar)
+        // [TABBAR-STATE-DRIVEN 2026-09-27] 底栏显隐不再挂在这里：逐 navigationItem
+        // 的 .toolbar(.hidden, for: .tabBar) 在 iOS 26 转场协调里动画卡顿、偶发
+        // trap（build 359/363 两次闪退均符号化定位到 AIChatView.body）、隐藏态还会
+        // 卡死在聊天列表页。改为纯状态驱动——RootTabRouter.tabBarHidden（本机页看
+        // localAtRoot、远端页看 remoteChatPushed），RootModeTabsView 的 TabView
+        // 统一挂 .toolbar(显/隐)，0.22s 显式动画与 push/pop 转场解耦。
     }
 
     // MARK: - Home Screen Quick Actions

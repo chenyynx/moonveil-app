@@ -135,7 +135,7 @@ struct ProfileInfoCard: View {
             // 10. 柔投影
             .shadow(color: .black.opacity(0.12), radius: 16, x: 0, y: 8)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SpringPressButtonStyle())
         .onAppear {
             guard !reduceMotion else { return }
             withAnimation(

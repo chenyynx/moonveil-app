@@ -476,6 +476,11 @@ struct SoulMetadata: Equatable {
     /// already has one.
     var emoji: String
     var style: String
+    /// Built-in style preset id: "default" / "concise" / "formal" /
+    /// "thorough". "custom" (or "" on files written before presets
+    /// existed) means user-authored — `style` + body are the user's own.
+    /// Persisted as `stylePreset:` in frontmatter, only when non-empty.
+    var stylePreset: String
     /// `"auto"`, `"zh"`, `"en"`, or any free-form tag.
     var lang: String
 
@@ -522,11 +527,89 @@ struct SoulMetadata: Equatable {
         // baseline that users have to first delete before authoring their
         // own.
         style: "",
+        // No preset on the in-memory default — the on-disk seed
+        // (`defaultContent` below) writes `stylePreset: "default"`
+        // explicitly; "" here means "legacy / user-authored".
+        stylePreset: "",
         lang: "auto",
         // No icon by default — `displayIcon` falls back to the sparkle, so
         // an untouched SOUL.md serializes without an `icon:` line at all.
         icon: ""
     )
+}
+
+// MARK: - Built-in style presets
+
+/// A built-in style preset for the Soul settings page (mirrors Grok's
+/// "Customize Grok" style picker: Default / Concise / Formal / Thorough /
+/// Custom).
+///
+/// When a preset is active, the personality prompt shown in Settings is the
+/// preset's fixed copy and is NOT editable — only Custom unlocks the editor.
+/// The prompt text lives here, not in SOUL.md: the file only stores the
+/// preset id (`stylePreset:`), so the copy can evolve without migrations.
+///
+/// `id` values are the persisted frontmatter contract — never rename them.
+struct SoulStylePreset: Equatable {
+    /// Persisted id, e.g. "concise".
+    let id: String
+    /// Picker label.
+    let name: String
+    /// Short phrase written to SOUL.md `style:` and injected as the
+    /// response-style block. Empty for the default preset.
+    let stylePhrase: String
+    /// Personality text injected into the system prompt while this preset
+    /// is active. Empty for the default preset (default behavior = no
+    /// extra instruction).
+    let promptText: String
+    /// What Settings shows, greyed out, when this preset is selected.
+    /// Equals `promptText` except for the default preset, whose copy is a
+    /// description rather than an instruction.
+    let displayDescription: String
+
+    /// Computed (not stored): re-localizes on every access so an in-app
+    /// language change is reflected without relaunch.
+    static var all: [SoulStylePreset] { [
+        SoulStylePreset(
+            id: "default",
+            name: AppLocalized("Default"),
+            stylePhrase: "",
+            promptText: "",
+            displayDescription: AppLocalized("Responds with default behavior.")
+        ),
+        SoulStylePreset(
+            id: "concise",
+            name: AppLocalized("Concise"),
+            stylePhrase: AppLocalized("Concise"),
+            promptText: AppLocalized("Provide concise, to-the-point responses. Get straight to the answer without filler."),
+            displayDescription: AppLocalized("Provide concise, to-the-point responses. Get straight to the answer without filler.")
+        ),
+        SoulStylePreset(
+            id: "formal",
+            name: AppLocalized("Formal"),
+            stylePhrase: AppLocalized("Formal"),
+            promptText: AppLocalized("Respond in a formal, professional tone with precise and proper wording."),
+            displayDescription: AppLocalized("Respond in a formal, professional tone with precise and proper wording.")
+        ),
+        SoulStylePreset(
+            id: "thorough",
+            name: AppLocalized("Thorough"),
+            stylePhrase: AppLocalized("Thorough"),
+            promptText: AppLocalized("Provide thorough, detailed responses that explore topics from multiple angles. Include relevant context, examples, and details, structured clearly."),
+            displayDescription: AppLocalized("Provide thorough, detailed responses that explore topics from multiple angles. Include relevant context, examples, and details, structured clearly.")
+        ),
+    ] }
+
+    static func preset(id: String) -> SoulStylePreset? {
+        all.first { $0.id == id }
+    }
+
+    /// True when the id means "user-authored": explicit "custom", or ""
+    /// from a file written before presets existed (legacy content is never
+    /// reinterpreted as a preset).
+    static func isCustom(id: String) -> Bool {
+        id.isEmpty || id == "custom"
+    }
 }
 
 /// Result of parsing a SOUL.md file. `body` is the Markdown body with
@@ -578,6 +661,12 @@ enum SoulMDParser {
             // everything before the FIRST colon and the rest is taken whole.
             case "icon":  meta.icon = value
             case "style": meta.style = value
+            // Frontmatter keys are lowercased above, so `stylePreset:`
+            // arrives here as "stylepreset". An explicit "custom" is
+            // normalized to "" — both mean user-authored, and "" is what
+            // the serializer writes (i.e. omits), so a hand-written
+            // `stylePreset: "custom"` line doesn't phantom-dirty the UI.
+            case "stylepreset": meta.stylePreset = (value == "custom" ? "" : value)
             case "lang":  if !value.isEmpty { meta.lang = value }
             default: break
             }
@@ -586,8 +675,8 @@ enum SoulMDParser {
     }
 
     /// Serialize back to SOUL.md text. Emits name / style / lang, plus
-    /// `icon` when the user has set one, followed by an empty line and the
-    /// body.
+    /// `icon` when the user has set one and `stylePreset` when a built-in
+    /// preset is active, followed by an empty line and the body.
     ///
     /// The `emoji` field is deliberately NOT written — the UI is locked to
     /// a fixed sparkle (`displayEmoji`), so persisting a `emoji:` line would
@@ -612,6 +701,12 @@ enum SoulMDParser {
             out += "icon: \"\(escape(file.metadata.icon))\"\n"
         }
         out += "style: \"\(escape(file.metadata.style))\"\n"
+        // Written only when non-empty (same rule as `icon`): "custom" and
+        // legacy user-authored files serialize without the line, so an
+        // untouched file keeps its existing shape.
+        if !file.metadata.stylePreset.isEmpty {
+            out += "stylePreset: \"\(escape(file.metadata.stylePreset))\"\n"
+        }
         out += "lang: \"\(escape(file.metadata.lang))\"\n"
         out += "---\n\n"
         out += file.body
@@ -752,11 +847,12 @@ enum SoulStore {
     /// Defaults intentionally ship with NO personality body so the
     /// agent runs with vanilla behaviour out of the box and users decide
     /// what voice / tone to add themselves. Only the frontmatter (name /
-    /// style / lang) is seeded.
+    /// style / stylePreset / lang) is seeded.
     static let defaultContent: String = """
     ---
     name: "Kite"
     style: ""
+    stylePreset: "default"
     lang: "auto"
     ---
 
@@ -927,8 +1023,25 @@ enum SystemPromptBuilder {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             return n.isEmpty ? "Kite" : n
         }()
-        let style: String = (file?.metadata.style ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let style: String = {
+            // A built-in preset overrides both the style phrase and the
+            // personality body with its fixed copy. Custom ("custom" or ""
+            // on legacy files) keeps the user's own values untouched.
+            if let preset = SoulStylePreset.preset(id: file?.metadata.stylePreset ?? "") {
+                return preset.stylePhrase.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            return (file?.metadata.style ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        }()
+
+        // Effective personality body: the preset's fixed text when a preset
+        // is active (nil for the default preset = no extra instruction),
+        // otherwise the user's own SOUL.md body.
+        let effectiveBody: String? = {
+            if let preset = SoulStylePreset.preset(id: file?.metadata.stylePreset ?? "") {
+                return preset.promptText.isEmpty ? nil : preset.promptText
+            }
+            return file?.body
+        }()
 
         let identity = identityTemplate.replacingOccurrences(of: "{name}", with: name)
         let identityTrimmed = identity.trimmingCharacters(in: .whitespaces)
@@ -940,7 +1053,7 @@ enum SystemPromptBuilder {
         // SOUL body length limit (#356 / 500 EN words / 800 CN chars).
         let soulEditHint =
             "---\n" +
-            "SOUL.md fields (name / icon / style / lang / body) can be edited two ways:\n" +
+            "SOUL.md fields (name / icon / style / style_preset / lang / body) can be edited two ways:\n" +
             "1. Tool: call `moonveil-config` to propose changes (user must approve).\n" +
             "2. UI: ask the user to go to Settings → Soul to edit directly.\n" +
             "Pick whichever the user finds easier in context. Do not say you cannot change your personality."
@@ -960,7 +1073,7 @@ enum SystemPromptBuilder {
             return "\n\nResponse style (from SOUL.md `style` — apply to every reply unless the user explicitly asks otherwise; if it prescribes a reply language, it overrides the default match-the-user's-language rule):\n\(s)"
         }
 
-        guard let body = file?.body else {
+        guard let body = effectiveBody else {
             return identityTrimmed + styleBlock(style) + "\n\n" + soulEditHint + "\n\n"
         }
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
