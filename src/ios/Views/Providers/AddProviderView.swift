@@ -84,6 +84,9 @@ struct AIDataSharingConsentView: View {
                 }
                 .padding()
             }
+            // [FIX-consent-top-gap 2026-09-27] iOS 26 ScrollView 在 sheet 里顶部
+            // inset 异常留白，强制顶部无额外边距。
+            .contentMargins(.top, 0, for: .scrollContent)
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 10) {
                     Button {
