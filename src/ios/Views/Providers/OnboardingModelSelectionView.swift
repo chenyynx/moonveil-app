@@ -56,6 +56,8 @@ struct OnboardingModelSelectionView: View {
             }
         }
         .searchable(text: $searchText, prompt: "Filter models")
+        // [FIX-onboarding-top-gap 2026-09-27] iOS 26 下 List 顶部留白，跟数据共享页同因。
+        .contentMargins(.top, 0, for: .scrollContent)
         .navigationTitle("Select Models")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

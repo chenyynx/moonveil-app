@@ -168,6 +168,8 @@ struct ModelGroupsView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                // [TINT-FIX2] 盖住 AccentColor 蓝。
+                .tint(.primary)
             }
         }
         .overlay(alignment: .top) {

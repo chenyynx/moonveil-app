@@ -123,6 +123,10 @@ struct RemoteSessionListView: View {
     @State private var showsDeviceDetail = false
     /// 「添加设备」表：终端卡在没有可用 connector 时弹出（pp 2026-09-27）。
     @State private var showsAddDevice = false
+    /// [FIX-nested-sheet 2026-09-27] 添加设备页点登录后，由本页直接弹登录页
+    /// （添加设备表已是 sheet，内嵌再弹会导致 OAuth 网页消失）。
+    @State private var showsQRLogin = false
+    @State private var showsManualLogin = false
     /// 远端会话数据层（共享单例：列表页 / 设备页 / 弹窗同源）。
     @StateObject private var loader = RemoteSessionLoader.shared
     /// P3-3：页面级错误 toast 存储（官方一槽一错语义，AAV2 冻结件）。
@@ -720,8 +724,29 @@ struct RemoteSessionListView: View {
             }
         }
         .sheet(isPresented: $showsAddDevice) {
-            AddDeviceSheet(service: service) {
-                // 登录成功：dashboard 拉到 connector 后进设备页
+            AddDeviceSheet(
+                service: service,
+                onLoginSucceeded: {
+                    // 登录成功：dashboard 拉到 connector 后进设备页
+                    showsDeviceDetail = true
+                },
+                onQRLoginRequested: {
+                    showsQRLogin = true
+                },
+                onManualLoginRequested: {
+                    showsManualLogin = true
+                }
+            )
+        }
+        .sheet(isPresented: $showsQRLogin) {
+            QRCodeLoginView(service: service) {
+                showsQRLogin = false
+                showsDeviceDetail = true
+            }
+        }
+        .sheet(isPresented: $showsManualLogin) {
+            ManualLoginView(service: service) {
+                showsManualLogin = false
                 showsDeviceDetail = true
             }
         }

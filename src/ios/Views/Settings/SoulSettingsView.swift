@@ -538,6 +538,8 @@ private struct SoulEmojiPickerSheet: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(AppLocalized("Cancel")) { dismiss() }
                 }
+                // [TINT-FIX2] 盖住 AccentColor 蓝。
+                .tint(.primary)
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(AppLocalized("Set")) {
                         onPick(draft)

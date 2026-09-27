@@ -122,6 +122,8 @@ struct ProviderInstancesView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     EditButton()
                 }
+                // [TINT-FIX2] 盖住 AccentColor 蓝。
+                .tint(.primary)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -147,6 +149,8 @@ struct ProviderInstancesView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                // [TINT-FIX2] 盖住 AccentColor 蓝。
+                .tint(.primary)
             }
         }
         .sheet(isPresented: $showAddProvider) {

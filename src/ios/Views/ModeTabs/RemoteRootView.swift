@@ -46,6 +46,8 @@ struct RemoteRootView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         SearchToolbarButton(showsSearch: $showsSearch)
                     }
+                // [TINT-FIX2] 盖住 AccentColor 蓝。
+                .tint(.primary)
                 }
                 .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         }

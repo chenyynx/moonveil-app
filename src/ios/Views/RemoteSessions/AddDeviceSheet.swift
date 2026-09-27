@@ -14,13 +14,14 @@ struct AddDeviceSheet: View {
 
     /// 登录成功后调用（调用方负责关表并进设备页）。
     var onLoginSucceeded: () -> Void = {}
-
-    @State private var showsQRLogin = false
-    @State private var showsManualLogin = false
+    /// 用户点了「扫码登录」/「手动登录」：调用方先关本表，再弹对应登录页。
+    /// （本表已是 sheet，内嵌再弹 sheet 会导致 OAuth 网页弹层消失。）
+    var onQRLoginRequested: () -> Void = {}
+    var onManualLoginRequested: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 0) {
-            // 顶栏：X + 标题（截图：X 在浅灰圆里，标题居中加粗）
+            // 顶栏：X + 标题（图二样式：X 在浅灰圆里，标题居中）
             HStack {
                 Button {
                     dismiss()
@@ -56,9 +57,12 @@ struct AddDeviceSheet: View {
                         .foregroundStyle(.secondary)
                         .padding(.top, 12)
 
-                    // 主按钮：扫码登录（深浅反色胶囊：浅色黑底白字，深色白底黑字）
+                    // 主按钮：扫码登录（深浅反色胶囊）
+                    // [FIX-qr-btn-gray 2026-09-27] 背景不用 Color.primary（语义色在
+                    // sheet medium 高度下解析成灰），用明确黑白。
                     Button {
-                        showsQRLogin = true
+                        dismiss()
+                        onQRLoginRequested()
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "qrcode")
@@ -68,7 +72,7 @@ struct AddDeviceSheet: View {
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
-                        .background(Color.primary)
+                        .background(colorScheme == .light ? Color.black : Color.white)
                         .foregroundStyle(colorScheme == .light ? .white : .black)
                         .clipShape(Capsule())
                     }
@@ -83,7 +87,8 @@ struct AddDeviceSheet: View {
 
                     // 次按钮：手动登录（浅灰胶囊，跟随深浅）
                     Button {
-                        showsManualLogin = true
+                        dismiss()
+                        onManualLoginRequested()
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "keyboard")
@@ -112,19 +117,5 @@ struct AddDeviceSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        .sheet(isPresented: $showsQRLogin) {
-            QRCodeLoginView(service: service) {
-                showsQRLogin = false
-                dismiss()
-                onLoginSucceeded()
-            }
-        }
-        .sheet(isPresented: $showsManualLogin) {
-            ManualLoginView(service: service) {
-                showsManualLogin = false
-                dismiss()
-                onLoginSucceeded()
-            }
-        }
     }
 }

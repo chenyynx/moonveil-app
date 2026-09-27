@@ -813,6 +813,8 @@ private struct FolderPickerSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Cancel") { dismiss() }
+                    // [TINT-FIX2] 盖住 AccentColor 蓝。
+                    .tint(.primary)
                 }
             }
         }
@@ -1090,7 +1092,7 @@ struct ContentView: View {
     /// 自动 top inset 在 iOS 26 上抖动（实测列表内容上下窜 30px+），这里用
     /// onGeometryChange 采样真实值后冻结，列表内部断开系统的反复重算。
     /// 单调取最大，收敛后不再更新。
-    @State private var frozenTopContentMargin: CGFloat = 100
+    @State private var frozenTopContentMargin: CGFloat = 75
 
     /// [FIX-toolbar-flash] toolbar 按钮图标预栅格化缓存。`.resizable()` 的图
     /// 在 toolbar 重建（切 tab）时要等布局定尺寸后才渲染，中间空一帧 → 按钮
@@ -1565,6 +1567,8 @@ struct ContentView: View {
                             ToolbarItem(placement: .topBarTrailing) {
                                 Button("Done") { activeToolSheet = nil }
                             }
+                            // [TINT-FIX2] 盖住 AccentColor 蓝。
+                            .tint(.primary)
                         }
                 }
             case .browser:
@@ -1581,6 +1585,8 @@ struct ContentView: View {
                                 Button("Done") { activeToolSheet = nil }
                             }
                         }
+                        // [TINT-FIX2] 盖住 AccentColor 蓝。
+                        .tint(.primary)
                 }
             }
         }
@@ -2906,11 +2912,11 @@ struct ContentView: View {
             let n = SoulStore.cachedMetadata.name
             soulName = n.isEmpty ? "Kite" : n
         }
-        // [FIX-list-top-jitter] 采样顶部安全区并冻结：取最大值 + 26pt 微调值
-        // （26pt 是之前按截图调好的胶囊补偿量）。Group 在导航栈内、不忽略
+        // [FIX-list-top-jitter] 采样顶部安全区并冻结：取最大值 + 12pt 微调值
+        // （pp 2026-09-27：卡片往上挪一点，26pt 太大改 12pt）。Group 在导航栈内、不忽略
         // 安全区，所以这里拿到的是真实值（含状态栏+导航栏）。
         .onGeometryChange(for: CGFloat.self, of: { $0.safeAreaInsets.top }) { top in
-            let candidate = top + 26
+            let candidate = top + 12
             if candidate > frozenTopContentMargin {
                 frozenTopContentMargin = candidate
             }
@@ -3510,6 +3516,8 @@ struct ContentView: View {
                     isSelecting = false
                     selectedIds.removeAll()
                 }
+                // [TINT-FIX2] 盖住 AccentColor 蓝。
+                .tint(.primary)
             }
             // [NATIVE-TABS] ≡ 齿轮回到原生 toolbar（原 B16 自绘浮钮随壳层 overlay
             // 一并退役）。Action 不变 —— `showSettings`，sheet 由壳层呈现。
@@ -3535,6 +3543,8 @@ struct ContentView: View {
             // 多选时隐藏（与 ⋯ 菜单同规则）。
             if !isSelecting {
                 SearchToolbarButton(showsSearch: $showsSearch)
+                // [TINT-FIX2] 盖住 AccentColor 蓝。
+                .tint(.primary)
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
@@ -3546,12 +3556,16 @@ struct ContentView: View {
                         selectedIds = Set(sessions.map(\.id))
                     }
                 }
+                // [TINT-FIX2] 盖住 AccentColor 蓝。
+                .tint(.primary)
             } else if hasAlarms {
                 Button {
                     showAlarmList = true
                 } label: {
                     Image(systemName: "alarm")
                         .font(.system(size: 15, weight: .medium))
+                        // [TINT-FIX2] 盖住 AccentColor 蓝。
+                        .tint(.primary)
                 }
             }
         }
@@ -4180,6 +4194,10 @@ struct ContentView: View {
         }
         .frame(maxHeight: .infinity)
         .padding(.horizontal, 32)
+        // [FIX-guide-tabbar 2026-09-27] 未配置时引导页不显示底部 tab，配置完才显示。
+        .toolbar(.hidden, for: .tabBar)
+        // [FIX-guide-navbar 2026-09-27] 引导页也不显示顶部导航栏（胶囊/头像/按钮）。
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showAddProvider) {
             NavigationStack {
                 AddProviderView()
@@ -5659,6 +5677,8 @@ private struct ExportPreviewSheet: View {
                     }
                     actionButton(icon: "folder", label: AppLocalized("Save to Files")) {
                         showFilePicker = true
+                        // [TINT-FIX2] 盖住 AccentColor 蓝。
+                        .tint(.primary)
                     }
                 }
                 .padding(.vertical, 12)
@@ -5669,6 +5689,8 @@ private struct ExportPreviewSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(AppLocalized("Done")) { dismiss() }
+                        // [TINT-FIX2] 盖住 AccentColor 蓝。
+                        .tint(.primary)
                 }
             }
             .sheet(isPresented: $showShareSheet) {
@@ -6678,6 +6700,8 @@ struct SessionEditSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        // [TINT-FIX2] 盖住 AccentColor 蓝。
+                        .tint(.primary)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
@@ -7795,6 +7819,8 @@ Label {
         }
         .preferredColorScheme(appearanceMode == 1 ? .light : appearanceMode == 2 ? .dark : nil)
         .appFontScale()
+        // [TINT-FIX2] 盖住 AccentColor 蓝。
+        .tint(.primary)
     }
 
     /// Translate `DeepLinkCoordinator.pendingSettingsTarget` into a
