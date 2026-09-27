@@ -3512,7 +3512,9 @@ struct ContentView: View {
             if isSelecting {
                 Text(selectedIds.isEmpty ? "Select Sessions" : "\(selectedIds.count) Selected")
                     .font(.headline)
-            } else {
+            } else if !showsWelcomeGuide {
+                // [GUIDE-CAPSULE 2026-09-27 pp] 欢迎引导页显示时胶囊（含头像）整个
+                // 不渲染——配置阶段只藏胶囊+头像，≡/搜索/右钮照常（pp 明确要求）。
                 // [NATIVE-TABS 2026-09-26] pp 拍板保留的身份胶囊（Muse 形制复刻：
                 // 白圆盘 50pt + 幽灵 44pt 压在液态玻璃 pill 57×41 顶部）迁入原生
                 // 导航栏 principal 位——系统保证居中、push/多选自动让位，替代上版自绘顶栏。
@@ -4164,6 +4166,14 @@ struct ContentView: View {
     @State private var showAddProvider = false
     @State private var showSelectModels = false
 
+    /// [GUIDE-CAPSULE 2026-09-27 pp] 欢迎引导页是否在显示。判据与 emptyState
+    /// overlay 逐字同源（compact 看 filteredSessions、wide 看 displaySessions），
+    /// 引导页在 ⇒ 身份胶囊（principal 位）整个不渲染。
+    private var showsWelcomeGuide: Bool {
+        didInitialLoad && !isSearching
+            && (isWideLayout ? displaySessions.isEmpty : filteredSessions.isEmpty)
+    }
+
     private var emptyState: some View {
         let hasProviders = !providerStore.instances.isEmpty
         let hasGroups = !providerStore.modelGroups.isEmpty
@@ -4231,8 +4241,9 @@ struct ContentView: View {
         .padding(.horizontal, 32)
         // [FIX-guide-tabbar 2026-09-27] 未配置时引导页不显示底部 tab，配置完才显示。
         .toolbar(.hidden, for: .tabBar)
-        // [FIX-guide-navbar 2026-09-27] 引导页也不显示顶部导航栏（胶囊/头像/按钮）。
-        .toolbar(.hidden, for: .navigationBar)
+        // [GUIDE-NAVBAR 2026-09-27 pp] 配置阶段只藏胶囊+头像（principal 位见
+        // showsWelcomeGuide），≡/搜索/右侧按钮照常显示——不整条藏导航栏
+        // （fe81ea5 曾整条藏掉，pp 明确纠正）。
         .sheet(isPresented: $showAddProvider) {
             NavigationStack {
                 AddProviderView()
