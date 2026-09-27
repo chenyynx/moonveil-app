@@ -3596,6 +3596,8 @@ struct ContentView: View {
                     // toolbar 重建时 resizable 要等布局才渲染，会闪一帧）。
                     Self.toolbarIcon("TerminalCircle", pointSize: 24)
                 }
+                // [TINT-FIX2] 跟 ≡ 菜单/搜索统一，盖住 toolbar 的 AccentColor 蓝。
+                .tint(.primary)
             }
         }
     }

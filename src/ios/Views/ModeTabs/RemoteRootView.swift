@@ -38,6 +38,8 @@ struct RemoteRootView: View {
                                 .resizable()
                                 .frame(width: 20, height: 20)
                         }
+                        // [TINT-FIX2] 跟本机页统一，盖住 AccentColor 蓝。
+                        .tint(.primary)
                         .accessibilityLabel(Text(String(localized: "Settings")))
                     }
                     // [SEARCH-TOPRIGHT] pp 2026-09-26「搜索放右上角」。
