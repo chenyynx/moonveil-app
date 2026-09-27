@@ -105,6 +105,8 @@ struct ISHTerminalView: View {
                             .frame(width: 20, height: 20)
                             .accessibilityLabel(Text("Close"))
                     }
+                    // [TINT-FIX2] 盖住 AccentColor 蓝。
+                    .tint(.primary)
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -117,6 +119,8 @@ struct ISHTerminalView: View {
                         .frame(width: 20, height: 20)
                         .accessibilityLabel(Text("Clear"))
                 }
+                // [TINT-FIX2] 盖住 AccentColor 蓝。
+                .tint(.primary)
             }
         }
         .onAppear {
