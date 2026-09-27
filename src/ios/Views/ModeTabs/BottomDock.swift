@@ -31,6 +31,11 @@ import UIKit
 struct BottomDock: View {
     @ObservedObject private var router = RootTabRouter.shared
 
+    /// [DOCK-SEL-PILL] pill 透明度随外观走（亮色更实、暗色更透）；
+    /// 减弱动态效果开启时滑动改瞬现（accessibility 规则）。
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     /// 三个内容 tab（.compose 是动作钮，见 composeButton，不进此列）。
     private static let tabModes: [AppSourceMode] = [.local, .remote, .works]
 
@@ -74,6 +79,20 @@ struct BottomDock: View {
                 }
             }
             .padding(.horizontal, 12)
+            // [DOCK-SEL-PILL pp 2026-09-28「要啊/就是那个拖动的玻璃效果」] 单块
+            // 玻璃高光 pill 在三图标间滑动（对齐被替换的系统栏观感；也是颜色之外
+            // 的选中信号——accessibility DifferentiateWithoutColor）。动画只挂 pill，
+            // 内容页瞬切不受影响；亮 0.55 / 暗 0.14 配对（暗色模式铁律）。
+            .background {
+                if let idx = Self.tabModes.firstIndex(of: router.mode) {
+                    Capsule()
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.14 : 0.55))
+                        .frame(width: 46, height: 40)
+                        .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.08), radius: 2, y: 1)
+                        .offset(x: CGFloat(idx - 1) * 58)
+                        .animation(reduceMotion ? nil : Animation.snappy(duration: 0.28), value: router.mode)
+                }
+            }
         }
     }
 
