@@ -146,3 +146,21 @@ struct SecondaryButtonStyleIfAvailable: ViewModifier {
         else { content.buttonStyle(.bordered) }
     }
 }
+
+// [GLASS-FIX 2026-09-27] 圆形玻璃：显式 .glassEffect(in: .circle)，
+// iOS 26 以下降级为半透明白圆。
+struct GlassEffectIfAvailable: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular.interactive(), in: .circle)
+        } else {
+            content.background(Circle().fill(Color.white.opacity(0.7)))
+        }
+    }
+}
+
+extension View {
+    func glassEffectIfAvailable() -> some View {
+        modifier(GlassEffectIfAvailable())
+    }
+}

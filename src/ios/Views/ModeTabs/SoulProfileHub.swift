@@ -99,9 +99,11 @@ struct SoulProfileHub: View {
                 .foregroundStyle(Color.primary)
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
+                // [GLASS-FIX 2026-09-27] .buttonStyle(.glass) 在真机渲染成白椭圆，
+                // 改显式 .glassEffect(.regular.interactive(), in: .circle)。
+                .glassEffectIfAvailable()
         }
-        // [pp 2026-09-27] iOS 26+ 原生 .glass（拖拽/发光）；低版本 .bordered 降级。
-        .modifier(SecondaryButtonStyleIfAvailable())
+        .buttonStyle(.plain)
     }
 
     // MARK: - 头像 + 名字 + 状态行
@@ -130,9 +132,10 @@ struct SoulProfileHub: View {
                         .foregroundStyle(Color.primary)
                         .frame(width: 32, height: 32)
                         .contentShape(Circle())
+                        // [GLASS-FIX 2026-09-27] 同上，显式圆形玻璃。
+                        .glassEffectIfAvailable()
                 }
-                // [pp 2026-09-27] iOS 26+ 原生 .glass（拖拽/发光）；低版本 .bordered 降级。
-                .modifier(SecondaryButtonStyleIfAvailable())
+                .buttonStyle(.plain)
                 .accessibilityLabel("更换形象")
                 // [pp 2026-09-27] 徽标往右下挪，少占头像。
                 .offset(x: 10, y: 12)
