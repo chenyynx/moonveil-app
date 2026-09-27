@@ -5,12 +5,22 @@
 // 就跟手；系统从此零次 tab 栏藏/显转场，「新会话四连症 + 滑回 tab 不跟手」
 // 那族 bug 的发病路径整体拆除（状态机只是帮凶，藏/显转场本身才是病根；
 // 原装 OpenMinis 没有 tab 栏，所以从不走这条路径）。
+// 实机验证（pp 2026-09-28）：四步复现消失、滑回跟手 ✓。
 //
-// 产品语义与被替换的系统栏逐条对齐：3 tab 纯图标（选中黑/未选中灰，pp
-// 2026-09-26pm）+ 右侧分离圆形新建钮（永不选中，点按走 QuickActionRouter
-// 发新会话信号——与 RootModeTabsView tabSelection 的 compose 拦截同一通道）；
-// 选择写 RootTabRouter.route(to:) 单通道（seenRemote 懒挂载/持久化/lastTab
-// 全在 router，D4 红线不破）。
+// [DOCK-GEOMETRY 2026-09-28 pp「变小/按压缩放没了/发亮没了」] 观感逐项对齐
+// 原生栏——以下全部来自原生栏截图 photo_EFB55779.png 像素实测（3x，1179px）：
+//   item 88×60 / 胶囊内边距 8（反推图标中心 73.5/161.5/249.5pt vs 实测
+//   73.7/161.3/249.0 逐点命中）/ 选中 pill 96×52、填充灰度≈236（亮面 =
+//   黑 7.5%，非白色高亮——发亮走「灰底片+玻璃高光」两层）/ 圆钮 ⌀58 /
+//   胶囊↔圆钮间距 12 / 离屏底 24pt（safeAreaInset 内容 ignoresSafeArea 下探）。
+//   按压 = spring(duration 0.35, bounce 0.45) 缩放 0.9 弹回（系统 Liquid
+//   Glass 按钮同款「放大缩小」感，图标 27pt 栅格与原生同尺寸不变）。
+//
+// 产品语义与被替换的系统栏逐条对齐：3 tab 纯图标（选中黑/未选中灰）+ 右侧
+// 分离圆形新建钮（永不选中，点按走 QuickActionRouter 发新会话信号——与
+// RootModeTabsView tabSelection 的 compose 拦截同一通道）；选择写
+// RootTabRouter.route(to:) 单通道（seenRemote 懒挂载/持久化/lastTab 全在
+// router，D4 红线不破）。
 //
 // 材质策略照搬上游 fabCircleSurface（build #396 教训：App 主 target 部署
 // 目标 <26，iOS26 API 必须带可用性分支——206 本地门禁只做语法级检查，
@@ -31,8 +41,8 @@ import UIKit
 struct BottomDock: View {
     @ObservedObject private var router = RootTabRouter.shared
 
-    /// [DOCK-SEL-PILL] pill 透明度随外观走（亮色更实、暗色更透）；
-    /// 减弱动态效果开启时滑动改瞬现（accessibility 规则）。
+    /// [DOCK-GEOMETRY] pill 透明度随外观走（亮=黑7.5%≈灰236 实测 / 暗=白16%
+    /// 估算）；减弱动态效果开启时滑动改瞬现（accessibility 规则）。
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -47,13 +57,21 @@ struct BottomDock: View {
     ]
     private static let composeIcon = "aa-Tabler-Edit"
 
+    // [DOCK-GEOMETRY] 原生栏实测值（pt）：item 88×60 / 胶囊内边距 8 /
+    // pill 96×52（item 外扩 4）/ 圆钮 58 / 间距 12 / 离屏底 24。
+    private static let itemW: CGFloat = 88
+    private static let itemH: CGFloat = 60
+
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             tabCapsule
             composeButton
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.bottom, 8)
+        // 离屏底 24pt = 原生实测（原生浮动栏压进 home indicator 区，
+        // safeAreaInset 默认让 34pt 安全区会偏高）。
+        .padding(.bottom, 24)
+        .ignoresSafeArea(edges: .bottom)
     }
 
     // MARK: - 三 tab 玻璃胶囊
@@ -70,33 +88,46 @@ struct BottomDock: View {
                     } label: {
                         Self.dockImage(Self.tabIcon[mode] ?? "aa-Circle")
                             .foregroundStyle(mode == router.mode ? Color.primary : Color.secondary)
-                            .frame(width: 58, height: 50)
+                            .frame(width: Self.itemW, height: Self.itemH)
                             .contentShape(.rect)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DockPressStyle())
                     .accessibilityLabel(Self.a11yLabel(mode))
                     .accessibilityAddTraits(mode == router.mode ? .isSelected : [])
                 }
             }
-            .padding(.horizontal, 12)
-            // [DOCK-SEL-PILL pp 2026-09-28「要啊/就是那个拖动的玻璃效果」] 单块
-            // 玻璃高光 pill 在三图标间滑动（对齐被替换的系统栏观感；也是颜色之外
-            // 的选中信号——accessibility DifferentiateWithoutColor）。动画只挂 pill，
-            // 内容页瞬切不受影响；亮 0.55 / 暗 0.14 配对（暗色模式铁律）。
+            .padding(.horizontal, 8)
+            // [DOCK-SEL-PILL] 单块高光 pill 在三图标间滑动（原生实测 96×52、
+            // 亮面填充≈灰236）；兼作颜色之外的选中信号（DifferentiateWithoutColor）。
+            // 发亮 = 灰底片 + 自带玻璃高光两层；动画只挂 pill，内容页瞬切不受影响。
             .background {
                 if let idx = Self.tabModes.firstIndex(of: router.mode) {
-                    Capsule()
-                        .fill(Color.white.opacity(colorScheme == .dark ? 0.14 : 0.55))
-                        .frame(width: 46, height: 40)
-                        .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.08), radius: 2, y: 1)
-                        .offset(x: CGFloat(idx - 1) * 58)
-                        .animation(reduceMotion ? nil : Animation.snappy(duration: 0.28), value: router.mode)
+                    Group {
+                        // 玻璃高光是 26-only API（#396 教训：可用性必带分支）。
+                        if #available(iOS 26.0, *) {
+                            selectionPill
+                                .glassEffect(Glass.regular, in: Capsule())
+                        } else {
+                            selectionPill
+                        }
+                    }
+                    .offset(x: CGFloat(idx - 1) * Self.itemW)
+                    .animation(reduceMotion ? nil : Animation.snappy(duration: 0.28), value: router.mode)
                 }
             }
         }
     }
 
     // MARK: - 分离圆形新建钮（占位与旧系统栏 search-role 圆钮一致：胶囊右侧分离圆）
+
+    /// [DOCK-GEOMETRY] 选中高光底片：亮面 黑7.5%（≈原生实测灰236）/ 暗面 白16%。
+    private var selectionPill: some View {
+        Capsule()
+            .fill(colorScheme == .dark
+                ? Color.white.opacity(0.16)
+                : Color.black.opacity(0.075))
+            .frame(width: 96, height: 52)
+    }
 
     private var composeButton: some View {
         Button {
@@ -108,10 +139,10 @@ struct BottomDock: View {
             ) {
                 Self.dockImage(Self.composeIcon)
                     .foregroundStyle(Color.primary)
-                    .frame(width: 50, height: 50)
+                    .frame(width: 58, height: 58)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DockPressStyle())
         .accessibilityLabel(Self.a11yLabel(.compose))
     }
 
@@ -164,5 +195,37 @@ struct BottomDock: View {
         case .works: return String(localized: "Works & Media")
         case .compose: return String(localized: "New Chat")
         }
+    }
+}
+
+/// [DOCK-GEOMETRY] 按压反馈两件套（系统 Liquid Glass 按钮的触点发光近似）：
+/// ① 缩放弹回：按下 0.9、松手 spring 过冲（「放大缩小」感）；
+/// ② 点击发亮：按下时按钮面亮起白色高光片（亮面 0.7 + 软阴影描边让白上加白
+///    也可见，暗面 0.25），图标经 brightness 同步提亮，松手 easeOut 淡出。
+/// 高光走 .background（垫在图标后面不遮图标），Capsule 形随按钮尺寸自适配
+///（item=长胶囊、圆钮=圆）。动效只作用于按钮自身，选中 pill 是 HStack 背景层。
+private struct DockPressStyle: ButtonStyle {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .brightness(configuration.isPressed ? 0.07 : 0)
+            .background {
+                Capsule()
+                    .fill(Color.white.opacity(
+                        configuration.isPressed
+                            ? (colorScheme == .dark ? 0.25 : 0.7)
+                            : 0
+                    ))
+                    .shadow(
+                        color: .black.opacity(
+                            configuration.isPressed && colorScheme == .light ? 0.15 : 0
+                        ),
+                        radius: 6, y: 3
+                    )
+                    .animation(.easeOut(duration: 0.14), value: configuration.isPressed)
+            }
+            .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.spring(duration: 0.35, bounce: 0.45), value: configuration.isPressed)
     }
 }
