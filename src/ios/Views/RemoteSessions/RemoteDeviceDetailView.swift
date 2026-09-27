@@ -147,12 +147,16 @@ struct RemoteDeviceDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarBody }
         // 官方 112-119：sessions tab 多选时底部 dock（P3-2）
+        // [DOCK-ON-PAGE 2026-09-28] 非多选时挂底部导航 dock——设备详情页保留
+        // 底栏（pp 2026-09-28 前的现行表现，原样保留）。
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if tab == .sessions && model.isSelectingSessions {
                 DeviceSessionSelectionDock(count: model.selectedSessionIds.count,
                     restores: model.sessionFilter == .archived, isWorking: busy, disabled: !canManage,
                     onCancel: model.stopSelectingSessions,
                     onSubmit: { performArchive(Array(model.selectedSessionIds), archived: model.sessionFilter != .archived) })
+            } else {
+                BottomDock()
             }
         }
         // 官方 120-123：错误 toast（device/sync/agents/action 四源）

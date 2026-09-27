@@ -3072,11 +3072,14 @@ struct ContentView: View {
         .opacity(didInitialLoad ? 1 : 0)
         .overlay { if didInitialLoad, filteredSessions.isEmpty, !isSearching { emptyState } }
         .overlay(alignment: .top) { folderMiniBarOverlay(scrollProxy) }
-        // [WELCOME-NO-BOTTOMBAR] pp 2026-09-26：欢迎/配置页在场时底栏退场
+        // [WELCOME-NO-BOTTOMBAR] pp 2026-09-26：欢迎/配置页在场时旧 FAB 行退场
         // （判据与 emptyState overlay 逐字相同）。旧 FAB 行已删（2026-09-26，
-        // 新建→tab 栏独立圆钮，搜索→导航栏右上角），此处只剩多选工具栏。
+        // 新建→tab 栏独立圆钮，搜索→导航栏右上角）。
+        // [DOCK-ON-PAGE 2026-09-28] 底部 dock 长在列表页上（上游 fabRow 同形状：
+        // if isSelecting { selectionToolbar } else { fabRow }）——push 聊天页随
+        // 页面滑走，pop/滑回随页面滑入，跟手；系统 tab 栏已整体静态隐藏。
         .safeAreaInset(edge: .bottom) {
-            if isSelecting { selectionToolbar }
+            if isSelecting { selectionToolbar } else { BottomDock() }
         }
         // 底栏无文本输入时，键盘 inset 不应顶起底栏（旧 FAB 行的键盘免疫，
         // 行删除后判据保留：等右上角真搜索接回 showSearchBar 时照常工作）。
@@ -3271,11 +3274,12 @@ struct ContentView: View {
         .opacity(didInitialLoad ? 1 : 0)
         .overlay { if didInitialLoad, displaySessions.isEmpty, !isSearching { emptyState } }
         .overlay(alignment: .top) { folderMiniBarOverlay(scrollProxy) }
-        // [WELCOME-NO-BOTTOMBAR] 同 compact 列表：欢迎/配置页在场时底栏退场
+        // [WELCOME-NO-BOTTOMBAR] 同 compact 列表：欢迎/配置页在场时旧 FAB 行退场
         // （pp 2026-09-26；判据与本处 emptyState overlay 逐字相同）。
-        // 旧 FAB 行已删（2026-09-26），此处只剩多选工具栏。
+        // 旧 FAB 行已删（2026-09-26）。
+        // [DOCK-ON-PAGE 2026-09-28] 同 compact 列表：dock 长在列表页上。
         .safeAreaInset(edge: .bottom) {
-            if isSelecting { selectionToolbar }
+            if isSelecting { selectionToolbar } else { BottomDock() }
         }
         // [T-home-fab-keyboard-inset] 底栏键盘免疫（旧 FAB 行已删，判据保留，
         // 等右上角真搜索接回 showSearchBar 时照常工作）。

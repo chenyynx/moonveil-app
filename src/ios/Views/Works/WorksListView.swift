@@ -87,6 +87,8 @@ struct WorksListView: View {
             // [MUSE-GLASS-BG 2026-09-27] 跟本机页同理：导航栏底用简单半透明
             // tint 替代系统 blur，胶囊玻璃可折射内容，深浅色自适应。
             .toolbarBackground(Color(UIColor.systemBackground).opacity(0.45), for: .navigationBar)
+            // [DOCK-ON-PAGE 2026-09-28] 底部 dock 长在构件页上。
+            .safeAreaInset(edge: .bottom) { BottomDock() }
             .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
             .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }

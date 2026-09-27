@@ -118,6 +118,16 @@ struct RootModeTabsView: View {
                         // [TAB-TINT] 盖回 App 蓝：TabView 级 .tint(.primary) 只管
                         // 底栏选中黑，内容里的 accent 蓝不能丢。
                         .tint(Color("AccentColor"))
+                        // [DOCK-ON-PAGE 2026-09-28 pp] 系统 tab 栏整体静态退役：
+                        // 常量 .hidden 挂全部 Tab 内容（旧状态机同挂点——Tab 内容
+                        // 里侧 iOS 26 才认，挂 TabView 本体不认）。没有任何状态、
+                        // 没有任何藏/显转场，「聊天页藏/退出显」这条平台路径从此
+                        // 不再被走到——新会话四连症与滑回 tab 不跟手同根拆除
+                        //（状态机只是帮凶，藏/显转场本身才是病根；原装没有 tab
+                        // 栏所以从不走这条路径）。底栏改由页面内嵌 BottomDock
+                        // 提供（push/pop 随页面滑动）。聊天页自己的 .hidden 声明
+                        // 保留（同值冗余，保底）。
+                        .toolbar(.hidden, for: .tabBar)
                 } label: {
                     Self.tabImage(Self.tabIcon[mode] ?? "aa-Circle")
                         // [NATIVE-TABS] 未选中灰图标走这里；选中态黑由 TabView 级

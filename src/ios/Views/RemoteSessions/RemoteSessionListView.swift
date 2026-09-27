@@ -443,6 +443,9 @@ struct RemoteSessionListView: View {
                 }
             }
         }
+        // [DOCK-ON-PAGE 2026-09-28] 底部 dock 长在远端列表页上（远程 tab 根部，
+        // 系统栏静态隐藏后的唯一底栏）。
+        .safeAreaInset(edge: .bottom) { BottomDock() }
     }
 
     /// 官方 agentSetupBinding（ChatShellView:53-59；本仓 coordinator 为 app 层
@@ -485,6 +488,8 @@ struct RemoteSessionListView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(RemotePalette.canvas.ignoresSafeArea())
+        // [DOCK-ON-PAGE 2026-09-28] 设备详情兜底页与真详情页同待遇：dock 在场。
+        .safeAreaInset(edge: .bottom) { BottomDock() }
     }
 
     /// 会话区内的状态行（加载 / 错误）——保持页面骨架完整，不替换整页
