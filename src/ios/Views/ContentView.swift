@@ -970,6 +970,8 @@ struct ContentView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var shareCoordinator: ShareCoordinator
+    /// [TABBAR-LOG 2026-09-27] 底栏显隐观测埋点（#1/#2/#3 排查；日志筛选类别 TabBar）。
+    private let tabBarLog = AppLogger(category: "TabBar")
     @ObservedObject private var deepLink = DeepLinkCoordinator.shared
     /// Subscribe to the router so changes to its `@Published` fields are
     /// observed by SwiftUI — without this, `onChange(of: router.newChatTrigger)`
@@ -1540,10 +1542,17 @@ struct ContentView: View {
     private func syncFixedBarFlags() {
         let atRoot: Bool = isWideLayout ? (selectedSessionId == nil) : navigationPath.isEmpty
         let selecting = isSelecting
-        DispatchQueue.main.async {
-            tabRouter.localAtRoot = atRoot
-            tabRouter.localSelecting = selecting
+        // [TABBAR-SYNC-WRITE 2026-09-27] B16 原是 DispatchQueue.main.async 包写（防
+        // "Publishing changes…"），但三个调用点全是 onChange/onAppear —— 事件回调不在
+        // body 求值内，同步写安全。async 反而把 flag 变更推迟到 push 转场开始之后：既
+        // 是 #1「tab 离场延迟」的直接源头，又让 toolbar 变更落在转场中段，制造 #2/#3
+        // 的失配窗口。改为与 navigationPath 同帧直写（最接近系统
+        // hidesBottomBarWhenPushed 的协同时机），并打点观测。
+        if tabRouter.localAtRoot != atRoot || tabRouter.localSelecting != selecting {
+            tabBarLog.info("flags: localAtRoot \(tabRouter.localAtRoot)→\(atRoot), localSelecting \(tabRouter.localSelecting)→\(selecting)")
         }
+        tabRouter.localAtRoot = atRoot
+        tabRouter.localSelecting = selecting
     }
 
     private func bodyPresentationStage<V: View>(_ base: V) -> some View {
@@ -1601,12 +1610,15 @@ struct ContentView: View {
         }
         // B16: the fixed bar is drawn by the shell, so it needs to know two things it
         // used to get for free from living in this toolbar — whether a chat has been
-        // pushed, and whether rows are checked. One-way, low-frequency, and written a
-        // runloop later (publishing from inside a view update is the "Publishing changes
-        // from within view updates" case).
+        // pushed, and whether rows are checked. One-way, low-frequency.
+        // [TABBAR-SYNC-WRITE 2026-09-27] 原注释称 "written a runloop later"（防
+        // Publishing-changes）。后经查三个调用点全为事件回调、非 body 求值，同步写
+        // 安全；runloop 延迟正是 #1 延迟与 #2/#3 失配窗口之源，已改同帧直写
+        // （详见 syncFixedBarFlags 内注释）。
         .onAppear { syncFixedBarFlags() }
         .onChange(of: isSelecting) { on in
-            DispatchQueue.main.async { tabRouter.localSelecting = on }
+            // [TABBAR-SYNC-WRITE] 同 syncFixedBarFlags：事件回调内同步写。
+            tabRouter.localSelecting = on
         }
         .onChange(of: navigationPath) { _ in syncFixedBarFlags() }
         .onChange(of: selectedSessionId) { _ in syncFixedBarFlags() }
@@ -2247,11 +2259,21 @@ struct ContentView: View {
                     if id.hasPrefix("remote:") {
                         let parts = id.split(separator: ":", maxSplits: 2)
                         if parts.count == 3 {
+                            // [ENV-DEFENSE 2026-09-27] 三处 AIChatView 调用点就地注入
+                            // ShareCoordinator（同一单例 ShareCoordinator.shared）。.ips
+                            // 符号栈实锤 #4 闪退：UIKitBarItemHost 在 push 转场中对导航栏
+                            // 标题控件做同步尺寸求值时重算 AIChatView.body，其
+                            // @EnvironmentObject 查找落空 → _assertionFailure。
+                            // 根注入（MinisApp:281）管主树；这里贴着实例再兜一层，让
+                            // 越界求值路径的环境链最短、始终有值（注入在实例外侧，
+                            // 同时覆盖该实例自身的 @EnvironmentObject 读取）。
                             AIChatView(sessionId: String(parts[2]), remoteDeviceId: String(parts[1]))
+                                .environmentObject(ShareCoordinator.shared)
                                 .id(id)
                         }
                     } else {
                         AIChatView(sessionId: Self.isNewSessionId(id) ? nil : id, draftId: Self.isNewSessionId(id) ? id : nil, initialGroupId: Self.extractGroupId(from: id), searchAnchorMessageId: isSearching ? searchMatchMessageIds[id] : nil)
+                            .environmentObject(ShareCoordinator.shared) // [ENV-DEFENSE] 同上（#4 崩溃发生点）
                             .id(id)
                             .onAppear {
                                 if currentStackSessionId != id {
@@ -2293,6 +2315,7 @@ struct ContentView: View {
             let isDraft = Self.isNewSessionId(id)
             let effectiveId: String? = isDraft ? nil : id
             AIChatView(sessionId: effectiveId, draftId: isDraft ? id : nil, initialGroupId: Self.extractGroupId(from: id), searchAnchorMessageId: isSearching ? searchMatchMessageIds[id] : nil)
+                .environmentObject(ShareCoordinator.shared) // [ENV-DEFENSE] 同上
                 .id(id)
                 .onAppear {
                     draftLog.info("🔑DRAFT detailView APPEAR id=\(id) effectiveId=\(effectiveId ?? "nil") isDraft=\(isDraft)")

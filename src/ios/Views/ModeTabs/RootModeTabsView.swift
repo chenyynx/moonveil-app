@@ -23,6 +23,11 @@ struct RootModeTabsView: View {
     @State private var showsQRLogin = false
     @State private var showsManualLogin = false
     @State private var didRestore = false
+    /// [TABBAR-LOG/HEAL 2026-09-27] 底栏显隐观测 + 落定后自愈（#2/#3 治根 P2）。
+    private let tabLog = AppLogger(category: "TabBar")
+    /// 自愈排程令牌：快速连翻 tab 状态时只保留最后一次 0.45s 复核。
+    @State private var healTick = 0
+    @Environment(\.scenePhase) private var scenePhase
     /// [TABBAR-STATE-DRIVEN 2026-09-27] 底栏显隐的唯一真相源：进聊天页藏。
     /// 由 syncTabBarVisibility() 从 router.localAtRoot / remoteChatPushed /
     /// router.mode 纯函数推导，无动画——push 时聊天页直接盖住，pop 时直接露出
@@ -148,6 +153,10 @@ struct RootModeTabsView: View {
         .onChange(of: router.localAtRoot) { _, _ in syncTabBarVisibility() }
         .onChange(of: router.remoteChatPushed) { _, _ in syncTabBarVisibility() }
         .onChange(of: router.mode) { _, _ in syncTabBarVisibility() }
+        // [TABBAR-HEAL] 回前台兜底：后台期间系统可能重整安全区/转场状态，回来先复核。
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { syncTabBarVisibility() }
+        }
         // Q2: 胶囊 → 资料页 zoom 转场。fullScreenCover + navigationTransition(.zoom)
         // 配对（Apple 文档标准形状；zoom 接管默认转场）。pp 2026-09-27：改全屏。
         .fullScreenCover(isPresented: $showsSoulProfile) {
@@ -275,7 +284,54 @@ struct RootModeTabsView: View {
     private func syncTabBarVisibility() {
         let hidden = (router.mode == .local && !router.localAtRoot)
             || (router.mode == .remote && router.remoteChatPushed)
+        if hidden != tabBarHidden {
+            tabLog.info("sync →tabBarHidden=\(hidden) (mode=\(router.mode), localAtRoot=\(router.localAtRoot), remoteChatPushed=\(router.remoteChatPushed))")
+        }
         tabBarHidden = hidden
+        scheduleTabBarHeal()
+    }
+
+    /// [TABBAR-HEAL 2026-09-27] 主链（flags→sync→toolbar）落定后 0.45s（≥ push/pop
+    /// 转场时长）复核一次 UIKit 实况。只治 #3 的"卡死隐藏"：期望可见而 UITabBar
+    /// 实际隐藏（Unbalanced 转场把 .toolbar(.visible) 吞掉 → UI 卡死而 flag 链无从
+    /// 知晓）。命中则强制走一遍隐藏→可见，把"永久卡死"降级为 ≤0.5s 瞬态。
+    /// 反向（期望隐藏而 isHidden=false）不处理：SwiftUI 的隐藏机制未必走 isHidden，
+    /// 误判会造成反复翻转闪烁。无漂移时零日志零副作用；tick 合并快速连翻。
+    private func scheduleTabBarHeal() {
+        healTick += 1
+        let tick = healTick
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            guard tick == healTick else { return }
+            healTabBarIfDrift()
+        }
+    }
+
+    private func healTabBarIfDrift() {
+        guard !tabBarHidden, let bar = Self.findUITabBar(), bar.isHidden else { return }
+        tabLog.warning("HEAL: UITabBar stuck hidden while flags say visible — forcing toolbar reapply")
+        tabBarHidden = true
+        DispatchQueue.main.async { tabBarHidden = false }
+    }
+
+    /// 递归探测宿主 UITabBar（自愈需读 UIKit 实况；只读，不做任何 UIKit 状态改写）。
+    private static func findUITabBar() -> UITabBar? {
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
+        for scene in scenes {
+            for window in scene.windows {
+                if let bar = findUITabBar(in: window) { return bar }
+            }
+        }
+        return nil
+    }
+
+    private static func findUITabBar(in view: UIView) -> UITabBar? {
+        for sub in view.subviews {
+            if let bar = sub as? UITabBar { return bar }
+            if let bar = findUITabBar(in: sub) { return bar }
+        }
+        return nil
     }
 
     /// 连接断了（.degraded）不弹盖：走列表页"无设备+提醒连接"（pp 2026-09-20）。
