@@ -1757,7 +1757,7 @@ final class CodeBlockAttachment: NSTextAttachment {
         codeTextView.isSelectable = true
         codeTextView.isScrollEnabled = false // scrollView handles scrolling
         codeTextView.backgroundColor = .clear
-        codeTextView.tintColor = .label // [AA-PARITY-SELECTION]
+        codeTextView.tintColor = UIColor(ChatBubbleTheme.current.sendButton(for: codeTextView.traitCollection.userInterfaceStyle == .dark ? .dark : .light)) // [pp 2026-09-27] 选中手柄+高亮跟随气泡主题色。
         codeTextView.textContainerInset = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
         codeTextView.textContainer.lineFragmentPadding = 0
         codeTextView.textContainer.lineBreakMode = .byClipping
@@ -3197,7 +3197,7 @@ private final class TableCellTextView: UITextView, UITextViewDelegate {
     override init(frame: CGRect, textContainer: NSTextContainer?) {
         super.init(frame: frame, textContainer: textContainer)
         self.delegate = self
-        tintColor = .label // [AA-PARITY-SELECTION]
+        tintColor = UIColor(ChatBubbleTheme.current.sendButton(for: traitCollection.userInterfaceStyle == .dark ? .dark : .light)) // [pp 2026-09-27] 选中手柄+高亮跟随气泡主题色。
     }
 
     /// [T-ios-table-inline-code-rounded] TextKit1 stack backed by a
@@ -7970,8 +7970,8 @@ struct SelectableMarkdownView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> SelectableMarkdownTextView {
         let textView = SelectableMarkdownTextView()
-// [AA-PARITY-SELECTION] AA tints the whole app with the text color (upstream RootView.swift:52 -> AppTheme.primaryText = black/white), so selection handles render as AA's black dots with a neutral gray highlight instead of system blue. Link colors are explicit (linkTextAttributes) and unaffected.
-        textView.tintColor = .label
+// [pp 2026-09-27] 选中手柄+高亮跟随气泡主题色/发送按钮色。
+        textView.tintColor = UIColor(ChatBubbleTheme.current.sendButton(for: textView.traitCollection.userInterfaceStyle == .dark ? .dark : .light))
         textView.delegate = context.coordinator
         textView.setContentHuggingPriority(.required, for: .vertical)
         textView.setContentCompressionResistancePriority(.required, for: .vertical)
@@ -8004,6 +8004,8 @@ struct SelectableMarkdownView: UIViewRepresentable {
         textView.onReadAloud = onReadAloud
         textView.onSpeakText = onSpeakText
         textView.onExpandCode = onExpandCode
+        // [pp 2026-09-27] 主题切换时刷新选中手柄+高亮色。
+        textView.tintColor = UIColor(ChatBubbleTheme.current.sendButton(for: textView.traitCollection.userInterfaceStyle == .dark ? .dark : .light))
 
         let currentFontSize = FontSettings.shared.scaledMessage(16.5)
         let fontChanged = context.coordinator.lastFontSize != currentFontSize
