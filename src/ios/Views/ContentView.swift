@@ -2935,11 +2935,12 @@ struct ContentView: View {
             let n = SoulStore.cachedMetadata.name
             soulName = n.isEmpty ? "Kite" : n
         }
-        // [FIX-list-top-jitter] 采样顶部安全区并冻结：取最大值 + 12pt 微调值
-        // （pp 2026-09-27：卡片往上挪一点，26pt 太大改 12pt）。Group 在导航栈内、不忽略
+        // [FIX-list-top-jitter] 采样顶部安全区并冻结：取最大值 + 微调值
+        // （pp 2026-09-27 早：卡片往上挪一点，26pt 太大改 12pt；
+        //  pp 2026-09-27 晚：再往上一点点，12pt → 6pt）。Group 在导航栈内、不忽略
         // 安全区，所以这里拿到的是真实值（含状态栏+导航栏）。
         .onGeometryChange(for: CGFloat.self, of: { $0.safeAreaInsets.top }) { top in
-            let candidate = top + 12
+            let candidate = top + 6
             if candidate > frozenTopContentMargin {
                 frozenTopContentMargin = candidate
             }
