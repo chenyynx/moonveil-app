@@ -13,12 +13,16 @@ struct SheetCloseButton: View {
                 Label(String(localized: "Close"), appSymbol: "xmark")
             }
             .labelStyle(.iconOnly)
+            // [TINT-FIX2] 盖住 AccentColor 蓝。
+            .tint(.primary)
             .keyboardShortcut(.cancelAction)
         } else {
             Button(action: action) {
                 Label(String(localized: "Close"), appSymbol: "xmark")
             }
             .labelStyle(.iconOnly)
+            // [TINT-FIX2] 盖住 AccentColor 蓝。
+            .tint(.primary)
             .keyboardShortcut(.cancelAction)
         }
     }
