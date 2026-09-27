@@ -445,7 +445,9 @@ struct RemoteSessionListView: View {
         }
         // [DOCK-ON-PAGE 2026-09-28] 底部 dock 长在远端列表页上（远程 tab 根部，
         // 系统栏静态隐藏后的唯一底栏）。
+        // [1:1-RESTORE] 键盘免疫与本机列表同款（原生栏从不被键盘顶起）。
         .safeAreaInset(edge: .bottom) { BottomDock() }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 
     /// 官方 agentSetupBinding（ChatShellView:53-59；本仓 coordinator 为 app 层

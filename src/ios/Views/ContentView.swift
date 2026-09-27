@@ -3075,12 +3075,14 @@ struct ContentView: View {
         // [WELCOME-NO-BOTTOMBAR] pp 2026-09-26：欢迎/配置页在场时旧 FAB 行退场
         // （判据与 emptyState overlay 逐字相同）。旧 FAB 行已删（2026-09-26，
         // 新建→tab 栏独立圆钮，搜索→导航栏右上角）。
-        // [DOCK-ON-PAGE 2026-09-28] 底部 dock 长在列表页上（上游 fabRow 同形状：
-        // if isSelecting { selectionToolbar } else { fabRow }）——push 聊天页随
+        // [DOCK-ON-PAGE 2026-09-28] 底部 dock 长在列表页上——push 聊天页随
         // 页面滑走，pop/滑回随页面滑入，跟手；系统 tab 栏已整体静态隐藏。
+        // [1:1-RESTORE pp 2026-09-28] dock 独立一层，与多选工具栏分层并存
+        //（原生栏时代工具栏与底栏同时在场，不互相替换——不许修了新功能丢旧的）。
         .safeAreaInset(edge: .bottom) {
-            if isSelecting { selectionToolbar } else { BottomDock() }
+            if isSelecting { selectionToolbar }
         }
+        .safeAreaInset(edge: .bottom) { BottomDock() }
         // 底栏无文本输入时，键盘 inset 不应顶起底栏（旧 FAB 行的键盘免疫，
         // 行删除后判据保留：等右上角真搜索接回 showSearchBar 时照常工作）。
         .ignoresSafeArea(.keyboard, edges: showSearchBar ? [] : .bottom)
@@ -3277,10 +3279,12 @@ struct ContentView: View {
         // [WELCOME-NO-BOTTOMBAR] 同 compact 列表：欢迎/配置页在场时旧 FAB 行退场
         // （pp 2026-09-26；判据与本处 emptyState overlay 逐字相同）。
         // 旧 FAB 行已删（2026-09-26）。
-        // [DOCK-ON-PAGE 2026-09-28] 同 compact 列表：dock 长在列表页上。
+        // [DOCK-ON-PAGE 2026-09-28] 同 compact 列表：dock 长在列表页上；
+        // [1:1-RESTORE] 与多选工具栏分层并存（原生栏时代两层同时在场）。
         .safeAreaInset(edge: .bottom) {
-            if isSelecting { selectionToolbar } else { BottomDock() }
+            if isSelecting { selectionToolbar }
         }
+        .safeAreaInset(edge: .bottom) { BottomDock() }
         // [T-home-fab-keyboard-inset] 底栏键盘免疫（旧 FAB 行已删，判据保留，
         // 等右上角真搜索接回 showSearchBar 时照常工作）。
         .ignoresSafeArea(.keyboard, edges: showSearchBar ? [] : .bottom)

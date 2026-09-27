@@ -46,6 +46,11 @@ struct BottomDock: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// [1:1-RESTORE] 切 tab 触感反馈（原生 tab 栏选中 = selection 反馈）。
+    /// 计数器仅在用户点按且目标不同 tab 时递增 → 程序化 route（深链/恢复）
+    /// 不误触；重按当前 tab 也不触（与原生 selectionChanged 语义一致）。
+    @State private var tabTapCount = 0
+
     /// 三个内容 tab（.compose 是动作钮，见 composeButton，不进此列）。
     private static let tabModes: [AppSourceMode] = [.local, .remote, .works]
 
@@ -72,6 +77,7 @@ struct BottomDock: View {
         // safeAreaInset 默认让 34pt 安全区会偏高）。
         .padding(.bottom, 24)
         .ignoresSafeArea(edges: .bottom)
+        .sensoryFeedback(.selection, trigger: tabTapCount)
     }
 
     // MARK: - 三 tab 玻璃胶囊
@@ -84,6 +90,7 @@ struct BottomDock: View {
             HStack(spacing: 0) {
                 ForEach(Self.tabModes) { mode in
                     Button {
+                        if mode != router.mode { tabTapCount += 1 }
                         router.route(to: mode)
                     } label: {
                         Self.dockImage(Self.tabIcon[mode] ?? "aa-Circle")
