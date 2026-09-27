@@ -3262,22 +3262,7 @@ struct ContentView: View {
         .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
-        // [MUSE-TOPFADE 2026-09-27] 顶部渐隐：导航栏底全透明（系统"滚出 blur"
-        // 的行为也关掉）；列表套 clear→black 纵向渐变 mask——内容滚到顶部
-        // 时自身透明度渐变，"融化"进背景而非被底色盖住（问过 4 家网页 AI
-        // 一致推荐 mask 路线；iOS 26 原生 scrollEdgeEffectStyle 有闪黑坑不用）。
-        // 两处列表（本机/iPad 分栏）都要。
         .toolbarBackground(.hidden, for: .navigationBar)
-        .mask(
-            LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0.0),
-                    .init(color: .black, location: 0.04),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
