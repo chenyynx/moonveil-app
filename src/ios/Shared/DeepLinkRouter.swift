@@ -27,6 +27,7 @@ extension Notification.Name {
 ///   moonveil://settings/model-groups[/<groupId>]   (alias: model_groups)
 ///   moonveil://settings/usage                      (alias: usage-stats, usage_stats)
 ///   moonveil://settings/skills
+///   moonveil://settings/soul
 ///   moonveil://settings/memory
 ///   moonveil://settings/storage
 ///   moonveil://settings/mount-external             (alias: mount_external, mounts, mounted-folders, mounted_folders)
