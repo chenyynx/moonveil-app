@@ -1,4 +1,7 @@
 name: iOS Build
+# [run-name 2026-09-27 pp] Run 标题带修改内容：手动派发时用 inputs.note（派发脚本自动带 HEAD 提交标题），
+# push(main) 时用提交消息，兜底 sha。列表一眼可辨「这次构建装了什么」。
+run-name: "iOS Build · ${{ github.event.inputs.note || github.event.head_commit.message || github.sha }}"
 # Ported from claudio ios-build.yml (battle-tested recipe on this codebase family).
 # Trigger: code changes on main; docs/rule-only commits do not burn macOS minutes (10x).
 on:
@@ -8,6 +11,11 @@ on:
       - '**/*.md'
       - '.claude/**'
   workflow_dispatch:
+    inputs:
+      note:
+        description: "本次构建内容（派发脚本自动带 HEAD 提交标题）"
+        required: false
+        type: string
 
 jobs:
   build:
