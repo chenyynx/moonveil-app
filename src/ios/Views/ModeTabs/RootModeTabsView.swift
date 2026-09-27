@@ -182,7 +182,12 @@ struct RootModeTabsView: View {
                     service: remoteService,
                     onManualLogin: { showsManualLogin = true },
                     onQRCodeLogin: { showsQRLogin = true },
-                    onLocalEntry: { router.route(to: .local) }
+                    onLocalEntry: {
+                        // [FIRST-RUN 2026-09-27] 点本地入口要真正关掉登录页，
+                        // 否则 showsLoginGate 仍为 true 盖子关不上。
+                        loginCoverDismissed = true
+                        router.route(to: .local)
+                    }
                 )
             }
             // [TAB-TINT] 盖回 App 蓝（挂在 NavigationStack 上，里层两个 sheet 跟着吃到）。
@@ -276,8 +281,17 @@ struct RootModeTabsView: View {
     /// 连接断了（.degraded）不弹盖：走列表页"无设备+提醒连接"（pp 2026-09-20）。
     /// .pairing 必须保留：扫码 sheet 寄生在盖子上，条件收掉会掐死配对流程。
     private var showsLoginGate: Bool {
-        guard router.mode == .remote, !loginCoverDismissed else { return false }
-        return remoteService.state == .idle || remoteService.state == .pairing
+        guard !loginCoverDismissed else { return false }
+        let remoteIdle = remoteService.state == .idle || remoteService.state == .pairing
+        // [FIRST-RUN 2026-09-27] 初次打开：本地无服务商 + 远端未连接 → 全屏登录页，
+        // 不带 tab。三步引导是点了登录页"本地入口"之后才出现的，不混为一谈。
+        let noLocalProviders = ProviderConfigStore.shared.instances.isEmpty
+        if noLocalProviders && remoteIdle {
+            return true
+        }
+        // 已有配置时：仅 remote tab 未连接才弹。
+        guard router.mode == .remote else { return false }
+        return remoteIdle
     }
 
     private var needsLoginGate: Binding<Bool> {
