@@ -1555,6 +1555,27 @@ struct ContentView: View {
         tabRouter.localSelecting = selecting
     }
 
+    /// [PATH-PROBE 2026-09-28 T0 诊断] 一次性观测探针（纯日志、零行为改动）：
+    /// 报告 navigationPath 的 count+栈顶，用于钉死「draft pop 后系统回写丢失」
+    /// 的确切机制（C1 程序化 push 语义 / C2 .id identity 组合 / C3 tab 栏
+    /// .hidden 协调）。设备日志中 grep PATH-PROBE 即可全量捞出。
+    /// 背景：04:51 日志实锤 draft pop 后 path 残留非空、flags 探针永久断更、
+    /// 段B 每轮 push/pop Unbalanced×6——判别完成后按 pp 审核结论决定去留。
+    private func pathProbe(_ tag: String) {
+        let top = navigationPath.last.map { "\($0)" } ?? "EMPTY"
+        AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(navigationPath.count) top=\(top)")
+    }
+
+    /// 延迟 0.3s 再采样一次：抓「onDisappear 时刻 path 还没回写、稍后才回写」
+    /// 与「回写彻底没发生」两种形态的差别（asyncAfter 捕获 struct，@State 存储
+    /// 在 view 实例外，读到的是实时值）。
+    private func pathProbeLater(_ tag: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            let top = navigationPath.last.map { "\($0)" } ?? "EMPTY"
+            AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(navigationPath.count) top=\(top)")
+        }
+    }
+
     private func bodyPresentationStage<V: View>(_ base: V) -> some View {
         base
         .fullScreenCover(isPresented: $showTerminal) {
@@ -1620,7 +1641,12 @@ struct ContentView: View {
             // [TABBAR-SYNC-WRITE] 同 syncFixedBarFlags：事件回调内同步写。
             tabRouter.localSelecting = on
         }
-        .onChange(of: navigationPath) { _ in syncFixedBarFlags() }
+        .onChange(of: navigationPath) { _ in
+            syncFixedBarFlags()
+            // [PATH-PROBE] path 任何变化都留痕 + 0.3s 后回采（T0 诊断）。
+            pathProbe("onChange")
+            pathProbeLater("onChange+0.3s")
+        }
         .onChange(of: selectedSessionId) { _ in syncFixedBarFlags() }
         .sheet(item: $sessionToDelete) { session in
             DeleteConfirmSheet(info: $singleDeleteInfo, isLoading: false) {
@@ -2298,8 +2324,16 @@ struct ContentView: View {
                                 }
                                 SessionBadgeStore.shared.remove(.unread, for: id)
                                 shareLog.info("🔄SESSION stackNav APPEAR id=\(id)")
+                                // [PATH-PROBE] 目的地出现/消失时刻的 path 快照——
+                                // destDISAPPEAR 是判别点：此刻 count 应已回落，
+                                // 残留即实锤系统 pop 回写丢失（T0 诊断）。
+                                pathProbe("destAPPEAR:\(id)")
                             }
-                            .onDisappear { shareLog.info("🔄SESSION stackNav DISAPPEAR id=\(id)") }
+                            .onDisappear {
+                                shareLog.info("🔄SESSION stackNav DISAPPEAR id=\(id)")
+                                pathProbe("destDISAPPEAR:\(id)")
+                                pathProbeLater("destDISAPPEAR+0.3s:\(id)")
+                            }
                     }
                 }
         }
