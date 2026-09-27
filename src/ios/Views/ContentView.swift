@@ -3809,7 +3809,7 @@ struct ContentView: View {
     /// `previousStackSessionId` stays in lockstep because it is maintained by
     /// the `onChange(of: navigationPath)` observer, which simply runs later —
     /// when the deferred path is actually committed.
-    private func commitNavigationPath(_ newPath: NavigationPath) {
+    private func commitNavigationPath(_ newPath: NavigationPath, animated: Bool? = nil) {
         // [T-share-first-tap-no-response] `.inactive` is NOT the state this
         // gate was built for. The watchdog kills it prevents come from a push
         // running AIChatView's whole first layout while the app is genuinely
@@ -3834,9 +3834,20 @@ struct ContentView: View {
             shareLog.info("🔄SESSION deferring nav commit — app backgrounded (count=\(newPath.count))")
             return
         }
+        // [TABBAR-NEWCHAT-TRANSITION 2026-09-27] 从根页到单页的 push 是普通用户
+        // 可见转场，必须带动画提交：无转场挂载会跳过 content-inset 计算，并让底栏
+        // 显隐/安全区协调失序——pp 复现整串「新会话→输入条空一截→退出 tab 不回→
+        // 再进消息贴顶栏/输入框贴屏外」的触发源就在这里（同族判例：de6f86e 深链
+        // 「无转场 → 跳过 content-inset → 内容压顶栏」）。显式参数优先；未指定时
+        // 只在「当前在根、目标是单页 push」时开动画——该形态没有替换竞态，正是
+        // 新建会话路径；替换/深层路径维持禁动画的原子提交（moveto-transfer-race
+        // 防护不变）。
+        let fromCount = (pendingBackgroundNavigation?.path ?? navigationPath).count
         pendingBackgroundNavigation = nil
+        let shouldAnimate = animated ?? (fromCount == 0 && newPath.count == 1)
+        draftLog.info("🔑DRAFT commitNavigationPath from=\(fromCount) to=\(newPath.count) animated=\(shouldAnimate)")
         var tx = Transaction()
-        tx.disablesAnimations = true
+        tx.disablesAnimations = !shouldAnimate
         withTransaction(tx) {
             navigationPath = newPath
         }
