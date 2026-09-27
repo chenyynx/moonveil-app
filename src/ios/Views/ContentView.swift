@@ -5902,6 +5902,7 @@ private struct SessionContextMenu: View, Equatable {
             .tint(.primary)
     }
 
+    @ViewBuilder
     private var menuContent: some View {
         Button {
             actions.send(.togglePin(key.sid))
