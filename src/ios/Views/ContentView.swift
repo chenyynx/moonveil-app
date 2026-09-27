@@ -1561,24 +1561,23 @@ struct ContentView: View {
     /// .hidden 协调）。设备日志中 grep PATH-PROBE 即可全量捞出。
     /// 背景：04:51 日志实锤 draft pop 后 path 残留非空、flags 探针永久断更、
     /// 段B 每轮 push/pop Unbalanced×6——判别完成后按 pp 审核结论决定去留。
+    /// CI 两连判例：NavigationPath 无 .last（key path 三连错）且不满足
+    /// Sequence（Array init 不匹配）——只用仓内已验证的 count/isEmpty
+    /// （syncFixedBarFlags/commitNavigationPath 同款），栈顶身份由 count
+    /// 序列推断（DISAPPEAR 后 count=1 即残留、push 后 count=2 即错位叠加）。
     private func pathProbe(_ tag: String) {
-        // CI 判例：NavigationPath 无 .last 成员（key path 动态成员三连错），
-        // 转 Array 取尾是无歧义的标准写法。
-        let elems = Array(navigationPath)
-        let top = elems.last.map { String(describing: $0) } ?? "EMPTY"
-        AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(elems.count) top=\(top)")
+        AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(navigationPath.count) isEmpty=\(navigationPath.isEmpty)")
     }
 
     /// 延迟 0.3s 再采样一次：抓「onDisappear 时刻 path 还没回写、稍后才回写」
     /// 与「回写彻底没发生」两种形态的差别。闭包捕获 $navigationPath（Binding），
-    /// 执行时读 wrappedValue = 实时 @State 值（直接裸读在 escaping 闭包里会
-    /// 触发 wrapper 解析错误，见 CI 1565/1574 判例）。
+    /// 执行时读 wrappedValue = 实时 @State 值（escaping 闭包裸读 @State 会触发
+    /// wrapper 解析错误，见 CI 1565/1574 判例）。
     private func pathProbeLater(_ tag: String) {
         let pathBinding = $navigationPath
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            let elems = Array(pathBinding.wrappedValue)
-            let top = elems.last.map { String(describing: $0) } ?? "EMPTY"
-            AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(elems.count) top=\(top)")
+            let p = pathBinding.wrappedValue
+            AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(p.count) isEmpty=\(p.isEmpty)")
         }
     }
 
