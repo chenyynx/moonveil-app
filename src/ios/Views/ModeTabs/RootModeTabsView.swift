@@ -23,16 +23,11 @@ struct RootModeTabsView: View {
     @State private var showsQRLogin = false
     @State private var showsManualLogin = false
     @State private var didRestore = false
-    /// [TABBAR-LOG/HEAL 2026-09-27] 底栏显隐观测 + 落定后自愈（#2/#3 治根 P2）。
-    private let tabLog = AppLogger(category: "TabBar")
-    /// 自愈排程令牌：快速连翻 tab 状态时只保留最后一次 0.45s 复核。
-    @State private var healTick = 0
-    @Environment(\.scenePhase) private var scenePhase
-    /// [TABBAR-STATE-DRIVEN 2026-09-27] 底栏显隐的唯一真相源：进聊天页藏。
-    /// 由 syncTabBarVisibility() 从 router.localAtRoot / remoteChatPushed /
-    /// router.mode 纯函数推导，无动画——push 时聊天页直接盖住，pop 时直接露出
-    ///（转场里的 toolbar 显隐在 iOS 26 下卡顿、偶发 trap、还会卡死在列表页）。
-    @State private var tabBarHidden = false
+    // [TABBAR-NATIVE 2026-09-28 pp] 旧「状态驱动底栏显隐」机制（tabBarHidden 状态
+    // + syncTabBarVisibility + 0.45s 自愈 + TabBar 埋点）整体退役：显隐改由目的地
+    // 页面声明（AIChatView / 远端 SessionChatView 各自 .toolbar(.hidden, for:
+    // .tabBar)），UIKit 在转场里托管。该机制在新会话草稿→正式的原地换视图面前
+    // 失序（Unbalanced×4、pop 不更新路径、tab 永久卡死），详见 AIChatView 同注释。
     /// 身份胶囊 → 资料页（zoom 转场对）。NS 挂在胶囊头像的
     /// matchedTransitionSource 上，SoulProfileHub 的 sheet 内容消费同一对。
     @Namespace private var soulProfileNS
@@ -123,13 +118,6 @@ struct RootModeTabsView: View {
                         // [TAB-TINT] 盖回 App 蓝：TabView 级 .tint(.primary) 只管
                         // 底栏选中黑，内容里的 accent 蓝不能丢。
                         .tint(Color("AccentColor"))
-                        // [TABBAR-STATE-DRIVEN 2026-09-27] 底栏显隐纯状态驱动
-                        //（进聊天页藏），无动画——push 时新页面直接盖住。
-                        // 必须挂在 Tab 内容里侧——挂在 TabView 本体上 iOS 26 不认，
-                        // 底栏藏不住。不回 AIChatView.body 的逐项 modifier：它在
-                        // 转场协调里动画卡顿、偶发 trap（build 359/363 闪退）、
-                        // 隐藏态还会卡死在聊天列表页。
-                        .toolbar(tabBarHidden ? .hidden : .visible, for: .tabBar)
                 } label: {
                     Self.tabImage(Self.tabIcon[mode] ?? "aa-Circle")
                         // [NATIVE-TABS] 未选中灰图标走这里；选中态黑由 TabView 级
@@ -147,16 +135,8 @@ struct RootModeTabsView: View {
         // tint 是 environment，会透进 tab 内容和本层 sheet——下面 4 处用
         // Color("AccentColor")（读资产，不受 tint 影响）把 App 蓝盖回去。
         .tint(.primary)
-        // [TABBAR-STATE-DRIVEN] 底栏显隐的 .toolbar 修饰已移到各 Tab 内容里侧
-        //（挂 TabView 本体 iOS 26 不认）；状态源 tabBarHidden 不变。
-        .onAppear { syncTabBarVisibility() }
-        .onChange(of: router.localAtRoot) { _, _ in syncTabBarVisibility() }
-        .onChange(of: router.remoteChatPushed) { _, _ in syncTabBarVisibility() }
-        .onChange(of: router.mode) { _, _ in syncTabBarVisibility() }
-        // [TABBAR-HEAL] 回前台兜底：后台期间系统可能重整安全区/转场状态，回来先复核。
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { syncTabBarVisibility() }
-        }
+        // [TABBAR-NATIVE 2026-09-28] 显隐由目的地页面声明（见 AIChatView 同注释），
+        // 壳层不再有任何状态链/自愈。
         // Q2: 胶囊 → 资料页 zoom 转场。fullScreenCover + navigationTransition(.zoom)
         // 配对（Apple 文档标准形状；zoom 接管默认转场）。pp 2026-09-27：改全屏。
         .fullScreenCover(isPresented: $showsSoulProfile) {
@@ -278,65 +258,8 @@ struct RootModeTabsView: View {
     }
 
     /// 远程 tab 且从未配置（.idle）或正在配对（.pairing）、且没关过盖 → 盖登录页。
-    /// [TABBAR-STATE-DRIVEN 2026-09-27] 底栏显隐纯函数：进聊天页藏。
-    /// 本机页看 localAtRoot（push 聊天即非根；iPad 选中会话进 detail 也非根，
-    /// 与旧 modifier 行为一致），远端页看 remoteChatPushed（设备详情页不藏，
-    /// 延续历史行为）。mode 门控防止把旧 tab 的隐藏态带到新 tab。
-    /// [2026-09-27] 不做显隐动画：push 时聊天页滑进来直接盖住 tab 栏，
-    /// pop 时列表页滑回来直接露出——跟系统原生一致。之前 0.22s/0.35s 的
-    /// 单独动画都是画蛇添足，体感慢。
-    private func syncTabBarVisibility() {
-        let hidden = (router.mode == .local && !router.localAtRoot)
-            || (router.mode == .remote && router.remoteChatPushed)
-        if hidden != tabBarHidden {
-            tabLog.info("sync →tabBarHidden=\(hidden) (mode=\(router.mode), localAtRoot=\(router.localAtRoot), remoteChatPushed=\(router.remoteChatPushed))")
-        }
-        tabBarHidden = hidden
-        scheduleTabBarHeal()
-    }
-
-    /// [TABBAR-HEAL 2026-09-27] 主链（flags→sync→toolbar）落定后 0.45s（≥ push/pop
-    /// 转场时长）复核一次 UIKit 实况。只治 #3 的"卡死隐藏"：期望可见而 UITabBar
-    /// 实际隐藏（Unbalanced 转场把 .toolbar(.visible) 吞掉 → UI 卡死而 flag 链无从
-    /// 知晓）。命中则强制走一遍隐藏→可见，把"永久卡死"降级为 ≤0.5s 瞬态。
-    /// 反向（期望隐藏而 isHidden=false）不处理：SwiftUI 的隐藏机制未必走 isHidden，
-    /// 误判会造成反复翻转闪烁。无漂移时零日志零副作用；tick 合并快速连翻。
-    private func scheduleTabBarHeal() {
-        healTick += 1
-        let tick = healTick
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-            guard tick == healTick else { return }
-            healTabBarIfDrift()
-        }
-    }
-
-    private func healTabBarIfDrift() {
-        guard !tabBarHidden, let bar = Self.findUITabBar(), bar.isHidden else { return }
-        tabLog.warning("HEAL: UITabBar stuck hidden while flags say visible — forcing toolbar reapply")
-        tabBarHidden = true
-        DispatchQueue.main.async { tabBarHidden = false }
-    }
-
-    /// 递归探测宿主 UITabBar（自愈需读 UIKit 实况；只读，不做任何 UIKit 状态改写）。
-    private static func findUITabBar() -> UITabBar? {
-        let scenes = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .filter { $0.activationState == .foregroundActive }
-        for scene in scenes {
-            for window in scene.windows {
-                if let bar = findUITabBar(in: window) { return bar }
-            }
-        }
-        return nil
-    }
-
-    private static func findUITabBar(in view: UIView) -> UITabBar? {
-        for sub in view.subviews {
-            if let bar = sub as? UITabBar { return bar }
-            if let bar = findUITabBar(in: sub) { return bar }
-        }
-        return nil
-    }
+    // [TABBAR-NATIVE 2026-09-28] syncTabBarVisibility / scheduleTabBarHeal /
+    // healTabBarIfDrift / findUITabBar 随状态机制一并退役（见文件头同注释）。
 
     /// 连接断了（.degraded）不弹盖：走列表页"无设备+提醒连接"（pp 2026-09-20）。
     /// .pairing 必须保留：扫码 sheet 寄生在盖子上，条件收掉会掐死配对流程。

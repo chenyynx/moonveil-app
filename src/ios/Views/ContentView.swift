@@ -4239,8 +4239,8 @@ struct ContentView: View {
         }
         .frame(maxHeight: .infinity)
         .padding(.horizontal, 32)
-        // [FIX-guide-tabbar 2026-09-27] 未配置时引导页不显示底部 tab，配置完才显示。
-        .toolbar(.hidden, for: .tabBar)
+        // [TABBAR-NATIVE 2026-09-28] 引导页 tab 保持可见（= 迁移前实机表现；
+        // 旧「未配置藏 tab」行随状态机制一并退役——状态机制在场时它实际不生效）。
         // [GUIDE-NAVBAR 2026-09-27 pp] 配置阶段只藏胶囊+头像（principal 位见
         // showsWelcomeGuide），≡/搜索/右侧按钮照常显示——不整条藏导航栏
         // （fe81ea5 曾整条藏掉，pp 明确纠正）。
