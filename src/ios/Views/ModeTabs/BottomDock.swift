@@ -12,13 +12,17 @@
 // 选择写 RootTabRouter.route(to:) 单通道（seenRemote 懒挂载/持久化/lastTab
 // 全在 router，D4 红线不破）。
 //
-// 材质 = iOS 26 Liquid Glass（部署目标 26.2，无可用性分支）。上游
-// fabCircleSurface/fabRow 的实机教训照搬（上游注释字据）：
-// ① glassEffect 只画不命中 → 每个玻璃面必须补 .contentShape，否则触点穿透
-//    到下层列表（上游 [T-ios-search-bar-glass-hit-hole]）；
-// ② 不包 GlassEffectContainer——上游实测它会掐死长按菜单
+// 材质策略照搬上游 fabCircleSurface（build #396 教训：App 主 target 部署
+// 目标 <26，iOS26 API 必须带可用性分支——206 本地门禁只做语法级检查，
+// 可用性归 CI 编译级）：
+// ① iOS 26+: Liquid Glass（glassEffect，系统 tab bar 同款渲染）；不叠手搓
+//    阴影——玻璃自带边缘/阴影，叠了发黑晕（上游注释字据）；
+// ② <26: 实底 + 轻阴影（上游回退分支同款）；
+// ③ 玻璃只画不命中 → 两个分支都补 .contentShape（上游
+//    [T-ios-search-bar-glass-hit-hole]：否则触点穿透到下层列表）；
+// ④ 不包 GlassEffectContainer——上游实测它会掐死长按菜单
 //    （[T-fab-glass-contextmenu-regression]）；本 dock 无 morph 需求；
-// ③ 图标放玻璃内侧：玻璃当背景，图标骑在上面。
+// ⑤ 图标放面片内侧：面片当背景，图标骑在上面。
 
 import SwiftUI
 import UIKit
@@ -50,25 +54,27 @@ struct BottomDock: View {
     // MARK: - 三 tab 玻璃胶囊
 
     private var tabCapsule: some View {
-        HStack(spacing: 0) {
-            ForEach(Self.tabModes) { mode in
-                Button {
-                    router.route(to: mode)
-                } label: {
-                    Self.dockImage(Self.tabIcon[mode] ?? "aa-Circle")
-                        .foregroundStyle(mode == router.mode ? Color.primary : Color.secondary)
-                        .frame(width: 58, height: 50)
-                        .contentShape(.rect)
+        dockSurface(
+            shape: Capsule(),
+            fallbackFill: Color(UIColor.secondarySystemBackground)
+        ) {
+            HStack(spacing: 0) {
+                ForEach(Self.tabModes) { mode in
+                    Button {
+                        router.route(to: mode)
+                    } label: {
+                        Self.dockImage(Self.tabIcon[mode] ?? "aa-Circle")
+                            .foregroundStyle(mode == router.mode ? Color.primary : Color.secondary)
+                            .frame(width: 58, height: 50)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Self.a11yLabel(mode))
+                    .accessibilityAddTraits(mode == router.mode ? .isSelected : [])
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Self.a11yLabel(mode))
-                .accessibilityAddTraits(mode == router.mode ? .isSelected : [])
             }
+            .padding(.horizontal, 12)
         }
-        .padding(.horizontal, 12)
-        .glassEffect(Glass.regular, in: .capsule)
-        // ① 命中区：玻璃不贡献命中，图标之间的空档要能吃掉触点（不穿透列表）。
-        .contentShape(.capsule)
     }
 
     // MARK: - 分离圆形新建钮（占位与旧系统栏 search-role 圆钮一致：胶囊右侧分离圆）
@@ -77,14 +83,37 @@ struct BottomDock: View {
         Button {
             QuickActionRouter.shared.requestNewChat()
         } label: {
-            Self.dockImage(Self.composeIcon)
-                .foregroundStyle(Color.primary)
-                .frame(width: 50, height: 50)
-                .glassEffect(Glass.regular, in: .circle)
-                .contentShape(.circle)
+            dockSurface(
+                shape: Circle(),
+                fallbackFill: Color(UIColor.secondarySystemBackground)
+            ) {
+                Self.dockImage(Self.composeIcon)
+                    .foregroundStyle(Color.primary)
+                    .frame(width: 50, height: 50)
+            }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Self.a11yLabel(.compose))
+    }
+
+    // MARK: - 面片（玻璃/实底回退，上游 fabCircleSurface 同策略）
+
+    @ViewBuilder
+    private func dockSurface(
+        shape: some Shape,
+        fallbackFill: Color,
+        @ViewBuilder content: () -> some View
+    ) -> some View {
+        if #available(iOS 26.0, *) {
+            content()
+                .glassEffect(Glass.regular, in: shape)
+                .contentShape(shape)
+        } else {
+            content()
+                .background { shape.fill(fallbackFill) }
+                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                .contentShape(shape)
+        }
     }
 
     // MARK: - 图标渲染（与 RootModeTabsView 同参：27pt 模板栅格 + 缓存防闪）
