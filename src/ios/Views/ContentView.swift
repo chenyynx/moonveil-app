@@ -7345,6 +7345,7 @@ Label {
                                     .renderingMode(.template)
                                     .resizable()
                                     .frame(width: 20, height: 20)
+                                    .foregroundStyle(ChatColors.settingsIcon)
                             }
                         } else {
 Label {
@@ -7354,6 +7355,7 @@ Label {
                                     .renderingMode(.template)
                                     .resizable()
                                     .frame(width: 20, height: 20)
+                                    .foregroundStyle(ChatColors.settingsIcon)
                             }
                         }
                     }
@@ -7368,6 +7370,7 @@ Label {
                                 .renderingMode(.template)
                                 .resizable()
                                 .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
 
@@ -7381,6 +7384,7 @@ Label {
                                 .renderingMode(.template)
                                 .resizable()
                                 .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                 } header: {
