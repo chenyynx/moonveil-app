@@ -278,11 +278,11 @@ struct SearchBarSurface: ViewModifier {
 /// 背后有列表内容做纹理、且被描边+阴影框成「物件」）。修法＝在 fill 与 mask 之间
 /// 叠一层**随主题的页面色渐变**（与 mask 同步 0.35→0.80）：亮色 白≈材质零视觉差；
 /// 暗色 灰膜被页面黑吃掉、屏底过浓的雾被实色盖掉 → 收口＝页面色。
-/// pageColor 由调用方注入（两页画布不同）：本机默认 pageBackground（FolderSurface
+/// pageColor 由调用方注入（两页画布不同）：本机默认 systemBackground（FolderSurface
 /// 实测字据：暗色纯黑 24 点零方差 / 亮色白）；远端 = RemotePalette.canvas（2026-09-26
-/// 起同为 pageBackground，token 同源保两边永不漂移）。
+/// 起同为 systemBackground，token 同源保两边永不漂移）。
 struct BottomBarFadeView: View {
-    var pageColor: Color = ChatColors.pageBackground
+    var pageColor: Color = Color(UIColor.systemBackground)
 
     var body: some View {
         Rectangle()
@@ -2984,7 +2984,7 @@ struct ContentView: View {
                                 .overlay {
                                     if regeneratingTitleSessionId == session.id {
                                         ZStack {
-                                            ChatColors.pageBackground.opacity(0.7)
+                                            Color(.systemBackground).opacity(0.7)
                                             ProgressView()
                                         }
                                     }
@@ -2999,7 +2999,7 @@ struct ContentView: View {
                                 if group.folderId != nil {
                                     FolderMemberRowBackground(isLast: sessionId == group.ids.last)
                                 } else {
-                                    ChatColors.pageBackground
+                                    Color(.systemBackground)
                                 }
                             })
                             .contextMenu {
@@ -3068,24 +3068,22 @@ struct ContentView: View {
         .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
-        // [MUSE-TOPFADE 2026-09-27] 顶部渐隐罩：导航栏底全透明（系统"滚出 blur"
-        // 的行为也关掉），另在列表顶部叠 160pt 纵向渐变——内容滚到顶栏区域
-        // 时柔化隐入，没有生硬分区线（pp：照 Muse 的做法，渐隐要回来）。
-        // 不吞手势，深浅色自适应。两处列表（本机/iPad 分栏）都要。
+        // [MUSE-TOPFADE 2026-09-27] 顶部渐隐：导航栏底全透明（系统"滚出 blur"
+        // 的行为也关掉）；列表套 clear→black 纵向渐变 mask——内容滚到顶部
+        // 时自身透明度渐变，"融化"进背景而非被底色盖住（问过 4 家网页 AI
+        // 一致推荐 mask 路线；iOS 26 原生 scrollEdgeEffectStyle 有闪黑坑不用）。
+        // 两处列表（本机/iPad 分栏）都要。
         .toolbarBackground(.hidden, for: .navigationBar)
-        .overlay(alignment: .top) {
+        .mask(
             LinearGradient(
                 stops: [
-                    .init(color: Color(UIColor.systemBackground), location: 0.0),
-                    .init(color: Color(UIColor.systemBackground).opacity(0.55), location: 0.55),
-                    .init(color: .clear, location: 1.0),
+                    .init(color: .clear, location: 0.0),
+                    .init(color: .black, location: 0.04),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(height: 160)
-            .allowsHitTesting(false)
-        }
+        )
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
@@ -3155,7 +3153,7 @@ struct ContentView: View {
                                 .overlay {
                                     if regeneratingTitleSessionId == session.id {
                                         ZStack {
-                                            ChatColors.pageBackground.opacity(0.7)
+                                            Color(.systemBackground).opacity(0.7)
                                             ProgressView()
                                         }
                                     }
@@ -3279,24 +3277,22 @@ struct ContentView: View {
         .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
-        // [MUSE-TOPFADE 2026-09-27] 顶部渐隐罩：导航栏底全透明（系统"滚出 blur"
-        // 的行为也关掉），另在列表顶部叠 160pt 纵向渐变——内容滚到顶栏区域
-        // 时柔化隐入，没有生硬分区线（pp：照 Muse 的做法，渐隐要回来）。
-        // 不吞手势，深浅色自适应。两处列表（本机/iPad 分栏）都要。
+        // [MUSE-TOPFADE 2026-09-27] 顶部渐隐：导航栏底全透明（系统"滚出 blur"
+        // 的行为也关掉）；列表套 clear→black 纵向渐变 mask——内容滚到顶部
+        // 时自身透明度渐变，"融化"进背景而非被底色盖住（问过 4 家网页 AI
+        // 一致推荐 mask 路线；iOS 26 原生 scrollEdgeEffectStyle 有闪黑坑不用）。
+        // 两处列表（本机/iPad 分栏）都要。
         .toolbarBackground(.hidden, for: .navigationBar)
-        .overlay(alignment: .top) {
+        .mask(
             LinearGradient(
                 stops: [
-                    .init(color: Color(UIColor.systemBackground), location: 0.0),
-                    .init(color: Color(UIColor.systemBackground).opacity(0.55), location: 0.55),
-                    .init(color: .clear, location: 1.0),
+                    .init(color: .clear, location: 0.0),
+                    .init(color: .black, location: 0.04),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(height: 160)
-            .allowsHitTesting(false)
-        }
+        )
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
@@ -5691,7 +5687,7 @@ private struct ExportPreviewSheet: View {
                     }
                 }
                 .padding(.vertical, 12)
-                .background(ChatColors.pageBackground)
+                .background(Color(UIColor.systemBackground))
             }
             .navigationTitle(AppLocalized("Export Preview"))
             .navigationBarTitleDisplayMode(.inline)

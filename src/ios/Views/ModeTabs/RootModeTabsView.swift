@@ -214,7 +214,7 @@ struct RootModeTabsView: View {
                     // The cover owns the screen — plain surface underneath, so
                     // nothing can flash during presentation (device report: one
                     // frame of the guide card before the cover slid up).
-                    ChatColors.pageBackground
+                    Color(UIColor.systemBackground)
                 } else {
                     RemoteRootView(
                         service: remoteService,
@@ -223,7 +223,7 @@ struct RootModeTabsView: View {
                 }
             } else {
                 // 未 seen 时给个空底，tab 栏照常渲染（选择远端即触发 seenRemote）。
-                ChatColors.pageBackground
+                Color(UIColor.systemBackground)
             }
         case .works:
             WorksListView(soulProfileNS: soulProfileNS)

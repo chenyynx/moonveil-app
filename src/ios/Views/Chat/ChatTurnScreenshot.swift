@@ -30,7 +30,7 @@ struct ChatScreenshotPreviewSheet: View {
                     .padding(.vertical, 16)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(ChatColors.pageBackground.ignoresSafeArea())
+            .background(Color(UIColor.systemBackground).ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

@@ -50,7 +50,7 @@ struct WorkspaceFilePreviewSheet: View {
                     ContentUnavailableView {
                         Label(String(localized: "无法预览"), appSymbol: "doc.badge.ellipsis")
                     } description: { Text(error) } actions: { Button(String(localized: "重试")) { attempt += 1 }.disabled(!canRead) }
-                    .background(ChatColors.pageBackground)
+                    .background(Color(uiColor: .systemBackground))
                 } else if loading { ProgressView(String(localized: "加载中...")).padding(20).background(.regularMaterial, in: .rect(cornerRadius: 18)) }
             }
             .navigationTitle(name.isEmpty ? String(localized: "预览") : name).navigationBarTitleDisplayMode(.inline)
@@ -145,7 +145,7 @@ private struct WorkspacePreviewWebView: UIViewRepresentable {
         configuration.websiteDataStore = .nonPersistent()
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator; webView.uiDelegate = context.coordinator
-        webView.isOpaque = false; webView.backgroundColor = ChatColors.pageBackgroundUI
+        webView.isOpaque = false; webView.backgroundColor = .systemBackground
         webView.load(URLRequest(url: url))
         return webView
     }

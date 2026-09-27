@@ -641,7 +641,7 @@ private struct BridgedAssistantFooterV3: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ChatColors.pageBackground)
+        .background(Color(uiColor: .systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(ChatColors.primaryText.opacity(0.12), lineWidth: 0.5))
         .contentShape(Rectangle())
@@ -5067,10 +5067,10 @@ extension CollectionViewMessageListV3 {
             }
 
             // Resolve bg color and log it
-            let bgResolved = ChatColors.pageBackgroundUI.resolvedColor(with: cv.traitCollection)
+            let bgResolved = UIColor.systemBackground.resolvedColor(with: cv.traitCollection)
             var bgR: CGFloat = 0; var bgG: CGFloat = 0; var bgB: CGFloat = 0; var bgA: CGFloat = 0
             bgResolved.getRed(&bgR, green: &bgG, blue: &bgB, alpha: &bgA)
-            screenshotLogger.info("captureScrolling [DEBUG] resolved pageBackground RGBA=(\(bgR),\(bgG),\(bgB),\(bgA))")
+            screenshotLogger.info("captureScrolling [DEBUG] resolved systemBackground RGBA=(\(bgR),\(bgG),\(bgB),\(bgA))")
 
             // Lock the collection view's appearance to its current mode
             let savedOverride = cv.overrideUserInterfaceStyle

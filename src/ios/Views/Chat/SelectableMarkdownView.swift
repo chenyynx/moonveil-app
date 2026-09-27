@@ -2702,7 +2702,7 @@ final class TableAttachment: NSTextAttachment {
         let scrollView = TableScrollView()
         // [B16-TABLE-FADE2] Fade gradients paint the chat surface colour
         // (resolved per trait inside TableFadeView).
-        scrollView.fadeColorProvider = { _ in ChatColors.pageBackgroundUI }
+        scrollView.fadeColorProvider = { _ in .systemBackground }
         // [B16-CODE-CARD-FIX4] Same card family: no scrollbar knob; wide
         // tables are discovered by dragging, like ChatGPT/Claude tables.
         scrollView.showsHorizontalScrollIndicator = false
@@ -2739,7 +2739,7 @@ final class TableAttachment: NSTextAttachment {
         // [B16-TABLE-CLAUDE] Copy mirrors the borderless Claude style: fill
         // with the message surface (systemBackground — what the live table
         // sits on); no card, no outline.
-        let tableBg = ChatColors.pageBackgroundUI
+        let tableBg = UIColor.systemBackground
         let copyTableImage: () -> Void = { [weak stack] in
             guard let stack, stack.bounds.width > 0, stack.bounds.height > 0 else { return }
 
@@ -3015,7 +3015,7 @@ final class TableFadeView: UIView {
         // [doris standalone fix for 20abca3] resolvedColor(with:) returns a
         // non-optional UIColor — chaining it onto the optional-closure call
         // plus ?? in one expression fails to type-check. Split: raw -> resolve.
-        let raw = hostColorProvider?(traitCollection) ?? ChatColors.pageBackgroundUI
+        let raw = hostColorProvider?(traitCollection) ?? UIColor.systemBackground
         let base = raw.resolvedColor(with: traitCollection)
         let clear = base.withAlphaComponent(0)
         switch side {

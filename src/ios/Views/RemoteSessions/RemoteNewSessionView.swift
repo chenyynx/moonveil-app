@@ -84,7 +84,7 @@ struct RemoteNewSessionView: View {
         // 官方 ChatDetailNavigation 非 drawer 分支的两个视觉点（drawer 宿主逻辑
         // 依赖官方侧栏体系，本仓无侧栏不搬）：systemBackground 背景 +
         // primaryControl tint（黑/白）——系统玻璃与控件据此呈中性色。
-        .background(ChatColors.pageBackground)
+        .background(Color(uiColor: .systemBackground))
         .tint(AppTheme.primaryControlBackground(colorScheme))
         .sheet(isPresented: $showsTarget) {
             RemoteNewSessionTargetSheet(model: model, service: service)

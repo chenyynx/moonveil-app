@@ -133,7 +133,7 @@ struct RemoteSessionListView: View {
     // 本视图不再另挂右上角菜单。
     var body: some View {
         content
-            // 页面画布与本机一致 = pageBackground（pp 2026-09-26「远端背景改成和
+            // 页面画布与本机一致 = systemBackground（pp 2026-09-26「远端背景改成和
             // 本地背景颜色一样」；原方案 B 暖奶油画布退役），列表背景让位
             .background(RemotePalette.canvas.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)

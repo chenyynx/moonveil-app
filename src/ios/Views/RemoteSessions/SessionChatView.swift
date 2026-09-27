@@ -266,7 +266,7 @@ struct SessionChatView: View, Equatable {
 
     private var openingMask: some View {
         ZStack {
-            ChatColors.pageBackground
+            Color(uiColor: .systemBackground)
             VStack(spacing: 12) {
                 if let error = model.openingError, !model.timeline.hasPresentedSnapshot {
                     Text(error).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)

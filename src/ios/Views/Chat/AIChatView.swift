@@ -68,21 +68,13 @@ private final class CachedViewModel: ObservableObject {
 // MARK: - Color Palette (clean light theme)
 
 enum ChatColors {
-    /// App 页面底色（pp 2026-09-27）：照 Grok 设置页浅/深两张截图实测，
-    /// 浅 #F5F5F5 / 深 #111111（中性灰，非系统 systemBackground 的纯白/纯黑）。
-    /// 各页面画布统一走这个 token；聊天区"系统"主题、远端画布都跟它走。
-    /// 卡片、前/对比色（如发送钮上的反色箭头）不动。
-    static let pageBackgroundUI = UIColor { $0.userInterfaceStyle == .dark
-        ? UIColor(red: 0x11 / 255, green: 0x11 / 255, blue: 0x11 / 255, alpha: 1)
-        : UIColor(red: 0xF5 / 255, green: 0xF5 / 255, blue: 0xF5 / 255, alpha: 1) }
-    static let pageBackground = Color(pageBackgroundUI)
     /// 设置行图标灰（pp 2026-09-27）：照 Grok 设置页截图实测，浅 #848484 / 深 #919191；
     /// 图标去彩色圆底，单色线条。
     static let settingsIconUI = UIColor { $0.userInterfaceStyle == .dark
         ? UIColor(red: 0x91 / 255, green: 0x91 / 255, blue: 0x91 / 255, alpha: 1)
         : UIColor(red: 0x84 / 255, green: 0x84 / 255, blue: 0x84 / 255, alpha: 1) }
     static let settingsIcon = Color(settingsIconUI)
-    static let background = pageBackground
+    static let background = Color(UIColor.systemBackground)
     static let secondaryBg = Color(UIColor.secondarySystemBackground)
     /// Icon tile background (pp 2026-09-17: 图标的背景底色 #F1F1F1). Light mode is
     /// the exact value he picked; dark keeps secondarySystemBackground — a pale
@@ -4561,7 +4553,7 @@ struct AIChatView: View {
         var body: some View {
             content()
                 .frame(maxWidth: .infinity)
-                .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.15, alpha: 1) : ChatColors.pageBackgroundUI }))
+                .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.15, alpha: 1) : UIColor.systemBackground }))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
@@ -5974,7 +5966,7 @@ private struct SessionLockGateOverlay: View {
                 .fill(.regularMaterial)
                 .ignoresSafeArea()
                 .overlay {
-                    ChatColors.pageBackground.opacity(0.4)
+                    Color(UIColor.systemBackground).opacity(0.4)
                         .ignoresSafeArea()
                 }
 

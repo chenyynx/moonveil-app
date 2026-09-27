@@ -43,7 +43,7 @@ struct SearchPlaceholderView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(ChatColors.pageBackground)
+            .background(Color(UIColor.systemBackground))
             .navigationTitle(String(localized: "Search"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -3,7 +3,7 @@
 // .navigationTransition(.zoom(sourceID:in:)) —— 打开从胶囊头像放大长出、关闭缩回。
 //
 // [MUSE-SPEC 2026-09-26] 参照 1f6f84af（1179×2556@3x）逐区块实测（pt=px/3）：
-//   纯内容页（无导航栏/tab 栏）、pageBackground；
+//   纯内容页（无导航栏/tab 栏）、systemBackground；
 //   X/分享 44pt 圆钮（y 中心~85，leading/trailing ~16）；头像 78pt 白圈底屏中 +
 //   右下 32pt 白圆铅笔徽标；名字 20pt semibold 屏中；状态行（26pt 绿闪电徽标 +
 //   15pt 文案「已连接」）屏中；四图标工具条：全宽白胶囊 高46 圆角23，四图标
@@ -38,7 +38,7 @@ struct SoulProfileHub: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            ChatColors.pageBackground.ignoresSafeArea()
+            Color(UIColor.systemBackground).ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 0) {
