@@ -3553,9 +3553,10 @@ struct ContentView: View {
                     // toolbar 重建时 resizable 要等布局才渲染，会闪一帧）。
                     // 2026-09-27：20→22pt，之前光学偏小，跟右上搜索（19pt）不配。
                     Self.toolbarIcon("aa-Tabler-Menu", pointSize: 22, template: true)
-                        // [TINT-FIX] tabContent 的 AccentColor 蓝 tint 会把模板图染蓝，盖回黑。
-                        .foregroundStyle(.primary)
                 }
+                // [TINT-FIX2] foregroundStyle 盖不住 toolbar 的 AccentColor tint，
+                // 直接改 Button 的 tint。
+                .tint(.primary)
                 .accessibilityLabel(Text(String(localized: "Settings")))
             }
         }

@@ -19,9 +19,10 @@ struct SearchToolbarButton: View {
             // 2026-09-27：22→19，之前在液态玻璃 pill 里显得比旁边的终端圆钮大一圈。
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 19))
-                // [TINT-FIX] tabContent 的 AccentColor 蓝 tint 会透进来，盖回黑。
-                .foregroundStyle(.primary)
         }
+        // [TINT-FIX2] foregroundStyle 盖不住 toolbar 的 AccentColor tint，
+        // 直接改 Button 的 tint。
+        .tint(.primary)
         .accessibilityLabel(Text(String(localized: "Search")))
     }
 }
