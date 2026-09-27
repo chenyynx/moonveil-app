@@ -1562,17 +1562,23 @@ struct ContentView: View {
     /// 背景：04:51 日志实锤 draft pop 后 path 残留非空、flags 探针永久断更、
     /// 段B 每轮 push/pop Unbalanced×6——判别完成后按 pp 审核结论决定去留。
     private func pathProbe(_ tag: String) {
-        let top = navigationPath.last.map { "\($0)" } ?? "EMPTY"
-        AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(navigationPath.count) top=\(top)")
+        // CI 判例：NavigationPath 无 .last 成员（key path 动态成员三连错），
+        // 转 Array 取尾是无歧义的标准写法。
+        let elems = Array(navigationPath)
+        let top = elems.last.map { String(describing: $0) } ?? "EMPTY"
+        AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(elems.count) top=\(top)")
     }
 
     /// 延迟 0.3s 再采样一次：抓「onDisappear 时刻 path 还没回写、稍后才回写」
-    /// 与「回写彻底没发生」两种形态的差别（asyncAfter 捕获 struct，@State 存储
-    /// 在 view 实例外，读到的是实时值）。
+    /// 与「回写彻底没发生」两种形态的差别。闭包捕获 $navigationPath（Binding），
+    /// 执行时读 wrappedValue = 实时 @State 值（直接裸读在 escaping 闭包里会
+    /// 触发 wrapper 解析错误，见 CI 1565/1574 判例）。
     private func pathProbeLater(_ tag: String) {
+        let pathBinding = $navigationPath
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            let top = navigationPath.last.map { "\($0)" } ?? "EMPTY"
-            AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(navigationPath.count) top=\(top)")
+            let elems = Array(pathBinding.wrappedValue)
+            let top = elems.last.map { String(describing: $0) } ?? "EMPTY"
+            AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(elems.count) top=\(top)")
         }
     }
 
