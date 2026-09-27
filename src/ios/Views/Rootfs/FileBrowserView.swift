@@ -82,8 +82,10 @@ struct FileBrowserView: View {
                                 .foregroundColor(.blue)
                         }
                         if index < viewModel.pathComponents.count - 1 {
-                            Image(systemName: "chevron.right")
-                                .font(.caption2)
+                            Image("aa-Tabler-ChevronRight")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 11, height: 11)
                                 .foregroundColor(.secondary)
                         }
                     }
@@ -101,8 +103,10 @@ struct FileBrowserView: View {
             } else if viewModel.items.isEmpty {
                 Spacer()
                 VStack(spacing: 12) {
-                    Image(systemName: "folder")
-                        .font(.system(size: 48))
+                    Image("aa-Tabler-Folder")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 48, height: 48)
                         .foregroundColor(.secondary)
                     Text("Empty folder")
                         .foregroundColor(.secondary)
@@ -153,7 +157,14 @@ struct FileBrowserView: View {
         // [T-ios-copy-abs-path-copied-toast] Self-dismissing "Copied" capsule.
         .overlay(alignment: .bottom) {
             if copiedToast {
-                Label(AppLocalized("Copied"), systemImage: "checkmark.circle.fill")
+Label {
+                    Text(AppLocalized("Copied"))
+                } icon: {
+                    Image("aa-Tabler-CircleCheckFilled")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                }
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16)
@@ -311,14 +322,28 @@ struct FileBrowserView: View {
                 Button {
                     viewModel.goBack()
                 } label: {
-                    Label("Go to Parent Folder", systemImage: "arrow.up.doc")
+Label {
+                        Text("Go to Parent Folder")
+                    } icon: {
+                        Image("aa-Tabler-FolderUp")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                    }
                 }
                 Divider()
             }
             Button {
                 showImportPicker = true
             } label: {
-                Label("Import File", systemImage: "plus")
+Label {
+                    Text("Import File")
+                } icon: {
+                    Image("aa-Tabler-Plus")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                }
             }
             Divider()
             Picker(selection: $sortKeyRaw) {
@@ -331,22 +356,41 @@ struct FileBrowserView: View {
             Button {
                 sortAscending.toggle()
             } label: {
-                Label(
-                    sortAscending ? "Ascending" : "Descending",
-                    systemImage: sortAscending ? "arrow.up" : "arrow.down"
-                )
+                Label {
+                    sortAscending ? Text("Ascending") : Text("Descending")
+                } icon: {
+                    Image(sortAscending ? "aa-Tabler-ArrowUp" : "aa-Tabler-ArrowDown")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                }
             }
             Toggle(isOn: $foldersFirst) {
-                Label("Folders First", systemImage: "folder")
+Label {
+                    Text("Folders First")
+                } icon: {
+                    Image("aa-Tabler-Folder")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                }
             }
             Toggle(isOn: $showHidden) {
-                Label(
-                    showHidden ? "Hide Hidden Files" : "Show Hidden Files",
-                    systemImage: showHidden ? "eye.slash" : "eye"
-                )
+                Label {
+                    showHidden ? Text("Hide Hidden Files") : Text("Show Hidden Files")
+                } icon: {
+                    Image(showHidden ? "aa-Tabler-EyeOff" : "aa-Tabler-Eye")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                }
             }
         } label: {
-            Image(systemName: "ellipsis.circle")
+            Image("aa-Tabler-Dots")
+                .renderingMode(.template)
+                .resizable()
+                .frame(width: 20, height: 20)
+                .accessibilityLabel(Text("More options"))
         }
     }
 }
@@ -509,9 +553,12 @@ private struct MarkdownFilePreview: View {
                     Button {
                         renderMode = (renderMode == .rendered) ? .source : .rendered
                     } label: {
-                        Image(systemName: renderMode == .rendered
-                              ? "chevron.left.forwardslash.chevron.right"
-                              : "doc.richtext")
+                        Image(renderMode == .rendered
+                              ? "aa-Tabler-Code"
+                              : "aa-Tabler-FileTypePdf")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
                     }
                     .accessibilityLabel(renderMode == .rendered
                                         ? Text("Show Source")
@@ -621,8 +668,10 @@ private struct FileLoadErrorView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 48))
+            Image("aa-Tabler-AlertTriangle")
+                .renderingMode(.template)
+                .resizable()
+                .frame(width: 48, height: 48)
                 .foregroundStyle(.secondary)
             Text("Could not read file")
                 .font(.headline)
@@ -701,8 +750,10 @@ private struct FileInfoView: View {
         List {
             Section {
                 VStack(spacing: 12) {
-                    Image(systemName: item.iconName)
-                        .font(.system(size: 48))
+                    Image(item.iconAsset)
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 48, height: 48)
                         .foregroundStyle(.secondary)
                     Text("Preview not available")
                         .font(.subheadline)
@@ -762,18 +813,46 @@ private struct FileBrowserRow: View {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     onCopiedPath()
                 } label: {
-                    Label(AppLocalized("Copy Absolute Path"), systemImage: "document.on.clipboard")
+Label {
+                        Text(AppLocalized("Copy Absolute Path"))
+                    } icon: {
+                        Image("aa-Tabler-ClipboardCopy")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                    }
                 }
                 Button { onCopy() } label: {
-                    Label("Copy to…", systemImage: "doc.on.doc")
+Label {
+                        Text("Copy to…")
+                    } icon: {
+                        Image("aa-Tabler-Copy")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                    }
                 }
                 Button { onMove() } label: {
-                    Label("Move to…", systemImage: "folder")
+Label {
+                        Text("Move to…")
+                    } icon: {
+                        Image("aa-Tabler-Folder")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                    }
                 }
                 Divider()
                 if !item.isDirectory {
                     Button { onExport() } label: {
-                        Label("Export", systemImage: "square.and.arrow.up")
+Label {
+                            Text("Export")
+                        } icon: {
+                            Image("aa-Tabler-Share")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                        }
                     }
                     if isHTML {
                         // WebApp entry point — file browser surfaces both
@@ -782,21 +861,42 @@ private struct FileBrowserRow: View {
                         Button {
                             showAddWebApp = true
                         } label: {
-                            Label("Add to Home Screen", systemImage: "rectangle.stack.badge.plus")
+Label {
+                                Text("Add to Home Screen")
+                            } icon: {
+                                Image("aa-Tabler-AppWindow")
+                                    .renderingMode(.template)
+                                    .resizable()
+                                    .frame(width: 20, height: 20)
+                            }
                         }
                     }
                 }
                 Button(role: .destructive) {
                     itemToDelete = item
                 } label: {
-                    Label("Delete", systemImage: "trash")
+Label {
+                        Text("Delete")
+                    } icon: {
+                        Image("aa-Tabler-Trash")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                    }
                 }
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(role: .destructive) {
                     itemToDelete = item
                 } label: {
-                    Label("Delete", systemImage: "trash")
+Label {
+                        Text("Delete")
+                    } icon: {
+                        Image("aa-Tabler-Trash")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                    }
                 }
             }
             .sheet(isPresented: $showAddWebApp) {
@@ -819,12 +919,16 @@ struct FileItemRow: View {
         HStack(spacing: 12) {
             // Icon
             ZStack(alignment: .bottomLeading) {
-                Image(systemName: item.iconName)
-                    .font(.title2)
+                Image(item.iconAsset)
+                    .renderingMode(.template)
+                    .resizable()
+                    .frame(width: 22, height: 22)
                     .foregroundColor(item.isDirectory ? .blue : .secondary)
                 if item.isSymlink {
-                    Image(systemName: "arrow.turn.right.down")
-                        .font(.system(size: 10, weight: .bold))
+                    Image("aa-Tabler-CornerDownRight")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 10, height: 10)
                         .foregroundColor(.orange)
                         .offset(x: -4, y: 2)
                 }
@@ -857,7 +961,10 @@ struct FileItemRow: View {
             // Export button for files
             if !item.isDirectory {
                 Button(action: onExport) {
-                    Image(systemName: "square.and.arrow.up")
+                    Image("aa-Tabler-Share")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
                         .foregroundColor(.blue)
                 }
                 .buttonStyle(.borderless)
@@ -865,8 +972,10 @@ struct FileItemRow: View {
 
             // Chevron for directories
             if item.isDirectory {
-                Image(systemName: "chevron.right")
-                    .font(.caption)
+                Image("aa-Tabler-ChevronRight")
+                    .renderingMode(.template)
+                    .resizable()
+                    .frame(width: 12, height: 12)
                     .foregroundColor(.secondary)
             }
         }
@@ -1467,33 +1576,33 @@ struct FileItem: Identifiable {
         }
     }
 
-    var iconName: String {
+    var iconAsset: String {
         if isDirectory {
-            return "folder.fill"
+            return "aa-Tabler-FolderFilled"
         }
 
         let ext = resolvedPathExtension
         switch ext {
         case "txt", "md", "json", "xml", "yaml", "yml":
-            return "doc.text"
+            return "aa-Tabler-FileText"
         case "sh", "bash", "zsh":
-            return "terminal"
+            return "aa-Tabler-Terminal2"
         case "py":
-            return "chevron.left.forwardslash.chevron.right"
+            return "aa-Tabler-Code"
         case "js", "ts", "swift", "c", "cpp", "h", "m":
-            return "curlybraces"
+            return "aa-Tabler-Braces"
         case "png", "jpg", "jpeg", "gif", "bmp", "svg":
-            return "photo"
+            return "aa-Tabler-Photo"
         case "mp3", "wav", "aac", "flac":
-            return "music.note"
+            return "aa-Tabler-Music"
         case "mp4", "mov", "avi", "mkv":
-            return "film"
+            return "aa-Tabler-Movie"
         case "zip", "tar", "gz", "bz2", "xz":
-            return "doc.zipper"
+            return "aa-Tabler-FileZip"
         case "pdf":
-            return "doc.richtext"
+            return "aa-Tabler-FileTypePdf"
         default:
-            return "doc"
+            return "aa-Tabler-File"
         }
     }
 
@@ -1612,8 +1721,10 @@ private struct DirectoryPickerView: View {
                                 .foregroundColor(.blue)
                         }
                         if index < pathComponents.count - 1 {
-                            Image(systemName: "chevron.right")
-                                .font(.caption2)
+                            Image("aa-Tabler-ChevronRight")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 11, height: 11)
                                 .foregroundColor(.secondary)
                         }
                     }
@@ -1627,8 +1738,10 @@ private struct DirectoryPickerView: View {
             if items.isEmpty {
                 Spacer()
                 VStack(spacing: 12) {
-                    Image(systemName: "folder")
-                        .font(.system(size: 48))
+                    Image("aa-Tabler-Folder")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 48, height: 48)
                         .foregroundColor(.secondary)
                     Text("Empty folder")
                         .foregroundColor(.secondary)
@@ -1638,15 +1751,19 @@ private struct DirectoryPickerView: View {
                 List {
                     ForEach(items) { item in
                         HStack(spacing: 12) {
-                            Image(systemName: "folder.fill")
-                                .font(.title2)
+                            Image("aa-Tabler-FolderFilled")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 22, height: 22)
                                 .foregroundColor(.blue)
                             Text(item.name)
                                 .font(.body)
                                 .lineLimit(1)
                             Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
+                            Image("aa-Tabler-ChevronRight")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 12, height: 12)
                                 .foregroundColor(.secondary)
                         }
                         .contentShape(Rectangle())

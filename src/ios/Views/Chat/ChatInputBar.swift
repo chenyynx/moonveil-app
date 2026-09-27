@@ -18,6 +18,9 @@ struct SwipeToSendHint: View {
     /// "Release to send" — used while the agent is mid-stream and the
     /// gesture will be routed through `performEnqueue()`.
     var isEnqueue: Bool = false
+    /// [pp 2026-09-27] 悬浮提示就是发送按钮的"预览",圆盘与箭头色跟气泡主题走。
+    @AppStorage(ChatBubbleTheme.storageKey) private var bubbleThemeRaw: String = ChatBubbleTheme.defaultTheme.rawValue
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         if progress > 0 {
@@ -32,8 +35,10 @@ struct SwipeToSendHint: View {
             // *text on top of the capsule* — both must use the inverse
             // (`UIColor.systemBackground`), otherwise dark mode renders
             // white-on-white and the indicator vanishes (bug 2026-05-18).
-            let chipBg = ChatColors.sendButton
-            let chipFg = Color(UIColor.systemBackground)
+            // [pp 2026-09-27] 圆盘/箭头色跟气泡主题走;default 主题保持原行为。
+            let theme = ChatBubbleTheme(rawValue: bubbleThemeRaw) ?? .defaultTheme
+            let chipBg = theme.sendButton(for: colorScheme)
+            let chipFg = theme.onSendButton(for: colorScheme)
             HStack(spacing: 8) {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 34))

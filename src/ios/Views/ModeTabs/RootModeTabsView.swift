@@ -118,6 +118,13 @@ struct RootModeTabsView: View {
                         // [TAB-TINT] 盖回 App 蓝：TabView 级 .tint(.primary) 只管
                         // 底栏选中黑，内容里的 accent 蓝不能丢。
                         .tint(Color("AccentColor"))
+                        // [TABBAR-STATE-DRIVEN 2026-09-27] 底栏显隐纯状态驱动
+                        //（进聊天页藏），0.22s 显式动画与 push/pop 转场解耦。
+                        // 必须挂在 Tab 内容里侧——挂在 TabView 本体上 iOS 26 不认，
+                        // 底栏藏不住。不回 AIChatView.body 的逐项 modifier：它在
+                        // 转场协调里动画卡顿、偶发 trap（build 359/363 闪退）、
+                        // 隐藏态还会卡死在聊天列表页。
+                        .toolbar(tabBarHidden ? .hidden : .visible, for: .tabBar)
                 } label: {
                     Self.tabImage(Self.tabIcon[mode] ?? "aa-Circle")
                         // [NATIVE-TABS] 未选中灰图标走这里；选中态黑由 TabView 级
@@ -135,11 +142,8 @@ struct RootModeTabsView: View {
         // tint 是 environment，会透进 tab 内容和本层 sheet——下面 4 处用
         // Color("AccentColor")（读资产，不受 tint 影响）把 App 蓝盖回去。
         .tint(.primary)
-        // [TABBAR-STATE-DRIVEN 2026-09-27] 底栏显隐挂 TabView 级、由 tabBarHidden
-        // 纯状态驱动（进聊天页藏）。不再用 AIChatView.body 里的逐项 modifier——
-        // 它在 iOS 26 转场协调里动画卡顿、偶发 trap（build 359/363 闪退）、隐藏态
-        // 还会卡死在聊天列表页。显式 0.22s smooth 动画见 syncTabBarVisibility。
-        .toolbar(tabBarHidden ? .hidden : .visible, for: .tabBar)
+        // [TABBAR-STATE-DRIVEN] 底栏显隐的 .toolbar 修饰已移到各 Tab 内容里侧
+        //（挂 TabView 本体 iOS 26 不认）；状态源 tabBarHidden 不变。
         .onAppear { syncTabBarVisibility() }
         .onChange(of: router.localAtRoot) { _, _ in syncTabBarVisibility() }
         .onChange(of: router.remoteChatPushed) { _, _ in syncTabBarVisibility() }
@@ -210,7 +214,7 @@ struct RootModeTabsView: View {
                     // The cover owns the screen — plain surface underneath, so
                     // nothing can flash during presentation (device report: one
                     // frame of the guide card before the cover slid up).
-                    Color(UIColor.systemBackground)
+                    ChatColors.pageBackground
                 } else {
                     RemoteRootView(
                         service: remoteService,
@@ -219,7 +223,7 @@ struct RootModeTabsView: View {
                 }
             } else {
                 // 未 seen 时给个空底，tab 栏照常渲染（选择远端即触发 seenRemote）。
-                Color(UIColor.systemBackground)
+                ChatColors.pageBackground
             }
         case .works:
             WorksListView(soulProfileNS: soulProfileNS)

@@ -26,7 +26,7 @@ struct EffortSliderPreviewView: View {
             }
             .padding(.vertical)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(ChatColors.pageBackground)
         .navigationTitle("Ultracode Flame")
         .navigationBarTitleDisplayMode(.inline)
     }

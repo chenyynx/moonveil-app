@@ -65,7 +65,7 @@ struct BrowserSheetView: View {
                         // agent/manual navigation failures (blank page otherwise).
                         BrowserLoadErrorOverlay(manager: manager)
                     } else {
-                        Color(UIColor.systemBackground)
+                        ChatColors.pageBackground
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
 

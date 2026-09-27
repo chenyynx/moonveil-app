@@ -115,9 +115,9 @@ private struct OffloadPermissionDialogContent: View {
             .padding(.horizontal, 20)
             .padding(.top, 12)
             .padding(.bottom, 30)
-            .background(Color(.systemGroupedBackground))
+            .background(ChatColors.pageBackground)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(ChatColors.pageBackground)
     }
 }
 

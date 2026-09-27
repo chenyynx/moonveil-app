@@ -90,6 +90,10 @@ struct MessageContextMenuPreview: View {
 /// system composites behind it, while the material still supplies the glass
 /// highlight and edge that make it read as continuous with the bubble.
 private struct ContextMenuPreviewSurface: ViewModifier {
+    /// [pp 2026-09-27] 长按预览底跟着气泡主题走。
+    @AppStorage(ChatBubbleTheme.storageKey) private var bubbleThemeRaw: String = ChatBubbleTheme.defaultTheme.rawValue
+    @Environment(\.colorScheme) private var colorScheme
+
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: 18)
     }
@@ -98,7 +102,8 @@ private struct ContextMenuPreviewSurface: ViewModifier {
         // [B16-USERBUBBLE] 跟着气泡改实色（pp 2026-09-17）：长按抬起时不能从实色
         // 跳成玻璃/白卡（本文件顶部的匹配约束）。实色自带不透明底，
         // [T-ios-longpress-menu-preview-background] 的透明快照 bug 不会复发。
-        content.background(shape.fill(ChatColors.userBubble))
+        let theme = ChatBubbleTheme(rawValue: bubbleThemeRaw) ?? .defaultTheme
+        content.background(shape.fill(theme.bubble(for: colorScheme)))
     }
 }
 
@@ -122,6 +127,9 @@ private struct ContextMenuPreviewSurface: ViewModifier {
 /// disappear (the FAB regression).
 private struct UserBubbleSurface: ViewModifier {
     let isQueued: Bool
+    /// [pp 2026-09-27] 气泡底跟着气泡主题走；queued 的虚线 provisional 态不变。
+    @AppStorage(ChatBubbleTheme.storageKey) private var bubbleThemeRaw: String = ChatBubbleTheme.defaultTheme.rawValue
+    @Environment(\.colorScheme) private var colorScheme
 
     /// Matches `.contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 18))`
     /// on the row exactly — including the default (non-`.continuous`) corner
@@ -144,7 +152,9 @@ private struct UserBubbleSurface: ViewModifier {
         } else {
             // [B16-USERBUBBLE] AA-式实色平涂（pp 2026-09-17）。原 iOS 26 Liquid Glass
             // 分支按指令删除：用户气泡要实色的确定感（AA 同款），不再采样身后的内容。
-            content.background(shape.fill(ChatColors.userBubble))
+            // [pp 2026-09-27] 底色跟气泡主题走。
+            let theme = ChatBubbleTheme(rawValue: bubbleThemeRaw) ?? .defaultTheme
+            content.background(shape.fill(theme.bubble(for: colorScheme)))
         }
     }
 }
@@ -161,6 +171,12 @@ private struct PreviewContentSizeKey: PreferenceKey {
 
 struct ChatMessageRow: View {
     @ObservedObject var message: ChatMessage
+    /// [pp 2026-09-27] 用户气泡主题：气泡文字色与 usageCapsule 底跟着主题走。
+    @AppStorage(ChatBubbleTheme.storageKey) private var bubbleThemeRaw: String = ChatBubbleTheme.defaultTheme.rawValue
+    @Environment(\.colorScheme) private var colorScheme
+    private var bubbleTheme: ChatBubbleTheme {
+        ChatBubbleTheme(rawValue: bubbleThemeRaw) ?? .defaultTheme
+    }
     /// Only the actively streaming message needs vm access (for typing indicator & stop button).
     let isActiveMessage: Bool
     var commandStartTime: Date?
@@ -379,7 +395,7 @@ struct ChatMessageRow: View {
                     HStack(spacing: 6) {
                         Text(userDisplayText)
                             .font(.system(size: FontSettings.shared.scaledMessage(16.5)))
-                            .foregroundStyle(message.isQueued ? ChatColors.secondaryText : ChatColors.primaryText)
+                            .foregroundStyle(message.isQueued ? ChatColors.secondaryText : bubbleTheme.bubbleText(for: colorScheme))
                             .padding(.horizontal, 14)
                             .padding(.vertical, 10)
                             .modifier(UserBubbleSurface(isQueued: message.isQueued))
@@ -664,7 +680,7 @@ struct ChatMessageRow: View {
         .foregroundStyle(ChatColors.tertiaryText)
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
-        .background(ChatColors.userBubble.opacity(0.6))
+        .background(bubbleTheme.bubble(for: colorScheme).opacity(0.6))
         .clipShape(Capsule())
         .transition(.opacity.combined(with: .scale(scale: 0.8)))
     }

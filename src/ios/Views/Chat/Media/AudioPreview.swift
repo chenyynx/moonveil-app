@@ -80,7 +80,7 @@ struct MinisAudioPreviewView: View {
                     .ignoresSafeArea()
             }
         } else {
-            Color(UIColor.systemBackground)
+            ChatColors.pageBackground
                 .ignoresSafeArea()
         }
     }

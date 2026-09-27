@@ -29,6 +29,18 @@ extension Notification.Name {
 
 // MARK: - CollectionViewMessageListV3
 
+/// [pp 2026-09-27] 主题气泡淡色:usageCapsule 这类 0.6 透明点缀用。
+/// 自带 @AppStorage + @Environment,放在 UIViewControllerRepresentable 里
+/// 也能响应主题切换(Representable 自身不能用 @Environment)。
+private struct BubbleThemeTint: View {
+    @AppStorage(ChatBubbleTheme.storageKey) private var bubbleThemeRaw: String = ChatBubbleTheme.defaultTheme.rawValue
+    @Environment(\.colorScheme) private var colorScheme
+    var body: some View {
+        (ChatBubbleTheme(rawValue: bubbleThemeRaw) ?? .defaultTheme)
+            .bubble(for: colorScheme).opacity(0.6)
+    }
+}
+
 /// V3 message list: builds on V2's cell-per-block model but simplifies
 /// the scroll stability architecture:
 ///
@@ -629,7 +641,7 @@ private struct BridgedAssistantFooterV3: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .systemBackground))
+        .background(ChatColors.pageBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(ChatColors.primaryText.opacity(0.12), lineWidth: 0.5))
         .contentShape(Rectangle())
@@ -685,7 +697,7 @@ private struct BridgedAssistantFooterV3: View {
         }
         .foregroundStyle(ChatColors.tertiaryText)
         .padding(.horizontal, 8).padding(.vertical, 3)
-        .background(ChatColors.userBubble.opacity(0.6)).clipShape(Capsule())
+        .background(BubbleThemeTint()).clipShape(Capsule())
         .transition(.opacity.combined(with: .scale(scale: 0.8)))
     }
 
@@ -5055,10 +5067,10 @@ extension CollectionViewMessageListV3 {
             }
 
             // Resolve bg color and log it
-            let bgResolved = UIColor.systemBackground.resolvedColor(with: cv.traitCollection)
+            let bgResolved = ChatColors.pageBackgroundUI.resolvedColor(with: cv.traitCollection)
             var bgR: CGFloat = 0; var bgG: CGFloat = 0; var bgB: CGFloat = 0; var bgA: CGFloat = 0
             bgResolved.getRed(&bgR, green: &bgG, blue: &bgB, alpha: &bgA)
-            screenshotLogger.info("captureScrolling [DEBUG] resolved systemBackground RGBA=(\(bgR),\(bgG),\(bgB),\(bgA))")
+            screenshotLogger.info("captureScrolling [DEBUG] resolved pageBackground RGBA=(\(bgR),\(bgG),\(bgB),\(bgA))")
 
             // Lock the collection view's appearance to its current mode
             let savedOverride = cv.overrideUserInterfaceStyle

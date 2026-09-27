@@ -7,7 +7,7 @@ struct AppLockOverlay: View {
     var body: some View {
         if store.appIsLocked {
             ZStack {
-                Color(.systemBackground)
+                ChatColors.pageBackground
                     .ignoresSafeArea()
 
                 VStack(spacing: 24) {
@@ -40,7 +40,7 @@ struct AppLockOverlay: View {
                 authenticate()
             }
         } else if store.showPrivacyScreen {
-            Color(.systemBackground)
+            ChatColors.pageBackground
                 .ignoresSafeArea()
         }
     }

@@ -278,11 +278,11 @@ struct SearchBarSurface: ViewModifier {
 /// 背后有列表内容做纹理、且被描边+阴影框成「物件」）。修法＝在 fill 与 mask 之间
 /// 叠一层**随主题的页面色渐变**（与 mask 同步 0.35→0.80）：亮色 白≈材质零视觉差；
 /// 暗色 灰膜被页面黑吃掉、屏底过浓的雾被实色盖掉 → 收口＝页面色。
-/// pageColor 由调用方注入（两页画布不同）：本机默认 systemBackground（FolderSurface
+/// pageColor 由调用方注入（两页画布不同）：本机默认 pageBackground（FolderSurface
 /// 实测字据：暗色纯黑 24 点零方差 / 亮色白）；远端 = RemotePalette.canvas（2026-09-26
-/// 起同为 systemBackground，token 同源保两边永不漂移）。
+/// 起同为 pageBackground，token 同源保两边永不漂移）。
 struct BottomBarFadeView: View {
-    var pageColor: Color = Color(UIColor.systemBackground)
+    var pageColor: Color = ChatColors.pageBackground
 
     var body: some View {
         Rectangle()
@@ -2984,7 +2984,7 @@ struct ContentView: View {
                                 .overlay {
                                     if regeneratingTitleSessionId == session.id {
                                         ZStack {
-                                            Color(.systemBackground).opacity(0.7)
+                                            ChatColors.pageBackground.opacity(0.7)
                                             ProgressView()
                                         }
                                     }
@@ -2999,7 +2999,7 @@ struct ContentView: View {
                                 if group.folderId != nil {
                                     FolderMemberRowBackground(isLast: sessionId == group.ids.last)
                                 } else {
-                                    Color(.systemBackground)
+                                    ChatColors.pageBackground
                                 }
                             })
                             .contextMenu {
@@ -3078,7 +3078,7 @@ struct ContentView: View {
             LinearGradient(
                 stops: [
                     .init(color: .clear, location: 0.0),
-                    .init(color: .black, location: 0.12),
+                    .init(color: .black, location: 0.04),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -3153,7 +3153,7 @@ struct ContentView: View {
                                 .overlay {
                                     if regeneratingTitleSessionId == session.id {
                                         ZStack {
-                                            Color(.systemBackground).opacity(0.7)
+                                            ChatColors.pageBackground.opacity(0.7)
                                             ProgressView()
                                         }
                                     }
@@ -3287,7 +3287,7 @@ struct ContentView: View {
             LinearGradient(
                 stops: [
                     .init(color: .clear, location: 0.0),
-                    .init(color: .black, location: 0.12),
+                    .init(color: .black, location: 0.04),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -3553,6 +3553,8 @@ struct ContentView: View {
                     // toolbar 重建时 resizable 要等布局才渲染，会闪一帧）。
                     // 2026-09-27：20→22pt，之前光学偏小，跟右上搜索（19pt）不配。
                     Self.toolbarIcon("aa-Tabler-Menu", pointSize: 22, template: true)
+                        // [TINT-FIX] tabContent 的 AccentColor 蓝 tint 会把模板图染蓝，盖回黑。
+                        .foregroundStyle(.primary)
                 }
                 .accessibilityLabel(Text(String(localized: "Settings")))
             }
@@ -5685,7 +5687,7 @@ private struct ExportPreviewSheet: View {
                     }
                 }
                 .padding(.vertical, 12)
-                .background(Color(UIColor.systemBackground))
+                .background(ChatColors.pageBackground)
             }
             .navigationTitle(AppLocalized("Export Preview"))
             .navigationBarTitleDisplayMode(.inline)
@@ -5893,6 +5895,14 @@ private struct SessionContextMenu: View, Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.key == rhs.key }
 
     var body: some View {
+        menuContent
+            // [CTXMENU-TINT] contextMenu 会继承 tabContent 的 AccentColor 蓝 tint
+            //（RootModeTabsView [TAB-TINT]），菜单图标全被染蓝；盖回 primary。
+            // destructive 删除保持 role 自带红色，不受影响。
+            .tint(.primary)
+    }
+
+    private var menuContent: some View {
         Button {
             actions.send(.togglePin(key.sid))
         } label: {
@@ -6946,6 +6956,9 @@ private struct AppearanceSettingsView: View {
     @AppStorage("chat.autoExpandThinking") private var autoExpandThinking: Bool = true
     /// [pp 09-18] 聊天背景主题(默认系统 / Claude 官方),与 AIChatView 同 key 联动。
     @AppStorage("chatBackgroundTheme") private var chatBackgroundTheme: String = ChatBackgroundTheme.system.rawValue
+    /// [pp 2026-09-27] 用户气泡主题:default/黑/米/蓝/紫/粉/橙/绿,跟 AIChatView 等
+    /// 聊天 View 同 key 联动,切换即时重绘气泡与发送按钮。
+    @AppStorage(ChatBubbleTheme.storageKey) private var chatBubbleTheme: String = ChatBubbleTheme.defaultTheme.rawValue
 
     @ObservedObject private var fontSettings = FontSettings.shared
 
@@ -6988,6 +7001,41 @@ private struct AppearanceSettingsView: View {
                 Text("Chat Background")
             } footer: {
                 Text("聊天区背景: 默认(系统) / Claude(官方实测 #FCFCFB 浅 · #151515 深)。")
+            }
+
+            // [pp 2026-09-27] 用户气泡主题色板(照 Muse 外观页"聊天主题"):
+            // 横向圆点,选中描边。切换即时重绘用户气泡与发送按钮。
+            Section {
+                ScrollView(.horizontal) {
+                    HStack(spacing: 14) {
+                        ForEach(ChatBubbleTheme.allCases) { t in
+                            Button {
+                                chatBubbleTheme = t.rawValue
+                            } label: {
+                                Circle()
+                                    .fill(t.swatch)
+                                    .frame(width: 44, height: 44)
+                                    .overlay {
+                                        Circle()
+                                            .strokeBorder(Color(UIColor.separator), lineWidth: 0.5)
+                                    }
+                                    .overlay {
+                                        Circle()
+                                            .strokeBorder(Color.accentColor, lineWidth: 2.5)
+                                            .opacity(chatBubbleTheme == t.rawValue ? 1 : 0)
+                                    }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(Text(t.label))
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .scrollIndicators(.hidden)
+            } header: {
+                Text("Chat Bubbles")
+            } footer: {
+                Text("用户气泡与发送按钮颜色: 默认 / 黑 / 米 / 蓝 / 紫 / 粉 / 橙 / 绿。")
             }
 
             // [LAUNCH-ROOT-ONLY] 「Launch Session」四档选择器随本批删除：pp 2026-09-21
@@ -7318,22 +7366,50 @@ struct SettingsSheet: View {
                         ProviderInstancesView()
                     } label: {
                         if #available(iOS 26, *) {
-                            Label("Manage Providers", systemImage: "key.circle.fill")
+Label {
+                                Text("Manage Providers")
+                            } icon: {
+                                Image("aa-Tabler-Key")
+                                    .renderingMode(.template)
+                                    .resizable()
+                                    .frame(width: 20, height: 20)
+                            }
                         } else {
-                            Label("Manage Providers", systemImage: "lock.circle.fill")
+Label {
+                                Text("Manage Providers")
+                            } icon: {
+                                Image("aa-Tabler-Lock")
+                                    .renderingMode(.template)
+                                    .resizable()
+                                    .frame(width: 20, height: 20)
+                            }
                         }
                     }
 
                     NavigationLink {
                         ModelGroupsView()
                     } label: {
-                        Label("Model Groups", systemImage: "gearshape.circle.fill")
+Label {
+                            Text("Model Groups")
+                        } icon: {
+                            Image("aa-Tabler-Settings")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                        }
                     }
 
                     NavigationLink {
                         UsageStatsView()
                     } label: {
-                        Label("Token Usage", systemImage: "chart.line.uptrend.xyaxis.circle.fill")
+Label {
+                            Text("Token Usage")
+                        } icon: {
+                            Image("aa-Tabler-ChartLine")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                        }
                     }
                 } header: {
                     Text("LLM Providers")
@@ -7347,11 +7423,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("Appearance")
                         } icon: {
-                            Image(systemName: "paintbrush.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.indigo, in: Circle())
+                            Image("aa-Tabler-Brush")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                 }
@@ -7362,11 +7438,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("Ultracode Flame")
                         } icon: {
-                            Image(systemName: "flame.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.orange, in: Circle())
+                            Image("aa-Tabler-Flame")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                 }
@@ -7380,11 +7456,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("Skills")
                         } icon: {
-                            Image(systemName: "puzzlepiece.extension")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.blue, in: Circle())
+                            Image("aa-Tabler-Puzzle")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                     NavigationLink {
@@ -7393,11 +7469,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("Soul")
                         } icon: {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.pink, in: Circle())
+                            Image("aa-Tabler-Sparkles")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                     NavigationLink {
@@ -7406,11 +7482,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("Memory")
                         } icon: {
-                            Image(systemName: "brain.head.profile")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.purple, in: Circle())
+                            Image("aa-Tabler-Brain")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                     NavigationLink {
@@ -7419,11 +7495,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("Connectors")
                         } icon: {
-                            Image(systemName: "blocks")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.teal, in: Circle())
+                            Image("aa-Tabler-Blocks")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                     NavigationLink {
@@ -7432,11 +7508,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("Environment Variables")
                         } icon: {
-                            Image(systemName: "terminal")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.green, in: Circle())
+                            Image("aa-Tabler-Terminal2")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                     NavigationLink {
@@ -7445,11 +7521,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("SSH Servers")
                         } icon: {
-                            Image(systemName: "server.rack")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.mint, in: Circle())
+                            Image("aa-Tabler-Server")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                 }
@@ -7460,11 +7536,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("Storage")
                         } icon: {
-                            Image(systemName: "archivebox")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.blue, in: Circle())
+                            Image("aa-Tabler-Archive")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                     NavigationLink {
@@ -7473,11 +7549,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("Shared Folders")
                         } icon: {
-                            Image(systemName: "folder.fill.badge.person.crop")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.green, in: Circle())
+                            Image("aa-Tabler-FolderShare")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                     NavigationLink {
@@ -7486,11 +7562,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("Mount External Folders")
                         } icon: {
-                            Image(systemName: "externaldrive.badge.plus")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.orange, in: Circle())
+                            Image("aa-Tabler-DeviceUsb")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                     if #available(iOS 17.0, *) {
@@ -7502,11 +7578,11 @@ struct SettingsSheet: View {
                             Label {
                                 Text("iCloud Sync")
                             } icon: {
-                                Image(systemName: "icloud")
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 21, height: 21)
-                                    .background(.cyan, in: Circle())
+                                Image("aa-Tabler-Cloud")
+                                    .renderingMode(.template)
+                                    .resizable()
+                                    .frame(width: 20, height: 20)
+                                    .foregroundStyle(ChatColors.settingsIcon)
                             }
                         }
                     }
@@ -7521,11 +7597,11 @@ struct SettingsSheet: View {
                         } icon: {
                             // arrow.triangle.2.circlepath reads as a round trip
                             // rather than a one-way export.
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.indigo, in: Circle())
+                            Image("aa-Tabler-Refresh")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                 }
@@ -7539,11 +7615,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("Permissions")
                         } icon: {
-                            Image(systemName: "lock.shield")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.red, in: Circle())
+                            Image("aa-Tabler-ShieldLock")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                     if BiometricAuth.isAvailable {
@@ -7556,10 +7632,8 @@ struct SettingsSheet: View {
                                 // Match SF Symbol to the device's actual sensor — Touch ID
                                 // devices showed a Face ID glyph here before.
                                 Image(systemName: BiometricAuth.biometryIconName)
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 21, height: 21)
-                                    .background(.teal, in: Circle())
+                                    .font(.system(size: 20))
+                                    .foregroundStyle(ChatColors.settingsIcon)
                             }
                         }
                     }
@@ -7571,11 +7645,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("Logs")
                         } icon: {
-                            Image(systemName: "doc.text")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.gray, in: Circle())
+                            Image("aa-Tabler-FileText")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                 }
@@ -7586,22 +7660,22 @@ struct SettingsSheet: View {
                         Label {
                             Text("About Moonveil")
                         } icon: {
-                            Image(systemName: "info")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.indigo, in: Circle())
+                            Image("aa-Tabler-InfoCircle")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                     Link(destination: URL(string: "https://openminis.github.io/privacy-policy.html")!) {
                         Label {
                             Text("Privacy Policy")
                         } icon: {
-                            Image(systemName: "hand.raised")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.teal, in: Circle())
+                            Image("aa-Tabler-HandStop")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                     Button {
@@ -7610,11 +7684,11 @@ struct SettingsSheet: View {
                         Label {
                             Text("Feedback")
                         } icon: {
-                            Image(systemName: "bubble.left.and.bubble.right.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                                .frame(width: 21, height: 21)
-                                .background(.indigo, in: Circle())
+                            Image("aa-Tabler-Messages")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(ChatColors.settingsIcon)
                         }
                     }
                     .foregroundStyle(.primary)

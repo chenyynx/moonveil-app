@@ -99,7 +99,11 @@ struct ISHTerminalView: View {
             if showCloseButton {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button { dismiss() } label: {
-                        Image(systemName: "xmark")
+                        Image("aa-Tabler-X")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                            .accessibilityLabel(Text("Close"))
                     }
                 }
             }
@@ -107,7 +111,11 @@ struct ISHTerminalView: View {
                 Button {
                     viewModel.clearScreen()
                 } label: {
-                    Image(systemName: "paintbrush")
+                    Image("aa-Tabler-Brush")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                        .accessibilityLabel(Text("Clear"))
                 }
             }
         }

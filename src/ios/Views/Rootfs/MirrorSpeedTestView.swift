@@ -22,11 +22,11 @@ enum MirrorCategory: String, CaseIterable, Identifiable {
         }
     }
 
-    var systemImage: String {
+    var iconAsset: String {
         switch self {
-        case .alpine: return "mountain.2"
-        case .pip: return "shippingbox"
-        case .npm: return "cube"
+        case .alpine: return "aa-Tabler-Mountain"
+        case .pip: return "aa-Tabler-Package"
+        case .npm: return "aa-Tabler-Box"
         }
     }
 
@@ -466,8 +466,10 @@ struct MirrorsSectionView: View {
                 Label {
                     Text(AppLocalized("Detect Fast Mirrors"))
                 } icon: {
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 9))
+                    Image("aa-Tabler-BoltFilled")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 9, height: 9)
                         .foregroundStyle(.white)
                         .frame(width: 21, height: 21)
                         .background(.orange, in: Circle())
@@ -485,8 +487,10 @@ struct MirrorsSectionView: View {
                     MirrorCategoryDetailView(category: category)
                 } label: {
                     HStack(spacing: 10) {
-                        Image(systemName: category.systemImage)
-                            .font(.system(size: 9))
+                        Image(category.iconAsset)
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 11, height: 11)
                             .foregroundStyle(.white)
                             .frame(width: 21, height: 21)
                             .background(category.iconColor, in: Circle())
@@ -584,8 +588,10 @@ struct MirrorCategoryDetailView: View {
                     Label {
                         Text(AppLocalized("Test Speed"))
                     } icon: {
-                        Image(systemName: "bolt.fill")
-                            .font(.system(size: 9))
+                        Image("aa-Tabler-BoltFilled")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 9, height: 9)
                             .foregroundStyle(.white)
                             .frame(width: 21, height: 21)
                             .background(.orange, in: Circle())
@@ -604,7 +610,10 @@ struct MirrorCategoryDetailView: View {
 
     private func mirrorRowStatic(_ mirror: MirrorEntry) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: vm.selectedMirrorId[category] == mirror.id ? "checkmark.circle.fill" : "circle")
+            Image(vm.selectedMirrorId[category] == mirror.id ? "aa-Tabler-CircleCheckFilled" : "aa-Tabler-Circle")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
                 .foregroundStyle(vm.selectedMirrorId[category] == mirror.id ? .blue : .secondary)
                 .frame(width: 20)
 
@@ -638,7 +647,10 @@ struct MirrorCategoryDetailView: View {
 
     private func mirrorRow(_ result: MirrorTestResult) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: vm.selectedMirrorId[category] == result.mirror.id ? "checkmark.circle.fill" : "circle")
+            Image(vm.selectedMirrorId[category] == result.mirror.id ? "aa-Tabler-CircleCheckFilled" : "aa-Tabler-Circle")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
                 .foregroundStyle(vm.selectedMirrorId[category] == result.mirror.id ? .blue : .secondary)
                 .frame(width: 20)
 

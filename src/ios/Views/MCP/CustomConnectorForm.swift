@@ -138,7 +138,7 @@ struct CustomConnectorForm: View {
         }
         .presentationDetents([.fraction(0.92), .large])
         .presentationCornerRadius(36)
-        .presentationBackground(Color(uiColor: .systemGroupedBackground))
+        .presentationBackground(ChatColors.pageBackground)
         .presentationDragIndicator(.visible)
         .alert(AppLocalized("Couldn't Save"), isPresented: $showError) {
             Button(AppLocalized("OK"), role: .cancel) {}

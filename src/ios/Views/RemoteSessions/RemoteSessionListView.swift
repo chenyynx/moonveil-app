@@ -121,6 +121,8 @@ struct RemoteSessionListView: View {
     @State private var archiveFilter: RemoteSessionFilter = .active
     /// 设备详情页 push（长按终端卡；REMOTE-DEVICE-1，pp 2026-09-20 指定入口）。
     @State private var showsDeviceDetail = false
+    /// 「添加设备」表：终端卡在没有可用 connector 时弹出（pp 2026-09-27）。
+    @State private var showsAddDevice = false
     /// 远端会话数据层（共享单例：列表页 / 设备页 / 弹窗同源）。
     @StateObject private var loader = RemoteSessionLoader.shared
     /// P3-3：页面级错误 toast 存储（官方一槽一错语义，AAV2 冻结件）。
@@ -131,7 +133,7 @@ struct RemoteSessionListView: View {
     // 本视图不再另挂右上角菜单。
     var body: some View {
         content
-            // 页面画布与本机一致 = systemBackground（pp 2026-09-26「远端背景改成和
+            // 页面画布与本机一致 = pageBackground（pp 2026-09-26「远端背景改成和
             // 本地背景颜色一样」；原方案 B 暖奶油画布退役），列表背景让位
             .background(RemotePalette.canvas.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
@@ -705,17 +707,25 @@ struct RemoteSessionListView: View {
         .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         // REMOTE-DEVICE-1：点按整卡进入设备详情页（pp 2026-09-21 改：原长按入口
         // 2026-09-20 版改单击——「现在是长按卡片才能进去 改为点一次就进入」）。
-        // [PP-2026-09-27] 未配置时不进设备页：没有 connector 的情况下「正在同步
-        // 设备信息…」没有意义，直接回跳添加 agent 页（登录盖：扫码/手动登录）。
-        // onOpenLogin 之前传了三层但从未被调用，这次接上。
+        // [PP-2026-09-27] 点按直进设备页，不再按配置状态分流弹登录（恢复 5863f33；
+        // d20295d 的未配置分流未经 pp 确认，已 revert）。未配置时目的地显示
+        // deviceDetailPending（「正在同步设备信息…」+ 重试），不白屏。
+        // pp 2026-09-27：有 connector 直接进设备页；没有则弹「添加设备」表
+        // （扫码登录/手动登录），登录成功后再进设备页。
         .onTapGesture {
-            if !configured {
-                onOpenLogin()
+            if deviceConnector != nil {
+                showsDeviceDetail = true
             } else {
+                showsAddDevice = true
+            }
+        }
+        .sheet(isPresented: $showsAddDevice) {
+            AddDeviceSheet(service: service) {
+                // 登录成功：dashboard 拉到 connector 后进设备页
                 showsDeviceDetail = true
             }
         }
-        .accessibilityHint(Text(!configured ? "添加 Agent" : "查看设备详情"))
+        .accessibilityHint(Text(deviceConnector != nil ? "查看设备详情" : "添加设备"))
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 6, trailing: 16))
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)

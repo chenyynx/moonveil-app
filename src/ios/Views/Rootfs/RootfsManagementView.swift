@@ -24,7 +24,10 @@ struct RootfsManagementView: View {
                     Spacer()
                     Text(viewModel.isInstalled ? "Installed" : "Not Installed")
                         .foregroundStyle(.secondary)
-                    Image(systemName: viewModel.isInstalled ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    Image(viewModel.isInstalled ? "aa-Tabler-CircleCheckFilled" : "aa-Tabler-CircleXFilled")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
                         .foregroundColor(viewModel.isInstalled ? .green : .red)
                 }
 
@@ -59,8 +62,10 @@ struct RootfsManagementView: View {
                         Label {
                             Text("Browse Files")
                         } icon: {
-                            Image(systemName: "folder.fill")
-                                .font(.system(size: 9))
+                            Image("aa-Tabler-FolderFilled")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 9, height: 9)
                                 .foregroundStyle(.white)
                                 .frame(width: 21, height: 21)
                                 .background(.blue, in: Circle())
@@ -77,8 +82,10 @@ struct RootfsManagementView: View {
                         Label {
                             Text("Install Rootfs")
                         } icon: {
-                            Image(systemName: "arrow.down.circle.fill")
-                                .font(.system(size: 9))
+                            Image("aa-Tabler-CircleArrowDownFilled")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 9, height: 9)
                                 .foregroundStyle(.white)
                                 .frame(width: 21, height: 21)
                                 .background(.green, in: Circle())
@@ -90,8 +97,10 @@ struct RootfsManagementView: View {
                         Label {
                             Text("Reset Rootfs")
                         } icon: {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 9))
+                            Image("aa-Tabler-Refresh")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 9, height: 9)
                                 .foregroundStyle(.white)
                                 .frame(width: 21, height: 21)
                                 .background(.orange, in: Circle())
@@ -103,8 +112,10 @@ struct RootfsManagementView: View {
                         Label {
                             Text("Reset & Backup User Data")
                         } icon: {
-                            Image(systemName: "archivebox.fill")
-                                .font(.system(size: 9))
+                            Image("aa-Tabler-Archive")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 9, height: 9)
                                 .foregroundStyle(.white)
                                 .frame(width: 21, height: 21)
                                 .background(.indigo, in: Circle())
@@ -118,8 +129,10 @@ struct RootfsManagementView: View {
                         Label {
                             Text("Restore User Data")
                         } icon: {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.system(size: 9))
+                            Image("aa-Tabler-CircleArrowUpFilled")
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 9, height: 9)
                                 .foregroundStyle(.white)
                                 .frame(width: 21, height: 21)
                                 .background(.teal, in: Circle())

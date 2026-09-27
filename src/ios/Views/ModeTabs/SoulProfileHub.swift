@@ -3,7 +3,7 @@
 // .navigationTransition(.zoom(sourceID:in:)) —— 打开从胶囊头像放大长出、关闭缩回。
 //
 // [MUSE-SPEC 2026-09-26] 参照 1f6f84af（1179×2556@3x）逐区块实测（pt=px/3）：
-//   纯内容页（无导航栏/tab 栏）、systemBackground；
+//   纯内容页（无导航栏/tab 栏）、pageBackground；
 //   X/分享 44pt 圆钮（y 中心~85，leading/trailing ~16）；头像 78pt 白圈底屏中 +
 //   右下 32pt 白圆铅笔徽标；名字 20pt semibold 屏中；状态行（26pt 绿闪电徽标 +
 //   15pt 文案「已连接」）屏中；四图标工具条：全宽白胶囊 高46 圆角23，四图标
@@ -38,7 +38,7 @@ struct SoulProfileHub: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            Color(UIColor.systemBackground).ignoresSafeArea()
+            ChatColors.pageBackground.ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 0) {
@@ -98,10 +98,10 @@ struct SoulProfileHub: View {
                 .frame(width: 19, height: 19)
                 .foregroundStyle(Color.primary)
                 .frame(width: 44, height: 44)
-                .circleLiquidGlass()
                 .contentShape(Circle())
         }
-        .buttonStyle(SpringPressButtonStyle())
+        // [pp 2026-09-27] iOS 26+ 原生 .glass（拖拽/发光）；低版本 .bordered 降级。
+        .modifier(SecondaryButtonStyleIfAvailable())
     }
 
     // MARK: - 头像 + 名字 + 状态行
@@ -117,7 +117,7 @@ struct SoulProfileHub: View {
                     .modifier(PlushIdleMotion())
                     .overlay(Circle().stroke(Color.white, lineWidth: 3))
                     .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 2)
-                // 铅笔徽标：32pt 白圆（点=换形象，走 SoulSettingsView 的 icon 编辑）。
+                // 铅笔徽标：32pt 液态玻璃圆（点=换形象，走 SoulSettingsView 的 icon 编辑）。
                 Button {
                     showSoulEditor = true
                 } label: {
@@ -129,10 +129,11 @@ struct SoulProfileHub: View {
                         .frame(width: 15, height: 15)
                         .foregroundStyle(Color.primary)
                         .frame(width: 32, height: 32)
-                        .circleLiquidGlass()
-                        .overlay(Circle().stroke(Color(UIColor.systemBackground), lineWidth: 2))
+                        .contentShape(Circle())
                 }
-                .buttonStyle(SpringPressButtonStyle())
+                // [pp 2026-09-27] iOS 26+ 原生 .glass（拖拽/发光）；低版本 .bordered 降级。
+                .modifier(SecondaryButtonStyleIfAvailable())
+                .accessibilityLabel("更换形象")
                 // [pp 2026-09-27] 徽标往右下挪，少占头像。
                 .offset(x: 10, y: 12)
             }

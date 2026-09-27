@@ -60,16 +60,33 @@ struct RootfsResetButton: View {
     private var compactButton: some View {
         Menu {
             Button(action: { showResetAlert = true }) {
-                Label("Reset All", systemImage: "trash")
+Label {
+                    Text("Reset All")
+                } icon: {
+                    Image("aa-Tabler-Trash")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                }
             }
 
             if showBackupOption {
                 Button(action: { showBackupAlert = true }) {
-                    Label("Reset & Backup", systemImage: "archivebox")
+Label {
+                        Text("Reset & Backup")
+                    } icon: {
+                        Image("aa-Tabler-Archive")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                    }
                 }
             }
         } label: {
-            Image(systemName: "arrow.clockwise.circle")
+            Image("aa-Tabler-Refresh")
+                .renderingMode(.template)
+                .resizable()
+                .frame(width: 20, height: 20)
                 .imageScale(.large)
                 .foregroundColor(.red)
         }
@@ -78,16 +95,37 @@ struct RootfsResetButton: View {
     private var normalButton: some View {
         Menu {
             Button(action: { showResetAlert = true }) {
-                Label("Reset All", systemImage: "trash")
+Label {
+                    Text("Reset All")
+                } icon: {
+                    Image("aa-Tabler-Trash")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                }
             }
 
             if showBackupOption {
                 Button(action: { showBackupAlert = true }) {
-                    Label("Reset & Backup", systemImage: "archivebox")
+Label {
+                        Text("Reset & Backup")
+                    } icon: {
+                        Image("aa-Tabler-Archive")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                    }
                 }
             }
         } label: {
-            Label("Reset Rootfs", systemImage: "arrow.clockwise")
+Label {
+                Text("Reset Rootfs")
+            } icon: {
+                Image("aa-Tabler-Refresh")
+                    .renderingMode(.template)
+                    .resizable()
+                    .frame(width: 20, height: 20)
+            }
                 .foregroundColor(.red)
         }
     }
@@ -95,7 +133,14 @@ struct RootfsResetButton: View {
     private var prominentButton: some View {
         VStack(spacing: 12) {
             Button(action: { showResetAlert = true }) {
-                Label("Reset Rootfs", systemImage: "arrow.clockwise")
+Label {
+                    Text("Reset Rootfs")
+                } icon: {
+                    Image("aa-Tabler-Refresh")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                }
                     .font(.headline)
                     .padding()
                     .frame(maxWidth: .infinity)
@@ -106,7 +151,14 @@ struct RootfsResetButton: View {
 
             if showBackupOption {
                 Button(action: { showBackupAlert = true }) {
-                    Label("Reset & Backup", systemImage: "archivebox")
+Label {
+                        Text("Reset & Backup")
+                    } icon: {
+                        Image("aa-Tabler-Archive")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                    }
                         .font(.headline)
                         .padding()
                         .frame(maxWidth: .infinity)

@@ -68,7 +68,21 @@ private final class CachedViewModel: ObservableObject {
 // MARK: - Color Palette (clean light theme)
 
 enum ChatColors {
-    static let background = Color(UIColor.systemBackground)
+    /// App 页面底色（pp 2026-09-27）：照 Grok 设置页浅/深两张截图实测，
+    /// 浅 #F5F5F5 / 深 #111111（中性灰，非系统 systemBackground 的纯白/纯黑）。
+    /// 各页面画布统一走这个 token；聊天区"系统"主题、远端画布都跟它走。
+    /// 卡片、前/对比色（如发送钮上的反色箭头）不动。
+    static let pageBackgroundUI = UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0x11 / 255, green: 0x11 / 255, blue: 0x11 / 255, alpha: 1)
+        : UIColor(red: 0xF5 / 255, green: 0xF5 / 255, blue: 0xF5 / 255, alpha: 1) }
+    static let pageBackground = Color(pageBackgroundUI)
+    /// 设置行图标灰（pp 2026-09-27）：照 Grok 设置页截图实测，浅 #848484 / 深 #919191；
+    /// 图标去彩色圆底，单色线条。
+    static let settingsIconUI = UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0x91 / 255, green: 0x91 / 255, blue: 0x91 / 255, alpha: 1)
+        : UIColor(red: 0x84 / 255, green: 0x84 / 255, blue: 0x84 / 255, alpha: 1) }
+    static let settingsIcon = Color(settingsIconUI)
+    static let background = pageBackground
     static let secondaryBg = Color(UIColor.secondarySystemBackground)
     /// Icon tile background (pp 2026-09-17: 图标的背景底色 #F1F1F1). Light mode is
     /// the exact value he picked; dark keeps secondarySystemBackground — a pale
@@ -120,6 +134,95 @@ enum ChatBackgroundTheme: String, CaseIterable, Identifiable {
         case .claude: return "Claude"
         }
     }
+}
+
+/// 用户气泡主题(pp 2026-09-27):照 Muse 外观页"聊天主题"色板,用户可切换
+/// 用户气泡底色 + 发送按钮颜色。default = 现有暖灰(pp 2026-09-17 定稿
+/// 浅 #F0F0EE / 深 #22211F),其余 7 色对齐 Muse 色板(黑/米/蓝/紫/粉/橙/绿)。
+enum ChatBubbleTheme: String, CaseIterable, Identifiable {
+    case defaultTheme = "default"
+    case black, beige, blue, purple, pink, orange, green
+
+    /// @AppStorage key。各聊天 View 用 @AppStorage(SELF.storageKey) 读,
+    /// SwiftUI 会在切换时自动重绘。
+    static let storageKey = "chatBubbleTheme"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .defaultTheme: return "默认"
+        case .black: return "黑"
+        case .beige: return "米"
+        case .blue: return "蓝"
+        case .purple: return "紫"
+        case .pink: return "粉"
+        case .orange: return "橙"
+        case .green: return "绿"
+        }
+    }
+
+    /// 非 SwiftUI 上下文兜底读当前主题;View 里请用 @AppStorage 拿响应式版本。
+    static var current: ChatBubbleTheme {
+        ChatBubbleTheme(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .defaultTheme
+    }
+
+    /// 气泡底色(随深浅色)。深色版单独调,保证在深背景上可见。
+    func bubble(for scheme: ColorScheme) -> Color {
+        let dark = scheme == .dark
+        switch self {
+        case .defaultTheme: return ChatColors.userBubble
+        case .black: return dark ? Color(white: 0.20) : .black
+        case .beige: return dark
+            ? Color(red: 0.30, green: 0.27, blue: 0.23)
+            : Color(red: 0.93, green: 0.89, blue: 0.83)
+        case .blue: return dark
+            ? Color(red: 0.15, green: 0.35, blue: 0.55)
+            : Color(red: 0.75, green: 0.89, blue: 1.00)
+        case .purple: return dark
+            ? Color(red: 0.35, green: 0.28, blue: 0.58)
+            : Color(red: 0.85, green: 0.81, blue: 0.96)
+        case .pink: return dark
+            ? Color(red: 0.55, green: 0.28, blue: 0.42)
+            : Color(red: 0.98, green: 0.78, blue: 0.88)
+        case .orange: return dark
+            ? Color(red: 0.55, green: 0.36, blue: 0.18)
+            : Color(red: 0.99, green: 0.87, blue: 0.72)
+        case .green: return dark
+            ? Color(red: 0.24, green: 0.45, blue: 0.30)
+            : Color(red: 0.80, green: 0.92, blue: 0.79)
+        }
+    }
+
+    /// 气泡内文字色:浅底深字、深底白字,保证对比度。
+    func bubbleText(for scheme: ColorScheme) -> Color {
+        switch self {
+        case .defaultTheme: return ChatColors.primaryText
+        case .black: return .white
+        default: return scheme == .dark ? .white : Color(white: 0.15)
+        }
+    }
+
+    /// 发送按钮圆盘色:跟气泡同色系;default 沿用原 label 黑。
+    func sendButton(for scheme: ColorScheme) -> Color {
+        switch self {
+        case .defaultTheme: return ChatColors.sendButton
+        case .black: return scheme == .dark ? .white : .black
+        default: return bubble(for: scheme)
+        }
+    }
+
+    /// 发送按钮圆盘上的箭头色:与圆盘底色反色,保证可见。
+    func onSendButton(for scheme: ColorScheme) -> Color {
+        switch self {
+        case .defaultTheme: return Color(UIColor.systemBackground)
+        case .black: return scheme == .dark ? Color(white: 0.15) : .white
+        default: return scheme == .dark ? .white : Color(white: 0.15)
+        }
+    }
+
+    /// 设置页色板圆点颜色(浅色版气泡色)。
+    var swatch: Color { bubble(for: .light) }
 }
 // MARK: - System Resource Monitor
 
@@ -214,6 +317,14 @@ struct AIChatView: View {
     /// [pp 09-18] 聊天背景主题:system(默认=系统背景) / claude(Claude 官方暖白/暖黑)。
     /// 与 AppearanceSettingsView 同 key 联动,切换即通知本视图重算背景。
     @AppStorage("chatBackgroundTheme") private var chatBackgroundTheme: String = ChatBackgroundTheme.system.rawValue
+
+    /// [pp 2026-09-27] 用户气泡主题(默认/黑/米/蓝/紫/粉/橙/绿),与设置页
+    /// "Chat Bubbles" 色板同 key 联动。发送按钮圆盘跟主题走。
+    @AppStorage(ChatBubbleTheme.storageKey) private var bubbleThemeRaw: String = ChatBubbleTheme.defaultTheme.rawValue
+    @Environment(\.colorScheme) private var colorScheme
+    private var bubbleTheme: ChatBubbleTheme {
+        ChatBubbleTheme(rawValue: bubbleThemeRaw) ?? .defaultTheme
+    }
 
     /// [pp 09-18] 聊天背景(随主题)。抽成计算属性而非在 body 里写三元——AIChatView 的
     /// body 很长,末尾三元会把这整条表达式的类型推断推到阈值之上(CI: unable to
@@ -3531,7 +3642,7 @@ struct AIChatView: View {
             Button { performEnqueue() } label: {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 34))
-                    .foregroundStyle(ChatColors.sendButton)
+                    .foregroundStyle(bubbleTheme.sendButton(for: colorScheme))
             }
             .keyboardShortcut(.return, modifiers: .command)
             .accessibilityLabel(Text("Add to queue", comment: "VoiceOver label for the send button while a reply is generating"))
@@ -3548,7 +3659,7 @@ struct AIChatView: View {
             Button { performSend() } label: {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 34))
-                    .foregroundStyle(canSend ? ChatColors.sendButton : ChatColors.sendButtonDisabled)
+                    .foregroundStyle(canSend ? bubbleTheme.sendButton(for: colorScheme) : ChatColors.sendButtonDisabled)
             }
             .disabled(!canSend)
             .keyboardShortcut(.return, modifiers: .command)
@@ -4450,7 +4561,7 @@ struct AIChatView: View {
         var body: some View {
             content()
                 .frame(maxWidth: .infinity)
-                .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.15, alpha: 1) : UIColor.systemBackground }))
+                .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.15, alpha: 1) : ChatColors.pageBackgroundUI }))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
@@ -5863,7 +5974,7 @@ private struct SessionLockGateOverlay: View {
                 .fill(.regularMaterial)
                 .ignoresSafeArea()
                 .overlay {
-                    Color(UIColor.systemBackground).opacity(0.4)
+                    ChatColors.pageBackground.opacity(0.4)
                         .ignoresSafeArea()
                 }
 

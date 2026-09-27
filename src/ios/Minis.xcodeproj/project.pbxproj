@@ -172,6 +172,7 @@
 		D05AF00E000000000000B226 /* DeviceOverviewSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A226 /* DeviceOverviewSections.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B227 /* DeviceSessionSelectionDock.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A227 /* DeviceSessionSelectionDock.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000B230 /* SessionFileReferenceLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A230 /* SessionFileReferenceLinks.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		D05AF00E000000000000B231 /* AddDeviceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000A231 /* AddDeviceSheet.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000F002 /* caveat_wght.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000F001 /* caveat_wght.ttf */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		D05AF00E000000000000F004 /* geistmono_medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000F003 /* geistmono_medium.ttf */; };
 		D05AF00E000000000000MD11 /* ChatMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05AF00E000000000000MD01 /* ChatMarkdownView.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
@@ -1055,6 +1056,7 @@
 		D05AF00E000000000000A226 /* DeviceOverviewSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceOverviewSections.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A227 /* DeviceSessionSelectionDock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSessionSelectionDock.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000A230 /* SessionFileReferenceLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionFileReferenceLinks.swift; sourceTree = "<group>"; };
+		D05AF00E000000000000A231 /* AddDeviceSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDeviceSheet.swift; sourceTree = "<group>"; };
 		D05AF00E000000000000F001 /* caveat_wght.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = caveat_wght.ttf; sourceTree = "<group>"; };
 		D05AF00E000000000000F003 /* geistmono_medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = geistmono_medium.ttf; sourceTree = "<group>"; };
 		D05AF00E000000000000MD01 /* ChatMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMarkdownView.swift; sourceTree = "<group>"; };
@@ -2017,6 +2019,7 @@
 				D05AF00E000000000000A226 /* DeviceOverviewSections.swift */,
 				D05AF00E000000000000A227 /* DeviceSessionSelectionDock.swift */,
 				D05AF00E000000000000A230 /* SessionFileReferenceLinks.swift */,
+				D05AF00E000000000000A231 /* AddDeviceSheet.swift */,
 				D05AF00E000000000000A211 /* SidebarDrawerEnvironmentKeys.swift */,
 				D05AF00E000000000000A212 /* WorkspaceFilesSheet.swift */,
 				D05AF00E000000000000A213 /* WorkspaceFilePreviewSheet.swift */,
@@ -4177,6 +4180,7 @@
 				D05AF00E000000000000B20F /* SessionTurnActions.swift in Sources */,
 				D05AF00E000000000000B210 /* SessionTurnReviewSheet.swift in Sources */,
 				D05AF00E000000000000B230 /* SessionFileReferenceLinks.swift in Sources */,
+				D05AF00E000000000000B231 /* AddDeviceSheet.swift in Sources */,
 				D05AF00E000000000000B220 /* ConnectorCredentialSheet.swift in Sources */,
 				D05AF00E000000000000B221 /* RuntimeConfigurationFieldView.swift in Sources */,
 				D05AF00E000000000000B222 /* RuntimeConfigurationRowEditors.swift in Sources */,

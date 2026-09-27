@@ -424,7 +424,7 @@ struct ToolLiveSheet: View {
         // distribute space between the fixed chrome and the flexible content.
         // On iPhone `.infinity` just fills the sheet detent as before.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(UIColor.systemGroupedBackground))
+        .background(ChatColors.pageBackground)
         .onAppear {
             MinisOpenURLBroker.shared.toolSheetVisible = true
         }
@@ -623,7 +623,7 @@ struct ToolLiveSheet: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(Color(UIColor.systemBackground))
+        .background(ChatColors.pageBackground)
         .fullScreenCover(isPresented: $showTerminal) {
             NavigationStack {
                 // Pre-fill the shell command the tool is currently running,
@@ -814,7 +814,7 @@ struct ToolLiveSheet: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 12)
         }
-        .background(Color(UIColor.systemBackground))
+        .background(ChatColors.pageBackground)
     }
 
     // MARK: - Helpers
@@ -2329,7 +2329,7 @@ private struct ToolStatusBarSurface: ViewModifier {
             content.glassEffect(.regular, in: shape)
         } else {
             content
-                .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.15, alpha: 1) : UIColor.systemBackground }))
+                .background(Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0.15, alpha: 1) : ChatColors.pageBackgroundUI }))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
