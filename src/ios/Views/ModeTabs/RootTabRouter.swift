@@ -3,7 +3,7 @@
 // Persistence via UserDefaults (lastTab memory, U1 首启入口终案).
 
 import SwiftUI
-import Combine
+import Observation
 
 // Moved from ModeTabPicker.swift (bottom-dock batch) — the picker is gone.
 /// The app's source modes (D4: the single fork point).
@@ -19,14 +19,19 @@ enum AppSourceMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-// NOTE B8-FIX: intentionally NOT @MainActor — ContentView (nonisolated struct)
-// initializes it as a stored property; all mutations originate from UI (main).
-final class RootTabRouter: ObservableObject {
+// [TABNAV-observable 2026-09-28] @MainActor 补上：写主全是 UI 路径；ContentView
+// 的 `@Bindable private var tabRouter = RootTabRouter.shared` 在默认 MainActor
+// 隔离（pbxproj -default-isolation MainActor）下初始化合法。原 B8-FIX 的
+// "intentionally NOT @MainActor" 理由（nonisolated struct 存属性初始化）随
+// ObservableObject → @Observable 迁移作废。
+@MainActor
+@Observable
+final class RootTabRouter {
     static let shared = RootTabRouter()
 
     static let storageKey = "app.rootSourceMode"
 
-    @Published var mode: AppSourceMode {
+    var mode: AppSourceMode {
         didSet {
             guard oldValue != mode else { return }
             UserDefaults.standard.set(mode.rawValue, forKey: Self.storageKey)
@@ -37,7 +42,7 @@ final class RootTabRouter: ObservableObject {
     }
 
     /// Whether the remote tab has ever been opened — drives lazy instantiation.
-    @Published private(set) var seenRemote: Bool = false
+    private(set) var seenRemote: Bool = false
 
     private init() {
         let stored = UserDefaults.standard.string(forKey: Self.storageKey)
@@ -52,8 +57,8 @@ final class RootTabRouter: ObservableObject {
 
     /// Deep-link entry (push / approval tap): switch tab, nothing else.
     /// [T1-ISO-PRESENTED-PUSH 2026-09-28] 同值早退 guard：compose 新建链路会在
-    /// push 提交的同一 runloop 调 route(.local)，同值赋值虽不动 mode，但
-    /// @Published 赋值仍发 objectWillChange → TabView 子树重求值与 push 同帧
+    /// push 提交的同一 runloop 调 route(.local)，同值赋值虽不动 mode，但旧
+    /// @Published 时代仍发 objectWillChange → TabView 子树重求值与 push 同帧
     /// （T0 判读记为共线因子；v3 同款无害，此处顺手消除，留字据非行为修复）。
     func route(to target: AppSourceMode) {
         guard mode != target else { return }
@@ -64,24 +69,21 @@ final class RootTabRouter: ObservableObject {
     /// On the Remote tab ContentView is alive but `opacity 0`, and "can an invisible
     /// host present a sheet" is exactly the kind of thing that should not be load-bearing.
     /// One flag, one visible presenter, both tabs use it.
-    @Published var showSettings: Bool = false
+    var showSettings: Bool = false
 
-    /// B16 mirrors, one-way, presentation-only, written by ContentView from its own
-    /// existing sources of truth (never the reverse):
-    /// `localAtRoot` — the fixed gear must step aside when the local line pushes a chat
-    /// (that chat owns its own navigation bar). Same root test as `goHome()`.
-    @Published var localAtRoot: Bool = true
-    /// `localSelecting` — while rows are checked the page's own toolbar shows Cancel at
-    /// this edge, so the fixed gear stands down instead of doubling it.
-    @Published var localSelecting: Bool = false
+    /// [TABNAV-DEAD-MIRROR 2026-09-28] localAtRoot / localSelecting 镜像已删：
+    /// 全仓无读取方（底栏显隐改由 AIChatView 的 .toolbar(.hidden, for: .tabBar)
+    /// 自持），ContentView.syncFixedBarFlags 同批移除。
 
     /// `remoteAtRoot` — 远端线是否在列表根（REMOTE-DEVICE-1：设备详情页 push 时为 false）。
-    @Published var remoteAtRoot: Bool = true
+    /// @ObservationIgnored：镜像写不驱动任何视图（gearVisible 等读取方已随
+    /// Observation 迁移退场），留标志仅维持写链，避免写入唤醒观察者整链重渲染。
+    @ObservationIgnored var remoteAtRoot: Bool = true
 
     /// 远端聊天页是否已 push（RemoteSessionListView.showsChat 的一线镜像，
-    /// 写法同 localAtRoot：只写标志，不反向驱动）。
-    /// 底栏显隐数据源之一：进远端聊天页藏底栏（pp 2026-09-27「tab不进聊天页」延续）。
+    /// 写法同 remoteAtRoot：只写标志，不反向驱动）。
     /// 注意 remoteAtRoot 在设备详情页 push 时也为 false，但设备详情页不藏底栏
     /// （历史行为），所以这里用独立标志，不复用 remoteAtRoot。
-    @Published var remoteChatPushed: Bool = false
+    /// @ObservationIgnored 理由同上：纯镜像写，无读取方。
+    @ObservationIgnored var remoteChatPushed: Bool = false
 }

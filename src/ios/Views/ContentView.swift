@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import Observation
 // [SEARCH-BEAM] 本地 SPM 包，vendored 自 libraries.dev border-beam 的官方 iOS
 // 移植（`packages/border-beam/ports/ios/BorderBeamKit`，上游 MIT）。只挂在本机
 // 搜索栏；远端列表同款栏是 AA 冻结件不碰。
@@ -939,7 +940,7 @@ enum ToolSheet: String, Identifiable {
 }
 
 struct ContentView: View {
-    @ObservedObject private var tabRouter = RootTabRouter.shared
+    @Bindable private var tabRouter = RootTabRouter.shared
     /// Prefix for draft session IDs. Each new chat gets a unique suffix
     /// so SwiftUI's `.id()` correctly destroys old views and creates new ones.
     private static let newSessionPrefix = "__new__"
@@ -970,8 +971,6 @@ struct ContentView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var shareCoordinator: ShareCoordinator
-    /// [TABBAR-LOG 2026-09-27] 底栏显隐观测埋点（#1/#2/#3 排查；日志筛选类别 TabBar）。
-    private let tabBarLog = AppLogger(category: "TabBar")
     @ObservedObject private var deepLink = DeepLinkCoordinator.shared
     /// Subscribe to the router so changes to its `@Published` fields are
     /// observed by SwiftUI — without this, `onChange(of: router.newChatTrigger)`
@@ -1566,28 +1565,6 @@ struct ContentView: View {
         }
     }
 
-    /// See the B16 mirrors in `bodyPresentationStage`: same root test as `goHome()`
-    /// (path on iPhone, selection on the iPad split layout), one-way into the router.
-    private func syncFixedBarFlags() {
-        // [T1-ISO-PRESENTED-PUSH] isPresented 通道的聊天页同样视为「不在根」：
-        // 探针读数与可见栈一致（通道迁移后 path 恒空，原判据会永远报 true）。
-        let atRoot: Bool = isWideLayout
-            ? (selectedSessionId == nil)
-            : (navigationPath.isEmpty && !showsPushedChat)
-        let selecting = isSelecting
-        // [TABBAR-SYNC-WRITE 2026-09-27] B16 原是 DispatchQueue.main.async 包写（防
-        // "Publishing changes…"），但三个调用点全是 onChange/onAppear —— 事件回调不在
-        // body 求值内，同步写安全。async 反而把 flag 变更推迟到 push 转场开始之后：既
-        // 是 #1「tab 离场延迟」的直接源头，又让 toolbar 变更落在转场中段，制造 #2/#3
-        // 的失配窗口。改为与 navigationPath 同帧直写（最接近系统
-        // hidesBottomBarWhenPushed 的协同时机），并打点观测。
-        if tabRouter.localAtRoot != atRoot || tabRouter.localSelecting != selecting {
-            tabBarLog.info("flags: localAtRoot \(tabRouter.localAtRoot)→\(atRoot), localSelecting \(tabRouter.localSelecting)→\(selecting)")
-        }
-        tabRouter.localAtRoot = atRoot
-        tabRouter.localSelecting = selecting
-    }
-
     /// [PATH-PROBE 2026-09-28 T0 诊断] 一次性观测探针（纯日志、零行为改动）：
     /// 报告 navigationPath 的 count+栈顶，用于钉死「draft pop 后系统回写丢失」
     /// 的确切机制（C1 程序化 push 语义 / C2 .id identity 组合 / C3 tab 栏
@@ -1596,7 +1573,7 @@ struct ContentView: View {
     /// 段B 每轮 push/pop Unbalanced×6——判别完成后按 pp 审核结论决定去留。
     /// CI 两连判例：NavigationPath 无 .last（key path 三连错）且不满足
     /// Sequence（Array init 不匹配）——只用仓内已验证的 count/isEmpty
-    /// （syncFixedBarFlags/commitNavigationPath 同款），栈顶身份由 count
+    /// （commitNavigationPath 同款），栈顶身份由 count
     /// 序列推断（DISAPPEAR 后 count=1 即残留、push 后 count=2 即错位叠加）。
     private func pathProbe(_ tag: String) {
         AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(navigationPath.count) isEmpty=\(navigationPath.isEmpty)")
@@ -1674,37 +1651,24 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .dismissAllImmersivePresentations)) { _ in
             if activeToolSheet != nil { activeToolSheet = nil }
         }
-        // B16: the fixed bar is drawn by the shell, so it needs to know two things it
-        // used to get for free from living in this toolbar — whether a chat has been
-        // pushed, and whether rows are checked. One-way, low-frequency.
-        // [TABBAR-SYNC-WRITE 2026-09-27] 原注释称 "written a runloop later"（防
-        // Publishing-changes）。后经查三个调用点全为事件回调、非 body 求值，同步写
-        // 安全；runloop 延迟正是 #1 延迟与 #2/#3 失配窗口之源，已改同帧直写
-        // （详见 syncFixedBarFlags 内注释）。
-        .onAppear { syncFixedBarFlags() }
-        .onChange(of: isSelecting) { on in
-            // [TABBAR-SYNC-WRITE] 同 syncFixedBarFlags：事件回调内同步写。
-            tabRouter.localSelecting = on
-        }
+        // [TABNAV-DEAD-MIRROR 2026-09-28] B16 固定底栏镜像链已删：syncFixedBarFlags
+        // 及其全部调用点、只写 localSelecting 的死 onChange、tabBarLog 埋点。
+        // 底栏显隐改由聊天页自持（AIChatView 无条件 .toolbar(.hidden, for: .tabBar)）。
         .onChange(of: navigationPath) { _ in
-            syncFixedBarFlags()
             flushPendingSessionRefresh()
             // [PATH-PROBE] path 任何变化都留痕 + 0.3s 后回采（T0 诊断）。
             pathProbe("onChange")
             pathProbeLater("onChange+0.3s")
         }
-        // [T1-ISO-PRESENTED-PUSH] isPresented 通道的 flags 同步 + 判别探针 +
+        // [T1-ISO-PRESENTED-PUSH] isPresented 通道翻转的判别探针 +
         // vm 转场挂起保护。pop 时系统把 showsPushedChat 翻回 false，本观察者：
-        // ① 随同把 localAtRoot 拉回 true（等价 hidesBottomBarWhenPushed 的 pop
-        // 协同；无此行，flags 只在 push 时更新、pop 后永久卡 false——正是 T2
-        // 守卫要防的那类残留的 flags 版）；② 复刻 path 观察者的 vm 挂起保护
+        // ① 复刻 path 观察者的 vm 挂起保护
         // （[T-ios-stacknav-transition-attributegraph-race]：转场中 @Published
         // 增量喂给正在拆除的子图 → EXC_BAD_ACCESS build-48 判例。isPresented
-        // push/pop 不改 path，那段保护不会触发，必须在此同款执行）；③ 判别
+        // push/pop 不改 path，那段保护不会触发，必须在此同款执行）；② 判别
         // 探针：pushedDISAPPEAR 后本行打印 isPresented=false = Bool 回写健康
         // （T1 有效性实锤）；日志缺失/仍 true = Bool 通道同病（换形状再诊断）。
         .onChange(of: showsPushedChat) { presented in
-            syncFixedBarFlags()
             flushPendingSessionRefresh()
             AppLogger(category: "PathProbe").info("[PATH-PROBE] isPresented:\(presented ? "PUSH" : "POP") activeId=\(activePushedChatId?.prefix(8) ?? "nil")")
             // —— vm 挂起保护（与 onChange(of: navigationPath) 内逐句同款）——
@@ -1737,7 +1701,6 @@ struct ContentView: View {
                 scheduleOutgoingPreviewRefresh()
             }
         }
-        .onChange(of: selectedSessionId) { _ in syncFixedBarFlags() }
         .sheet(item: $sessionToDelete) { session in
             DeleteConfirmSheet(info: $singleDeleteInfo, isLoading: false) {
                 print("[DELETE] onDelete called for session: \(session.id)")
@@ -4189,7 +4152,6 @@ struct ContentView: View {
             activePushedChatId = id
             showsPushedChat = true
         }
-        syncFixedBarFlags()
     }
 
     /// [T1-ISO-PRESENTED-PUSH] 落地后台挂起的 isPresented push 意图。与

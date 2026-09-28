@@ -38,6 +38,7 @@
 // border-beam 官方 iOS 移植，上游 MIT；BB1 比例补丁见 PATCHES.md）。
 import BorderBeamKit
 import SwiftUI
+import Observation
 
 struct RemoteSessionListView: View {
     /// [FIX-auth-sheet-seq] 手动/扫码登录的延后弹出队列：AddDeviceSheet 退场
@@ -46,9 +47,9 @@ struct RemoteSessionListView: View {
 
     @ObservedObject var service: RemoteService
     /// [SESSION-SWIPE-TO-LONGPRESS] 页切冻结观察（与本机 ContentView 同款单例
-    /// @ObservedObject）：横滑切页判定胜出时冻结本列表竖滚，防切页时列表跟着跑——
+    /// 订阅）：横滑切页判定胜出时冻结本列表竖滚，防切页时列表跟着跑——
     /// 卡片区现在能武装页切，没有这条会露馅。
-    @ObservedObject private var tabRouter = RootTabRouter.shared
+    @Bindable private var tabRouter = RootTabRouter.shared
     @Environment(\.colorScheme) private var colorScheme
     /// 审批计数与断开动作由 RemoteRootView 透传（本视图不持有连接生命周期）。
     var pendingNotices: Int = 0

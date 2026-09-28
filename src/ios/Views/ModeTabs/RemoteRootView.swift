@@ -9,10 +9,11 @@
 // 不装成功态：没连上就显示没连上。
 
 import SwiftUI
+import Observation
 
 struct RemoteRootView: View {
     @ObservedObject var service: RemoteService
-    @ObservedObject private var tabRouter = RootTabRouter.shared
+    @Bindable private var tabRouter = RootTabRouter.shared
 
     @State private var pendingNotices = 0
     /// 右上角 🔍（pp 2026-09-26「搜索放右上角」）：sheet 出搜索占位页。

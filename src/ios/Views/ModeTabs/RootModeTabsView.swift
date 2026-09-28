@@ -15,10 +15,11 @@
 
 import SwiftUI
 import UIKit
+import Observation
 
 @MainActor
 struct RootModeTabsView: View {
-    @StateObject private var router = RootTabRouter.shared
+    @Bindable private var router = RootTabRouter.shared
     @StateObject private var remoteService = RemoteService()
     @State private var showsQRLogin = false
     @State private var showsManualLogin = false
