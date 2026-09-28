@@ -755,6 +755,10 @@
 		RKF73F37D7D31F51FBE85BDE /* V2AttachmentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK4F75C6B113E154F1DE28C0 /* V2AttachmentModels.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RKF743345A48B769C6ED7C34 /* V2ConnectorAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = RK975D1D109E9280B7DB9295 /* V2ConnectorAPI.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 		RKFECA622BE7052D721F626A /* ChatImageThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = RKE0024D9AC31C80E6001677 /* ChatImageThumbnail.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		NAVF00000000000000B1 /* Route.swift in Sources */ = {isa = PBXBuildFile; fileRef = NAVF0000000000000A1 /* Route.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		NAVF00000000000000B2 /* LocalNav.swift in Sources */ = {isa = PBXBuildFile; fileRef = NAVF0000000000000A2 /* LocalNav.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		NAVF00000000000000B3 /* NavStackProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = NAVF0000000000000A3 /* NavStackProbe.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
+		NAVF00000000000000B4 /* NavLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = NAVF0000000000000A4 /* NavLog.swift */; settings = {COMPILER_FLAGS = "-default-isolation MainActor"; }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1662,6 +1666,10 @@
 		RKFDD643BBD31C993918D17E6E /* RuntimeConfigurationRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeConfigurationRows.swift; sourceTree = "<group>"; };
 		RKFE536E84FF3027D6657E3BCD /* ProjectSidebarPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectSidebarPreferences.swift; sourceTree = "<group>"; };
 		RKFE84E92A1F59D4C02EF746D5 /* MarkdownBlocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlocks.swift; sourceTree = "<group>"; };
+		NAVF0000000000000A1 /* Route.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Route.swift; sourceTree = "<group>"; };
+		NAVF0000000000000A2 /* LocalNav.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNav.swift; sourceTree = "<group>"; };
+		NAVF0000000000000A3 /* NavStackProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavStackProbe.swift; sourceTree = "<group>"; };
+		NAVF0000000000000A4 /* NavLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavLog.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -1929,6 +1937,17 @@
 				D05AF00D00000000000000A5 /* SearchEntry.swift */,
 			);
 			path = ModeTabs;
+			sourceTree = "<group>";
+		};
+		NAVF0000000000000C0 /* Navigation */ = {
+			isa = PBXGroup;
+			children = (
+				NAVF0000000000000A1 /* Route.swift */,
+				NAVF0000000000000A2 /* LocalNav.swift */,
+				NAVF0000000000000A3 /* NavStackProbe.swift */,
+				NAVF0000000000000A4 /* NavLog.swift */,
+			);
+			path = Navigation;
 			sourceTree = "<group>";
 		};
 		D05AF00D00000000000000C2 /* Works */ = {
@@ -2378,6 +2397,7 @@
 				F1V00011 /* Settings */,
 				F1V00016 /* Skills */,
 				D05AF00D00000000000000C1 /* ModeTabs */,
+				NAVF0000000000000C0 /* Navigation */,
 				D05AF00D00000000000000C2 /* Works */,
 				D05AF00F0000000000000F0 /* SettingsSkin */,
 				D05AF00E000000000000F100 /* AuthAA */,
@@ -4119,6 +4139,10 @@
 				BD0000000000000000000012 /* SoulProfileHub.swift in Sources */,
 				BD0000000000000000000025 /* ProfileInfoCard.swift in Sources */,
 				D05AF00D00000000000000B5 /* SearchEntry.swift in Sources */,
+				NAVF00000000000000B1 /* Route.swift in Sources */,
+				NAVF00000000000000B2 /* LocalNav.swift in Sources */,
+				NAVF00000000000000B3 /* NavStackProbe.swift in Sources */,
+				NAVF00000000000000B4 /* NavLog.swift in Sources */,
 				BD0000000000000000000013 /* WorksListView.swift in Sources */,
 				D05AF00E000000000000B100 /* AAWordmark.swift in Sources */,
 				D05AF00E000000000000B101 /* AppFontRegistry.swift in Sources */,
