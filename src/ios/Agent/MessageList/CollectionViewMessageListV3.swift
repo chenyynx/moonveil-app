@@ -70,6 +70,10 @@ struct CollectionViewMessageListV3: UIViewControllerRepresentable {
     var maxContentWidth: CGFloat
     var floatingBarHeight: CGFloat
     var inputBarHeight: CGFloat
+    /// [TAB-CLEARANCE 2026-09-29] 常驻 tab 让位垫高（AIChatView 传入）。输入条被
+    /// 抬到常驻 tab 玻璃上方后，列表底部 inset 同步加垫，最后一条消息的可见性
+    /// 语义不变。默认 0：无让位需求的调用点（Debug 测试页等）零改动。
+    var bottomTabClearance: CGFloat = 0
 
     func makeUIViewController(context: Context) -> MessageListViewController {
         let vc = MessageListViewController()
@@ -126,7 +130,9 @@ struct CollectionViewMessageListV3: UIViewControllerRepresentable {
         // heights now accurate the +16 breathing room becomes pure
         // dead space — observed as ~100pt gap between the last bubble
         // and the composer top. Restored to the historical +8.
-        let bottomPad: CGFloat = inputBarHeight + floatingBarHeight + 8
+        // [TAB-CLEARANCE 2026-09-29] + bottomTabClearance：输入条被抬到常驻 tab
+        // 玻璃上方后，列表停止线同步上移，最后一条消息仍完全可见。
+        let bottomPad: CGFloat = inputBarHeight + floatingBarHeight + 8 + bottomTabClearance
         let baseChanged = abs(coord.baseBottomInset - bottomPad) > 0.5
         if baseChanged {
             let cv = vc.collectionView!

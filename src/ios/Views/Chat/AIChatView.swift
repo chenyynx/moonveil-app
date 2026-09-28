@@ -553,6 +553,18 @@ struct AIChatView: View {
     @State private var lastRecognizedLength: Int = 0
     /// Intent-based auto-scroll: stays true until the user actively scrolls up
     @State private var topSafeAreaInset: CGFloat = 59
+    /// [TAB-CLEARANCE 2026-09-29] 本页（pushed destination）自身量得的底部安全区。
+    /// 静息 = home 安全区（iOS 26 浮动 tab 的占位没传进 NavigationStack pushed
+    /// 页）；键盘弹出时 = home + 键盘高（规避走 safe area）。
+    @State private var chatOwnBottomInset: CGFloat = 0
+    /// 输入条让位常驻 tab 的垫高 = tab 内容层底部安全区 − 本页自身底部安全区。
+    /// 自校准：键盘弹出（自身含键盘）→ 差值 ≤ 0 → 0；iPad 宽屏（非被 push，
+    /// 自身即含 tab）→ 0；系统未来修好 inset 传播 → 自身 = 根层 → 0。
+    /// 机制全案见 Shared/Environment/TabBarInsetEnvironment.swift 文件头。
+    @Environment(\.tabContentBottomInset) private var tabContentBottomInset
+    private var tabBarClearance: CGFloat {
+        max(0, tabContentBottomInset - chatOwnBottomInset)
+    }
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.scenePhase) private var scenePhase
 
@@ -775,6 +787,11 @@ struct AIChatView: View {
                                 }
                             }
                     }
+                    // [TAB-CLEARANCE 2026-09-29] 常驻 tab 让位：整组（输入条 + 工具
+                    // 预览 + popup）同步抬到 tab 玻璃上方。popup 贴输入条顶的锚定
+                    // 数学（padding(.bottom, inputBarHeight)）随组上移自动保持。
+                    // 自校准语义见 tabBarClearance 注释。
+                    .padding(.bottom, tabBarClearance)
                 }
                 // Collapse the expanded speech player on a tap anywhere in the chat
                 // area. Attached as a SIMULTANEOUS TapGesture directly on the content
@@ -845,6 +862,14 @@ struct AIChatView: View {
             kernelBootOverlay
         }
         .background(chatBackgroundColor)
+        // [TAB-CLEARANCE 2026-09-29] 本页底部安全区探针（destination 层）。静息
+        // 预期 = home 安全区；键盘态含键盘高。与根层取差 = 让位垫高。
+        .background {
+            BottomSafeAreaInsetProbe { chatOwnBottomInset = $0 }
+        }
+        .onChange(of: tabBarClearance) { _, newValue in
+            AppLogger(category: "TabClearance").info("[TAB-CLEARANCE] root=\(tabContentBottomInset) own=\(chatOwnBottomInset) clearance=\(newValue)")
+        }
         .onDrop(of: [.image, .movie, .fileURL, .data], isTargeted: $isDropTargeted) { providers in
             handleDropProviders(providers)
             return true
@@ -2877,7 +2902,10 @@ struct AIChatView: View {
                 },
                 maxContentWidth: maxContentWidth ?? 0,
                 floatingBarHeight: floatingBarHeight,
-                inputBarHeight: inputBarHeight
+                inputBarHeight: inputBarHeight,
+                // [TAB-CLEARANCE 2026-09-29] 常驻 tab 让位：列表底部 inset 同步加垫，
+                // 最后一条消息仍停在输入条顶上方（间距语义不变）。
+                bottomTabClearance: tabBarClearance
             )
             // Empty/loading overlay for tap-to-dismiss-keyboard.
             // Placed BEFORE the directory timeline in the ZStack so the

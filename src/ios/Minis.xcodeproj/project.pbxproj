@@ -612,6 +612,7 @@
 		F1MCPSTOREB /* MCPStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1MCPSTORE /* MCPStore.swift */; };
 		F1CONNCATB /* ConnectorCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1CONNCAT /* ConnectorCatalog.swift */; };
 		F1S00012 /* ChatSessionIdEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1S00011 /* ChatSessionIdEnvironment.swift */; };
+		F1S00014 /* TabBarInsetEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1S00013 /* TabBarInsetEnvironment.swift */; };
 		F1T00011 /* ToolLiveSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1T00010 /* ToolLiveSheet.swift */; };
 		F1VMCPB1 /* MCPIntegrationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP01 /* MCPIntegrationsView.swift */; };
 		F1VMCPB2 /* MCPFormSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP02 /* MCPFormSheet.swift */; };
@@ -1520,6 +1521,7 @@
 		F1MCPSTORE /* MCPStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPStore.swift; sourceTree = "<group>"; };
 		F1CONNCAT /* ConnectorCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorCatalog.swift; sourceTree = "<group>"; };
 		F1S00011 /* ChatSessionIdEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionIdEnvironment.swift; sourceTree = "<group>"; };
+		F1S00013 /* TabBarInsetEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarInsetEnvironment.swift; sourceTree = "<group>"; };
 		F1T00010 /* ToolLiveSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolLiveSheet.swift; sourceTree = "<group>"; };
 		F1VMCP01 /* MCPIntegrationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPIntegrationsView.swift; sourceTree = "<group>"; };
 		F1VMCP02 /* MCPFormSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPFormSheet.swift; sourceTree = "<group>"; };
@@ -2835,6 +2837,7 @@
 			isa = PBXGroup;
 			children = (
 				F1S00011 /* ChatSessionIdEnvironment.swift */,
+				F1S00013 /* TabBarInsetEnvironment.swift */,
 			);
 			path = Environment;
 			sourceTree = "<group>";
@@ -4027,6 +4030,7 @@
 				E5Q000003 /* AppLogger.swift in Sources */,
 				LOC00001 /* AppLocalization.swift in Sources */,
 				F1S00012 /* ChatSessionIdEnvironment.swift in Sources */,
+				F1S00014 /* TabBarInsetEnvironment.swift in Sources */,
 				E5Q000004 /* FontSettings.swift in Sources */,
 				E5R000001 /* ICloudBackupManager.swift in Sources */,
 				E5R000002 /* ICloudBackupView.swift in Sources */,
