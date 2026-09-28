@@ -1187,6 +1187,14 @@ struct ContentView: View {
     // array, so this mainly prevents redundant Task churn.
     @State private var sessionRefreshInFlight = false
     @State private var sessionRefreshPending = false
+    /// [T-nav-transition-content-freeze] 转场期间暂存的列表数据。
+    /// NavigationStack 转场（push/pop 动画）期间若 sessions/folders 被异步刷新
+    /// 改写，List 内容变化可能干扰 coordinator 的回写记账（真机症状：pop 后
+    /// path/isPresented 回写丢失、Unbalanced appearance transitions）。
+    /// 列表在聊天页盖住时不可见，延迟赋值零 UX 影响；回到根时 flush。
+    /// 注意：此处只记录"做了什么"，根因是假说（见改动说明），未写成定论。
+    @State private var pendingSessions: [ChatSession]?
+    @State private var pendingFolders: [ChatFolder]?
     /// Whether the initial session load has completed (prevents showing the list before we decide to auto-navigate).
     @State private var didInitialLoad = false
     /// Controls sidebar visibility on iPad (automatic handles iPhone collapse).
@@ -1263,19 +1271,13 @@ struct ContentView: View {
     /// Navigation path for stack (compact) layout.
     @State private var navigationPath = NavigationPath()
     /// [T1-ISO-PRESENTED-PUSH 2026-09-28] 程序化 push 的独立通道（不再写
-    /// navigationPath）。T0 日志判别实锤（741641d 探针包，/tmp 判读见
-    /// shared/moonveil-notes/tabnav-root-fix-plan-20260928.md）：iOS 26 下
-    /// 「外部 path 写 push（commitNavigationPath）× tab 栏动态藏显协调」破坏
-    /// UIKit pop→path 回写通道——外部写 push 后的第一次 pop，path 永不回写
-    /// （destDISAPPEAR 后 count 恒卡 1，+0.3s 仍 1 = 彻底丢失非延迟），此后
-    /// path 深度与可见栈深持续错位，每次 push 重演 Unbalanced appearance
-    /// transitions，六 bug 同根。声明式 NavigationLink（行点击）pop 回写全程
-    /// 健康 → 病在「外部写」通道本身。两条 pp 底线（tab 栏系统原生渲染、聊天页
-    /// 不常驻 tab）封死了 C3 出口，治根 = 程序化 push 全部迁出 path 通道：
-    /// pop 回写改成 isPresented 的 Bool 翻转，不经过 path 深度映射（正是坏掉的
-    /// 那层）。通道形状 = 远端线同款（RemoteSessionListView 的
+    /// navigationPath）。设计意图：pop 回写改成 isPresented 的 Bool 翻转，
+    /// 不经过 path 深度映射。通道形状 = 远端线同款（RemoteSessionListView 的
     /// $showsDeviceDetail/$showsChat，官方 ChatShell selection 血统、仓内
     /// navigationDestination(isPresented:) 先例 ×2）。
+    /// 注意：T1 原注释中"外部 path 写是实锤根因"的表述已删除——2026-09-28 真机
+    /// 日志（纯列表实验，零程序化 push）复现了同样的 path 回写丢失，该假说被
+    /// 证伪。当前假说见 [T-nav-transition-content-freeze]。
     @State private var showsPushedChat = false
     /// isPresented 通道当前展示的会话 id（含草稿 `__new__…`）。nil = 无。
     /// 目的地 body 读它构建 AIChatView；`.id(activePushedChatId)` 沿用
@@ -1686,6 +1688,7 @@ struct ContentView: View {
         }
         .onChange(of: navigationPath) { _ in
             syncFixedBarFlags()
+            flushPendingSessionRefresh()
             // [PATH-PROBE] path 任何变化都留痕 + 0.3s 后回采（T0 诊断）。
             pathProbe("onChange")
             pathProbeLater("onChange+0.3s")
@@ -1702,6 +1705,7 @@ struct ContentView: View {
         // （T1 有效性实锤）；日志缺失/仍 true = Bool 通道同病（换形状再诊断）。
         .onChange(of: showsPushedChat) { presented in
             syncFixedBarFlags()
+            flushPendingSessionRefresh()
             AppLogger(category: "PathProbe").info("[PATH-PROBE] isPresented:\(presented ? "PUSH" : "POP") activeId=\(activePushedChatId?.prefix(8) ?? "nil")")
             // —— vm 挂起保护（与 onChange(of: navigationPath) 内逐句同款）——
             let incomingStackId: String? = presented ? currentStackSessionId : nil
@@ -1873,14 +1877,17 @@ struct ContentView: View {
             }
         }
         .task {
-            sessions = await ChatStore.shared.listSessions()
+            let initialSessions = await ChatStore.shared.listSessions()
             // Folders must load WITH the first session batch: groupedSessionIDs
             // treats a folder_id whose folder isn't loaded as an orphan and
             // renders the session ungrouped, so a first paint with sessions
             // but no folders shows a flat list and the folder cards only
             // "appear after a while" (whenever refreshSessionList next ran —
             // the exact symptom reported from the Mac build).
-            folders = await ChatStore.shared.listFolders()
+            let initialFolders = await ChatStore.shared.listFolders()
+            // [T-nav-transition-content-freeze] 首屏加载也可能落在转场中（用户
+            // 在加载完成前点了行），走统一出口：被盖住则暂存，回到根 flush。
+            applySessionRefresh(sessions: initialSessions, folders: initialFolders)
             let shareAlreadyHandled = shareCoordinator.bufferVersion > 0
             // A Home Screen Quick Action that fired during launch will
             // open the right session itself via `quickActionRouter.newChatTrigger`.
@@ -4714,6 +4721,37 @@ struct ContentView: View {
     /// mark one trailing run pending instead of spawning a concurrent Task —
     /// collapsing bursts (navigation + sync + streaming ticks) into at most one
     /// in-flight + one queued run. The ChatStore cache makes a clean run cheap.
+    /// 列表是否被聊天页盖住（compact）。此时冻结 sessions/folders 赋值。
+    /// iPad 宽布局列表常驻可见，不冻结。
+    private var isListCovered: Bool {
+        !isWideLayout && (!navigationPath.isEmpty || showsPushedChat)
+    }
+
+    /// sessions/folders 赋值唯一出口。被盖住时暂存，回到根时 flush。
+    private func applySessionRefresh(sessions newSessions: [ChatSession], folders newFolders: [ChatFolder]) {
+        if isListCovered {
+            pendingSessions = newSessions
+            pendingFolders = newFolders
+        } else {
+            sessions = newSessions
+            folders = newFolders
+        }
+    }
+
+    /// 回到列表根时把暂存的刷新落盘。由 navigationPath/showsPushedChat 的
+    /// onChange 触发；被盖住时直接返回（不提前）。
+    private func flushPendingSessionRefresh() {
+        guard !isListCovered else { return }
+        if let s = pendingSessions {
+            sessions = s
+            pendingSessions = nil
+        }
+        if let f = pendingFolders {
+            folders = f
+            pendingFolders = nil
+        }
+    }
+
     @MainActor
     private func refreshSessionList() {
         guard !sessionRefreshInFlight else {
@@ -4722,8 +4760,9 @@ struct ContentView: View {
         }
         sessionRefreshInFlight = true
         Task(priority: .utility) { @MainActor in
-            sessions = await ChatStore.shared.listSessions()
-            folders = await ChatStore.shared.listFolders()
+            let newSessions = await ChatStore.shared.listSessions()
+            let newFolders = await ChatStore.shared.listFolders()
+            applySessionRefresh(sessions: newSessions, folders: newFolders)
             sessionRefreshInFlight = false
             if sessionRefreshPending {
                 sessionRefreshPending = false
