@@ -3930,8 +3930,10 @@ struct ContentView: View {
             return
         }
         draftLog.info("🔑DRAFT pushChatRoute id=\(id) (single channel)")
-        // [NAV-SINGLE-CHANNEL] 原子替换：popToRoot()+push() 两步走在转场窗口内会丢 push
-        // 致空白页，改单写（见 LocalNav.replace 注释）。
+        // [NAV-SINGLE-CHANNEL] 「回根再展示」走 nav.replace：栈空时 = 纯 push，
+        // 栈非空时分两段（清栈 → 等 UIKit 落到根 → append）。禁止在此处做
+        // `path = [route]` 的单写整替：同一轮 coordinator 又删又装 = Unbalanced
+        // appearance transitions + 空白页（判读与判据见 LocalNav.replace 注释）。
         currentStackSessionId = nil
         nav.replace(with: route)
     }
