@@ -1791,11 +1791,8 @@ struct AIChatView: View {
         // hidesBottomBarWhenPushed 的 SwiftUI 等价物）。旧「状态驱动」机制
         // （tabBarHidden + 同帧 flags + 0.45s 自愈）在新会话草稿→正式的原地换视图
         // （.id(id)，上游原生设计）面前失序：00:34 日志实锤换视图后 Unbalanced×4、
-        // pop 不再更新 navigationPath、tab 状态永久卡死。声明式隐藏没有状态可失序
-        // ——草稿换视图时新旧实例声明同一修饰符，转场全由系统接管。build 359/363
-        // 的 trap（bar 机制越界求值本 body 时环境缺失）已由 [ENV-DEFENSE] 三处
-        // 调用点注入防御。
-        .toolbar(.hidden, for: .tabBar)
+        // [TAB-PERSISTENT 2026-09-28] 聊天页改常驻底部 tab：不再声明式隐藏，
+        // 用户点 tab 直接切页（path 保留在后台）。
     }
 
     // MARK: - Home Screen Quick Actions

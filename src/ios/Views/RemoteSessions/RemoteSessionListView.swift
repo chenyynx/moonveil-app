@@ -244,8 +244,7 @@ struct RemoteSessionListView: View {
             SessionChatView(session: session, services: services,
                             deviceName: connectorNames[session.metadata?.connectorId ?? ""],
                             onMenu: { dismiss() })
-                // [TABBAR-NATIVE 2026-09-28] 远端聊天页同为被 push 的目的地，声明式藏 tab。
-                .toolbar(.hidden, for: .tabBar)
+                // [TAB-PERSISTENT 2026-09-28] 远端聊天页同改常驻 tab，不再隐藏。
                 .task(id: id) {
                     // 官方 AppState.makeV2Services → services.restoreCache(selection:)：
                     // 进页面先把本地缓存铺进仓库（离线可见），网络回来再覆盖。
@@ -414,7 +413,7 @@ struct RemoteSessionListView: View {
                     deviceDetailPending
                 }
             }
-            .toolbar(.hidden, for: .tabBar)
+            // [TAB-PERSISTENT 2026-09-28] 设备详情页同改常驻 tab，不再隐藏。
         }
         // 页切栅栏 + 顶栏齿轮的归属从「详情页 onAppear 自报」改成「push 状态」：
         // 原写法把 remoteAtRoot 挂在 RemoteDeviceDetailView.onAppear 上，目的地

@@ -72,8 +72,8 @@ final class RootTabRouter {
     var showSettings: Bool = false
 
     /// [TABNAV-DEAD-MIRROR 2026-09-28] localAtRoot / localSelecting 镜像已删：
-    /// 全仓无读取方（底栏显隐改由 AIChatView 的 .toolbar(.hidden, for: .tabBar)
-    /// 自持），ContentView.syncFixedBarFlags 同批移除。
+    /// 全仓无读取方。2026-09-28 后底栏常驻（[TAB-PERSISTENT]），不再由页面隐藏，
+    /// ContentView.syncFixedBarFlags 同批移除。
 
     /// `remoteAtRoot` — 远端线是否在列表根（REMOTE-DEVICE-1：设备详情页 push 时为 false）。
     /// @ObservationIgnored：镜像写不驱动任何视图（gearVisible 等读取方已随

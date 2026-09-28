@@ -1626,7 +1626,7 @@ struct ContentView: View {
         // 承接——见那里的 [T-ios-stacknav-transition-attributegraph-race] 说明）。
         // [TABNAV-DEAD-MIRROR 2026-09-28] B16 固定底栏镜像链已删：syncFixedBarFlags
         // 及其全部调用点、只写 localSelecting 的死 onChange、tabBarLog 埋点。
-        // 底栏显隐改由聊天页自持（AIChatView 无条件 .toolbar(.hidden, for: .tabBar)）。
+        // [TAB-PERSISTENT 2026-09-28] 底栏常驻：聊天页不再隐藏 tab。
         .onChange(of: nav.path) { _ in
             // [PATH-PROBE] path 任何变化都留痕 + 0.3s 后回采（T0 诊断）。
             pathProbe("onChange")
@@ -3930,9 +3930,10 @@ struct ContentView: View {
             return
         }
         draftLog.info("🔑DRAFT pushChatRoute id=\(id) (single channel)")
-        nav.popToRoot()
+        // [NAV-SINGLE-CHANNEL] 原子替换：popToRoot()+push() 两步走在转场窗口内会丢 push
+        // 致空白页，改单写（见 LocalNav.replace 注释）。
         currentStackSessionId = nil
-        nav.push(route)
+        nav.replace(with: route)
     }
 
     /// 会话 id 字符串 → Route。`remote:` 前缀（列表内嵌的远端设备会话）解析成

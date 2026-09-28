@@ -27,6 +27,16 @@ final class LocalNav {
         }
     }
 
+    /// 原子替换整个栈为单路由：新建会话等「不管当前在哪，直接换成 X」的场景。
+    /// 替代 popToRoot()+push() 两步走——两步之间若有转场，push 会被 runWhenSettled
+    /// defer，defer 丢失即空白页（2026-09-28 实踩）。单写原子，无中间态可丢。
+    func replace(with route: Route) {
+        runWhenSettled { [self] in
+            NavLog.log("REPLACE with \(route)")
+            path = [route]
+        }
+    }
+
     /// 回根：quick-action「ensuringHome」等明确要求撤下聊天页的入口。
     /// 不延后——quick action 状态机靠这次写入触发的 onChange 推进 markHome，
     /// hold 到转场结束会把状态机卡住；调用方需自备禁动画 transaction。
