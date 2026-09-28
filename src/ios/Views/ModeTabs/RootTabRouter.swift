@@ -51,7 +51,12 @@ final class RootTabRouter: ObservableObject {
     }
 
     /// Deep-link entry (push / approval tap): switch tab, nothing else.
+    /// [T1-ISO-PRESENTED-PUSH 2026-09-28] 同值早退 guard：compose 新建链路会在
+    /// push 提交的同一 runloop 调 route(.local)，同值赋值虽不动 mode，但
+    /// @Published 赋值仍发 objectWillChange → TabView 子树重求值与 push 同帧
+    /// （T0 判读记为共线因子；v3 同款无害，此处顺手消除，留字据非行为修复）。
     func route(to target: AppSourceMode) {
+        guard mode != target else { return }
         mode = target
     }
 

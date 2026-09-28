@@ -1262,6 +1262,30 @@ struct ContentView: View {
     @State private var isWideLayout = false
     /// Navigation path for stack (compact) layout.
     @State private var navigationPath = NavigationPath()
+    /// [T1-ISO-PRESENTED-PUSH 2026-09-28] 程序化 push 的独立通道（不再写
+    /// navigationPath）。T0 日志判别实锤（741641d 探针包，/tmp 判读见
+    /// shared/moonveil-notes/tabnav-root-fix-plan-20260928.md）：iOS 26 下
+    /// 「外部 path 写 push（commitNavigationPath）× tab 栏动态藏显协调」破坏
+    /// UIKit pop→path 回写通道——外部写 push 后的第一次 pop，path 永不回写
+    /// （destDISAPPEAR 后 count 恒卡 1，+0.3s 仍 1 = 彻底丢失非延迟），此后
+    /// path 深度与可见栈深持续错位，每次 push 重演 Unbalanced appearance
+    /// transitions，六 bug 同根。声明式 NavigationLink（行点击）pop 回写全程
+    /// 健康 → 病在「外部写」通道本身。两条 pp 底线（tab 栏系统原生渲染、聊天页
+    /// 不常驻 tab）封死了 C3 出口，治根 = 程序化 push 全部迁出 path 通道：
+    /// pop 回写改成 isPresented 的 Bool 翻转，不经过 path 深度映射（正是坏掉的
+    /// 那层）。通道形状 = 远端线同款（RemoteSessionListView 的
+    /// $showsDeviceDetail/$showsChat，官方 ChatShell selection 血统、仓内
+    /// navigationDestination(isPresented:) 先例 ×2）。
+    @State private var showsPushedChat = false
+    /// isPresented 通道当前展示的会话 id（含草稿 `__new__…`）。nil = 无。
+    /// 目的地 body 读它构建 AIChatView；`.id(activePushedChatId)` 沿用
+    /// path 版目的地同款换视图语义（草稿→正式会话原地换 vm，上游原生设计）。
+    @State private var activePushedChatId: String?
+    /// [T1-ISO-PRESENTED-PUSH] 后台期间收到的程序化 push 意图（见
+    /// openPushedChat 注释）。前台落地时消费；TTL 由消费时机天然兜住——
+    /// 前台一回来立即落地，语义与 pendingBackgroundNavigation 的 90s 一致
+    /// （更长的滞留只发生在后台，落地仍是前台第一帧）。
+    @State private var pendingPushedChatId: String?
     /// Tracks the session ID currently visible on the compact navigation stack.
     @State private var currentStackSessionId: String?
     /// [T-ios-stacknav-transition-attributegraph-race] Compact-layout analogue
@@ -1438,6 +1462,9 @@ struct ContentView: View {
             // NavigationStack must have attached `$navigationPath` first.
             DispatchQueue.main.async {
                 flushPendingBackgroundNavigation()
+                // [T1-ISO-PRESENTED-PUSH] 同款兜底：后台收到的 isPresented 通道
+                // push 意图（openPushedChat 挂起的）在此落地。
+                flushPendingPushedChat()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .sessionDidCreate)) { note in
@@ -1540,7 +1567,11 @@ struct ContentView: View {
     /// See the B16 mirrors in `bodyPresentationStage`: same root test as `goHome()`
     /// (path on iPhone, selection on the iPad split layout), one-way into the router.
     private func syncFixedBarFlags() {
-        let atRoot: Bool = isWideLayout ? (selectedSessionId == nil) : navigationPath.isEmpty
+        // [T1-ISO-PRESENTED-PUSH] isPresented 通道的聊天页同样视为「不在根」：
+        // 探针读数与可见栈一致（通道迁移后 path 恒空，原判据会永远报 true）。
+        let atRoot: Bool = isWideLayout
+            ? (selectedSessionId == nil)
+            : (navigationPath.isEmpty && !showsPushedChat)
         let selecting = isSelecting
         // [TABBAR-SYNC-WRITE 2026-09-27] B16 原是 DispatchQueue.main.async 包写（防
         // "Publishing changes…"），但三个调用点全是 onChange/onAppear —— 事件回调不在
@@ -1579,6 +1610,13 @@ struct ContentView: View {
             let p = pathBinding.wrappedValue
             AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(p.count) isEmpty=\(p.isEmpty)")
         }
+    }
+
+    /// [T1-ISO-PRESENTED-PUSH] isPresented 通道翻转留痕：pop 时 Bool 回写
+    /// 是否发生直接可见——pushedDISAPPEAR 后 isPresented=false = Bool 回写
+    /// 通道健康（T1 有效性实锤）；仍 true = Bool 通道同病（换形状再诊断）。
+    private func pushedProbe(_ tag: String) {
+        AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) isPresented=\(showsPushedChat) activeId=\(activePushedChatId?.prefix(8) ?? "nil")")
     }
 
     private func bodyPresentationStage<V: View>(_ base: V) -> some View {
@@ -1651,6 +1689,49 @@ struct ContentView: View {
             // [PATH-PROBE] path 任何变化都留痕 + 0.3s 后回采（T0 诊断）。
             pathProbe("onChange")
             pathProbeLater("onChange+0.3s")
+        }
+        // [T1-ISO-PRESENTED-PUSH] isPresented 通道的 flags 同步 + 判别探针 +
+        // vm 转场挂起保护。pop 时系统把 showsPushedChat 翻回 false，本观察者：
+        // ① 随同把 localAtRoot 拉回 true（等价 hidesBottomBarWhenPushed 的 pop
+        // 协同；无此行，flags 只在 push 时更新、pop 后永久卡 false——正是 T2
+        // 守卫要防的那类残留的 flags 版）；② 复刻 path 观察者的 vm 挂起保护
+        // （[T-ios-stacknav-transition-attributegraph-race]：转场中 @Published
+        // 增量喂给正在拆除的子图 → EXC_BAD_ACCESS build-48 判例。isPresented
+        // push/pop 不改 path，那段保护不会触发，必须在此同款执行）；③ 判别
+        // 探针：pushedDISAPPEAR 后本行打印 isPresented=false = Bool 回写健康
+        // （T1 有效性实锤）；日志缺失/仍 true = Bool 通道同病（换形状再诊断）。
+        .onChange(of: showsPushedChat) { presented in
+            syncFixedBarFlags()
+            AppLogger(category: "PathProbe").info("[PATH-PROBE] isPresented:\(presented ? "PUSH" : "POP") activeId=\(activePushedChatId?.prefix(8) ?? "nil")")
+            // —— vm 挂起保护（与 onChange(of: navigationPath) 内逐句同款）——
+            let incomingStackId: String? = presented ? currentStackSessionId : nil
+            let outgoingStackId = previousStackSessionId
+            previousStackSessionId = incomingStackId
+            if let outgoingId = outgoingStackId,
+               outgoingId != incomingStackId,
+               let outgoingVm = ViewModelCache.shared.get(for: outgoingId) {
+                outgoingVm.setSuspendedForTransition(true)
+                // Unconditional resume on the same 0.4s delay the split path
+                // uses. `weak` so a deallocated vm simply drops it, and
+                // `setSuspendedForTransition` is guarded on an actual change,
+                // so overlapping transitions cannot leave the flag stuck.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak outgoingVm] in
+                    outgoingVm?.setSuspendedForTransition(false)
+                }
+            }
+            if !presented {
+                // pop 侧收尾：isPresented 页 pop 恒回根（MIXED-STACK-BAN 保证
+                // push 时 path 已清、栈上无下层页），语义同 path 版「回根」
+                // 分支（incoming = nothing），并驱动 quick action ensure-home
+                // 推进。previousStackSessionId 不在此清：openPushedChat 替换
+                // 分支与下一次 push 都以它为 outgoing 真源，交给写入方锁步。
+                currentStackSessionId = nil
+                AIChatViewModel.activeSessionId = nil
+                if case .ensuringHome = QuickActionWorkflow.shared.state {
+                    QuickActionWorkflow.shared.markHome()
+                }
+                scheduleOutgoingPreviewRefresh()
+            }
         }
         .onChange(of: selectedSessionId) { _ in syncFixedBarFlags() }
         .sheet(item: $sessionToDelete) { session in
@@ -2086,6 +2167,9 @@ struct ContentView: View {
             if navigationPath.isEmpty {
                 scheduleOutgoingPreviewRefresh()
             }
+            // [T1-ISO-PRESENTED-PUSH] 探针扩展：isPresented 通道状态随同留痕，
+            // 装机日志里两通道可对照判读（PATH-PROBE grep 即全量捞出）。
+            pushedProbe("pathOnChange")
             fetchAlarmsIfNeeded()
         }
         .onChange(of: shareCoordinator.hasPendingShare) { hasPending in
@@ -2193,6 +2277,9 @@ struct ContentView: View {
                     // runloop turn with a full frame budget, never inside the
                     // foreground-transition tick.
                     flushPendingBackgroundNavigation()
+                    // [T1-ISO-PRESENTED-PUSH] scenePhase 主动 flush：同款落地
+                    // isPresented 通道的后台意图。
+                    flushPendingPushedChat()
                     fetchAlarmsIfNeeded()
                     if #available(iOS 17.0, *) {
                         SyncCore.shared.isAppInBackground = false
@@ -2281,6 +2368,15 @@ struct ContentView: View {
     private var stackLayout: some View {
         NavigationStack(path: $navigationPath) {
             sessionList(useNavigationLinks: true)
+                // [T1-ISO-PRESENTED-PUSH] 程序化 push 的目的地（isPresented 通道，
+                // 见 showsPushedChat 注释）。与下行 path 目的地并存：path 版只剩
+                // 声明式行点击一条写入者（健康通道，T0 段A 实锤），isPresented 版
+                // 承接全部程序化 push（compose/quick action/深链/通知/move-to）。
+                // 两个 destination 不冲突：一个按值类型（String）解析，一个按
+                // Bool 通道解析，SwiftUI 分别注册。
+                .navigationDestination(isPresented: $showsPushedChat) {
+                    pushedChatDestination
+                }
                 .navigationDestination(for: String.self) { id in
                     // `.id(id)` mirrors detailView (iPad): navigationDestination
                     // views are identified by stack depth, not path value, so
@@ -2341,6 +2437,59 @@ struct ContentView: View {
                             }
                     }
                 }
+        }
+    }
+
+    /// [T1-ISO-PRESENTED-PUSH] 程序化 push 的目的地视图。与 path 版目的地
+    /// （stackLayout 内 navigationDestination(for: String.self)）逐件对齐：
+    /// 同款 AIChatView 参数（isNewSessionId 分流 draft/real）、同款
+    /// `.id(id)` 换视图语义、同款 ENV-DEFENSE 注入、同款 `.toolbar(.hidden,
+    /// for: .tabBar)` 聊天页藏栏声明（pp 底线 #2）、同款 onAppear/onDisappear
+    /// 探针。差异只有数据源：id 从 activePushedChatId 读（isPresented 通道）。
+    @ViewBuilder
+    private var pushedChatDestination: some View {
+        if let id = activePushedChatId {
+            if id.hasPrefix("remote:") {
+                let parts = id.split(separator: ":", maxSplits: 2)
+                if parts.count == 3 {
+                    // 远端会话（switchToSession/openSession 也承接 remote: 前缀，
+                    // 保持 path 版同款分支）。ENV-DEFENSE 同款注入。
+                    AIChatView(sessionId: String(parts[2]), remoteDeviceId: String(parts[1]))
+                        .environmentObject(ShareCoordinator.shared)
+                        .id(id)
+                }
+            } else {
+                AIChatView(sessionId: Self.isNewSessionId(id) ? nil : id, draftId: Self.isNewSessionId(id) ? id : nil, initialGroupId: Self.extractGroupId(from: id), searchAnchorMessageId: isSearching ? searchMatchMessageIds[id] : nil)
+                    .environmentObject(ShareCoordinator.shared) // [ENV-DEFENSE] 同上
+                    .id(id)
+                    .onAppear {
+                        if currentStackSessionId != id {
+                            currentStackSessionId = id
+                            // [T-ios-stacknav-transition-attributegraph-race]
+                            // 同 path 版：出页 id 追踪器锁步（见原注释）。
+                            previousStackSessionId = id
+                        }
+                        SessionBadgeStore.shared.remove(.unread, for: id)
+                        shareLog.info("🔄SESSION pushedChat APPEAR id=\(id)")
+                        pathProbe("pushedAPPEAR:\(id)")
+                        pushedProbe("pushedAPPEAR")
+                    }
+                    .onDisappear {
+                        shareLog.info("🔄SESSION pushedChat DISAPPEAR id=\(id)")
+                        pathProbe("pushedDISAPPEAR:\(id)")
+                        pathProbeLater("pushedDISAPPEAR+0.3s:\(id)")
+                        // isPresented 回写在 DISAPPEAR 同帧或稍后完成；此处同步
+                        // 采样 + 0.3s 回采各一次，两种完成时机都覆盖。
+                        pushedProbe("pushedDISAPPEAR")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            pushedProbe("pushedDISAPPEAR+0.3s")
+                        }
+                    }
+            }
+        } else {
+            // 防御占位：正常流程 isPresented=true 时 activePushedChatId 必非 nil
+            // （同一个 withTransaction 里成对写入）。空壳仅为类型完备。
+            Color.clear
         }
     }
 
@@ -3130,6 +3279,21 @@ struct ContentView: View {
         // （点列表收键盘的 TapGesture 曾在此，实测干扰行点击，已移除；
         // 收起出口保留：滚动 / 键盘「搜索」键 / 有文字时的 X）。
         .scrollDismissesKeyboard(.immediately)
+        // [T2-PATH-RESIDUE-GUARD 2026-09-28] 单点残留校验兜底（无新状态、无
+        // 定时器）：本列表重见天日时 path 必须已归零。T0 日志实锤的唯一永久
+        // 形态 = 系统回写丢失导致「UI 在列表、path 仍压着已弹出的会话」——
+        // 错位 path 上每一次 push/pop 都重演 Unbalanced appearance transitions，
+        // 六 bug（含 tab 不回/贴顶/输入条空洞）由此连锁。健康流程此处恒 no-op：
+        // pop 回写发生在 destDISAPPEAR 之前（T0 段A 06:58:57.869 onChange
+        // count=0 早于 58.385 DISAPPEAR），列表 onAppear 时 path 已空；交互
+        // 手势取消不触发 onAppear，无误杀窗口。isPresented 通道（showsPushedChat）
+        // 不在此清：聊天页在场时列表不重见天日，能触发本守卫即说明通道已空。
+        .onAppear {
+            if !isWideLayout, !navigationPath.isEmpty {
+                AppLogger(category: "PathProbe").info("[PATH-PROBE] T2 residue guard fired: path.count=\(navigationPath.count) — force-clearing (system pop write-back lost)")
+                navigationPath = NavigationPath()
+            }
+        }
         // [CAPSULE-PRINCIPAL] 身份胶囊（principal，总高 ~74pt）撑高原生导航栏。
         // [FIX-list-top-jitter] 系统对超大 principal 的 bar 高度自适应不完整，
         // 自动 top inset 在 iOS 26 上抖动（列表内容上下窜）。这里断开系统的
@@ -3764,7 +3928,12 @@ struct ContentView: View {
         if isWideLayout {
             openSession(newId)
         } else {
-            commitNavigationPath(NavigationPath([newId]))
+            // [T1-ISO-PRESENTED-PUSH] 程序化 push 迁 isPresented 通道：外部 path
+            // 写（原 commitNavigationPath(NavigationPath([newId]))）在 iOS 26 与
+            // tab 栏动态藏显协调相撞，pop 回写丢失（T0 实锤）。isPresented=true
+            // 与 path 保持空（既无外部写，弹回也只会翻 Bool）——同一 transaction
+            // 成对提交，无窗口期。
+            openPushedChat(newId)
             currentStackSessionId = newId
         }
     }
@@ -3786,7 +3955,12 @@ struct ContentView: View {
         // machine advances from the `onChange(of: navigationPath)` observer
         // this write triggers — holding it back would stall `markHome`.
         pendingBackgroundNavigation = nil
-        let alreadyHome = isWideLayout ? (selectedSessionId == nil) : navigationPath.isEmpty
+        // [T1-ISO-PRESENTED-PUSH] 「在根」判据纳入 isPresented 通道：聊天页
+        // 在场（showsPushedChat）时不算已回根，否则 markHome 提前推进、
+        // pendingDispatch 的 openPushedChat 会在旧聊天页还在栈上时触发。
+        let alreadyHome = isWideLayout
+            ? (selectedSessionId == nil)
+            : (navigationPath.isEmpty && !showsPushedChat)
         if alreadyHome {
             // Same-runloop advance — no SwiftUI commit needed.
             QuickActionWorkflow.shared.markHome()
@@ -3800,6 +3974,12 @@ struct ContentView: View {
             } else {
                 navigationPath = NavigationPath()
                 currentStackSessionId = nil
+                // [T1-ISO-PRESENTED-PUSH] quick action 回根必须同时撤下
+                // isPresented 通道的聊天页（该通道现在承载程序化 push）。
+                // 成对复位，markHome 观察的「回根」语义不变。
+                showsPushedChat = false
+                activePushedChatId = nil
+                pendingPushedChatId = nil
             }
         }
         // `onChange(navigationPath)` / `onChange(selectedSessionId)`
@@ -3822,7 +4002,9 @@ struct ContentView: View {
         if isWideLayout {
             openSession(newId)
         } else {
-            commitNavigationPath(NavigationPath([newId]))
+            // [T1-ISO-PRESENTED-PUSH] 同 handleNewChatRequest：程序化 push 走
+            // isPresented 通道（见 openPushedChat 注释）。
+            openPushedChat(newId)
             currentStackSessionId = newId
         }
         QuickActionWorkflow.shared.attachTargetSession(newId)
@@ -3855,6 +4037,13 @@ struct ContentView: View {
     /// `previousStackSessionId` stays in lockstep because it is maintained by
     /// the `onChange(of: navigationPath)` observer, which simply runs later —
     /// when the deferred path is actually committed.
+    ///
+    /// [T1-ISO-PRESENTED-PUSH 2026-09-28] 本函数的全部调用点（4 处程序化 push）
+    /// 已迁 `openPushedChat`（isPresented 通道）。函数本体保留作防御（iPad/
+    /// wide 线与 popToHomeForQuickAction 仍经此处外部写 path 的语义由各自
+    /// 逻辑处理；一次一个变量，调用点清零后的删除留待下批）。**不要再新增
+    /// 调用点**——外部 path 写 push × tab 栏动态藏显协调 = pop 回写丢失
+    /// （T0 判别实锤，见 showsPushedChat 注释）。
     private func commitNavigationPath(_ newPath: NavigationPath, animated: Bool? = nil) {
         // [T-share-first-tap-no-response] `.inactive` is NOT the state this
         // gate was built for. The watchdog kills it prevents come from a push
@@ -3929,13 +4118,96 @@ struct ContentView: View {
         }
     }
 
+    /// [T1-ISO-PRESENTED-PUSH] 程序化 push 的统一入口：isPresented 通道展示
+    /// `id`（含草稿 `__new__…`）。全部程序化调用点（handleNewChatRequest /
+    /// openSessionForPendingQuickAction / switchToSession / openSession compact）
+    /// 都走这里——后台门无法再被绕过（原 commitNavigationPath 的调用面约束
+    /// 等价平移）。
+    ///
+    /// 为什么不写 navigationPath：T0 判别实锤（741641d 探针日志），iOS 26 下
+    /// 外部 path 写 push × tab 栏动态藏显协调 = pop 回写通道死亡（一次中毒
+    /// 永久不可自愈）。isPresented 的 pop 回写是 Bool 翻转，不经过 path 深度
+    /// 映射；path 从此只剩声明式行点击一个写入者（T0 段A 实锤的健康通道）。
+    ///
+    /// 后台门：与 commitNavigationPath 同款语义（[T-ios-bg-nav-push-watchdog]
+    /// + [T-share-first-tap-no-response]）——真正 BACKGROUNDED 时只记意图不
+    /// push（后台 push 花全套布局预算却渲染不出，watchdog SIGKILL 判例），
+    /// 前台回来在 scenePhase/onAppear 兜底里落地。`.inactive` 不拦（前台
+    /// 过渡态，openURL 恰在该态送达，拦了就是「第一次点没反应」判例复发）。
+    private func openPushedChat(_ id: String) {
+        if UIApplication.shared.applicationState == .background {
+            pendingPushedChatId = id
+            shareLog.info("🔄SESSION deferring isPresented push — app backgrounded (id=\(id.prefix(8)))")
+            return
+        }
+        draftLog.info("🔑DRAFT openPushedChat id=\(id) (isPresented channel)")
+        // [MIXED-STACK-BAN 2026-09-28 审查修正] path 非空（行点击的聊天 A 在栈上）
+        // 时先清 path 再开 isPresented——同一 transaction 原子提交（moveto-
+        // transfer-race 判定的 proven-safe 形状）。理由：混合栈 [A, B(isPresented)]
+        // 的簿记无解——pop B 回 A 时 previousStackSessionId/currentStackSessionId
+        // 依赖 A 的 destination onAppear 纠偏与 onChange 的时序赛跑（vm 挂起会打
+        // 到刚复活的 A 上），且 share 前台判定读 currentStackSessionId 会被 B 的
+        // pop 清空。封死混合栈 = isPresented push 只从根发起（pp 已批准的
+        // 「回根再展示」语义），pop 恒回根，观察者分支无需判 path。
+        // A 的 vm 转场挂起由 path 观察者的 pop-to-root 分支执行（outgoing=A ✓）。
+        var pathTx = Transaction()
+        pathTx.disablesAnimations = false
+        if !navigationPath.isEmpty {
+            withTransaction(pathTx) {
+                navigationPath = NavigationPath()
+            }
+        }
+        // 同通道替换（聊天页 X 在场时程序化切到 Y，如深链/move-to）：
+        // showsPushedChat 恒 true 无 Bool 翻转，onChange(of: showsPushedChat)
+        // 不触发 → X 的 vm 转场挂起保护缺席。这里手动执行同款挂起/恢复
+        // （与 onChange 观察者内逐句同款）并锁步 previousStackSessionId——
+        // .id(activePushedChatId) 的换视图语义完成剩下的（新实例挂载、旧
+        // 实例拆除）；不锁步的话 pop Y 时 outgoing 读到 stale 的 X，真正
+        // 拆除的 Y 反而漏挂起。
+        if showsPushedChat, let outgoingId = previousStackSessionId,
+           outgoingId != id, let outgoingVm = ViewModelCache.shared.get(for: outgoingId) {
+            outgoingVm.setSuspendedForTransition(true)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak outgoingVm] in
+                outgoingVm?.setSuspendedForTransition(false)
+            }
+        }
+        if showsPushedChat {
+            previousStackSessionId = id
+        }
+        var tx = Transaction()
+        // 原子成对提交（moveto-transfer-race 防护等价平移）：id 与 isPresented
+        // 同一 transaction 落地，无「先展示旧内容/先弹空页」窗口。
+        tx.disablesAnimations = false
+        withTransaction(tx) {
+            activePushedChatId = id
+            showsPushedChat = true
+        }
+        syncFixedBarFlags()
+    }
+
+    /// [T1-ISO-PRESENTED-PUSH] 落地后台挂起的 isPresented push 意图。与
+    /// flushPendingBackgroundNavigation 同款时机（scenePhase == .active /
+    /// onAppear 兜底），复用其全部安全条件（Task.yield 之后、前台态）。
+    private func flushPendingPushedChat() {
+        guard let id = pendingPushedChatId else { return }
+        guard UIApplication.shared.applicationState != .background else { return }
+        pendingPushedChatId = nil
+        shareLog.info("🔄SESSION flushing deferred isPresented push (id=\(id.prefix(8)))")
+        openPushedChat(id)
+    }
+
     private func switchToSession(_ id: String) {
         if isWideLayout {
             openSession(id)
             return
         }
         searchFocused = false
-        commitNavigationPath(NavigationPath([id]))
+        // [T1-ISO-PRESENTED-PUSH] 菜单跳转：迁 isPresented 通道（见 openPushedChat
+        // 注释）。语义差异唯一形态 = 会话中到达时改「回根再展示」（HIG 深链
+        // 自建栈语义；原 [已有,X] 双层叠栈形态本就带 T0 实锤的回写病）。
+        // moveto-transfer-race 防护保持：原子成对提交，无「pop 后盲等再 push」
+        // 窗口；重复对同一目标重入是幂等的（同值写入无副作用）。
+        openPushedChat(id)
         currentStackSessionId = id
     }
 
@@ -3956,12 +4228,13 @@ struct ContentView: View {
             selectedSessionId = id
             draftLog.info("🔑DRAFT openSession DONE selectedSessionId=\(id)")
         } else {
-            // [T-ios-bg-nav-push-watchdog] Append onto whatever the path WILL
-            // be — a deferred commit is the newer truth, so basing the append
-            // on the still-stale live `navigationPath` would drop it.
-            var next = pendingBackgroundNavigation?.path ?? navigationPath
-            next.append(id)
-            commitNavigationPath(next)
+            // [T1-ISO-PRESENTED-PUSH] 深链/通知/分享/冷启动的公共漏斗：迁
+            // isPresented 通道（见 openPushedChat 注释）。原 append 逻辑整体
+            // 退役——append 到 [A,X] 的叠栈形态正是 T0 判别里带病的通道；新
+            // 形状「回根再展示」同时规避了 commitNavigationPath 的后台挂起
+            // 机制（openPushedChat 自带同款后台延迟：后台只记意图，前台落
+            // 地，见该函数注释）。
+            openPushedChat(id)
             currentStackSessionId = id
         }
     }
