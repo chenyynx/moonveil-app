@@ -27,6 +27,15 @@ final class LocalNav {
         }
     }
 
+    /// 回根：quick-action「ensuringHome」等明确要求撤下聊天页的入口。
+    /// 不延后——quick action 状态机靠这次写入触发的 onChange 推进 markHome，
+    /// hold 到转场结束会把状态机卡住；调用方需自备禁动画 transaction。
+    func popToRoot() {
+        guard !path.isEmpty else { return }
+        NavLog.log("POP-TO-ROOT from depth=\(path.count)")
+        path.removeAll()
+    }
+
     /// UIKit 正在转场（push 动画 / 交互式 pop）时，等转场结束、SwiftUI 完成回写之后再改 path。
     /// 依据：UIKit 驱动的 pop，path 的回写发生在转场结束之后；转场窗口内改 path 是已知的失步来源。
     private func runWhenSettled(_ work: @escaping @MainActor () -> Void) {

@@ -6,4 +6,7 @@
 enum Route: Hashable {
     case session(id: String)
     case draft(id: String)
+    /// 列表内嵌的远端设备会话（原 "remote:{deviceId}:{sessionId}" 字符串路由值）。
+    /// 单通道改造必须保留这条既有目的地，故按类型显式建模，不再靠字符串前缀解析。
+    case remoteSession(deviceId: String, id: String)
 }
