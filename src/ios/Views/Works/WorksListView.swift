@@ -65,6 +65,8 @@ struct WorksListView: View {
                     .padding(.top, 34)
                 content
             }
+            // [TG-TABBAR 2026-09-30] 自绘栏挂栈内 root 页底边（push 整页覆盖含栏）。
+            .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .works) }
             // 原生标题留空：导航栏 principal 位放身份胶囊（跟本机页同位置）。
             .navigationTitle(Text(verbatim: ""))
             .navigationBarTitleDisplayMode(.inline)
@@ -87,8 +89,9 @@ struct WorksListView: View {
             // [MUSE-GLASS-BG 2026-09-27] 跟本机页同理：导航栏底用简单半透明
             // tint 替代系统 blur，胶囊玻璃可折射内容，深浅色自适应。
             .toolbarBackground(Color(UIColor.systemBackground).opacity(0.45), for: .navigationBar)
-            // [TAB-RESTORE 2026-09-28 pp] 页面内嵌 BottomDock 已退场，系统
-            // tab 栏恢复原生渲染（构件页 = tab 根部，原生栏自然在场）。
+            // [TG-TABBAR 2026-09-30] 底栏 = 自绘 ModeTabBar（本页 root 页
+            // safeAreaInset，见上）；系统栏时代的 BottomDock/TAB-RESTORE 沿革
+            // 一并退役（系统栏已不存在）。
             .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
             .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }

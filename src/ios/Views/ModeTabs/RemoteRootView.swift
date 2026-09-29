@@ -25,6 +25,9 @@ struct RemoteRootView: View {
     var body: some View {
         NavigationStack {
             content
+                // [TG-TABBAR 2026-09-30] 自绘栏挂栈内 root 页底边——远端线的
+                // 二级页（会话聊天/设备详情）push 时整页覆盖含栏。
+                .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .remote) }
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     // [TABLER-ICONS] 与本机页左上角一致的设置入口（Tabler menu 两横，
@@ -60,10 +63,8 @@ struct RemoteRootView: View {
         .onChange(of: service.state) { _, newState in
             if newState == .pairing {
                 tabRouter.remoteAtRoot = true
-                // [TABBAR-STATE-DRIVEN 2026-09-27] pairing 会把整棵
-                // RemoteSessionListView 换掉（@State 随葬），若当时聊天页正 push
-                // 着，remoteChatPushed 会卡 true → 底栏一直藏着。这里一起复位。
-                tabRouter.remoteChatPushed = false
+                // [TG-TABBAR 2026-09-30] 原 remoteChatPushed 复位随藏显机制退役
+                // （栏是 push 目的地天然盖住的一级页内件，没有"藏栏标志"可卡）。
             }
         }
         // 官方 RootView.swift:52 逐字同源：全局 tint = 主文本色（黑/白），官方
@@ -92,8 +93,9 @@ struct RemoteRootView: View {
             Text("等待配对完成…").font(.callout)
             Button("取消，回到引导") { service.reset() }.font(.callout)
         }
-        // [TAB-RESTORE 2026-09-28 pp] 配对等待态的页面内嵌 BottomDock 已退场，
-        // 系统 tab 栏恢复原生渲染（等待态仍在远程 tab 根部，原生栏自然在场）。
+        // [TG-TABBAR 2026-09-30] 此段原为 [TAB-RESTORE 2026-09-28] 的「系统 tab
+        // 栏恢复原生渲染」说明——系统栏已整体退役；等待态在远端树 root 页内，
+        // 自绘栏（ModeTabBar）照常在场。
     }
 
     // MARK: State 3 — 已连接（R0 列表已接线：RemoteSessionListView 挂进本 NavigationStack，

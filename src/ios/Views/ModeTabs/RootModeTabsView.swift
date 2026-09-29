@@ -3,15 +3,18 @@
 // 登录成功 → 远程 tab；本地入口 → 本机 tab；lastTab 记忆（RootTabRouter）。
 // 恢复：官方 restoreSession 语义（UserDefaults server + keychain token）。
 //
-// [NATIVE-TABS 2026-09-26] 底部导航整体换原生 TabView（pp「底部让你用ios原生tab
-// 你写的是啥玩意」）：三 tab = 本机 / 远程 / 构件影音，系统 tab 栏样式全托管；
-// 自绘 BottomModeDock 删除。顶栏身份胶囊迁入本机页导航栏 principal 位（仍是
-// pp 拍板保留的需求件），zoom 转场照旧。≡ 齿轮换原生 toolbar 按钮。
+// [TG-TABBAR 2026-09-30] 底部导航改 TG 式自绘（pp「用tg的自绘」；规格与数值
+// 出处见 ModeTabBar.swift 头注）。系统 TabView 整体退役——原方案「系统栏 +
+// toolbar(.hidden, for:.tabBar) 藏显」在 iOS 26 有 hide/reveal 回归，且藏显
+// 机制在新会话草稿→正式换视图面前失序（Unbalanced/卡死，见 AIChatView 墓碑）。
+// 现在：三棵 tab 树在 ZStack 保活（瞬切），自绘栏挂进各树 NavigationStack 的
+// root 页——push 整页覆盖含栏、划回原位揭示，没有任何隐藏/出现（对照 pp 的
+// TG 截图语义）。
 //
-// [NATIVE-TABS 2026-09-26pm] pp 按 Muse 对齐：纯图标 tab（Lucide 20pt 黑）；
-// 搜索原先是 TabRole.search 独立圆形钮，pp 随后「搜索放右上角」——改为各 tab 页
-// 导航栏右上角 🔍（SearchEntry.swift）；独立圆钮改给新建会话 ＋（借 search role
-// 的外观）。底栏 = 3 tab 胶囊 + 右侧分离圆钮。
+// [NATIVE-TABS 2026-09-26pm 沿革] pp 按 Muse 对齐：纯图标 tab（Lucide 20pt 黑）；
+// 搜索在导航栏右上角（SearchEntry.swift）；独立圆钮 = 新建会话 ＋（ModeTabBar
+// 右侧圆位）。顶栏身份胶囊在本机页导航栏 principal 位（pp 拍板保留的需求件），
+// zoom 转场照旧。≡ 齿轮 = 原生 toolbar 按钮。
 
 import SwiftUI
 import UIKit
@@ -23,11 +26,10 @@ struct RootModeTabsView: View {
     @State private var showsQRLogin = false
     @State private var showsManualLogin = false
     @State private var didRestore = false
-    // [TABBAR-NATIVE 2026-09-28 pp] 旧「状态驱动底栏显隐」机制（tabBarHidden 状态
-    // + syncTabBarVisibility + 0.45s 自愈 + TabBar 埋点）整体退役：显隐改由目的地
-    // 页面声明（AIChatView / 远端 SessionChatView 各自 .toolbar(.hidden, for:
-    // .tabBar)），UIKit 在转场里托管。该机制在新会话草稿→正式的原地换视图面前
-    // 失序（Unbalanced×4、pop 不更新路径、tab 永久卡死），详见 AIChatView 同注释。
+    // [TG-TABBAR 2026-09-30] 这里原有一段 [TABBAR-NATIVE 2026-09-28] 说明「显隐改由
+    // 目的地页面声明（.toolbar(.hidden, for:.tabBar)），UIKit 在转场里托管」——
+    // 该机制本身已随系统栏一并退役（自绘栏是一级页内件，push 天然覆盖；藏显链的
+    // 失序病史见 AIChatView 墓碑注释）。
     /// 身份胶囊 → 资料页（zoom 转场对）。NS 挂在胶囊头像的
     /// matchedTransitionSource 上，SoulProfileHub 的 sheet 内容消费同一对。
     @Namespace private var soulProfileNS
@@ -45,118 +47,39 @@ struct RootModeTabsView: View {
     /// 终端卡"点按登录"（onOpenLogin）会清掉重唤。key 命名跟随 aa.* 惯例。
     @AppStorage("aa.remote.login-cover-dismissed") private var loginCoverDismissed = false
 
-    /// [NATIVE-TABS] 各 tab 的 Tabler 图标（aa-Tabler- 前缀资产，模板渲染），
-    /// 纯图标 tab（无文字），22pt 对齐 Muse，黑色。a11y 朗读文本由 tabLabel 提供。
-    /// 2026-09-27：pp 从 Tabler 库四组候选中钦定（tab1 message-circle /
-    /// tab2 cloud / tab3 puzzle / tab4 edit）。
-    private static let tabIcon: [AppSourceMode: String] = [
-        .local: "aa-Tabler-MessageCircle",
-        .remote: "aa-Tabler-Cloud",
-        .works: "aa-Tabler-Puzzle",
-        .compose: "aa-Tabler-Edit",
-    ]
-
-    init() {
-        Self.configureTabBarAppearance()
-    }
-
-    /// [NATIVE-TABS] tab 栏外观：Muse 式黑图标（深浅色自适应）。
-    private static func configureTabBarAppearance() {
-        let bar = UITabBar.appearance()
-        bar.tintColor = .label
-        bar.unselectedItemTintColor = .label
-    }
-
-    /// Lucide SVG 资产是 24pt viewBox；Muse 的 tab 图标约 19pt，这里栅格化到
-    /// 27pt 并保持 template 渲染；颜色由调用处的 .foregroundStyle 按选中态给
-    ///（TabView 级 .tint 会透进 tab 内容染黑 accent——pp 2026-09-27）。
-    /// 2026-09-27：22→27 —— Tabler 2px 描边在 22pt 框里光学只有约 18pt，
-    /// 在 iOS 26 浮动 pill 里显小；27pt 光学约 22.5pt，描边约 2.25px。
-    ///
-    /// [FIX-tab-icon-flash] 栅格化结果按 asset 缓存：切 tab 时 router.mode 变
-    /// 化会重建 4 个 label，若每次都 new 出 UIImage，底栏 image view 会闪一下
-    /// 重绘。复用同一张图后，切 tab 只变 .foregroundStyle 颜色，不换图，不闪。
-    /// （struct 是 @MainActor，body 内调用，无线程问题。）
-    private static var tabImageCache: [String: UIImage] = [:]
-    private static func tabImage(_ asset: String) -> Image {
-        if let cached = tabImageCache[asset] {
-            return Image(uiImage: cached)
-        }
-        let side: CGFloat = 27
-        let ui = UIGraphicsImageRenderer(
-            size: CGSize(width: side, height: side)
-        ).image { _ in
-            UIImage(named: asset)?.draw(
-                in: CGRect(origin: .zero, size: CGSize(width: side, height: side))
-            )
-        }.withRenderingMode(.alwaysTemplate)
-        tabImageCache[asset] = ui
-        return Image(uiImage: ui)
-    }
-
-    /// tab 图标颜色：选中 .primary（浅色黑/深色白），未选中 .secondary 灰。
-    /// .compose 是新建动作钮（永不选中），常黑。
-    private static func tabIconColor(_ mode: AppSourceMode, selected: AppSourceMode) -> Color {
-        if mode == .compose { return .primary }
-        return mode == selected ? .primary : .secondary
-    }
+    /// [TG-TABBAR] 三树保活挂载表（替代 TabView 的"首次访问才建树、此后保活"
+    /// 语义）。初值含 .local（恒挂）与启动落点（lastTab 记忆可能是 .remote/
+    /// .works）。remote 另有 seenRemote 门控（B12，在 tabContent 内）；works
+    /// 走本表。图标资产与栅格化缓存随 Tab 构建器迁入 ModeTabBar.swift。
+    @State private var mountedModes: Set<AppSourceMode> = [.local, RootTabRouter.shared.mode]
 
     var body: some View {
-        TabView(selection: tabSelection) {
-            ForEach(AppSourceMode.allCases) { mode in
-                // .compose 借 TabRole.search 的独立圆形外观（iOS 26 原生唯一能让
-                // tab 脱离胶囊的 role；pp 2026-09-26「新会话按钮就改到刚刚tab分离
-                // 在右边的圆按钮」）。语义仍是新建：点它走 tabSelection 拦截发
-                // 新会话信号，不切页；a11y 朗读的是 tabLabel 的 "New Chat"。
-                Tab(value: mode, role: mode == .compose ? .search : nil) {
-                    tabContent(mode)
-                        // [FIX-tab-zoom] iOS 26 TabView 切 tab 自带缩放过渡
-                        //（页面内容轻微放大缩小、组件跟着浮）。identity = 无过渡，
-                        // 瞬切（延续 pp 2026-09-16「不带系统 crossfade」的拍板）。
-                        // 只作用于内容页，底栏选中 pill 的滑动不受影响。
-                        .transition(.identity)
-                        // [TAB-TINT] 盖回 App 蓝：TabView 级 .tint(.primary) 只管
-                        // 底栏选中黑，内容里的 accent 蓝不能丢。
-                        .tint(Color("AccentColor"))
-                        // [TAB-RESTORE 2026-09-28 pp] 系统 tab 栏恢复原生渲染：
-                        // 此处曾静态 .hidden 整体退役系统栏、改页面内嵌手绘
-                        // BottomDock——pp 装机判「没还原系统那种一模一样的效果」
-                        //（手绘件像素对齐到极限也不是系统材质/动效），拍板回
-                        // 系统 TabView 自渲染。玻璃胶囊、按压、选中 pill 滑动、
-                        // 分离圆钮（.compose 的 TabRole.search）全由系统出。
-                        // 藏/显路径的风险防线 = 旧机制病根已在包内修净：
-                        // 状态机已退役（9dfa4f2）、新建会话恢复带转场 push
-                        //（494bfe9）、P0 环境防御（aee076f）；显隐只由目的地
-                        // 页面声明（聊天页/设备详情），无任何壳层状态。
-                } label: {
-                    Self.tabImage(Self.tabIcon[mode] ?? "aa-Circle")
-                        // [NATIVE-TABS] 未选中灰图标走这里；选中态黑由 TabView 级
-                        // .tint(.primary) 接管（iOS 26 浮动 tab 的选中 tint 会盖掉
-                        // label 的 foregroundStyle，UITabBar.appearance 也不吃）。
-                        .foregroundStyle(Self.tabIconColor(mode, selected: router.mode))
-                        .accessibilityLabel(tabLabel(mode))
-                }
-            }
+        // [TG-TABBAR 2026-09-30] TabView 退役（「系统栏 + 藏显」病根，pp 拍板
+        // 「用tg的自绘」）→ ZStack 三树保活：每棵树自带 NavigationStack，自绘栏
+        // （ModeTabBar）挂各树 root 页——push 整页覆盖含栏、划回原位揭示；
+        // 切 tab = 当前树可见其余隐藏（瞬切语义延续，无 crossfade）。
+        ZStack {
+            tabTree(.local)
+            tabTree(.remote)
+            tabTree(.works)
         }
         // pp 2026-09-16 拍板延续：tap/横滑切 tab 内容层瞬切，不带系统 crossfade。
         .animation(nil, value: router.mode)
         .onChange(of: router.mode) { old, new in
+            mountedModes.insert(new)   // [TG-TABBAR] 保活表记账（访问过不卸载）
             NavTrace.log("MODE \(old)→\(new) trig=\(NavTrace.trigger)+\(NavTrace.age)")
         }
-        // [TAB-TINT] 选中 tab 黑图标：iOS 26 浮动 tab 的选中态会被系统 tint
-        //（蓝）盖掉 label 上的 foregroundStyle，只能 TabView 级 .tint(.primary)。
-        // tint 是 environment，会透进 tab 内容和本层 sheet——下面 4 处用
-        // Color("AccentColor")（读资产，不受 tint 影响）把 App 蓝盖回去。
-        .tint(.primary)
-        // [TABBAR-NATIVE 2026-09-28] 显隐由目的地页面声明（见 AIChatView 同注释），
-        // 壳层不再有任何状态链/自愈。
+        // [TG-TABBAR] 原 TabView 级 .tint(.primary)（治系统栏选中黑）随系统栏
+        // 退役；各树与各 sheet 的 tint 均为自带显式声明，不受影响。
+        // 原 [TABBAR-NATIVE 2026-09-28] 藏显机制（toolbar(.hidden, for:.tabBar)）
+        // 已整批退役：系统栏不存在，ModeTabBar 是一级页内件，push 天然覆盖。
         // Q2: 胶囊 → 资料页 zoom 转场。fullScreenCover + navigationTransition(.zoom)
         // 配对（Apple 文档标准形状；zoom 接管默认转场）。pp 2026-09-27：改全屏。
         .fullScreenCover(isPresented: $showsSoulProfile) {
             SoulProfileHub()
                 .navigationTransition(.zoom(sourceID: SoulProfileHub.zoomSourceID, in: soulProfileNS))
-                // [TAB-TINT] 本层 sheet 挂在 TabView 下，会吃到 .tint(.primary)，
-                // 盖回 App 蓝。
+                // [TG-TABBAR] 显式钉 App 蓝（原 [TAB-TINT] 的"盖回"使命已随壳层
+                // .tint(.primary) 退役；保留为显式声明，等同默认 accent）。
                 .tint(Color("AccentColor"))
         }
         .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
@@ -170,7 +93,7 @@ struct RootModeTabsView: View {
         // binding keeps the upstream signature and behaviour intact.
         .sheet(isPresented: $router.showSettings) {
             SettingsSheet(showTerminal: .constant(false))
-                // [TAB-TINT] 同上，盖回 App 蓝。
+                // [TG-TABBAR] 同上：显式钉 App 蓝（原 [TAB-TINT] 用途已退役）。
                 .tint(Color("AccentColor"))
         }
         .task {
@@ -210,6 +133,34 @@ struct RootModeTabsView: View {
         }
     }
 
+    /// [TG-TABBAR] 单棵 tab 树壳：挂载门控 + 当前性（opacity/命中/无障碍）。
+    /// 保活语义 = 原 TabView 的"首次访问才建树、此后保持"（B16：非当前树仍在
+    /// 树上，只是不可见/不可点/不进朗读）。自绘栏挂在各树 NavigationStack 的
+    /// root 页内（ContentView/RemoteRootView/WorksListView 三处 safeAreaInset），
+    /// 不在本层——push 才能整页盖住含栏的 root 页。
+    @ViewBuilder
+    private func tabTree(_ mode: AppSourceMode) -> some View {
+        let isCurrent = router.mode == mode
+        Group {
+            switch mode {
+            case .local:
+                tabContent(.local)
+            case .remote:
+                tabContent(.remote)   // seenRemote 懒挂载门控原样在 tabContent 内
+            case .works:
+                if mountedModes.contains(.works) || isCurrent {
+                    tabContent(.works)
+                }
+            case .compose:
+                // ACTION 位：mode 永不变为 .compose（ModeTabBar.commit 拦截）。
+                EmptyView()
+            }
+        }
+        .opacity(isCurrent ? 1 : 0)
+        .allowsHitTesting(isCurrent)
+        .accessibilityHidden(!isCurrent)
+    }
+
     /// [NATIVE-TABS] 每个 tab 的根内容。本机 = upstream ContentView 本体（带它的
     /// 原生导航栏：≡ 齿轮 / principal 身份胶囊 / toolbar）；远端 = RemoteRootView
     ///（自带 NavigationStack）；构件影音 = WorksListView（自带 NavigationStack）。
@@ -233,44 +184,22 @@ struct RootModeTabsView: View {
                     )
                 }
             } else {
-                // 未 seen 时给个空底，tab 栏照常渲染（选择远端即触发 seenRemote）。
+                // 未 seen 时给个空底（选择远端即触发 seenRemote 挂出真树；
+                // 自绘栏随树挂载，ModeTabBar 在各树 root 页内）。
                 Color(UIColor.systemBackground)
             }
         case .works:
             WorksListView(soulProfileNS: soulProfileNS)
         case .compose:
-            // ACTION tab：mode 永不变为 .compose（tabSelection 写拦截），这里永不渲染。
+            // ACTION 位：mode 永不变为 .compose（ModeTabBar.commit 拦截），永不渲染。
             EmptyView()
         }
     }
 
-    /// TabView selection 双向绑定：读 = router.mode，写 = route(to:)（didSet 持久化
-    /// + seenRemote 挂钩全部走 router 单一通道，D4 红线不破）。
-    /// `.compose` 是 ACTION tab（新会话按钮）：拦截，不写 router —— tab 停在原页，
-    /// QuickActionRouter 发新会话信号（ContentView 接到后切回本机页并打开新会话）。
-    private var tabSelection: Binding<AppSourceMode> {
-        Binding(
-            get: { router.mode },
-            set: {
-                NavTrace.mark($0 == .compose ? "composeTab" : "-")
-                NavTrace.log("BINDING set=\($0) mode=\(router.mode) trig=\(NavTrace.trigger)+\(NavTrace.age)")
-                if $0 == .compose {
-                    QuickActionRouter.shared.requestNewChat()
-                } else {
-                    router.route(to: $0)
-                }
-            }
-        )
-    }
-
-    private func tabLabel(_ mode: AppSourceMode) -> String {
-        switch mode {
-        case .local: return String(localized: "Local")
-        case .remote: return String(localized: "Remote")
-        case .works: return String(localized: "Works & Media")
-        case .compose: return String(localized: "New Chat")
-        }
-    }
+    // [TG-TABBAR] 原 tabSelection binding / tabLabel 随 TabView 退役——等价的
+    // 拦截逻辑 + NavTrace 打点已逐字迁入 ModeTabBar.commit（compose 仍是 ACTION
+    // 位：永不选中，点击 = QuickActionRouter 新建信号，D4 红线不破）；a11y 文案
+    // 迁至栏 item 的 accessibilityLabel。
 
     /// 远程 tab 且从未配置（.idle）或正在配对（.pairing）、且没关过盖 → 盖登录页。
     // [TABBAR-NATIVE 2026-09-28] syncTabBarVisibility / scheduleTabBarHeal /

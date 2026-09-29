@@ -11,9 +11,10 @@ import Combine
 enum AppSourceMode: String, CaseIterable, Identifiable {
     case local, remote, works
     /// 新会话按钮（pp 2026-09-26「新会话按钮入口加进tab」→「改到刚刚tab分离
-    /// 在右边的圆按钮」：借 TabRole.search 的独立圆形外观，iOS 26 原生）。
-    /// ACTION tab，不是页面：点它走 QuickActionRouter 新建本机会话，`mode`
-    /// 永不变为 .compose（tabSelection 写拦截），所以不进 lastTab 记忆、
+    /// 在右边的圆按钮」。[TG-TABBAR 2026-09-30] 原「借 TabRole.search 的独立圆形
+    /// 外观」通道已随系统 TabView 退役——现为 ModeTabBar 自绘栏右侧的独立玻璃圆位）。
+    /// ACTION 位，不是页面：点它走 QuickActionRouter 新建本机会话，`mode`
+    /// 永不变为 .compose（ModeTabBar.commit 拦截），所以不进 lastTab 记忆、
     /// 不参与横滑（手势已删）、tabContent 永不渲染。
     case compose
     var id: String { rawValue }
@@ -78,10 +79,7 @@ final class RootTabRouter: ObservableObject {
     /// `remoteAtRoot` — 远端线是否在列表根（REMOTE-DEVICE-1：设备详情页 push 时为 false）。
     @Published var remoteAtRoot: Bool = true
 
-    /// 远端聊天页是否已 push（RemoteSessionListView.showsChat 的一线镜像，
-    /// 写法同 localAtRoot：只写标志，不反向驱动）。
-    /// 底栏显隐数据源之一：进远端聊天页藏底栏（pp 2026-09-27「tab不进聊天页」延续）。
-    /// 注意 remoteAtRoot 在设备详情页 push 时也为 false，但设备详情页不藏底栏
-    /// （历史行为），所以这里用独立标志，不复用 remoteAtRoot。
-    @Published var remoteChatPushed: Bool = false
+    // [TG-TABBAR 2026-09-30] remoteChatPushed 已删（随藏显机制退役）：底栏 =
+    // 自绘 ModeTabBar，是一级页 root 页内件——push 的目的地（聊天/设备详情）
+    // 从栈内整页盖住含栏的 root 页，不存在"藏栏标志"可写可卡。
 }

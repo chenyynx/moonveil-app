@@ -243,8 +243,9 @@ struct RemoteSessionListView: View {
             SessionChatView(session: session, services: services,
                             deviceName: connectorNames[session.metadata?.connectorId ?? ""],
                             onMenu: { dismiss() })
-                // [TABBAR-NATIVE 2026-09-28] 远端聊天页同为被 push 的目的地，声明式藏 tab。
-                .toolbar(.hidden, for: .tabBar)
+                // [TG-TABBAR 2026-09-30] 原 TABBAR-NATIVE 藏栏退役：系统栏不存在
+                // （自绘栏是远端 root 页内件，本页 push 即整页盖住含栏的 root 页）。
+                // （原注释：远端聊天页同为被 push 的目的地，声明式藏 tab。）
                 .task(id: id) {
                     // 官方 AppState.makeV2Services → services.restoreCache(selection:)：
                     // 进页面先把本地缓存铺进仓库（离线可见），网络回来再覆盖。
@@ -385,8 +386,9 @@ struct RemoteSessionListView: View {
         // 取、删除回调走组合根 removeConnector、.id(connectorId) 官方 190 行）。
         .navigationDestination(isPresented: $showsDeviceDetail) {
             // [TAB-RESTORE pp 拍板 ffd2d84] 终端卡进去的设备详情 = push 二级页，
-            // 无底部 tab。系统栏恢复原生渲染后，由目的地显式声明（hidesBottomBar
-            // WhenPushed 的 SwiftUI 等价，与聊天页 chatDestination 同款）。
+            // 无底部 tab。[TG-TABBAR 2026-09-30] 原「系统栏恢复原生渲染后由目的地
+            // 显式声明（hidesBottomBarWhenPushed 等价）」已退役——系统栏不存在，
+            // 本页从栈内 push 即整页盖住含栏的 root 页（见下方原藏栏处墓碑）。
             Group {
                 if let connector = deviceConnector, let services = service.chat {
                 // [BATCH-A/A3-同族][SEAM-LOSSLESS] 设备页四条归档写路径无损回传真实
@@ -413,7 +415,8 @@ struct RemoteSessionListView: View {
                     deviceDetailPending
                 }
             }
-            .toolbar(.hidden, for: .tabBar)
+            // [TG-TABBAR 2026-09-30] 原藏栏退役：设备详情页 = 栈内 push 目的地，
+            // 从右滑入即整页盖住含栏的 root 页，无需藏显声明。
         }
         // 页切栅栏 + 顶栏齿轮的归属从「详情页 onAppear 自报」改成「push 状态」：
         // 原写法把 remoteAtRoot 挂在 RemoteDeviceDetailView.onAppear 上，目的地
@@ -433,9 +436,8 @@ struct RemoteSessionListView: View {
         // 和 ChatPageToolbar 自己的 topBarLeading 返回键叠在一起。
         .onChange(of: showsChat) { _, pushed in
             RootTabRouter.shared.remoteAtRoot = !pushed
-            // [TABBAR-STATE-DRIVEN 2026-09-27] 进远端聊天页藏底栏（纯状态驱动，
-            // 动画与转场解耦，见 RootModeTabsView.syncTabBarVisibility）。
-            RootTabRouter.shared.remoteChatPushed = pushed
+            // [TG-TABBAR 2026-09-30] 原 remoteChatPushed（进聊天页藏底栏）随藏显
+            // 机制退役：栏是一级页内件，push 天然整页盖住，无"藏栏标志"可写。
         }
         // PAIRING-FULL 收尾（P2-B）：官方 ChatShellView:39-45/53-59 形状——配对就绪的
         // 设备弹 AgentSetupSheet（原「跳设备详情页」过渡移除）；关闭 = finish + 刷 dashboard。
@@ -449,9 +451,9 @@ struct RemoteSessionListView: View {
                 }
             }
         }
-        // [TAB-RESTORE 2026-09-28 pp] 页面内嵌 BottomDock 及其键盘免疫已退场：
-        // 系统 tab 栏恢复原生渲染（远端列表 = 远程 tab 根部，原生栏自然在场；
-        // 键盘与底栏的关系系统自管）。
+        // [TG-TABBAR 2026-09-30] 此段原为 [TAB-RESTORE 2026-09-28] 的「系统 tab
+        // 栏恢复原生渲染」说明——系统栏已整体退役；远端列表 = 远端树 root 页，
+        // 自绘栏（ModeTabBar）在场且自带键盘豁免（不随键盘上浮，见 ModeTabBar）。
     }
 
     /// 官方 agentSetupBinding（ChatShellView:53-59；本仓 coordinator 为 app 层

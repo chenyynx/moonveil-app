@@ -2224,6 +2224,14 @@ struct ContentView: View {
             detailView
                 .appFontScale()
         }
+        // [TG-TABBAR 2026-09-30] iPad/宽窗：宽窗无"push 盖栏"模型（聊天在 detail
+        // 列、栏在整窗底），按系统栏时代行为收栏——无选中会话时显示；聊天打开时
+        // 收起（selectedSessionId 一有值即收，返回列表即回）。
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if selectedSessionId == nil {
+                ModeTabBar(tabMode: .local)
+            }
+        }
     }
 
     // MARK: - Stack Layout (iPhone / narrow window)
@@ -2231,6 +2239,10 @@ struct ContentView: View {
     private var stackLayout: some View {
         NavigationStack(path: $navigationPath) {
             sessionList(useNavigationLinks: true)
+                // [TG-TABBAR 2026-09-30] 自绘 tab 栏挂栈内 root 页底边：push 从
+                // 栈内部盖上来整页覆盖含栏；划回 root 页（含栏）整体平移揭示。
+                // 系统栏与藏显机制整体退役（见 RootModeTabsView / ModeTabBar 头注）。
+                .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .local) }
                 .navigationDestination(for: ChatRoute.self) { route in
                     // `.id(route)` mirrors detailView (iPad): navigationDestination
                     // views are identified by stack depth, not path value, so
@@ -3073,9 +3085,10 @@ struct ContentView: View {
         // [WELCOME-NO-BOTTOMBAR] pp 2026-09-26：欢迎/配置页在场时旧 FAB 行退场
         // （判据与 emptyState overlay 逐字相同）。旧 FAB 行已删（2026-09-26，
         // 新建→tab 栏独立圆钮，搜索→导航栏右上角）。
-        // [TAB-RESTORE 2026-09-28 pp] 页面内嵌 BottomDock 已退场（手绘件还原不到
-        // 系统一模一样，系统 tab 栏恢复原生渲染）。多选工具栏独立一层照旧保留
-        //（原生栏时代工具栏与底栏同时在场，不互相替换——不许修了新功能丢旧的）。
+        // [TG-TABBAR 2026-09-30]（原 [TAB-RESTORE 2026-09-28] 段：系统 tab 栏
+        // 恢复原生渲染）——系统栏已整体退役，底栏 = 自绘 ModeTabBar（本列表所在
+        // 栈的 root 页 safeAreaInset）。多选工具栏独立一层照旧保留（工具栏与底栏
+        // 同时在场，不互相替换——不许修了新功能丢旧的）。
         .safeAreaInset(edge: .bottom) {
             if isSelecting { selectionToolbar }
         }
@@ -3277,8 +3290,8 @@ struct ContentView: View {
         // [WELCOME-NO-BOTTOMBAR] 同 compact 列表：欢迎/配置页在场时旧 FAB 行退场
         // （pp 2026-09-26；判据与本处 emptyState overlay 逐字相同）。
         // 旧 FAB 行已删（2026-09-26）。
-        // [TAB-RESTORE 2026-09-28 pp] 同 compact 列表：BottomDock 退场，系统
-        // tab 栏原生渲染；多选工具栏独立一层照旧保留。
+        // [TG-TABBAR 2026-09-30] 同 compact 列表：系统栏已退役，底栏 = 自绘
+        // ModeTabBar；多选工具栏独立一层照旧保留。
         .safeAreaInset(edge: .bottom) {
             if isSelecting { selectionToolbar }
         }
@@ -3831,7 +3844,7 @@ struct ContentView: View {
         // 钮自带的动画 transaction）；栈顶替换用 withAnimation(nil)（正经
         // transaction，仅动画为 nil）。另：syncFixedBarFlags() 移出——
         // localAtRoot/localSelecting 是死 flag（无视图读取），不在 push
-        // 转场同帧逼 TabView 重求值。
+        // 转场同帧逼壳层重求值（原 TabView；[TG-TABBAR 2026-09-30] 后壳层 = ZStack）。
         if navigationPath.isEmpty {
             navigationPath = [route]
         } else {
@@ -5906,8 +5919,9 @@ private struct SessionContextMenu: View, Equatable {
 
     var body: some View {
         menuContent
-            // [CTXMENU-TINT] contextMenu 会继承 tabContent 的 AccentColor 蓝 tint
-            //（RootModeTabsView [TAB-TINT]），菜单图标全被染蓝；盖回 primary。
+            // [CTXMENU-TINT] contextMenu 会继承环境的 accent 蓝 tint（源 = 默认
+            // AccentColor 资产；原 RootModeTabsView [TAB-TINT] 显式钉随 TG-TABBAR
+            // 批退役），菜单图标全被染蓝；盖回 primary。
             // destructive 删除保持 role 自带红色，不受影响。
             .tint(.primary)
     }
