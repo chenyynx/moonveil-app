@@ -1,8 +1,12 @@
 // Transition.swift — [TG-LENS-PORT 2026-09-30] 搬运自 Telegram-iOS
 // submodules/ComponentFlow/Source/Base/Transition.swift（GPLv2-or-later 声明；本仓
 // GPLv3 衍生工程，合规与适配记录见 docs/tg-lens-port.md）。
-// 适配记录（唯一）：删除 `import Display` / `import UIKitRuntimeUtils`（模块边界消失，
-// 且经全文件扫描不使用其符号）。其余逐字搬运（1630 行）。
+// 适配记录：①删除 `import Display` / `import UIKitRuntimeUtils`（模块边界消失，且经
+// 全文件扫描不使用其符号）；②`animationDurationFactor` 由静态 var 改为函数形态：
+// 上游此符号是双模块双形态（Display 侧是函数 `animationDurationFactor()` /
+// ComponentFlow 侧是本文件的 var），单模块合并须二选一——Display 侧逐字搬运件
+// （CAAnimationUtils.swift）有 16 处函数形态调用、var 形态全仓零调用，故选函数形态，
+// 计算体逐字未动。其余逐字搬运（1630 行）。
 // 内容：ComponentTransition 动画过渡引擎——setFrame/setPosition/setAlpha/setBounds/
 // setCornerRadius/animateView 等全套；.spring/.bounce/.custom 曲线的发起端（含
 // SpringParametersOverride 压栈，与 TGLensSupport 的 addAnimation swizzle 配对）。
@@ -14,7 +18,9 @@ import UIKit
 #endif
 
 public extension UIView {
-    static var animationDurationFactor: Double {
+    // [TG-LENS-PORT 适配②] 上游本处是 `static var animationDurationFactor: Double`；
+    // 单模块合并统一为函数形态（理由见文件头），计算体逐字未动。
+    static func animationDurationFactor() -> Double {
         #if targetEnvironment(simulator)
         return Double(UIAnimationDragCoefficient())
         #else

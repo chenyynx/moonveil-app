@@ -28,9 +28,9 @@ import UIKit
 
 // MARK: - animationDurationFactorImpl（UIKitUtils.m:11-16）
 
-#if targetEnvironment(simulator)
-@_silgen_name("UIAnimationDragCoefficient") func UIAnimationDragCoefficient() -> Float
-#endif
+// [TG-LENS-PORT 适配] 上游此 @_silgen_name 声明在 Display / ComponentFlow 两模块
+// 各有一份；单模块合并须去重——保留 Transition.swift 逐字搬运件中的声明，
+// 本文件不再重复（模拟器构建下由 Transition.swift 提供，真机分支不使用）。
 
 /// 模拟器下跟随 UIAnimationDragCoefficient，真机恒 1.0。
 func animationDurationFactorImpl() -> Double {
@@ -80,9 +80,11 @@ extension CASpringAnimation {
 // MARK: - 弹簧动画构造（UIKitUtils.m:53-108）
 
 /// makeSpringAnimationImpl（UIKitUtils.m:53-66）：iOS 26 走 26 版曲线。
-func makeSpringAnimationImpl(_ keyPath: String, duration: Double) -> CABasicAnimation {
+/// 参数位置式（对齐 ObjC 原版 `makeSpringAnimationImpl(keyPath, duration)`，
+/// CAAnimationUtils.swift 逐字搬运件按位置调用）。
+func makeSpringAnimationImpl(_ keyPath: String, _ duration: Double) -> CABasicAnimation {
     if #available(iOS 26.0, *) {
-        return make26SpringAnimationImpl(keyPath, duration: duration)
+        return make26SpringAnimationImpl(keyPath, duration)
     }
     let springAnimation = CASpringAnimation(keyPath: keyPath)
     springAnimation.mass = 3.0
@@ -94,7 +96,8 @@ func makeSpringAnimationImpl(_ keyPath: String, duration: Double) -> CABasicAnim
 }
 
 /// make26SpringAnimationImpl（UIKitUtils.m:68-84）：iOS 26 的原生手感弹簧参数。
-func make26SpringAnimationImpl(_ keyPath: String, duration: Double) -> CABasicAnimation {
+/// 参数位置式（对齐 ObjC 原版；CAAnimationUtils.swift:127 按位置调用）。
+func make26SpringAnimationImpl(_ keyPath: String, _ duration: Double) -> CABasicAnimation {
     let springAnimation = CASpringAnimation(keyPath: keyPath)
     springAnimation.mass = 1.0
     springAnimation.stiffness = 555.027
@@ -135,7 +138,7 @@ func springAnimationValueAtImpl(_ animation: CABasicAnimation, _ t: CGFloat) -> 
 // MARK: - Swift 包装层（Display/Source/UIKitUtils.swift:5-20）
 
 func makeSpringAnimation(_ keyPath: String, duration: Double) -> CABasicAnimation {
-    return makeSpringAnimationImpl(keyPath, duration: duration)
+    return makeSpringAnimationImpl(keyPath, duration)
 }
 
 func makeSpringBounceAnimation(_ keyPath: String, _ initialVelocity: CGFloat, _ damping: CGFloat) -> CASpringAnimation {

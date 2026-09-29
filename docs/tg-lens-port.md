@@ -42,12 +42,26 @@ GPLv3 开源工程，按「v2 or later」条款并入，许可证兼容路径成
   （旧引擎，被 Transition.swift 取代）。
 - **[对抗复审 2026-09-30 修正四项]** ①TGLensSupport.swift 在 pbxproj 中**不加**
   `-default-isolation MainActor`（含进程级 swizzle 与覆盖栈，CoreAnimation 可在非主
-  线程触达；TG 原件为 ObjC 无隔离假设）；②交互按 TG 原样放回岛内——岛保持可交互
+  线程触达；TG 原件为 ObjC 无隔离假设）。〔CI 首跑复审补注〕实测 target 级已设
+  `SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor`（SWIFT_VERSION=5 模式）⇒ 全 target
+  文件（含本文件）事实上默认 MainActor，逐文件 flag 与该设置为冗余、Swift 5 模式无
+  运行时强制；如后续真需非隔离，须显式 `nonisolated`；②交互按 TG 原样放回岛内——岛保持可交互
   （玻璃 `UIGlassEffect.isInteractive` 的触摸响应需要真实命中），岛内挂 0 延迟
   UILongPressGestureRecognizer（cancelsTouchesInView=false，与玻璃响应并行），
   提交经 onCommit 回调；③透镜跟手 = TG 精确模型（起点 = 被按槽位透镜 minX，其后
   按指尖位移增量，保留抓取偏移）；④`generateImage` 手动翻回 y-up 上下文（对齐 TG
   的 `withContext` 朝向；仅 <26 遗留路径可达）。
+- **[CI 首跑 2026-09-30 修正三项]** ⑤`animationDurationFactor` 单模块形态统一：
+  上游是跨模块双形态（Display 侧函数 `animationDurationFactor()` / ComponentFlow 侧
+  静态 var），单模块合并须二选一——统一为**函数形态**（Display 逐字搬运件
+  CAAnimationUtils.swift 16 处函数调用 vs var 形态零调用；Transition.swift 仅声明
+  一行改动、计算体逐字未动）；⑥弹簧 Impl 族参数标签对齐 ObjC 原版**位置式**
+  （`makeSpringAnimationImpl` / `make26SpringAnimationImpl` 去掉转写时多加的
+  `duration:` 标签，与 CAAnimationUtils.swift:127 等位置调用一致；Swift 包装层
+  `makeSpringAnimation(keyPath:duration:)` 保持标签式，同上游 Display 分层）；
+  ⑦`UIAnimationDragCoefficient` 的 `@_silgen_name` 声明去重：上游同样双模块各一份
+  （均 `#if simulator` 守卫，真机构建不编译、CI 无法暴露），单模块合并保留
+  Transition.swift 逐字件、删 TGLensSupport 转写件的重复声明。
 
 ## 3. ⚠️ 私有 API 清单（与 TG 同款用法）
 
