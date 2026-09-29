@@ -66,80 +66,22 @@ final class RootTabRouter: ObservableObject {
     /// One flag, one visible presenter, both tabs use it.
     @Published var showSettings: Bool = false
 
-    // [COVER-SHELL 2026-09-30] localAtRoot / localSelecting 已删（死 flag，全仓无
-    // 读方；覆盖式结构后不存在任何「底栏显隐数据源」）。
+    /// B16 mirrors, one-way, presentation-only, written by ContentView from its own
+    /// existing sources of truth (never the reverse):
+    /// `localAtRoot` — the fixed gear must step aside when the local line pushes a chat
+    /// (that chat owns its own navigation bar). Same root test as `goHome()`.
+    @Published var localAtRoot: Bool = true
+    /// `localSelecting` — while rows are checked the page's own toolbar shows Cancel at
+    /// this edge, so the fixed gear stands down instead of doubling it.
+    @Published var localSelecting: Bool = false
 
     /// `remoteAtRoot` — 远端线是否在列表根（REMOTE-DEVICE-1：设备详情页 push 时为 false）。
     @Published var remoteAtRoot: Bool = true
 
     /// 远端聊天页是否已 push（RemoteSessionListView.showsChat 的一线镜像，
-    /// 只写标志，不反向驱动）。
+    /// 写法同 localAtRoot：只写标志，不反向驱动）。
     /// 底栏显隐数据源之一：进远端聊天页藏底栏（pp 2026-09-27「tab不进聊天页」延续）。
     /// 注意 remoteAtRoot 在设备详情页 push 时也为 false，但设备详情页不藏底栏
     /// （历史行为），所以这里用独立标志，不复用 remoteAtRoot。
     @Published var remoteChatPushed: Bool = false
-}
-
-// MARK: - LocalNavRouter
-
-/// [COVER-SHELL 2026-09-30] 本机线导航 path 的真源（compact 布局）。
-///
-/// 结构：壳层 `NavigationStack` 包住 `TabView`（RootModeTabsView），本机线的
-/// 会话页 push 发生在这一层 —— 二级页整页盖住「含系统 tab 栏的一级页」，
-/// 划回 = 原位揭示；全程没有任何「底栏藏/显」机制参与（pp 2026-09-30
-/// Telegram 对照拍板：「tab 就是长在一级页面上」）。iOS 26 的 tab 栏
-/// hide/show 协调回归因此完全不适用。
-///
-/// 为什么 path 住在这里而不是 ContentView 的 `@State`：NavigationStack 现在
-/// 在壳层，path 必须活在栈绑定方（RootModeTabsView）和逻辑方（ContentView）
-/// 都能读写的共享对象里（同 RootTabRouter.shared 先例；两方都以
-/// `@ObservedObject` 接入）。
-///
-/// 写入纪律（[NAV-WRITE-CONFORM 2026-09-30] 已收口）：程序化写一律走本类的
-/// 方法，且一律延迟一个 runloop 提交 —— 脱离 tab 选择器 setter / 通知链 /
-/// onChange 回调等外来事务上下文。Build 419 真机日志实锤：外部上下文里的
-/// path 写会杀死 NavigationStack↔UIKit 的划回回写账本（视觉退出、path 残留、
-/// 计数只增不减），而系统驱动的写回（NavigationLink / 划回手势）全正常。
-/// 变更形态遵系统规范：append（空栈）/ 整栈替换（非空）+ 显式动画。
-/// 系统驱动的变更（NavigationLink push / 划回手势回写）不经此处。
-final class LocalNavRouter: ObservableObject {
-    static let shared = LocalNavRouter()
-    private init() {}
-
-    /// path 单一真源。读方：壳层 NavigationStack 绑定 / ContentView 各观察器。
-    @Published var path: [ChatRoute] = []
-
-    /// 程序化 push（原 pushChat 内的 path 写）。[NAV-WRITE-CONFORM 2026-09-30]
-    /// 延迟一个 runloop 提交（见类注释；空栈判定挪进延迟块内——以提交时刻的
-    /// 真实状态为准；调用侧后台门在调用时刻判定，落地相隔一个 runloop，竞态
-    /// 窗口可忽略）。空栈 → append + 显式标准动画；非空 → 整栈替换为
-    /// `[route]` + withAnimation(nil)（「回根再展示」语义，原 MIXED-STACK-BAN
-    /// 二合一形态，moveto-transfer-race 防护）。
-    func commitPush(_ route: ChatRoute) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            if self.path.isEmpty {
-                withAnimation(.default) {
-                    self.path.append(route)
-                }
-            } else {
-                withAnimation(nil) {
-                    self.path = [route]
-                }
-            }
-        }
-    }
-
-    /// 回根（原 popToHomeForQuickAction 内的 path 清空）。同上延迟一个
-    /// runloop 提交；调用方（ContentView.popToHomeForQuickAction）的簿记
-    /// （currentStackSessionId / pendingChatRoute）仍同步清，观察者按旧语义
-    /// 以 path 变化为准（该舞蹈本就等待异步落地，多一 tick 不影响）。
-    func clearToRoot() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            withAnimation(nil) {
-                self.path = []
-            }
-        }
-    }
 }
