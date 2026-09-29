@@ -970,8 +970,6 @@ struct ContentView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var shareCoordinator: ShareCoordinator
-    /// [TABBAR-LOG 2026-09-27] 底栏显隐观测埋点（#1/#2/#3 排查；日志筛选类别 TabBar）。
-    private let tabBarLog = AppLogger(category: "TabBar")
     @ObservedObject private var deepLink = DeepLinkCoordinator.shared
     /// Subscribe to the router so changes to its `@Published` fields are
     /// observed by SwiftUI — without this, `onChange(of: router.newChatTrigger)`
@@ -1275,7 +1273,7 @@ struct ContentView: View {
     @State private var currentStackSessionId: String?
     /// [T-ios-stacknav-transition-attributegraph-race] Compact-layout analogue
     /// of `previousSelectedSessionId`: the session that was on the stack before
-    /// the most recent `navigationPath` change, so the `onChange` observer can
+    /// the most recent path change, so the `onChange` observer can
     /// suspend the OUTGOING vm for the transition.
     ///
     /// A separate property is required — `currentStackSessionId` cannot serve
@@ -1300,15 +1298,8 @@ struct ContentView: View {
     /// owes a `handleNewChatRequest()` call.
     @State private var consumedQuickActionTrigger: Int = 0
 
-    /// Set when `handleNewChatRequest()` had to pop the iPhone
-    /// NavigationStack before it could open the new draft session.
-    /// `onChange(of: navigationPath.count == 0)` watches this and
-    /// dispatches the new-draft open once the pop has fully settled.
-    @State private var pendingNewChatAfterPop: Bool = false
-    /// Pre-computed session id for the pending pop+open dance, so the
-    /// id we hand to `QuickActionWorkflow.attachTargetSession` here
-    /// matches the one `openSession` will use after the pop commits.
-    @State private var pendingNewChatTargetId: String? = nil
+    // [COVER-SHELL 2026-09-30] pendingNewChatAfterPop / pendingNewChatTargetId 已删：
+    // 死状态（有写方无读方；注释所述的 onChange 观察器已不存在）。
 
 
 
@@ -1356,7 +1347,7 @@ struct ContentView: View {
             if quickActionRouter.newChatTrigger != consumedQuickActionTrigger {
                 consumedQuickActionTrigger = quickActionRouter.newChatTrigger
                 // Defer one runloop so the NavigationStack body has a
-                // chance to attach `$navigationPath` before we append to
+                // chance to attach its path binding before we append to
                 // it — otherwise the append on a freshly-mounted stack
                 // can be lost.
                 DispatchQueue.main.async {
@@ -1382,7 +1373,7 @@ struct ContentView: View {
             // `.id(appLanguage)` rebuild above) — would leave the push stranded
             // with no later transition to release it. Deferred one runloop for
             // the same reason the quick-action path above is: the
-            // NavigationStack must have attached `$navigationPath` first.
+            // NavigationStack must have attached its path binding first.
             DispatchQueue.main.async {
                 // [NAV-ROOT-FIX] 后台挂起的程序化 push 意图在此落地（单通道）。
                 flushPendingChatRoute()
@@ -1485,28 +1476,12 @@ struct ContentView: View {
         }
     }
 
-    /// See the B16 mirrors in `bodyPresentationStage`: same root test as `goHome()`
-    /// (path on iPhone, selection on the iPad split layout), one-way into the router.
-    private func syncFixedBarFlags() {
-        let atRoot: Bool = isWideLayout
-            ? (selectedSessionId == nil)
-            : navRouter.path.isEmpty
-        let selecting = isSelecting
-        // [TABBAR-SYNC-WRITE 2026-09-27] B16 原是 DispatchQueue.main.async 包写（防
-        // "Publishing changes…"），但三个调用点全是 onChange/onAppear —— 事件回调不在
-        // body 求值内，同步写安全。async 反而把 flag 变更推迟到 push 转场开始之后：既
-        // 是 #1「tab 离场延迟」的直接源头，又让 toolbar 变更落在转场中段，制造 #2/#3
-        // 的失配窗口。改为与 navigationPath 同帧直写（最接近系统
-        // hidesBottomBarWhenPushed 的协同时机），并打点观测。
-        if tabRouter.localAtRoot != atRoot || tabRouter.localSelecting != selecting {
-            tabBarLog.info("flags: localAtRoot \(tabRouter.localAtRoot)→\(atRoot), localSelecting \(tabRouter.localSelecting)→\(selecting)")
-        }
-        tabRouter.localAtRoot = atRoot
-        tabRouter.localSelecting = selecting
-    }
+    // [COVER-SHELL 2026-09-30] syncFixedBarFlags / localAtRoot / localSelecting 已删：
+    // 全仓无读方（死 flag；Build 419 [TabBar] 日志实锤其写入只触发无效的壳层重求值），
+    // 且覆盖式结构后不存在任何「底栏显隐数据源」。
 
     /// [PATH-PROBE 2026-09-28 T0 诊断] 一次性观测探针（纯日志、零行为改动）：
-    /// 报告 navigationPath 的 count+栈顶，用于钉死「draft pop 后系统回写丢失」
+    /// 报告 navRouter.path 的 count+栈顶，用于钉死「draft pop 后系统回写丢失」
     /// 的确切机制（C1 程序化 push 语义 / C2 .id identity 组合 / C3 tab 栏
     /// .hidden 协调）。设备日志中 grep PATH-PROBE 即可全量捞出。
     /// 背景：04:51 日志实锤 draft pop 后 path 残留非空、flags 探针永久断更、
@@ -1518,7 +1493,7 @@ struct ContentView: View {
     }
 
     /// 延迟 0.3s 再采样一次：抓「onDisappear 时刻 path 还没回写、稍后才回写」
-    /// 与「回写彻底没发生」两种形态的差别。闭包捕获 $navigationPath（Binding），
+    /// 与「回写彻底没发生」两种形态的差别。闭包捕获 $navRouter.path（Binding），
     /// 执行时读 wrappedValue = 实时 @State 值（escaping 闭包裸读 @State 会触发
     /// wrapper 解析错误，见 CI 1565/1574 判例）。
     private func pathProbeLater(_ tag: String) {
@@ -1583,25 +1558,13 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .dismissAllImmersivePresentations)) { _ in
             if activeToolSheet != nil { activeToolSheet = nil }
         }
-        // B16: the fixed bar is drawn by the shell, so it needs to know two things it
-        // used to get for free from living in this toolbar — whether a chat has been
-        // pushed, and whether rows are checked. One-way, low-frequency.
-        // [TABBAR-SYNC-WRITE 2026-09-27] 原注释称 "written a runloop later"（防
-        // Publishing-changes）。后经查三个调用点全为事件回调、非 body 求值，同步写
-        // 安全；runloop 延迟正是 #1 延迟与 #2/#3 失配窗口之源，已改同帧直写
-        // （详见 syncFixedBarFlags 内注释）。
-        .onAppear { syncFixedBarFlags() }
-        .onChange(of: isSelecting) { on in
-            // [TABBAR-SYNC-WRITE] 同 syncFixedBarFlags：事件回调内同步写。
-            tabRouter.localSelecting = on
-        }
+        // [COVER-SHELL 2026-09-30] B16 的底栏显隐镜像（localAtRoot/localSelecting）
+        // 与 syncFixedBarFlags 已整体退役：全仓无读方，覆盖式结构亦无显隐数据源。
         .onChange(of: navRouter.path) { _ in
-            syncFixedBarFlags()
             // [PATH-PROBE] path 任何变化都留痕 + 0.3s 后回采（T0 诊断）。
             pathProbe("onChange")
             pathProbeLater("onChange+0.3s")
         }
-        .onChange(of: selectedSessionId) { _ in syncFixedBarFlags() }
         .sheet(item: $sessionToDelete) { session in
             DeleteConfirmSheet(info: $singleDeleteInfo, isLoading: false) {
                 print("[DELETE] onDelete called for session: \(session.id)")
@@ -3702,11 +3665,6 @@ struct ContentView: View {
     private func handleNewChatRequest() {
         NavTrace.log("HANDLE newChat trig=\(NavTrace.trigger)+\(NavTrace.age) path=\(navRouter.path.count)")
         let newId = Self.makeNewSessionId()
-        // Clear any stale flags left over from a prior quick-action
-        // request that didn't run to completion (user backgrounded the
-        // app, the pop-then-push dance got interrupted, etc).
-        pendingNewChatAfterPop = false
-        pendingNewChatTargetId = nil
         // [LOCAL-INTENT-TAB-ROUTE] 快捷指令「新会话」是本机线意图，三个出口（下面的
         // ensuringHome 早退 / wide openSession / compact push）的目的地全在本机线，
         // 所以 tab 也必须在分支之前就带回来。放在函数顶部而非各出口：早退路径同样

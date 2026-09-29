@@ -66,20 +66,14 @@ final class RootTabRouter: ObservableObject {
     /// One flag, one visible presenter, both tabs use it.
     @Published var showSettings: Bool = false
 
-    /// B16 mirrors, one-way, presentation-only, written by ContentView from its own
-    /// existing sources of truth (never the reverse):
-    /// `localAtRoot` — the fixed gear must step aside when the local line pushes a chat
-    /// (that chat owns its own navigation bar). Same root test as `goHome()`.
-    @Published var localAtRoot: Bool = true
-    /// `localSelecting` — while rows are checked the page's own toolbar shows Cancel at
-    /// this edge, so the fixed gear stands down instead of doubling it.
-    @Published var localSelecting: Bool = false
+    // [COVER-SHELL 2026-09-30] localAtRoot / localSelecting 已删（死 flag，全仓无
+    // 读方；覆盖式结构后不存在任何「底栏显隐数据源」）。
 
     /// `remoteAtRoot` — 远端线是否在列表根（REMOTE-DEVICE-1：设备详情页 push 时为 false）。
     @Published var remoteAtRoot: Bool = true
 
     /// 远端聊天页是否已 push（RemoteSessionListView.showsChat 的一线镜像，
-    /// 写法同 localAtRoot：只写标志，不反向驱动）。
+    /// 只写标志，不反向驱动）。
     /// 底栏显隐数据源之一：进远端聊天页藏底栏（pp 2026-09-27「tab不进聊天页」延续）。
     /// 注意 remoteAtRoot 在设备详情页 push 时也为 false，但设备详情页不藏底栏
     /// （历史行为），所以这里用独立标志，不复用 remoteAtRoot。
