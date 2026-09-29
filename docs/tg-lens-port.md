@@ -62,6 +62,13 @@ GPLv3 开源工程，按「v2 or later」条款并入，许可证兼容路径成
   ⑦`UIAnimationDragCoefficient` 的 `@_silgen_name` 声明去重：上游同样双模块各一份
   （均 `#if simulator` 守卫，真机构建不编译、CI 无法暴露），单模块合并保留
   Transition.swift 逐字件、删 TGLensSupport 转写件的重复声明。
+- **[CI 二轮 2026-09-30 修正两项]** ⑧补齐 DisplayUIKitUtils 三件按需摘录（编译器
+  暴露的漏搬符号，均已进 TGLensSupport.swift 并注明上游行号）：`UIColor.mixedWith`
+  （:308，逐字语义转写）/ `CALayer.layerTintColor`（:921，KVC contentsMultiplyColor；
+  判型以 `is CGColor` 等价替代 CFGetTypeID）/ `CALayer.blur`（:891 → UIKitUtils.m:265，
+  = gaussianBlur 滤镜，与 luminanceToAlpha 同一 CAFilter 工厂）；⑨`_solveForInput:`
+  实参类型判定由 NSMethodSignature（Swift 显式不可用：NSInvocation 家族被 SDK 屏蔽）
+  改为 objc/runtime `method_getArgumentType`（读 index 2 类型字符，语义等价）。
 
 ## 3. ⚠️ 私有 API 清单（与 TG 同款用法）
 

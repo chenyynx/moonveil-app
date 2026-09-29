@@ -13,6 +13,8 @@
 //       - EffectSettingsContainerView
 //   · submodules/Display/Source/UIKitUtils.swift（Swift 包装层：makeSpringAnimation 等）
 //   · submodules/Display/Source/ListViewAnimation.swift（springAnimationSolver + 曲线常量）
+//   · submodules/Display/Source/DisplayUIKitUtils.swift（按需摘录：UIColor.mixedWith /
+//     CALayer.layerTintColor / CALayer.blur——CI 第二轮补齐，行号见各定义处注释）
 //
 // 适配记录（全批次统一，见 docs/tg-lens-port.md）：
 //   1. ObjC → Swift 转写；Bazel 模块边界消失（本仓单模块），import 全部去除。
@@ -47,18 +49,24 @@ func animationDurationFactorImpl() -> Double {
 /// `_solveForInput:`（不改写它，只是取实现直调）；签名 float/double 双兼容。
 extension CASpringAnimation {
     private static let solveImpls: (float: (@convention(c) (AnyObject, Selector, Float) -> Float)?, double: (@convention(c) (AnyObject, Selector, Double) -> Double)?) = {
-        guard let method = class_getInstanceMethod(CASpringAnimation.self, NSSelectorFromString("_" + "solveForInput:")),
-              let encoding = method_getTypeEncoding(method),
-              let signature = NSMethodSignature(objCTypes: encoding),
-              let argType = signature.getArgumentType(at: 2) else {
+        guard let method = class_getInstanceMethod(CASpringAnimation.self, NSSelectorFromString("_" + "solveForInput:")) else {
             return (nil, nil)
         }
+        // 实参类型判定：上游 ObjC 用 NSMethodSignature（Swift 不可用——NSInvocation
+        // 家族在 SDK 里被显式屏蔽），语义等价改用 objc/runtime 的
+        // method_getArgumentType 读第 3 个实参（index 2，前两个是 self/_cmd）的
+        // 类型字符：'f' = float、'd' = double。
+        var argType: [CChar] = [0, 0, 0, 0, 0, 0, 0, 0]
+        method_getArgumentType(method, 2, &argType, argType.count)
+        // 该 API 无返回值（void——SDK 头文件逐字核对）；index 越界时 dst 被填
+        // 空串（argType[0] == 0），与 'f'/'d' 均不匹配，自然落穿到 (nil, nil)。
         let imp: IMP = method_getImplementation(method)
+        let typeChar = UInt8(bitPattern: argType[0])
         // ⚠️ 必须是 @convention(c)（瘦函数指针，8B）；漏标注会得到 16B 厚函数值，
         // unsafeBitCast 运行时尺寸检查直接 fatal（对抗复审 2026-09-30 阻断项①）。
-        if strncmp(argType, "f", 1) == 0 {
+        if typeChar == UInt8(ascii: "f") {
             return (unsafeBitCast(imp, to: (@convention(c) (AnyObject, Selector, Float) -> Float).self), nil)
-        } else if strncmp(argType, "d", 1) == 0 {
+        } else if typeChar == UInt8(ascii: "d") {
             return (nil, unsafeBitCast(imp, to: (@convention(c) (AnyObject, Selector, Double) -> Double).self))
         }
         return (nil, nil)
@@ -193,6 +201,63 @@ extension CALayer {
     /// CALayer.luminanceToAlpha()（Display/Source/UIKitUtils.swift:899 → UIKitUtils.m:273）。
     static func luminanceToAlpha() -> NSObject? {
         return makeGraphicsFilter("luminanceToAlpha")
+    }
+
+    /// CALayer.blur()（Display/Source/DisplayUIKitUtils.swift:891 → UIKitUtils.m:265）：
+    /// gaussianBlur 滤镜（Transition.swift 毛玻璃过渡 animateBlur 使用；
+    /// inputRadius 经 setValue KVC 配置，与 TG 同款 CAFilter 用法）。
+    static func blur() -> NSObject? {
+        return makeGraphicsFilter("gaussianBlur")
+    }
+}
+
+// MARK: - UIColor 混色（Display/Source/DisplayUIKitUtils.swift:308，按需摘录）
+
+extension UIColor {
+    /// UIColor.mixedWith(_:alpha:)（DisplayUIKitUtils.swift:308-331，逐字语义转写）：
+    /// 按 alpha 线性混合两色；任一色取不出 RGBA（如解析态动态色）时原样返回 self（上游行为）。
+    func mixedWith(_ other: UIColor, alpha: CGFloat) -> UIColor {
+        let alpha = min(1.0, max(0.0, alpha))
+        let oneMinusAlpha = 1.0 - alpha
+
+        var r1: CGFloat = 0.0
+        var r2: CGFloat = 0.0
+        var g1: CGFloat = 0.0
+        var g2: CGFloat = 0.0
+        var b1: CGFloat = 0.0
+        var b2: CGFloat = 0.0
+        var a1: CGFloat = 0.0
+        var a2: CGFloat = 0.0
+        if self.getRed(&r1, green: &g1, blue: &b1, alpha: &a1) &&
+            other.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+        {
+            let r = r1 * oneMinusAlpha + r2 * alpha
+            let g = g1 * oneMinusAlpha + g2 * alpha
+            let b = b1 * oneMinusAlpha + b2 * alpha
+            let a = a1 * oneMinusAlpha + a2 * alpha
+            return UIColor(red: r, green: g, blue: b, alpha: a)
+        }
+        return self
+    }
+}
+
+// MARK: - CALayer 着色（Display/Source/DisplayUIKitUtils.swift:921，按需摘录）
+
+extension CALayer {
+    /// CALayer.layerTintColor（DisplayUIKitUtils.swift:921-933）：KVC 私有键
+    /// contentsMultiplyColor（CGColor）——Transition.swift 的 tint 过渡使用。
+    /// 上游以 CFGetTypeID == CGColor.typeID 判型，此处等价改 `is CGColor`
+    /// （编译确定性；判型语义一致）。键缺失时 KVC 会抛异常——与 TG 上游同款暴露。
+    var layerTintColor: CGColor? {
+        get {
+            if let value = self.value(forKey: "contentsMultiplyColor"), value is CGColor {
+                return (value as? CGColor)
+            }
+            return nil
+        }
+        set {
+            self.setValue(newValue, forKey: "contentsMultiplyColor")
+        }
     }
 }
 
