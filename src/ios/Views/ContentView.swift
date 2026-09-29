@@ -1438,6 +1438,7 @@ struct ContentView: View {
                 // it — otherwise the append on a freshly-mounted stack
                 // can be lost.
                 DispatchQueue.main.async {
+                    NavTrace.mark("quickAction")
                     handleNewChatRequest()
                 }
             }
@@ -1701,6 +1702,7 @@ struct ContentView: View {
         // 探针：pushedDISAPPEAR 后本行打印 isPresented=false = Bool 回写健康
         // （T1 有效性实锤）；日志缺失/仍 true = Bool 通道同病（换形状再诊断）。
         .onChange(of: showsPushedChat) { presented in
+            NavTrace.log("BOOL presented=\(presented) path=\(navigationPath.count) trig=\(NavTrace.trigger)+\(NavTrace.age)")
             syncFixedBarFlags()
             AppLogger(category: "PathProbe").info("[PATH-PROBE] isPresented:\(presented ? "PUSH" : "POP") activeId=\(activePushedChatId?.prefix(8) ?? "nil")")
             // —— vm 挂起保护（与 onChange(of: navigationPath) 内逐句同款）——
@@ -2403,6 +2405,7 @@ struct ContentView: View {
                             .environmentObject(ShareCoordinator.shared) // [ENV-DEFENSE] 同上（#4 崩溃发生点）
                             .id(id)
                             .onAppear {
+                                NavTrace.log("APPEAR ch=path trig=\(NavTrace.trigger)+\(NavTrace.age) path=\(navigationPath.count)")
                                 if currentStackSessionId != id {
                                     currentStackSessionId = id
                                     // [T-ios-stacknav-transition-attributegraph-race]
@@ -2431,12 +2434,21 @@ struct ContentView: View {
                                 pathProbe("destAPPEAR:\(id)")
                             }
                             .onDisappear {
+                                NavTrace.log("DISAPPEAR ch=path path=\(navigationPath.count)")
                                 shareLog.info("🔄SESSION stackNav DISAPPEAR id=\(id)")
                                 pathProbe("destDISAPPEAR:\(id)")
                                 pathProbeLater("destDISAPPEAR+0.3s:\(id)")
                             }
                     }
                 }
+        }
+        .onChange(of: navigationPath.count) { old, new in
+            NavTrace.log("PATH \(old)→\(new) trig=\(NavTrace.trigger)+\(NavTrace.age)")
+        }
+        .transaction { t in
+            if t.disablesAnimations {
+                NavTrace.log("TXN no-anim trig=\(NavTrace.trigger)+\(NavTrace.age)")
+            }
         }
     }
 
@@ -2457,12 +2469,19 @@ struct ContentView: View {
                     AIChatView(sessionId: String(parts[2]), remoteDeviceId: String(parts[1]))
                         .environmentObject(ShareCoordinator.shared)
                         .id(id)
+                        .onAppear {
+                            NavTrace.log("APPEAR ch=isPresented trig=\(NavTrace.trigger)+\(NavTrace.age) path=\(navigationPath.count) shows=\(showsPushedChat)")
+                        }
+                        .onDisappear {
+                            NavTrace.log("DISAPPEAR ch=isPresented path=\(navigationPath.count)")
+                        }
                 }
             } else {
                 AIChatView(sessionId: Self.isNewSessionId(id) ? nil : id, draftId: Self.isNewSessionId(id) ? id : nil, initialGroupId: Self.extractGroupId(from: id), searchAnchorMessageId: isSearching ? searchMatchMessageIds[id] : nil)
                     .environmentObject(ShareCoordinator.shared) // [ENV-DEFENSE] 同上
                     .id(id)
                     .onAppear {
+                        NavTrace.log("APPEAR ch=isPresented trig=\(NavTrace.trigger)+\(NavTrace.age) path=\(navigationPath.count) shows=\(showsPushedChat)")
                         if currentStackSessionId != id {
                             currentStackSessionId = id
                             // [T-ios-stacknav-transition-attributegraph-race]
@@ -2475,6 +2494,7 @@ struct ContentView: View {
                         pushedProbe("pushedAPPEAR")
                     }
                     .onDisappear {
+                        NavTrace.log("DISAPPEAR ch=isPresented path=\(navigationPath.count)")
                         shareLog.info("🔄SESSION pushedChat DISAPPEAR id=\(id)")
                         pathProbe("pushedDISAPPEAR:\(id)")
                         pathProbeLater("pushedDISAPPEAR+0.3s:\(id)")
@@ -3082,6 +3102,7 @@ struct ContentView: View {
                 splitList
             }
         }
+        .debugSafeBottom("root-list")
         // Hardware ⌘F → focus search, available while the session list is on
         // screen (iPad/Mac keyboards). A zero-opacity button carries the
         // shortcut without affecting layout; it lives in the list's view tree so
@@ -3901,6 +3922,7 @@ struct ContentView: View {
     ///      so voice / camera fires *inside* the new chat — never inside
     ///      the previous one.
     private func handleNewChatRequest() {
+        NavTrace.log("HANDLE newChat trig=\(NavTrace.trigger)+\(NavTrace.age) path=\(navigationPath.count) shows=\(showsPushedChat)")
         let newId = Self.makeNewSessionId()
         // Clear any stale flags left over from a prior quick-action
         // request that didn't run to completion (user backgrounded the
@@ -4135,6 +4157,7 @@ struct ContentView: View {
     /// 前台回来在 scenePhase/onAppear 兜底里落地。`.inactive` 不拦（前台
     /// 过渡态，openURL 恰在该态送达，拦了就是「第一次点没反应」判例复发）。
     private func openPushedChat(_ id: String) {
+        NavTrace.log("OPEN id=\(id.prefix(8)) trig=\(NavTrace.trigger)+\(NavTrace.age)")
         if UIApplication.shared.applicationState == .background {
             pendingPushedChatId = id
             shareLog.info("🔄SESSION deferring isPresented push — app backgrounded (id=\(id.prefix(8)))")

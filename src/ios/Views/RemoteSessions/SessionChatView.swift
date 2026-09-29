@@ -1,10 +1,6 @@
 // SessionChatView.swift — AA 官方 Views/Chat/SessionChatView.swift 逐字搬运（P1 会话聊天页批）。
 //
 // 差异（全部留据）：
-//   • [TAB-CLEARANCE 2026-09-29] composerDock 底部让位常驻 tab（.padding(.bottom,
-//     tabBarClearance) + 底部安全区探针）：本仓独有的底部 tab（AA 无此物），iOS 26
-//     浮动 tab 占位不传进 pushed 页（8b968b4 实机：dock 贴屏底被 tab 玻璃压住）。
-//     全案见 Shared/Environment/TabBarInsetEnvironment.swift。
 //   • `services` 形参类型 = 本仓组合根 `V2RemoteChatServices`（Glue），等价官方
 //     `V2ClientServices`；消费的成员（sessionRepository / attachments / workspaceFiles /
 //     sessionDetail / discardCreation）与官方同名同语义。
@@ -60,14 +56,6 @@ struct SessionChatView: View, Equatable {
     @Environment(\.sidebarDrawerObscuresDetail) private var sidebarObscuresDetail
     @ScaledMetric(relativeTo: .body) private var bodyLineHeight: CGFloat = 22
     @ScaledMetric(relativeTo: .footnote) private var takeoverPillHeight: CGFloat = 32
-    /// [TAB-CLEARANCE 2026-09-29] 常驻 tab 让位（本仓独有差异，AA 无底部 tab）。
-    /// 机制与自校准说明见 Shared/Environment/TabBarInsetEnvironment.swift。
-    @Environment(\.tabContentBottomInset) private var tabContentBottomInset
-    /// 本页自身量得的底部安全区（静息 = home；键盘态含键盘高）。
-    @State private var sessionOwnBottomInset: CGFloat = 0
-    private var tabBarClearance: CGFloat {
-        max(0, tabContentBottomInset - sessionOwnBottomInset)
-    }
 
     init(session: V2SessionModel, services: V2RemoteChatServices, deviceName: String?,
          onMenu: @escaping () -> Void) {
@@ -174,11 +162,6 @@ struct SessionChatView: View, Equatable {
         GeometryReader { geometry in
             rootSurface(geometryHeight: geometry.size.height)
         }
-        // [TAB-CLEARANCE 2026-09-29] 本页底部安全区探针 + 让位日志（一体挂件）：
-        // 挂 GeometryReader 层（destination 级），读到的 insets 不含
-        // composerDock safeAreaInset 的扩展。本 body 拆分正是为 type-check
-        // 超时（文件头判例），链上只占一个 .modifier 位。
-        .modifier(TabBarInsetProbeModifier(ownInset: $sessionOwnBottomInset, tag: "remote"))
         .modifier(ChatPageToolbar(title: session.metadata?.title ?? String(localized: "会话"),
             subtitle: [session.metadata?.runtimeName ?? session.metadata?.runtime ?? String(localized: "代理"),
                 deviceName ?? session.metadata?.connectorId].compactMap { $0 }.joined(separator: " · "),
@@ -234,10 +217,6 @@ struct SessionChatView: View, Equatable {
                 onApplySettings: model.applySettings, applyError: { model.settingsError })
         }
         .frame(maxWidth: ChatControlMetrics.maximumContentWidth).frame(maxWidth: .infinity)
-        // [TAB-CLEARANCE 2026-09-29] 常驻 tab 让位：dock 可见底边抬到 tab 玻璃
-        // 上方；safeAreaInset 的高度随之增长，上方时间线的停止线自动跟上
-        //（native safe-area 语义不变，不是第二层 margin）。
-        .padding(.bottom, tabBarClearance)
         // Native safe-area layout owns both the visible scroll
         // region and the dock's space; do not add a second margin.
     }

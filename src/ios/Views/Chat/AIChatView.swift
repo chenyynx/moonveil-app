@@ -553,18 +553,6 @@ struct AIChatView: View {
     @State private var lastRecognizedLength: Int = 0
     /// Intent-based auto-scroll: stays true until the user actively scrolls up
     @State private var topSafeAreaInset: CGFloat = 59
-    /// [TAB-CLEARANCE 2026-09-29] 本页（pushed destination）自身量得的底部安全区。
-    /// 静息 = home 安全区（iOS 26 浮动 tab 的占位没传进 NavigationStack pushed
-    /// 页）；键盘弹出时 = home + 键盘高（规避走 safe area）。
-    @State private var chatOwnBottomInset: CGFloat = 0
-    /// 输入条让位常驻 tab 的垫高 = tab 内容层底部安全区 − 本页自身底部安全区。
-    /// 自校准：键盘弹出（自身含键盘）→ 差值 ≤ 0 → 0；iPad 宽屏（非被 push，
-    /// 自身即含 tab）→ 0；系统未来修好 inset 传播 → 自身 = 根层 → 0。
-    /// 机制全案见 Shared/Environment/TabBarInsetEnvironment.swift 文件头。
-    @Environment(\.tabContentBottomInset) private var tabContentBottomInset
-    private var tabBarClearance: CGFloat {
-        max(0, tabContentBottomInset - chatOwnBottomInset)
-    }
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.scenePhase) private var scenePhase
 
@@ -690,8 +678,7 @@ struct AIChatView: View {
                     }
                 }
                 .overlay(alignment: .bottom) {
-                    // [TAB-CLEARANCE 2026-09-29] 输入栈整块提取为独立属性
-                    // inputStackOverlay（type-check 超时手术，见属性处注释）。
+                    // 输入栈整块提取为独立属性 inputStackOverlay（type-check 超时手术）。
                     inputStackOverlay
                 }
                 // Collapse the expanded speech player on a tap anywhere in the chat
@@ -924,6 +911,7 @@ struct AIChatView: View {
             Button(AppLocalized("New Session")) {
                 vm.showContextExhaustedPrompt = false
                 vm.cancelCompactBeforeSend()
+            NavTrace.mark("ctxFullAlert")
                 NotificationCenter.default.post(name: .newChatRequested, object: nil)
             }
             Button(AppLocalized("Clear Chat"), role: .destructive) {
@@ -942,6 +930,7 @@ struct AIChatView: View {
         .alert(AppLocalized("Task Running"), isPresented: $showNewChatStopConfirm) {
             Button(AppLocalized("Stop & New Chat"), role: .destructive) {
                 vm.cancel()
+            NavTrace.mark("taskRunningAlert")
                 NotificationCenter.default.post(name: .newChatRequested, object: nil)
             }
             Button(AppLocalized("Cancel"), role: .cancel) {}
@@ -2058,6 +2047,7 @@ struct AIChatView: View {
         if vm.isProcessing {
             showNewChatStopConfirm = true
         } else {
+            NavTrace.mark("chatMenu")
             NotificationCenter.default.post(name: .newChatRequested, object: nil)
         }
     }
@@ -2795,10 +2785,7 @@ struct AIChatView: View {
                 },
                 maxContentWidth: maxContentWidth ?? 0,
                 floatingBarHeight: floatingBarHeight,
-                inputBarHeight: inputBarHeight,
-                // [TAB-CLEARANCE 2026-09-29] 常驻 tab 让位：列表底部 inset 同步加垫，
-                // 最后一条消息仍停在输入条顶上方（间距语义不变）。
-                bottomTabClearance: tabBarClearance
+                inputBarHeight: inputBarHeight
             )
             // Empty/loading overlay for tap-to-dismiss-keyboard.
             // Placed BEFORE the directory timeline in the ZStack so the
@@ -2826,6 +2813,7 @@ struct AIChatView: View {
                     .padding(.horizontal, 24)
             }
         }
+        .debugSafeBottom("chat")
         .overlay(alignment: .bottom) {
             // Open the overlay only when at least one button will actually
             // render — i.e. the gate is the OR of the two buttons' own
@@ -3802,13 +3790,11 @@ struct AIChatView: View {
 
     // MARK: - Input stack overlay（body 提取件）
 
-    /// [TAB-CLEARANCE 2026-09-29] 输入条 + 工具预览 + slash popup 整组 overlay 内容。
+    /// 输入条 + 工具预览 + slash popup 整组 overlay 内容。
     /// 原 body 内联整块——AIChatView body 已在编译器 type-check 阈值边缘
     ///（664 行超时判例，SessionChatView:72 同族），嵌套闭包块是 body 表达式
     /// 的大头，切出为独立属性让两者各自独立求值。
-    /// 让位挂整组：popup 贴输入条顶的锚定数学（padding(.bottom, inputBarHeight)）
-    /// 随组上移自动保持；`TabBarInsetProbeModifier` 在此读 destination 层底部
-    /// 安全区（探针 + 让位日志一体，见 TabBarInsetEnvironment.swift）。
+    /// popup 贴输入条顶的锚定数学（padding(.bottom, inputBarHeight)）随组上移自动保持。
     private var inputStackOverlay: some View {
         // Tool preview + input bar stacked at the bottom.
         // Both overlay on top of the message list for immersive scrolling.
@@ -3907,12 +3893,6 @@ struct AIChatView: View {
                     }
                 }
         }
-        // [TAB-CLEARANCE 2026-09-29] 常驻 tab 让位：整组（输入条 + 工具
-        // 预览 + popup）同步抬到 tab 玻璃上方。popup 贴输入条顶的锚定
-        // 数学（padding(.bottom, inputBarHeight)）随组上移自动保持。
-        // 自校准语义见 tabBarClearance 注释。
-        .padding(.bottom, tabBarClearance)
-        .modifier(TabBarInsetProbeModifier(ownInset: $chatOwnBottomInset, tag: "local"))
     }
 
     private var inputBar: some View {

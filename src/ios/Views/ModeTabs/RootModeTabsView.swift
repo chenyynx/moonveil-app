@@ -23,10 +23,6 @@ struct RootModeTabsView: View {
     @State private var showsQRLogin = false
     @State private var showsManualLogin = false
     @State private var didRestore = false
-    /// [TAB-CLEARANCE 2026-09-29] Tab 内容层（NavigationStack 外）量得的底部安全区，
-    /// 含常驻 tab 占位。经 `tabContentBottomInset` 环境值下发，pushed 页取差值让位。
-    /// 机制与自校准说明见 Shared/Environment/TabBarInsetEnvironment.swift 文件头。
-    @State private var rootTabContentBottomInset: CGFloat = 0
     // [TABBAR-NATIVE 2026-09-28 pp] 旧「状态驱动底栏显隐」机制（tabBarHidden 状态
     // + syncTabBarVisibility + 0.45s 自愈 + TabBar 埋点）整体退役：显隐改由目的地
     // 页面声明（AIChatView / 远端 SessionChatView 各自 .toolbar(.hidden, for:
@@ -114,12 +110,6 @@ struct RootModeTabsView: View {
                 // 新会话信号，不切页；a11y 朗读的是 tabLabel 的 "New Chat"。
                 Tab(value: mode, role: mode == .compose ? .search : nil) {
                     tabContent(mode)
-                        // [TAB-CLEARANCE 2026-09-29] 根层测量点：Tab 内容层
-                        // （NavigationStack 外）的底部安全区 = home + 常驻 tab 占位
-                        // （根列表 List 停在 tab 上方即此层实证）。
-                        .background {
-                            BottomSafeAreaInsetProbe { rootTabContentBottomInset = $0 }
-                        }
                         // [FIX-tab-zoom] iOS 26 TabView 切 tab 自带缩放过渡
                         //（页面内容轻微放大缩小、组件跟着浮）。identity = 无过渡，
                         // 瞬切（延续 pp 2026-09-16「不带系统 crossfade」的拍板）。
@@ -150,15 +140,14 @@ struct RootModeTabsView: View {
         }
         // pp 2026-09-16 拍板延续：tap/横滑切 tab 内容层瞬切，不带系统 crossfade。
         .animation(nil, value: router.mode)
+        .onChange(of: router.mode) { old, new in
+            NavTrace.log("MODE \(old)→\(new) trig=\(NavTrace.trigger)+\(NavTrace.age)")
+        }
         // [TAB-TINT] 选中 tab 黑图标：iOS 26 浮动 tab 的选中态会被系统 tint
         //（蓝）盖掉 label 上的 foregroundStyle，只能 TabView 级 .tint(.primary)。
         // tint 是 environment，会透进 tab 内容和本层 sheet——下面 4 处用
         // Color("AccentColor")（读资产，不受 tint 影响）把 App 蓝盖回去。
         .tint(.primary)
-        // [TAB-CLEARANCE 2026-09-29] 根层底部安全区下发：iOS 26 浮动 tab 占位在
-        // NavigationStack push 边界丢失（8b968b4 实机：输入条被 tab 玻璃压住），
-        // pushed 页靠这个环境值 + 自身测量取差值让位。
-        .environment(\.tabContentBottomInset, rootTabContentBottomInset)
         // [TABBAR-NATIVE 2026-09-28] 显隐由目的地页面声明（见 AIChatView 同注释），
         // 壳层不再有任何状态链/自愈。
         // Q2: 胶囊 → 资料页 zoom 转场。fullScreenCover + navigationTransition(.zoom)
@@ -263,6 +252,8 @@ struct RootModeTabsView: View {
         Binding(
             get: { router.mode },
             set: {
+                NavTrace.mark($0 == .compose ? "composeTab" : "-")
+                NavTrace.log("BINDING set=\($0) mode=\(router.mode) trig=\(NavTrace.trigger)+\(NavTrace.age)")
                 if $0 == .compose {
                     QuickActionRouter.shared.requestNewChat()
                 } else {

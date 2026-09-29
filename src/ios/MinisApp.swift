@@ -436,6 +436,7 @@ struct MinisApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New Chat") {
+            NavTrace.mark("cmdN")
                     NotificationCenter.default.post(name: .newChatRequested, object: nil)
                 }
                 .keyboardShortcut("n", modifiers: .command)

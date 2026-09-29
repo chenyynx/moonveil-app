@@ -92,6 +92,7 @@ final class QuickActionRouter: ObservableObject {
     @discardableResult
     func handle(_ shortcutItem: UIApplicationShortcutItem) -> Bool {
         logger.info("handle shortcut type=\(shortcutItem.type)")
+        NavTrace.mark("quickAction")
         switch shortcutItem.type {
         case ShortcutType.newChat:
             QuickActionWorkflow.shared.reset(reason: "newChat shortcut — no follow-up action")
@@ -115,6 +116,7 @@ final class QuickActionRouter: ObservableObject {
     /// Home Screen quick action — ContentView observes `newChatTrigger` and
     /// opens a fresh local session (routing back to the local tab first).
     func requestNewChat() {
+        NavTrace.log("ROUTER requestNewChat n=\(newChatTrigger &+ 1) src=\(NavTrace.trigger)+\(NavTrace.age)")
         postNewChat()
     }
 
