@@ -1260,13 +1260,13 @@ struct ContentView: View {
     private let isIPad = UIDevice.current.userInterfaceIdiom == .pad
     /// Whether the current window is wide enough for two-column layout.
     @State private var isWideLayout = false
-    /// Navigation path for stack (compact) layout — the SINGLE navigation
-    /// channel ([NAV-ROOT-FIX 2026-09-29]: T1's isPresented/Bool channel is
-    /// retired — device logs proved `showsPushedChat` stuck-true resurrects a
-    /// ghost destination; with the tab bar persistent, the T0 pop write-back
-    /// killer (external path writes x tab show/hide coordination) no longer
-    /// exists). Typed `[ChatRoute]` — `NavigationPath` exposes no `.last`.
-    @State private var navigationPath: [ChatRoute] = []
+    /// [COVER-SHELL 2026-09-30] 本机线导航 path 的真源已上提壳层
+    /// `LocalNavRouter.shared`：NavigationStack 现在包在 TabView 之外
+    ///（RootModeTabsView）——二级页整页盖住含系统 tab 栏的一级页，划回原位
+    /// 揭示；不再有任何「底栏藏/显」机制参与（pp 2026-09-30 Telegram 对照
+    /// 拍板：tab 就是长在一级页面上）。历史病历（T0 回写病 / T1 stuck-true）
+    /// 与程序化写纪律见 LocalNavRouter 类注释；本视图经 @ObservedObject 接入。
+    @ObservedObject private var navRouter = LocalNavRouter.shared
     /// [NAV-ROOT-FIX 2026-09-29] 后台期间收到的程序化 push 意图（见 pushChat
     /// 注释）。前台落地时消费（`flushPendingChatRoute`）；TTL 由消费时机天然
     /// 兜住——前台一回来立即落地（更长的滞留只发生在后台，落地仍是前台第一帧）。
@@ -1490,7 +1490,7 @@ struct ContentView: View {
     private func syncFixedBarFlags() {
         let atRoot: Bool = isWideLayout
             ? (selectedSessionId == nil)
-            : navigationPath.isEmpty
+            : navRouter.path.isEmpty
         let selecting = isSelecting
         // [TABBAR-SYNC-WRITE 2026-09-27] B16 原是 DispatchQueue.main.async 包写（防
         // "Publishing changes…"），但三个调用点全是 onChange/onAppear —— 事件回调不在
@@ -1514,7 +1514,7 @@ struct ContentView: View {
     /// [NAV-ROOT-FIX 2026-09-29] path 已类型化为 `[ChatRoute]`，`.last` 可用，
     /// 栈顶直接读 route（旧 NavigationPath 无 .last 的 CI 判例已失效）。
     private func pathProbe(_ tag: String) {
-        AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(navigationPath.count) isEmpty=\(navigationPath.isEmpty)")
+        AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(navRouter.path.count) isEmpty=\(navRouter.path.isEmpty)")
     }
 
     /// 延迟 0.3s 再采样一次：抓「onDisappear 时刻 path 还没回写、稍后才回写」
@@ -1522,7 +1522,7 @@ struct ContentView: View {
     /// 执行时读 wrappedValue = 实时 @State 值（escaping 闭包裸读 @State 会触发
     /// wrapper 解析错误，见 CI 1565/1574 判例）。
     private func pathProbeLater(_ tag: String) {
-        let pathBinding = $navigationPath
+        let pathBinding = $navRouter.path
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             let p = pathBinding.wrappedValue
             AppLogger(category: "PathProbe").info("[PATH-PROBE] \(tag) count=\(p.count) isEmpty=\(p.isEmpty)")
@@ -1595,7 +1595,7 @@ struct ContentView: View {
             // [TABBAR-SYNC-WRITE] 同 syncFixedBarFlags：事件回调内同步写。
             tabRouter.localSelecting = on
         }
-        .onChange(of: navigationPath) { _ in
+        .onChange(of: navRouter.path) { _ in
             syncFixedBarFlags()
             // [PATH-PROBE] path 任何变化都留痕 + 0.3s 后回采（T0 诊断）。
             pathProbe("onChange")
@@ -1954,11 +1954,11 @@ struct ContentView: View {
                 scheduleOutgoingPreviewRefresh()
             }
         }
-        .onChange(of: navigationPath) { _ in
+        .onChange(of: navRouter.path) { _ in
             // [T-ios-stacknav-transition-attributegraph-race] The SAME hosting-
             // view teardown race the `selectedSessionId` observer above guards
             // — but that observer only fires in the SPLIT (iPad / wide) layout.
-            // iPhone drives navigation through `navigationPath`, so the
+            // iPhone drives navigation through `LocalNavRouter.path`, so the
             // outgoing chat's vm was NEVER suspended for a push/pop, and the
             // mitigation added for the 2026-06-01 build-48 crash simply did not
             // exist on the compact path.
@@ -1994,7 +1994,7 @@ struct ContentView: View {
             // path means "incoming = nothing" and the outgoing vm must still be
             // suspended. Getting this wrong would skip the pop — which is the
             // exact transition the crash log captured.
-            let incomingStackId: String? = navigationPath.isEmpty ? nil : currentStackSessionId
+            let incomingStackId: String? = navRouter.path.isEmpty ? nil : currentStackSessionId
             let outgoingStackId = previousStackSessionId
             previousStackSessionId = incomingStackId
             if let outgoingId = outgoingStackId,
@@ -2013,10 +2013,10 @@ struct ContentView: View {
             // (or new chat) with an empty search drops the sticky search bar.
             // Only on push (path non-empty) — popping back must NOT clear an
             // active search the user is returning to.
-            if !navigationPath.isEmpty {
+            if !navRouter.path.isEmpty {
                 dismissSearchIfEmptyOnNavigate()
             }
-            if navigationPath.isEmpty {
+            if navRouter.path.isEmpty {
                 currentStackSessionId = nil
                 AIChatViewModel.activeSessionId = nil
                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
@@ -2032,7 +2032,7 @@ struct ContentView: View {
             // PUSH (entering a session, the cold-open hot path) this scan only
             // head-of-line-blocked loadSession on the ChatStore actor. Delayed
             // so it never races the incoming load's actor hops.
-            if navigationPath.isEmpty {
+            if navRouter.path.isEmpty {
                 scheduleOutgoingPreviewRefresh()
             }
             fetchAlarmsIfNeeded()
@@ -2061,11 +2061,11 @@ struct ContentView: View {
                 // onto the buffer — a foreground chat when there is one, a
                 // fresh session otherwise — and only that destination's view is
                 // allowed to consume it (see injectPendingShareIfNeeded).
-                // `navigationPath.isEmpty ? nil : currentStackSessionId` is the
+                // `navRouter.path.isEmpty ? nil : currentStackSessionId` is the
                 // same "what is actually on screen" test the outgoing-session
                 // tracker at line ~1879 uses.
                 if hadRecord {
-                    let foreground: String? = navigationPath.isEmpty ? nil : currentStackSessionId
+                    let foreground: String? = navRouter.path.isEmpty ? nil : currentStackSessionId
                     if let foreground {
                         // Already on screen — stamp it and navigate nowhere.
                         shareCoordinator.setBufferTarget(foreground)
@@ -2159,7 +2159,7 @@ struct ContentView: View {
                     // legitimate. Resign whatever UIKit resurrected during the
                     // background snapshot pass so its stale keyboard inset can't
                     // inflate the window's bottom safe area.
-                    if !searchFocused, navigationPath.isEmpty, selectedSessionId == nil {
+                    if !searchFocused, navRouter.path.isEmpty, selectedSessionId == nil {
                         UIApplication.shared.sendAction(
                             #selector(UIResponder.resignFirstResponder),
                             to: nil, from: nil, for: nil)
@@ -2229,77 +2229,79 @@ struct ContentView: View {
     // MARK: - Stack Layout (iPhone / narrow window)
 
     private var stackLayout: some View {
-        NavigationStack(path: $navigationPath) {
-            sessionList(useNavigationLinks: true)
-                .navigationDestination(for: ChatRoute.self) { route in
-                    // `.id(route)` mirrors detailView (iPad): navigationDestination
-                    // views are identified by stack depth, not path value, so
-                    // replacing the top element in place (menu "New Chat" swaps
-                    // [current] → [draft]) would otherwise reuse the old view's
-                    // @StateObject vm and nothing visibly changes.
-                    switch route {
-                    case .remote(let deviceId, let sessionId):
-                        // [ENV-DEFENSE 2026-09-27] 三处 AIChatView 调用点就地注入
-                        // ShareCoordinator（同一单例 ShareCoordinator.shared）。.ips
-                        // 符号栈实锤 #4 闪退：UIKitBarItemHost 在 push 转场中对导航栏
-                        // 标题控件做同步尺寸求值时重算 AIChatView.body，其
-                        // @EnvironmentObject 查找落空 → _assertionFailure。
-                        // 根注入（MinisApp:281）管主树；这里贴着实例再兜一层，让
-                        // 越界求值路径的环境链最短、始终有值（注入在实例外侧，
-                        // 同时覆盖该实例自身的 @EnvironmentObject 读取）。
-                        AIChatView(sessionId: sessionId, remoteDeviceId: deviceId)
-                            .environmentObject(ShareCoordinator.shared)
-                            .id(route)
-                    case .local(let id):
-                        AIChatView(sessionId: Self.isNewSessionId(id) ? nil : id, draftId: Self.isNewSessionId(id) ? id : nil, initialGroupId: Self.extractGroupId(from: id), searchAnchorMessageId: isSearching ? searchMatchMessageIds[id] : nil)
-                            .environmentObject(ShareCoordinator.shared) // [ENV-DEFENSE] 同上（#4 崩溃发生点）
-                            .id(route)
-                            .onAppear {
-                                NavTrace.log("APPEAR ch=path trig=\(NavTrace.trigger)+\(NavTrace.age) path=\(navigationPath.count)")
-                                if currentStackSessionId != id {
-                                    currentStackSessionId = id
-                                    // [T-ios-stacknav-transition-attributegraph-race]
-                                    // Keep the outgoing-id tracker in lockstep.
-                                    // This branch fires exactly when the two
-                                    // have DIVERGED — the "swallowed push left
-                                    // currentStackSessionId set to a target
-                                    // that never appeared" case documented on
-                                    // the .moveInputToSession handler — and it
-                                    // mounts a chat WITHOUT a navigationPath
-                                    // change, so the observer that normally
-                                    // maintains previousStackSessionId does not
-                                    // run. Left unsynced, the next real
-                                    // transition would suspend whichever id the
-                                    // last observer pass recorded instead of
-                                    // the vm actually on screen: the wrong vm
-                                    // stalls and the real outgoing one keeps
-                                    // publishing into its teardown.
-                                    previousStackSessionId = id
-                                }
-                                SessionBadgeStore.shared.remove(.unread, for: id)
-                                shareLog.info("🔄SESSION stackNav APPEAR id=\(id)")
-                                // [PATH-PROBE] 目的地出现/消失时刻的 path 快照——
-                                // destDISAPPEAR 是判别点：此刻 count 应已回落，
-                                // 残留即实锤系统 pop 回写丢失（T0 诊断）。
-                                pathProbe("destAPPEAR:\(id)")
+        // [COVER-SHELL 2026-09-30] 原内层 NavigationStack 已上提壳层
+        //（RootModeTabsView 包住 TabView）：本视图的 .navigationDestination
+        // 现注册到外壳栈，行点击 NavigationLink 就近解析到它；二级页由外壳栈
+        // 整页覆盖（含系统 tab 栏），划回原位揭示。
+        sessionList(useNavigationLinks: true)
+            .navigationDestination(for: ChatRoute.self) { route in
+                // `.id(route)` mirrors detailView (iPad): navigationDestination
+                // views are identified by stack depth, not path value, so
+                // replacing the top element in place (menu "New Chat" swaps
+                // [current] → [draft]) would otherwise reuse the old view's
+                // @StateObject vm and nothing visibly changes.
+                switch route {
+                case .remote(let deviceId, let sessionId):
+                    // [ENV-DEFENSE 2026-09-27] 三处 AIChatView 调用点就地注入
+                    // ShareCoordinator（同一单例 ShareCoordinator.shared）。.ips
+                    // 符号栈实锤 #4 闪退：UIKitBarItemHost 在 push 转场中对导航栏
+                    // 标题控件做同步尺寸求值时重算 AIChatView.body，其
+                    // @EnvironmentObject 查找落空 → _assertionFailure。
+                    // 根注入（MinisApp:281）管主树；这里贴着实例再兜一层，让
+                    // 越界求值路径的环境链最短、始终有值（注入在实例外侧，
+                    // 同时覆盖该实例自身的 @EnvironmentObject 读取）。
+                    AIChatView(sessionId: sessionId, remoteDeviceId: deviceId)
+                        .environmentObject(ShareCoordinator.shared)
+                        .id(route)
+                case .local(let id):
+                    AIChatView(sessionId: Self.isNewSessionId(id) ? nil : id, draftId: Self.isNewSessionId(id) ? id : nil, initialGroupId: Self.extractGroupId(from: id), searchAnchorMessageId: isSearching ? searchMatchMessageIds[id] : nil)
+                        .environmentObject(ShareCoordinator.shared) // [ENV-DEFENSE] 同上（#4 崩溃发生点）
+                        .id(route)
+                        .onAppear {
+                            NavTrace.log("APPEAR ch=path trig=\(NavTrace.trigger)+\(NavTrace.age) path=\(navRouter.path.count)")
+                            if currentStackSessionId != id {
+                                currentStackSessionId = id
+                                // [T-ios-stacknav-transition-attributegraph-race]
+                                // Keep the outgoing-id tracker in lockstep.
+                                // This branch fires exactly when the two
+                                // have DIVERGED — the "swallowed push left
+                                // currentStackSessionId set to a target
+                                // that never appeared" case documented on
+                                // the .moveInputToSession handler — and it
+                                // mounts a chat WITHOUT a path change, so the
+                                // observer that normally maintains
+                                // previousStackSessionId does not run. Left
+                                // unsynced, the next real transition would
+                                // suspend whichever id the last observer pass
+                                // recorded instead of the vm actually on
+                                // screen: the wrong vm stalls and the real
+                                // outgoing one keeps publishing into its
+                                // teardown.
+                                previousStackSessionId = id
                             }
-                            .onDisappear {
-                                NavTrace.log("DISAPPEAR ch=path path=\(navigationPath.count)")
-                                shareLog.info("🔄SESSION stackNav DISAPPEAR id=\(id)")
-                                pathProbe("destDISAPPEAR:\(id)")
-                                pathProbeLater("destDISAPPEAR+0.3s:\(id)")
-                            }
-                    }
+                            SessionBadgeStore.shared.remove(.unread, for: id)
+                            shareLog.info("🔄SESSION stackNav APPEAR id=\(id)")
+                            // [PATH-PROBE] 目的地出现/消失时刻的 path 快照——
+                            // destDISAPPEAR 是判别点：此刻 count 应已回落，
+                            // 残留即实锤系统 pop 回写丢失（T0 诊断）。
+                            pathProbe("destAPPEAR:\(id)")
+                        }
+                        .onDisappear {
+                            NavTrace.log("DISAPPEAR ch=path path=\(navRouter.path.count)")
+                            shareLog.info("🔄SESSION stackNav DISAPPEAR id=\(id)")
+                            pathProbe("destDISAPPEAR:\(id)")
+                            pathProbeLater("destDISAPPEAR+0.3s:\(id)")
+                        }
                 }
-        }
-        .onChange(of: navigationPath.count) { old, new in
-            NavTrace.log("PATH \(old)→\(new) top=\(navigationPath.last?.logTag ?? "nil") trig=\(NavTrace.trigger)+\(NavTrace.age)")
-        }
-        .transaction { t in
-            if t.disablesAnimations {
-                NavTrace.log("TXN no-anim trig=\(NavTrace.trigger)+\(NavTrace.age)")
             }
-        }
+            .onChange(of: navRouter.path.count) { old, new in
+                NavTrace.log("PATH \(old)→\(new) top=\(navRouter.path.last?.logTag ?? "nil") trig=\(NavTrace.trigger)+\(NavTrace.age)")
+            }
+            .transaction { t in
+                if t.disablesAnimations {
+                    NavTrace.log("TXN no-anim trig=\(NavTrace.trigger)+\(NavTrace.age)")
+                }
+            }
     }
 
     // MARK: - Detail View
@@ -3698,7 +3700,7 @@ struct ContentView: View {
     ///      so voice / camera fires *inside* the new chat — never inside
     ///      the previous one.
     private func handleNewChatRequest() {
-        NavTrace.log("HANDLE newChat trig=\(NavTrace.trigger)+\(NavTrace.age) path=\(navigationPath.count)")
+        NavTrace.log("HANDLE newChat trig=\(NavTrace.trigger)+\(NavTrace.age) path=\(navRouter.path.count)")
         let newId = Self.makeNewSessionId()
         // Clear any stale flags left over from a prior quick-action
         // request that didn't run to completion (user backgrounded the
@@ -3711,7 +3713,7 @@ struct ContentView: View {
         // 需要切 tab，否则「ensuringHome + 远端在前」会弹了远端看不见的本机页。
         tabRouter.route(to: .local)
         // If a workflow is mid-flight in ensuringHome, ContentView's
-        // observers (`onChange(navigationPath)` / `onChange(selectedSessionId)`)
+        // observers (`onChange(navRouter.path)` / `onChange(selectedSessionId)`)
         // drive the home-then-open sequence. Otherwise this call came
         // from a non-quick-action source (in-app menu "New Chat") and
         // we just open directly.
@@ -3726,9 +3728,9 @@ struct ContentView: View {
         if isWideLayout {
             openSession(newId)
         } else {
-            // [NAV-ROOT-FIX 2026-09-29] 单一 path 通道：程序化 push 直接写 path
-            //（见 pushChat 注释）。T0 的「外部写 × tab 藏显」回写病触发器已随
-            // tab 常驻消除；T1 的 Bool 通道因 stuck-true 实锤退役。
+            // [COVER-SHELL 2026-09-30] 单一 path 通道（真源 LocalNavRouter，
+            // 经 pushChat 统一入口）；T1 的 Bool 通道因 stuck-true 实锤退役
+            //（2026-09-29）。
             pushChat(.local(id: newId))
         }
     }
@@ -3747,12 +3749,12 @@ struct ContentView: View {
         // Popping itself is NOT deferred: it tears a screen down rather than
         // laying a new one out (so it doesn't carry the cost this gate exists
         // to keep out of the watchdog window), and the quick-action state
-        // machine advances from the `onChange(of: navigationPath)` observer
+        // machine advances from the `onChange(of: navRouter.path)` observer
         // this write triggers — holding it back would stall `markHome`.
         // [NAV-ROOT-FIX 2026-09-29] 「在根」= path 空（单通道，无 Bool）。
         let alreadyHome = isWideLayout
             ? (selectedSessionId == nil)
-            : navigationPath.isEmpty
+            : navRouter.path.isEmpty
         if alreadyHome {
             // Same-runloop advance — no SwiftUI commit needed.
             QuickActionWorkflow.shared.markHome()
@@ -3760,18 +3762,19 @@ struct ContentView: View {
         }
         // [NAV-TXN-FIX 2026-09-30] 同 pushChat：不用裸 Transaction() 包 path
         // 写（见 pushChat 注释），改 withAnimation(nil)。
-        withAnimation(nil) {
-            if isWideLayout {
+        if isWideLayout {
+            withAnimation(nil) {
                 selectedSessionId = nil
-            } else {
-                navigationPath = []
-                currentStackSessionId = nil
-                // [NAV-ROOT-FIX] 单通道：无 Bool 通道可复位；后台挂起的 push
-                // 意图一并丢弃（pop 优先——意图落地会复活刚让用户离开的会话）。
-                pendingChatRoute = nil
             }
+        } else {
+            currentStackSessionId = nil
+            // [NAV-ROOT-FIX] 单通道：无 Bool 通道可复位；后台挂起的 push
+            // 意图一并丢弃（pop 优先——意图落地会复活刚让用户离开的会话）。
+            pendingChatRoute = nil
+            // [COVER-SHELL 2026-09-30] path 清空走 LocalNavRouter 单一写入口。
+            navRouter.clearToRoot()
         }
-        // `onChange(navigationPath)` / `onChange(selectedSessionId)`
+        // `onChange(navRouter.path)` / `onChange(selectedSessionId)`
         // will fire next runloop with the empty state and call
         // `markHome` from there.
     }
@@ -3798,14 +3801,14 @@ struct ContentView: View {
         QuickActionWorkflow.shared.attachTargetSession(newId)
     }
 
-    /// [NAV-ROOT-FIX 2026-09-29] 程序化 push 的统一入口：单一 path 通道。
+    /// [NAV-ROOT-FIX 2026-09-29] 程序化 push 的统一入口：单一 path 通道
+    ///（真源 = LocalNavRouter.shared，[COVER-SHELL 2026-09-30] 已上提壳层）。
     /// T1 的 isPresented 通道退役——真机日志实锤 `showsPushedChat` stuck-true
-    /// （BOOL false 缺失 → 幽灵目的地重现），且 tab 常驻后 T0 的 path 回写病
-    /// 触发器（外部 path 写 × tab 栏动态藏显协调）已不存在。
+    /// （BOOL false 缺失 → 幽灵目的地重现）。
     ///
     /// 语义 = 「回根再展示」：整栈原子替换为 `[route]`（原 MIXED-STACK-BAN 的
     /// 「清 path + Bool push」两步二合一）。`currentStackSessionId` 在 path 写
-    /// 之前同步赋值——`onChange(of: navigationPath)` 观察者以它为 incoming 判
+    /// 之前同步赋值——`onChange(of: navRouter.path)` 观察者以它为 incoming 判
     /// outgoing vm 挂起；`previousStackSessionId` 仍由该观察者锁步，此处不碰
     /// （先写会吞掉 outgoing 判别）。
     ///
@@ -3813,8 +3816,9 @@ struct ContentView: View {
     /// 同款）：真正 BACKGROUNDED 时只记意图不 push，前台第一帧
     /// `flushPendingChatRoute` 落地；`.inactive` 不拦（openURL 恰在该态送达）。
     ///
-    /// 动画纪律（原 `commitNavigationPath` 逐字平移）：只有「根→单页 push」
-    /// 带动画；栈顶替换走禁动画原子提交（moveto-transfer-race 防护）。
+    /// 动画纪律（收进 LocalNavRouter，原 `commitNavigationPath` 逐字平移）：
+    /// 只有「根→单页 push」带动画；栈顶替换走禁动画原子提交
+    ///（moveto-transfer-race 防护）。
     private func pushChat(_ route: ChatRoute) {
         NavTrace.log("OPEN route=\(route.logTag) trig=\(NavTrace.trigger)+\(NavTrace.age)")
         if UIApplication.shared.applicationState == .background {
@@ -3824,21 +3828,12 @@ struct ContentView: View {
         }
         draftLog.info("🔑DRAFT pushChat route=\(route.logTag)")
         currentStackSessionId = route.sessionId
-        // [NAV-TXN-FIX 2026-09-30] 不用裸 Transaction() 包 path 写：Build 417
-        // 真机实锤程序化写 path 后划回写回永久死亡，而声明式 NavigationLink
-        // 的 push/pop 写回全正常。裸 Transaction 缺少 SwiftUI 内部导航
-        // transaction 的载荷，桥的划回账本建不起来。根→单页用裸写（继承按
-        // 钮自带的动画 transaction）；栈顶替换用 withAnimation(nil)（正经
-        // transaction，仅动画为 nil）。另：syncFixedBarFlags() 移出——
-        // localAtRoot/localSelecting 是死 flag（无视图读取），不在 push
-        // 转场同帧逼 TabView 重求值。
-        if navigationPath.isEmpty {
-            navigationPath = [route]
-        } else {
-            withAnimation(nil) {
-                navigationPath = [route]
-            }
-        }
+        // [COVER-SHELL 2026-09-30] path 写整段收进 LocalNavRouter 单一写入口
+        //（本笔纯搬迁，写入形态逐字保持；写纪律规范化下一笔收口）。
+        // 历史：[NAV-TXN-FIX 2026-09-30] 已移除裸 Transaction() 包装（Build 417
+        // 实锤程序化写 path 后划回回写永久死亡，而声明式 NavigationLink 的
+        // push/pop 写回全正常）。
+        navRouter.commitPush(route)
     }
 
     /// 落地后台挂起的程序化 push 意图（见 pushChat 注释）。时机与

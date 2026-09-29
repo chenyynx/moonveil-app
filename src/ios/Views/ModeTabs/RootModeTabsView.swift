@@ -20,14 +20,17 @@ import UIKit
 struct RootModeTabsView: View {
     @StateObject private var router = RootTabRouter.shared
     @StateObject private var remoteService = RemoteService()
+    /// [COVER-SHELL 2026-09-30] 本机线 path 真源（ContentView 共用同一对象；
+    /// 见 LocalNavRouter 类注释）。
+    @ObservedObject private var navRouter = LocalNavRouter.shared
     @State private var showsQRLogin = false
     @State private var showsManualLogin = false
     @State private var didRestore = false
     // [TABBAR-NATIVE 2026-09-28 pp] 旧「状态驱动底栏显隐」机制（tabBarHidden 状态
-    // + syncTabBarVisibility + 0.45s 自愈 + TabBar 埋点）整体退役：显隐改由目的地
-    // 页面声明（AIChatView / 远端 SessionChatView 各自 .toolbar(.hidden, for:
-    // .tabBar)），UIKit 在转场里托管。该机制在新会话草稿→正式的原地换视图面前
-    // 失序（Unbalanced×4、pop 不更新路径、tab 永久卡死），详见 AIChatView 同注释。
+    // + syncTabBarVisibility + 0.45s 自愈 + TabBar 埋点）整体退役。
+    // [COVER-SHELL 2026-09-30 pp] 后续的「目的地声明藏栏」路线亦退役：本机线改
+    // 「一级页外壳 + 壳层导航栈整页覆盖」（见 body/tabShell 与 LocalNavRouter）
+    //——无隐藏、无显示、无协调。远端线（RemoteRootView 内层栈）本轮不动。
     /// 身份胶囊 → 资料页（zoom 转场对）。NS 挂在胶囊头像的
     /// matchedTransitionSource 上，SoulProfileHub 的 sheet 内容消费同一对。
     @Namespace private var soulProfileNS
@@ -102,6 +105,20 @@ struct RootModeTabsView: View {
     }
 
     var body: some View {
+        // [COVER-SHELL 2026-09-30] 外壳导航栈：本机线二级页 push 发生在 TabView
+        // 之上——整页盖住含系统 tab 栏的一级页，划回原位揭示；全程无任何
+        // 「底栏藏/显」机制参与（pp 2026-09-30 Telegram 对照拍板：tab 就是长在
+        // 一级页面上）。path 真源 = LocalNavRouter.shared（ContentView 共用，
+        // 其 .navigationDestination 注册到本栈）。sheet/cover 仍挂在 TabView
+        // 链上（原相对位置不变）。
+        NavigationStack(path: $navRouter.path) {
+            tabShell
+        }
+    }
+
+    /// [COVER-SHELL 2026-09-30] 一级页外壳 = 原 body 主体逐字平移（系统 TabView +
+    /// 内容层视觉修饰 + 呈现层）；NavigationStack 包在这一层之外（见 body）。
+    private var tabShell: some View {
         TabView(selection: tabSelection) {
             ForEach(AppSourceMode.allCases) { mode in
                 // .compose 借 TabRole.search 的独立圆形外观（iOS 26 原生唯一能让
@@ -124,10 +141,9 @@ struct RootModeTabsView: View {
                         //（手绘件像素对齐到极限也不是系统材质/动效），拍板回
                         // 系统 TabView 自渲染。玻璃胶囊、按压、选中 pill 滑动、
                         // 分离圆钮（.compose 的 TabRole.search）全由系统出。
-                        // 藏/显路径的风险防线 = 旧机制病根已在包内修净：
-                        // 状态机已退役（9dfa4f2）、新建会话恢复带转场 push
-                        //（494bfe9）、P0 环境防御（aee076f）；显隐只由目的地
-                        // 页面声明（聊天页/设备详情），无任何壳层状态。
+                        // [COVER-SHELL 2026-09-30] 藏/显路径整体退役：壳层
+                        // NavigationStack（本文件 body）做整页覆盖式 push，
+                        // 无任何显隐声明/协调状态（详见 LocalNavRouter 注释）。
                 } label: {
                     Self.tabImage(Self.tabIcon[mode] ?? "aa-Circle")
                         // [NATIVE-TABS] 未选中灰图标走这里；选中态黑由 TabView 级
@@ -148,8 +164,6 @@ struct RootModeTabsView: View {
         // tint 是 environment，会透进 tab 内容和本层 sheet——下面 4 处用
         // Color("AccentColor")（读资产，不受 tint 影响）把 App 蓝盖回去。
         .tint(.primary)
-        // [TABBAR-NATIVE 2026-09-28] 显隐由目的地页面声明（见 AIChatView 同注释），
-        // 壳层不再有任何状态链/自愈。
         // Q2: 胶囊 → 资料页 zoom 转场。fullScreenCover + navigationTransition(.zoom)
         // 配对（Apple 文档标准形状；zoom 接管默认转场）。pp 2026-09-27：改全屏。
         .fullScreenCover(isPresented: $showsSoulProfile) {

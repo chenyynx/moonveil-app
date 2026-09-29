@@ -85,3 +85,49 @@ final class RootTabRouter: ObservableObject {
     /// （历史行为），所以这里用独立标志，不复用 remoteAtRoot。
     @Published var remoteChatPushed: Bool = false
 }
+
+// MARK: - LocalNavRouter
+
+/// [COVER-SHELL 2026-09-30] 本机线导航 path 的真源（compact 布局）。
+///
+/// 结构：壳层 `NavigationStack` 包住 `TabView`（RootModeTabsView），本机线的
+/// 会话页 push 发生在这一层 —— 二级页整页盖住「含系统 tab 栏的一级页」，
+/// 划回 = 原位揭示；全程没有任何「底栏藏/显」机制参与（pp 2026-09-30
+/// Telegram 对照拍板：「tab 就是长在一级页面上」）。iOS 26 的 tab 栏
+/// hide/show 协调回归因此完全不适用。
+///
+/// 为什么 path 住在这里而不是 ContentView 的 `@State`：NavigationStack 现在
+/// 在壳层，path 必须活在栈绑定方（RootModeTabsView）和逻辑方（ContentView）
+/// 都能读写的共享对象里（同 RootTabRouter.shared 先例；两方都以
+/// `@ObservedObject` 接入）。
+///
+/// 写入纪律：程序化写一律走本类的方法，不在回调/观察器里裸写 path。
+/// 系统驱动的变更（NavigationLink push / 划回手势回写）不经此处。
+/// 本笔 = 纯搬迁（写入形态逐字保持原语义）；规范化（延迟一 tick + append）
+/// 在下一笔收口（Build 419 日志实锤：外来上下文里的裸写杀死划回回写）。
+final class LocalNavRouter: ObservableObject {
+    static let shared = LocalNavRouter()
+    private init() {}
+
+    /// path 单一真源。读方：壳层 NavigationStack 绑定 / ContentView 各观察器。
+    @Published var path: [ChatRoute] = []
+
+    /// 程序化 push（原 pushChat 内的 path 写）：空栈 → 单页；非空 → 整栈
+    /// 替换为 `[route]`（「回根再展示」语义，原 MIXED-STACK-BAN 二合一形态）。
+    func commitPush(_ route: ChatRoute) {
+        if path.isEmpty {
+            path = [route]
+        } else {
+            withAnimation(nil) {
+                path = [route]
+            }
+        }
+    }
+
+    /// 回根（原 popToHomeForQuickAction 内的 path 清空）。
+    func clearToRoot() {
+        withAnimation(nil) {
+            path = []
+        }
+    }
+}

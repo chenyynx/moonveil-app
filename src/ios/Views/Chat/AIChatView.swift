@@ -1693,16 +1693,12 @@ struct AIChatView: View {
         // descendants (e.g. ToolCapsuleView's long-press menu) can react to
         // `vm.isProcessing` without threading the vm through every level.
         .environmentObject(vm)
-        // [TABBAR-NATIVE 2026-09-28 pp] 底栏显隐回归系统托管：本页 = 被 push 的
-        // 目的地，自己声明「我在时藏 tab」，UIKit 在转场里自行协调（= 系统原生
-        // hidesBottomBarWhenPushed 的 SwiftUI 等价物）。旧「状态驱动」机制
-        // （tabBarHidden + 同帧 flags + 0.45s 自愈）在新会话草稿→正式的原地换视图
-        // （.id(id)，上游原生设计）面前失序：00:34 日志实锤换视图后 Unbalanced×4、
-        // pop 不再更新 navigationPath、tab 状态永久卡死。声明式隐藏没有状态可失序
-        // ——草稿换视图时新旧实例声明同一修饰符，转场全由系统接管。build 359/363
-        // 的 trap（bar 机制越界求值本 body 时环境缺失）已由 [ENV-DEFENSE] 三处
-        // 调用点注入防御。
-        .toolbar(.hidden, for: .tabBar)
+        // [COVER-SHELL 2026-09-30 pp] 不再声明任何底栏藏/显：本机线的 push 发生在
+        // 壳层 NavigationStack（RootModeTabsView 包住 TabView），整页覆盖含系统
+        // tab 栏的一级页，划回原位揭示（pp 2026-09-30 Telegram 对照拍板）。
+        // 旧 .toolbar(.hidden, for: .tabBar) 及其系统协调病史（Unbalanced、换视图
+        // 失序、iOS 26 回归）随本批整体退役——无隐藏即无协调。
+        //（[ENV-DEFENSE] 注入保持不动：其余调用点仍需其防崩溃链。）
     }
 
     // MARK: - Home Screen Quick Actions
