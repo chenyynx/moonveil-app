@@ -101,10 +101,13 @@ final class RootTabRouter: ObservableObject {
 /// 都能读写的共享对象里（同 RootTabRouter.shared 先例；两方都以
 /// `@ObservedObject` 接入）。
 ///
-/// 写入纪律：程序化写一律走本类的方法，不在回调/观察器里裸写 path。
+/// 写入纪律（[NAV-WRITE-CONFORM 2026-09-30] 已收口）：程序化写一律走本类的
+/// 方法，且一律延迟一个 runloop 提交 —— 脱离 tab 选择器 setter / 通知链 /
+/// onChange 回调等外来事务上下文。Build 419 真机日志实锤：外部上下文里的
+/// path 写会杀死 NavigationStack↔UIKit 的划回回写账本（视觉退出、path 残留、
+/// 计数只增不减），而系统驱动的写回（NavigationLink / 划回手势）全正常。
+/// 变更形态遵系统规范：append（空栈）/ 整栈替换（非空）+ 显式动画。
 /// 系统驱动的变更（NavigationLink push / 划回手势回写）不经此处。
-/// 本笔 = 纯搬迁（写入形态逐字保持原语义）；规范化（延迟一 tick + append）
-/// 在下一笔收口（Build 419 日志实锤：外来上下文里的裸写杀死划回回写）。
 final class LocalNavRouter: ObservableObject {
     static let shared = LocalNavRouter()
     private init() {}
@@ -112,22 +115,37 @@ final class LocalNavRouter: ObservableObject {
     /// path 单一真源。读方：壳层 NavigationStack 绑定 / ContentView 各观察器。
     @Published var path: [ChatRoute] = []
 
-    /// 程序化 push（原 pushChat 内的 path 写）：空栈 → 单页；非空 → 整栈
-    /// 替换为 `[route]`（「回根再展示」语义，原 MIXED-STACK-BAN 二合一形态）。
+    /// 程序化 push（原 pushChat 内的 path 写）。[NAV-WRITE-CONFORM 2026-09-30]
+    /// 延迟一个 runloop 提交（见类注释；空栈判定挪进延迟块内——以提交时刻的
+    /// 真实状态为准；调用侧后台门在调用时刻判定，落地相隔一个 runloop，竞态
+    /// 窗口可忽略）。空栈 → append + 显式标准动画；非空 → 整栈替换为
+    /// `[route]` + withAnimation(nil)（「回根再展示」语义，原 MIXED-STACK-BAN
+    /// 二合一形态，moveto-transfer-race 防护）。
     func commitPush(_ route: ChatRoute) {
-        if path.isEmpty {
-            path = [route]
-        } else {
-            withAnimation(nil) {
-                path = [route]
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if self.path.isEmpty {
+                withAnimation(.default) {
+                    self.path.append(route)
+                }
+            } else {
+                withAnimation(nil) {
+                    self.path = [route]
+                }
             }
         }
     }
 
-    /// 回根（原 popToHomeForQuickAction 内的 path 清空）。
+    /// 回根（原 popToHomeForQuickAction 内的 path 清空）。同上延迟一个
+    /// runloop 提交；调用方（ContentView.popToHomeForQuickAction）的簿记
+    /// （currentStackSessionId / pendingChatRoute）仍同步清，观察者按旧语义
+    /// 以 path 变化为准（该舞蹈本就等待异步落地，多一 tick 不影响）。
     func clearToRoot() {
-        withAnimation(nil) {
-            path = []
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            withAnimation(nil) {
+                self.path = []
+            }
         }
     }
 }
