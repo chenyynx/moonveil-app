@@ -25,6 +25,14 @@
 // 实例化 = 四处调用点（ContentView 窄窗 stackLayout / 宽窗挂整个 NavigationSplitView
 // 且聊天打开时收栏、RemoteRootView、WorksListView），选中态经
 // RootTabRouter.shared 单通道同步。
+//
+// [TG-LENS-PORT 2026-09-30 pp 拍板 B「真·移植 TG」] 26+（且苹果私有
+// _UILiquidLensView 可取）时，胶囊区改由 TGLensHost 的透镜岛渲染（TG 源码
+// 移植，见 TGLens/ 目录与 docs/tg-lens-port.md）；否则回退本文件的玻璃版
+// （legacyItemsCapsule）。同批几何对齐 TG 实测：栏高 64→68、整体下移 12pt；
+// 圆钮换 .plain + interactive 玻璃（拉缩发光）。触摸手势保持在 SwiftUI 侧，
+// 交互分工：岛内手势（TG 原样，与玻璃触摸响应并行），选中/深色下发，提交回传
+// onCommit；legacy 路径保留原 SwiftUI DragGesture。
 
 import SwiftUI
 import UIKit
@@ -49,6 +57,11 @@ struct ModeTabBar: View {
     @State private var lensDragShiftX: CGFloat = 0
     /// item 区实宽（三槽平分用；背景 GeometryReader 测量，不依赖新 API）。
     @State private var itemsWidth: CGFloat = 0
+    /// [TG-LENS-PORT] 深浅模式（透镜/玻璃的 isDark 参数与岛内图标着色）。
+    @Environment(\.colorScheme) private var colorScheme
+    /// [TG-LENS-PORT] 栏高：TG 实测 ≈68（原 64）。底距经 offset(y:) 下移 12pt 对齐
+    /// TG 实测（胶囊距屏底 35→23pt，压入 home 指示条区）。
+    private static let barHeight: CGFloat = 68
 
     // MARK: - 资产（自 RootModeTabsView 迁入，逐字保留）
 
@@ -117,12 +130,45 @@ struct ModeTabBar: View {
         // 若不生效，候选挂点 = 调用点 sessionList 的 safeAreaInset 之前（保 List
         // 自身键盘策略不动——复审 v2 推理：inset 视图落位由父层布局决定）。
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        // [TG-LENS-PORT 2026-09-30] 几何对齐 TG 实测（屏截像素测量对比）：TG 栏
+        // 底距 ≈23pt，本栏原为安全区底（≈35pt）——整体下移 12pt（纯视觉位移，
+        // 不改变 safeAreaInset 的布局占位，内容 inset 不受影响）。
+        .offset(y: 12)
     }
 
-    /// 三 item 玻璃胶囊（TG GlassBackgroundContainerView + LiquidLens 的系统件
-    /// 近似：容器 = glassEffect 胶囊；选中透镜 = 独立玻璃胶囊，按下弹簧滑到指尖
-    /// 槽位、按住拖动连续跟手、松手弹簧落位并撤销抬升）。
+    /// [TG-LENS-PORT 2026-09-30 pp 拍板 B] 26+ 且私有类可选器形态完备 → TG 移植
+    /// 透镜岛；否则回退既有玻璃版渲染（<26 / 私有类缺失，永不出白屏）。
+    /// 交互分工：岛内 = TG 原样的 UIKit 手势（玻璃触摸响应与之并行，见 TGLensHost
+    /// 头注）；legacy = 本文件既有的 SwiftUI DragGesture。
     private var itemsCapsule: some View {
+        Group {
+            if TGLensBar.isSupported {
+                TGLensBar(
+                    selectedIndex: Self.selectableTabs.firstIndex(of: router.mode) ?? 0,
+                    isDark: colorScheme == .dark,
+                    onCommit: { index in
+                        guard index >= 0, index < Self.selectableTabs.count else { return }
+                        // 跨树兜底（同旧 DragGesture onEnded 语义）：按住期间本树被
+                        // 外部 route 切走 → 丢弃本次提交。
+                        if tabMode == router.mode {
+                            commit(Self.selectableTabs[index])
+                        }
+                    }
+                )
+            } else {
+                legacyItemsCapsule
+                    .contentShape(Capsule())
+                    .gesture(selectionGesture)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.barHeight)
+    }
+
+    /// 三 item 玻璃胶囊（回退渲染路径）——TG GlassBackgroundContainerView +
+    /// LiquidLens 的系统件近似：容器 = glassEffect 胶囊；选中透镜 = 独立玻璃胶囊，
+    /// 按下弹簧滑到指尖槽位、按住拖动连续跟手、松手弹簧落位并撤销抬升。
+    private var legacyItemsCapsule: some View {
         let slot = Self.selectableTabs.firstIndex(of: pressed ?? router.mode) ?? 0
         let slotWidth = itemsWidth / CGFloat(Self.selectableTabs.count)
         let lensWidth = slotWidth + 8
@@ -165,8 +211,6 @@ struct ModeTabBar: View {
                 .opacity(itemsWidth > 0 ? 1 : 0)
         }
         .tabBarGlassCapsule()
-        .contentShape(Capsule())
-        .gesture(selectionGesture)
     }
 
     /// 单 item：图标居中（纯图标，无文字）+ 按压放大。
@@ -200,7 +244,10 @@ struct ModeTabBar: View {
                 .circleLiquidGlass()
                 .contentShape(Circle())
         }
-        .buttonStyle(SpringPressButtonStyle())
+        // [TG-LENS-PORT 2026-09-30] 官方 AppGlassButton 配方（.plain + interactive
+        // 玻璃）：卡住的"拉缩 + 发光"= 系统液态玻璃触摸响应，替掉原先无观感的手工
+        // 0.92 缩放（SpringPressButtonStyle 与 .interactive() 双重缩放会打架）。
+        .buttonStyle(.plain)
         .accessibilityLabel(Text(Self.tabLabel(.compose)))
     }
 
@@ -303,10 +350,13 @@ extension View {
     }
 
     /// 圆钮玻璃（同 SoulProfileHub.circleLiquidGlass 的形状换法）。
+    /// [TG-LENS-PORT 2026-09-30] 补 `.interactive()`——全仓既有控件（官方
+    /// AppGlassButton / 顶栏胶囊 / 聊天输入框）均为 interactive，唯独本批三面
+    /// 玻璃漏配。此为圆钮「按下拉缩 + 发光」的来源。
     @ViewBuilder
     fileprivate func circleLiquidGlass() -> some View {
         if #available(iOS 26.0, *) {
-            self.glassEffect(.regular, in: Circle())
+            self.glassEffect(.regular.interactive(), in: Circle())
         } else {
             self.background { Circle().fill(.ultraThinMaterial) }
         }
