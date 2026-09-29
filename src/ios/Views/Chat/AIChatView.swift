@@ -1702,6 +1702,7 @@ struct AIChatView: View {
         // ——草稿换视图时新旧实例声明同一修饰符，转场全由系统接管。build 359/363
         // 的 trap（bar 机制越界求值本 body 时环境缺失）已由 [ENV-DEFENSE] 三处
         // 调用点注入防御。
+        .toolbar(.hidden, for: .tabBar)
     }
 
     // MARK: - Home Screen Quick Actions
