@@ -178,7 +178,7 @@ struct SessionChatView: View, Equatable {
         // 挂 GeometryReader 层（destination 级），读到的 insets 不含
         // composerDock safeAreaInset 的扩展。本 body 拆分正是为 type-check
         // 超时（文件头判例），链上只占一个 .modifier 位。
-        .modifier(TabBarInsetProbeModifier(own: $sessionOwnBottomInset, tag: "remote"))
+        .modifier(TabBarInsetProbeModifier(ownInset: $sessionOwnBottomInset, tag: "remote"))
         .modifier(ChatPageToolbar(title: session.metadata?.title ?? String(localized: "会话"),
             subtitle: [session.metadata?.runtimeName ?? session.metadata?.runtime ?? String(localized: "代理"),
                 deviceName ?? session.metadata?.connectorId].compactMap { $0 }.joined(separator: " · "),

@@ -690,108 +690,9 @@ struct AIChatView: View {
                     }
                 }
                 .overlay(alignment: .bottom) {
-                    // Tool preview + input bar stacked at the bottom.
-                    // Both overlay on top of the message list for immersive scrolling.
-                    //
-                    // The slash / mention popup is attached to THIS stack as
-                    // a `.overlay(alignment: .bottom)` on a placeholder
-                    // sitting just above the input bar — that way SwiftUI's
-                    // own layout pins the popup's bottom edge to the input
-                    // bar's top edge directly, with no `inputBarHeight`
-                    // @State round-trip and no screen-bottom math. The
-                    // popup follows the input bar automatically when
-                    // attachments / waveform expand it, when the keyboard
-                    // animates, or when safe-area insets change.
-                    //
-                    // Popup uses the EXACT same constraint toolbar uses
-                    // with inputBar: bottom edge of popup = top edge of
-                    // inputBar, with the SAME gap (i.e. whatever VStack
-                    // spacing produces between toolbar and inputBar —
-                    // which is 0 here, the visual gap toolbar exhibits
-                    // comes from its own internal padding).
-                    //
-                    // To achieve this without re-implementing layout
-                    // math: popup is an `.overlay(alignment: .top)` on
-                    // the inputBar with `alignmentGuide(.top){$0[.bottom]}`
-                    // — this anchors popup's BOTTOM to inputBar's TOP.
-                    // The popup card carries its OWN bottom padding
-                    // equal to what the toolbar's own internal bottom
-                    // spacing produces, so the visual gap is identical
-                    // whether toolbar is visible or not. Popup ALWAYS
-                    // sits flush with inputBar top, covering the toolbar
-                    // when it's also there.
-                    // Wrap input stack in a ZStack so the popup can have a
-                    // sibling-level frame (full ZStack size) with proper hit
-                    // testing — `.overlay(alignment: .top)` on inputBar was
-                    // failing to receive touches for the popup card because
-                    // SwiftUI doesn't hit-test overlay content drawn outside
-                    // the host's own frame.
-                    //
-                    // Layout structure (z-order bottom→top inside ZStack):
-                    //   1. VStack { toolbar; inputBar } — anchored .bottom
-                    //   2. Popup with alignmentGuide pinning its BOTTOM
-                    //      edge to inputBar's TOP edge — also anchored
-                    //      .bottom, but `alignmentGuide(.bottom) { d in
-                    //      d[.bottom] + inputBarHeight }` would require
-                    //      reading inputBar height again. Instead we use
-                    //      `.padding(.bottom, inputBarHeight)` so the
-                    //      popup's bottom edge sits exactly at inputBar's
-                    //      top edge. inputBarHeight here is just the input
-                    //      bar (NOT including toolbar) so popup covers
-                    //      toolbar when both visible.
-                    ZStack(alignment: .bottom) {
-                        // Tap-outside catcher placed UNDER the popup (declared
-                        // first → lower z-order). When the popup is visible,
-                        // the catcher fills the ZStack and absorbs taps that
-                        // land outside the popup card. Taps on the popup
-                        // itself naturally fall through to the popup view
-                        // because it sits on top in z-order.
-                        if vm.showSlashMenu || vm.showMentionMenu {
-                            Color.clear
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    if vm.showSlashMenu { vm.dismissSlashMenu() }
-                                    else if vm.showMentionMenu { vm.dismissMentionMenu() }
-                                }
-                        }
-                        VStack(spacing: 0) {
-                            floatingToolPreview
-                                .shadow(color: Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0, alpha: 0.25) : UIColor(white: 0, alpha: 0) }), radius: 6, x: 0, y: 4)
-                            #if DEBUG
-                            if isReadOnly {
-                                forkBanner
-                            } else {
-                                inputBar
-                            }
-                            #else
-                            inputBar
-                            #endif
-                        }
-                        // Register the composer (tool preview + input bar) as a
-                        // region the global speech capsule must not cover.
-                        .capsuleProtectedFrame("inputBar")
-                        inputPopupOverlay
-                            .padding(.bottom, inputBarHeight)
-                            // [pp 09-18 三改] 汇聚页回原生 sheet（从下弹起）——由本视图
-                            // 链上的原生 sheet 呈现（导航栏修饰符下方）；通知接收留
-                            // 在这里（toolActivityDetail 状态属本视图）。
-                            .onReceive(
-                                NotificationCenter.default.publisher(for: .toolActivityDetailRequested)
-                                    .receive(on: DispatchQueue.main)
-                            ) { note in
-                                guard let seg = note.userInfo?["segment"] as? TurnActivitySegment,
-                                      let mid = note.userInfo?["messageId"] as? UUID,
-                                      vm.messages.contains(where: { $0.id == mid }) else { return }
-                                withAnimation(.easeOut(duration: 0.28)) { // [pp 09-18 三改] 原生 sheet 从下弹起
-                                    toolActivityDetail = ToolActivityDetailContext(messageId: mid, segment: seg)
-                                }
-                            }
-                    }
-                    // [TAB-CLEARANCE 2026-09-29] 常驻 tab 让位：整组（输入条 + 工具
-                    // 预览 + popup）同步抬到 tab 玻璃上方。popup 贴输入条顶的锚定
-                    // 数学（padding(.bottom, inputBarHeight)）随组上移自动保持。
-                    // 自校准语义见 tabBarClearance 注释。
-                    .padding(.bottom, tabBarClearance)
+                    // [TAB-CLEARANCE 2026-09-29] 输入栈整块提取为独立属性
+                    // inputStackOverlay（type-check 超时手术，见属性处注释）。
+                    inputStackOverlay
                 }
                 // Collapse the expanded speech player on a tap anywhere in the chat
                 // area. Attached as a SIMULTANEOUS TapGesture directly on the content
@@ -862,10 +763,6 @@ struct AIChatView: View {
             kernelBootOverlay
         }
         .background(chatBackgroundColor)
-        // [TAB-CLEARANCE 2026-09-29] 本页底部安全区探针 + 让位日志（一体挂件，
-        // destination 层）。body 链上只占一个 .modifier 位——本 body 已在编译器
-        // type-check 阈值边缘（664 行超时判例），链上表达式越少越好。
-        .modifier(TabBarInsetProbeModifier(own: $chatOwnBottomInset, tag: "local"))
         .onDrop(of: [.image, .movie, .fileURL, .data], isTargeted: $isDropTargeted) { providers in
             handleDropProviders(providers)
             return true
@@ -3901,6 +3798,121 @@ struct AIChatView: View {
 
     private func handleCaretChange(_ caret: Int) {
         vm.inputCaret = caret
+    }
+
+    // MARK: - Input stack overlay（body 提取件）
+
+    /// [TAB-CLEARANCE 2026-09-29] 输入条 + 工具预览 + slash popup 整组 overlay 内容。
+    /// 原 body 内联整块——AIChatView body 已在编译器 type-check 阈值边缘
+    ///（664 行超时判例，SessionChatView:72 同族），嵌套闭包块是 body 表达式
+    /// 的大头，切出为独立属性让两者各自独立求值。
+    /// 让位挂整组：popup 贴输入条顶的锚定数学（padding(.bottom, inputBarHeight)）
+    /// 随组上移自动保持；`TabBarInsetProbeModifier` 在此读 destination 层底部
+    /// 安全区（探针 + 让位日志一体，见 TabBarInsetEnvironment.swift）。
+    private var inputStackOverlay: some View {
+        // Tool preview + input bar stacked at the bottom.
+        // Both overlay on top of the message list for immersive scrolling.
+        //
+        // The slash / mention popup is attached to THIS stack as
+        // a `.overlay(alignment: .bottom)` on a placeholder
+        // sitting just above the input bar — that way SwiftUI's
+        // own layout pins the popup's bottom edge to the input
+        // bar's top edge directly, with no `inputBarHeight`
+        // @State round-trip and no screen-bottom math. The
+        // popup follows the input bar automatically when
+        // attachments / waveform expand it, when the keyboard
+        // animates, or when safe-area insets change.
+        //
+        // Popup uses the EXACT same constraint toolbar uses
+        // with inputBar: bottom edge of popup = top edge of
+        // inputBar, with the SAME gap (i.e. whatever VStack
+        // spacing produces between toolbar and inputBar —
+        // which is 0 here, the visual gap toolbar exhibits
+        // comes from its own internal padding).
+        //
+        // To achieve this without re-implementing layout
+        // math: popup is an `.overlay(alignment: .top)` on
+        // the inputBar with `alignmentGuide(.top){$0[.bottom]}`
+        // — this anchors popup's BOTTOM to inputBar's TOP.
+        // The popup card carries its OWN bottom padding
+        // equal to what the toolbar's own internal bottom
+        // spacing produces, so the visual gap is identical
+        // whether toolbar is visible or not. Popup ALWAYS
+        // sits flush with inputBar top, covering the toolbar
+        // when it's also there.
+        // Wrap input stack in a ZStack so the popup can have a
+        // sibling-level frame (full ZStack size) with proper hit
+        // testing — `.overlay(alignment: .top)` on inputBar was
+        // failing to receive touches for the popup card because
+        // SwiftUI doesn't hit-test overlay content drawn outside
+        // the host's own frame.
+        //
+        // Layout structure (z-order bottom→top inside ZStack):
+        //   1. VStack { toolbar; inputBar } — anchored .bottom
+        //   2. Popup with alignmentGuide pinning its BOTTOM
+        //      edge to inputBar's TOP edge — also anchored
+        //      .bottom, but `alignmentGuide(.bottom) { d in
+        //      d[.bottom] + inputBarHeight }` would require
+        //      reading inputBar height again. Instead we use
+        //      `.padding(.bottom, inputBarHeight)` so the
+        //      popup's bottom edge sits exactly at inputBar's
+        //      top edge. inputBarHeight here is just the input
+        //      bar (NOT including toolbar) so popup covers
+        //      toolbar when both visible.
+        ZStack(alignment: .bottom) {
+            // Tap-outside catcher placed UNDER the popup (declared
+            // first → lower z-order). When the popup is visible,
+            // the catcher fills the ZStack and absorbs taps that
+            // land outside the popup card. Taps on the popup
+            // itself naturally fall through to the popup view
+            // because it sits on top in z-order.
+            if vm.showSlashMenu || vm.showMentionMenu {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if vm.showSlashMenu { vm.dismissSlashMenu() }
+                        else if vm.showMentionMenu { vm.dismissMentionMenu() }
+                    }
+            }
+            VStack(spacing: 0) {
+                floatingToolPreview
+                    .shadow(color: Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(white: 0, alpha: 0.25) : UIColor(white: 0, alpha: 0) }), radius: 6, x: 0, y: 4)
+                #if DEBUG
+                if isReadOnly {
+                    forkBanner
+                } else {
+                    inputBar
+                }
+                #else
+                inputBar
+                #endif
+            }
+            // Register the composer (tool preview + input bar) as a
+            // region the global speech capsule must not cover.
+            .capsuleProtectedFrame("inputBar")
+            inputPopupOverlay
+                .padding(.bottom, inputBarHeight)
+                // [pp 09-18 三改] 汇聚页回原生 sheet（从下弹起）——由本视图
+                // 链上的原生 sheet 呈现（导航栏修饰符下方）；通知接收留
+                // 在这里（toolActivityDetail 状态属本视图）。
+                .onReceive(
+                    NotificationCenter.default.publisher(for: .toolActivityDetailRequested)
+                        .receive(on: DispatchQueue.main)
+                ) { note in
+                    guard let seg = note.userInfo?["segment"] as? TurnActivitySegment,
+                          let mid = note.userInfo?["messageId"] as? UUID,
+                          vm.messages.contains(where: { $0.id == mid }) else { return }
+                    withAnimation(.easeOut(duration: 0.28)) { // [pp 09-18 三改] 原生 sheet 从下弹起
+                        toolActivityDetail = ToolActivityDetailContext(messageId: mid, segment: seg)
+                    }
+                }
+        }
+        // [TAB-CLEARANCE 2026-09-29] 常驻 tab 让位：整组（输入条 + 工具
+        // 预览 + popup）同步抬到 tab 玻璃上方。popup 贴输入条顶的锚定
+        // 数学（padding(.bottom, inputBarHeight)）随组上移自动保持。
+        // 自校准语义见 tabBarClearance 注释。
+        .padding(.bottom, tabBarClearance)
+        .modifier(TabBarInsetProbeModifier(ownInset: $chatOwnBottomInset, tag: "local"))
     }
 
     private var inputBar: some View {
