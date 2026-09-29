@@ -55,3 +55,25 @@ struct BottomSafeAreaInsetProbe: View {
             .frame(height: 0)
     }
 }
+
+/// [TAB-CLEARANCE 2026-09-29] 探针 + 让位日志一体挂件。
+/// AIChatView 的 body 已在编译器 type-check 阈值边缘（664 行超时判例，CI 实测；
+/// 同族 SessionChatView:72），链上每多一个闭包表达式都可能压垮——所以探针
+/// background 与 onChange 日志收进本 modifier，页面链上只占一个 `.modifier` 位。
+/// 读数 = destination 层 `safeAreaInsets.bottom`（不含本页 safeAreaInset 的扩展）。
+struct TabBarInsetProbeModifier: ViewModifier {
+    @Environment(\.tabContentBottomInset) private var rootInset
+    @Binding var ownInset: CGFloat
+    /// 日志前缀（"local" / "remote"），装机日志判读用。
+    var tag: String
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                BottomSafeAreaInsetProbe { ownInset = $0 }
+            }
+            .onChange(of: max(0, rootInset - ownInset)) { _, newValue in
+                AppLogger(category: "TabClearance").info("[TAB-CLEARANCE][\(tag)] root=\(rootInset) own=\(ownInset) clearance=\(newValue)")
+            }
+    }
+}

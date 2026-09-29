@@ -862,14 +862,10 @@ struct AIChatView: View {
             kernelBootOverlay
         }
         .background(chatBackgroundColor)
-        // [TAB-CLEARANCE 2026-09-29] 本页底部安全区探针（destination 层）。静息
-        // 预期 = home 安全区；键盘态含键盘高。与根层取差 = 让位垫高。
-        .background {
-            BottomSafeAreaInsetProbe { chatOwnBottomInset = $0 }
-        }
-        .onChange(of: tabBarClearance) { _, newValue in
-            AppLogger(category: "TabClearance").info("[TAB-CLEARANCE] root=\(tabContentBottomInset) own=\(chatOwnBottomInset) clearance=\(newValue)")
-        }
+        // [TAB-CLEARANCE 2026-09-29] 本页底部安全区探针 + 让位日志（一体挂件，
+        // destination 层）。body 链上只占一个 .modifier 位——本 body 已在编译器
+        // type-check 阈值边缘（664 行超时判例），链上表达式越少越好。
+        .modifier(TabBarInsetProbeModifier(own: $chatOwnBottomInset, tag: "local"))
         .onDrop(of: [.image, .movie, .fileURL, .data], isTargeted: $isDropTargeted) { providers in
             handleDropProviders(providers)
             return true

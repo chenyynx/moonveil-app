@@ -174,15 +174,11 @@ struct SessionChatView: View, Equatable {
         GeometryReader { geometry in
             rootSurface(geometryHeight: geometry.size.height)
         }
-        // [TAB-CLEARANCE 2026-09-29] 本页底部安全区探针：挂 GeometryReader 层
-        // （destination 级），读到的 insets 不含 composerDock safeAreaInset 的
-        // 扩展——静息预期 = home，键盘态含键盘高。
-        .background {
-            BottomSafeAreaInsetProbe { sessionOwnBottomInset = $0 }
-        }
-        .onChange(of: tabBarClearance) { _, newValue in
-            AppLogger(category: "TabClearance").info("[TAB-CLEARANCE][remote] root=\(tabContentBottomInset) own=\(sessionOwnBottomInset) clearance=\(newValue)")
-        }
+        // [TAB-CLEARANCE 2026-09-29] 本页底部安全区探针 + 让位日志（一体挂件）：
+        // 挂 GeometryReader 层（destination 级），读到的 insets 不含
+        // composerDock safeAreaInset 的扩展。本 body 拆分正是为 type-check
+        // 超时（文件头判例），链上只占一个 .modifier 位。
+        .modifier(TabBarInsetProbeModifier(own: $sessionOwnBottomInset, tag: "remote"))
         .modifier(ChatPageToolbar(title: session.metadata?.title ?? String(localized: "会话"),
             subtitle: [session.metadata?.runtimeName ?? session.metadata?.runtime ?? String(localized: "代理"),
                 deviceName ?? session.metadata?.connectorId].compactMap { $0 }.joined(separator: " · "),
