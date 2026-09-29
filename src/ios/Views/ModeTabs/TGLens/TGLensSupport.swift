@@ -244,14 +244,16 @@ extension UIColor {
 // MARK: - CALayer 着色（Display/Source/DisplayUIKitUtils.swift:921，按需摘录）
 
 extension CALayer {
-    /// CALayer.layerTintColor（DisplayUIKitUtils.swift:921-933）：KVC 私有键
-    /// contentsMultiplyColor（CGColor）——Transition.swift 的 tint 过渡使用。
-    /// 上游以 CFGetTypeID == CGColor.typeID 判型，此处等价改 `is CGColor`
-    /// （编译确定性；判型语义一致）。键缺失时 KVC 会抛异常——与 TG 上游同款暴露。
+    /// CALayer.layerTintColor（DisplayUIKitUtils.swift:921-933，判型/取值逐字）：
+    /// KVC 私有键 contentsMultiplyColor（CGColor）——Transition.swift 的 tint 过渡使用。
+    /// 注意：Any→CF 的条件降转（`is CGColor` / `as? CGColor`）在 Swift 6 是错误
+    /// （"conditional downcast to CoreFoundation type will always succeed"，CI 三轮
+    /// 实报），必须照上游用 CFGetTypeID 判型 + 强桥接取值。键缺失时 KVC 抛异常——
+    /// 与 TG 上游同款暴露。
     var layerTintColor: CGColor? {
         get {
-            if let value = self.value(forKey: "contentsMultiplyColor"), value is CGColor {
-                return (value as? CGColor)
+            if let value = self.value(forKey: "contentsMultiplyColor"), CFGetTypeID(value as CFTypeRef) == CGColor.typeID {
+                return value as! CGColor
             }
             return nil
         }

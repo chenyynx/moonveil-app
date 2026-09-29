@@ -65,10 +65,12 @@ GPLv3 开源工程，按「v2 or later」条款并入，许可证兼容路径成
 - **[CI 二轮 2026-09-30 修正两项]** ⑧补齐 DisplayUIKitUtils 三件按需摘录（编译器
   暴露的漏搬符号，均已进 TGLensSupport.swift 并注明上游行号）：`UIColor.mixedWith`
   （:308，逐字语义转写）/ `CALayer.layerTintColor`（:921，KVC contentsMultiplyColor；
-  判型以 `is CGColor` 等价替代 CFGetTypeID）/ `CALayer.blur`（:891 → UIKitUtils.m:265，
+  判型/取值逐字——Swift 6 禁止 Any→CF 条件降转（`is`/`as?` 报 "will always succeed"
+  错误，CI 三轮实报），须 CFGetTypeID + 强桥接）/ `CALayer.blur`（:891 → UIKitUtils.m:265，
   = gaussianBlur 滤镜，与 luminanceToAlpha 同一 CAFilter 工厂）；⑨`_solveForInput:`
   实参类型判定由 NSMethodSignature（Swift 显式不可用：NSInvocation 家族被 SDK 屏蔽）
-  改为 objc/runtime `method_getArgumentType`（读 index 2 类型字符，语义等价）。
+  改为 objc/runtime `method_getArgumentType`（读 index 2 类型字符，语义等价；该 API
+  返回 void——越界时 dst 填空串，与 'f'/'d' 不匹配自然落 (nil, nil)）。
 
 ## 3. ⚠️ 私有 API 清单（与 TG 同款用法）
 
