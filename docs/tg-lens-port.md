@@ -71,6 +71,14 @@ GPLv3 开源工程，按「v2 or later」条款并入，许可证兼容路径成
   实参类型判定由 NSMethodSignature（Swift 显式不可用：NSInvocation 家族被 SDK 屏蔽）
   改为 objc/runtime `method_getArgumentType`（读 index 2 类型字符，语义等价；该 API
   返回 void——越界时 dst 填空串，与 'f'/'d' 不匹配自然落 (nil, nil)）。
+- **[装机回归 2026-09-30 修正]** ⑩`isSupported` 探针三重 bug（pp 装机实锤「透镜
+  没出现、跟 TG 不一样」）：①幽灵选择器 `setRestingBackgroundColor:`（TG 全源码
+  无此调用，凭空写进探针）；②把 TG 自带 `method(for:)` 守卫的可选项
+  （setLiftedContentMode:/setStyle:/setWarpsContentBelow:/setLifted:animated:…）
+  当硬要求；③`alloc` 用 class_respondsToSelector 判（查实例方法，类方法恒 false）
+  ——三者叠加 = 探针恒失败、透镜岛永不渲染、整栏永远静默回退旧胶囊（表象 = "什么
+  也没搬"）。修复 = 探针只保留 4 个「无守卫直调」选择器（TGLensHost.swift 行内注释
+  列明纪律与出处行号）。
 
 ## 3. ⚠️ 私有 API 清单（与 TG 同款用法）
 
@@ -82,10 +90,15 @@ GPLv3 开源工程，按「v2 or later」条款并入，许可证兼容路径成
 - `highFrameRateReason` KVC（1048619）
 
 风险与 TG App Store 版同款：iOS 大版本可能改私有实现。**回退设计**：透镜岛
-`TGLensBar.isSupported` = 私有类存在 **且** TG 运行路径用到的全部选择器探针通过
-（类级 2 个 + 实例级 8 个；任一缺失即整栏回退 ModeTabBar.legacyItemsCapsule，
-杜绝 unrecognized-selector 崩溃）。残余风险（与 TG 同款、探针无法覆盖）：类与
-选择器都在但**行为**被改（如 setLifted 语义变化）——只能靠装机回归发现。
+`TGLensBar.isSupported` = 私有类存在 **且** 4 个「TG 原件无守卫直调」的选择器
+探针通过（initWithRestingBackground: / setLiftedContainerView: /
+setLiftedContentView: / setOverridePunchoutView:；任一缺失即整栏回退
+ModeTabBar.legacyItemsCapsule，杜绝 unrecognized-selector 崩溃）。⚠️ 探针清单
+纪律（2026-09-30 装机判例，见 §2 ⑩）：只收无守卫直调的选择器——幽灵选择器、
+TG 自身 method(for:) 守卫的可选项（setLiftedContentMode:/setStyle:/
+setWarpsContentBelow:/setLifted:animated:…）、类方法（alloc 不能用实例侧 API 判），
+放进探针即"永远回退、看起来什么也没搬"。残余风险（与 TG 同款、探针无法覆盖）：
+类与选择器都在但**行为**被改（如 setLifted 语义变化）——只能靠装机回归发现。
 
 ## 4. 验收项（装机）
 

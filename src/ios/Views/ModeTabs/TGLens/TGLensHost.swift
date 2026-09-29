@@ -22,18 +22,23 @@ import UIKit
 /// 透镜岛：26+ 且私有类可选器形态完备时渲染 TG 移植透镜栏。
 struct TGLensBar: UIViewRepresentable {
     /// 私有类可用性（调用方据此决定走岛还是回退玻璃版）。
-    /// 对抗复审 2026-09-30 低项：只探类存在不够——关键方法一旦缺失，
-    /// `perform(NSSelectorFromString(…))` 是 unrecognized-selector 崩溃而非降级。
-    /// 这里把 TG 运行路径**用到的全部选择器**做成探针，任一缺失即整栏回退。
+    /// ⚠️ 探针清单只允许收「TG 原件里**无守卫直调**的选择器」（缺失即 unrecognized
+    /// selector 崩溃，故必须探）；2026-09-30 装机实锤「永远回退、看起来什么也没搬」
+    /// 的三重探针 bug，勿重蹈：
+    ///   ① 幽灵选择器 `setRestingBackgroundColor:`——TG 全源码无此调用，凭空写进探针；
+    ///   ② 把 TG 自身用 `method(for:)` 守卫的可选项当硬要求（setLiftedContentMode:
+    ///      LiquidLensView.swift:231 / setStyle: :240 / setWarpsContentBelow: :249 /
+    ///      setLifted:animated:alongsideAnimations:completion: :332——缺失只是少效果，
+    ///      TG 原样容忍）；
+    ///   ③ `alloc` 用 class_respondsToSelector 判（查实例方法，类方法恒 false）——
+    ///      类方法不进探针（alloc 万类皆有）。
+    /// 硬性集 = initWithRestingBackground:（:201）/ setLiftedContainerView:（:223,225,298）/
+    /// setLiftedContentView:（:227）/ setOverridePunchoutView:（:228）。
     static var isSupported: Bool {
         guard let cls = NSClassFromString("_UILiquidLensView") else { return false }
-        for name in ["alloc", "initWithRestingBackground:"] where !class_respondsToSelector(cls, NSSelectorFromString(name)) {
-            return false
-        }
         for name in [
-            "setLiftedContainerView:", "setLiftedContentView:", "setOverridePunchoutView:",
-            "setLiftedContentMode:", "setStyle:", "setWarpsContentBelow:",
-            "setLifted:animated:alongsideAnimations:completion:", "setRestingBackgroundColor:",
+            "initWithRestingBackground:", "setLiftedContainerView:",
+            "setLiftedContentView:", "setOverridePunchoutView:",
         ] where class_getInstanceMethod(cls, NSSelectorFromString(name)) == nil {
             return false
         }
