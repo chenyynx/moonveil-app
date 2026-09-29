@@ -3758,9 +3758,9 @@ struct ContentView: View {
             QuickActionWorkflow.shared.markHome()
             return
         }
-        var tx = Transaction()
-        tx.disablesAnimations = true
-        withTransaction(tx) {
+        // [NAV-TXN-FIX 2026-09-30] 同 pushChat：不用裸 Transaction() 包 path
+        // 写（见 pushChat 注释），改 withAnimation(nil)。
+        withAnimation(nil) {
             if isWideLayout {
                 selectedSessionId = nil
             } else {
@@ -3824,13 +3824,21 @@ struct ContentView: View {
         }
         draftLog.info("🔑DRAFT pushChat route=\(route.logTag)")
         currentStackSessionId = route.sessionId
-        let shouldAnimate = navigationPath.isEmpty
-        var tx = Transaction()
-        tx.disablesAnimations = !shouldAnimate
-        withTransaction(tx) {
+        // [NAV-TXN-FIX 2026-09-30] 不用裸 Transaction() 包 path 写：Build 417
+        // 真机实锤程序化写 path 后划回写回永久死亡，而声明式 NavigationLink
+        // 的 push/pop 写回全正常。裸 Transaction 缺少 SwiftUI 内部导航
+        // transaction 的载荷，桥的划回账本建不起来。根→单页用裸写（继承按
+        // 钮自带的动画 transaction）；栈顶替换用 withAnimation(nil)（正经
+        // transaction，仅动画为 nil）。另：syncFixedBarFlags() 移出——
+        // localAtRoot/localSelecting 是死 flag（无视图读取），不在 push
+        // 转场同帧逼 TabView 重求值。
+        if navigationPath.isEmpty {
             navigationPath = [route]
+        } else {
+            withAnimation(nil) {
+                navigationPath = [route]
+            }
         }
-        syncFixedBarFlags()
     }
 
     /// 落地后台挂起的程序化 push 意图（见 pushChat 注释）。时机与
