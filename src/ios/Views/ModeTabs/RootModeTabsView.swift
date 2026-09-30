@@ -53,6 +53,13 @@ struct RootModeTabsView: View {
     /// 走本表。图标资产与栅格化缓存随 Tab 构建器迁入 ModeTabBar.swift。
     @State private var mountedModes: Set<AppSourceMode> = [.local, RootTabRouter.shared.mode]
 
+    /// [容器化 C2 2026-09-30] 外层容器栈（TG 根栈等价物，设计见
+    /// docs/specs/tabbar-container-redesign.md）：C3 起 path 承接全部深页 push
+    /// （聊天/设备详情）——push 整页盖住容器（含栏）、pop 原位揭示（TG 真形）。
+    /// C2 阶段 path 恒空、深页仍走各树内层栈——本层只验证「嵌套结构不劣化」：
+    /// 无双层导航栏 / toolbar 不裁剪 / 键盘与探针值不变（验收点见 spec §2 末尾）。
+    @State private var containerPath: [ChatRoute] = []
+
     /// [切页转场 v2 2026-09-30] 宽屏（iPad / 横屏 Max）档 TG 不播切页动画
     /// （TabBarController.swift:283-285 widthClass == .regular → animated = false），
     /// 此处同守（溶解淡入不播；缩放侧由 TreeSwitchZoom 内部同款守卫）。
@@ -74,10 +81,16 @@ struct RootModeTabsView: View {
         // 反馈修正为 TG 转场（TabBarController.swift:279-330 数字化）：新页
         // 0.1s 淡入 + 从 (高−3)/高 弹簧放到 1（0.15s、延迟 0.1s）；旧页同缩并在
         // 溶解窗口内留于下层（见 tabTree 注释）。
-        ZStack {
-            tabTree(.local)
-            tabTree(.remote)
-            tabTree(.works)
+        // [容器化 C2 2026-09-30] 外层容器栈包住三树（TG 根栈等价物；C3 起深页
+        // 从这里 push、天然盖住含栏的容器）。root 隐藏自身导航栏（D11）——
+        // 导航栏归各树内层栈；C2 阶段 path 恒空，视觉与现状零差别。
+        NavigationStack(path: $containerPath) {
+            ZStack {
+                tabTree(.local)
+                tabTree(.remote)
+                tabTree(.works)
+            }
+            .toolbar(.hidden, for: .navigationBar)
         }
         .onChange(of: router.mode) { old, new in
             mountedModes.insert(new)   // [TG-TABBAR] 保活表记账（访问过不卸载）
