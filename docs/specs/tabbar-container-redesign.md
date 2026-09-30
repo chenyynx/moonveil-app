@@ -242,6 +242,20 @@ owner 或随树切换清理）。
 仍触发（destDISAPPEAR 后 vm 挂起日志）；⑤ push 滑入动画在（Button 事务）；
 ⑥ 搜索/宽屏/登录盖/设置不受影响。
 
+### 9.6 首装机判例（2026-09-30 包 B 第一版 · 顶栏环境传播）
+
+**实锤**：容器 root 的 `.toolbar(.hidden, for: .navigationBar)` **写进 SwiftUI
+环境**、顺视图树把**三棵内层栈的导航栏一并隐藏**（装机症状：顶部所有按钮消失、
+只剩底栏）——作用域超出审查预判的「同栈 destination 泄漏」（R3-F2/R5-P1 方向）。
+**修复（C3.1）**：内层四处就近显式 `.toolbar(.visible, for: .navigationBar)`
+对冲（ContentView stack/split + RemoteRootView + WorksListView；就近覆盖语义）。
+🔴 **判例**：嵌套栈的 toolbar 可见性偏好按**环境**传播、作用域 ≥ 整棵子树——
+此后**新增任何内层栈/子树**（C4 works/remote 改造、未来页面）**必须显式钉
+visible**，禁止依赖「外层 hidden 只作用于外层」的假设。
+**同包遗留（待崩溃日志定性）**：① 新会话闪退（行点击开会话正常——机制通、
+命中链修复生效；疑点=嵌套栈×draft 专属链）；② 切页残影/套层（疑点=溶解窗口
+在嵌套结构下的渲染）。
+
 ## 10. C4 施工单（草案 · 待 C3 装机验证通过后启动）
 
 > 目标：remote 线深页上收容器栈（D9）+ 栏单实例化（D2/D3/D10 落地）+

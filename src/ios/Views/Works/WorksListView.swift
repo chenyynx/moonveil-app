@@ -99,6 +99,9 @@ struct WorksListView: View {
             // [MUSE-GLASS-BG 2026-09-27] 跟本机页同理：导航栏底用简单半透明
             // tint 替代系统 blur，胶囊玻璃可折射内容，深浅色自适应。
             .toolbarBackground(Color(UIColor.systemBackground).opacity(0.45), for: .navigationBar)
+            // [容器化 C2-FIX 2026-09-30] 顶栏对冲：容器 root 的
+            // .toolbar(.hidden) 经环境传播会藏掉内层导航栏——就近钉 visible。
+            .toolbar(.visible, for: .navigationBar)
             // [TG-TABBAR 2026-09-30] 底栏 = 自绘 ModeTabBar（本页 root 页
             // safeAreaInset，见上）；系统栏时代的 BottomDock/TAB-RESTORE 沿革
             // 一并退役（系统栏已不存在）。

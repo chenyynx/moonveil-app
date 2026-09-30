@@ -3092,6 +3092,11 @@ struct ContentView: View {
         .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
+        // [容器化 C2-FIX 2026-09-30] 顶栏对冲（装机实锤）：容器 root 的
+        // .toolbar(.hidden, for: .navigationBar) 会经 SwiftUI 环境传播把内层栈
+        // 的导航栏一并藏掉（「顶部所有按钮都没了、只剩底栏」）——此处就近显式
+        // 钉 visible，覆盖环境值（SwiftUI 就近覆盖语义）。
+        .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(.hidden, for: .navigationBar)
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
@@ -3290,6 +3295,11 @@ struct ContentView: View {
         .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { sidebarToolbarContent }
+        // [容器化 C2-FIX 2026-09-30] 顶栏对冲（装机实锤）：容器 root 的
+        // .toolbar(.hidden, for: .navigationBar) 会经 SwiftUI 环境传播把内层栈
+        // 的导航栏一并藏掉（「顶部所有按钮都没了、只剩底栏」）——此处就近显式
+        // 钉 visible，覆盖环境值（SwiftUI 就近覆盖语义）。
+        .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(.hidden, for: .navigationBar)
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }

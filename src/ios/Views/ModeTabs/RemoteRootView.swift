@@ -63,6 +63,9 @@ struct RemoteRootView: View {
                     }
                 }
                 .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
+                // [容器化 C2-FIX 2026-09-30] 顶栏对冲：容器 root 的
+                // .toolbar(.hidden) 经环境传播会藏掉内层导航栏——就近钉 visible。
+                .toolbar(.visible, for: .navigationBar)
         }
         // 子树拆卸兜底：content 按 service.state 分支，.pairing 会把整棵
         // RemoteSessionListView 换成 pairingPending——它的 @State 随葬，详情页 push
