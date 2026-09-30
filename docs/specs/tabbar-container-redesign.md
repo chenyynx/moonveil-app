@@ -300,7 +300,8 @@ legacy 路径无交接；光晕（二值私有态）用 `iconScale > 1.08` 阈�
 ### 9.4 C4 前置必改清单（R1-F3 实锤，勿遗忘）
 C4 把 remote/works 深页搬进容器栈时，"全局栈=本机会话"的隐式契约必须显式处理：
 ① 分享注入 foreground 判定（ContentView ~:2048）；② 出栈清理块（~:1977-2017，
-清 currentStackSessionId/activeSessionId/全表刷新——远端出栈会误触）；③
+清 currentStackSessionId/activeSessionId/全表刷新——远端出栈会误触）✅ 收口包
+8ed7557 已补落（poppedRoute 归因）；③
 `localAtRoot`/searchFocused 守卫（~:1485/:2142）；④ 搜索镜像多写者（D9 时给
 owner 或随树切换清理）。
 **门禁遗留**：`scripts/authaa-skin-allowlist.txt` 的 AppGlassButton.swift 旧 sha
@@ -399,6 +400,30 @@ asyncAfter 0.25s，消费窗 0.2→**0.35s**（🔴 不变量：窗长 ≥ 树�
 > `boundPathChange ← NavigationState.update ← flushRequestQueue ← Update.end`。
 > 机理 = works 挂载后的重转场超出了「0.25s 固定延后」的标定（轻型转场）——修法
 > 不再赌时长，改为把写钉到安全窗关闭之后。
+>
+> 🔴 **[收口包 2026-09-30 晚 · 机理更正 + 五路审计回收]** 上述「重转场超时」机理被
+> pp 慢速对照**否证**：切页后静置 5s 再点＋**同样必崩**（5s 后 `since<0.5` 守卫必返
+> nil，那次写已是裸写、与「点会话行」逐帧同构——**推迟不是变量**）。判定修正：断言 =
+> **f(容器栈 root 内容结构, 一次 bound path 写)** 的状态函数，不是时间的函数；全仓唯一
+> 「只写一次、永不复位、且专门控制容器栈 root 子树结构」的开关 =
+> `RootModeTabsView.mountedModes`（`:345` 的条件根互换），与公开同族判例逐条对应
+> （Capsule#388 / aura#76：嵌套栈叠加进同一 navigation column；davit#17：条件根互换
+> 在请求排队期间撕栈根——帧栈与本仓 .ips 同构）。**手术已删除最强一环**（三树嵌套栈
+> 是 439 的核心结构前提）；**收口包（8ed7557）**保险牌再把 ＋ 热路径的跨树推页整个
+> 绕开（归位先行 + 兜底网拆帧 + 1.0s 自愈腿），并把窄口径收页 0.35→0.6（0.35 小于
+> 「转场全长」不变量，且一次性窗令牌已被 push 消费 → 原值退化为无兜底裸写）。
+> ✅ **装机裁定（823a841 独立装机，2026-09-30 夜）**：**崩溃消失（works→本机→＋
+> 不崩）+ 三树顶栏全归位，双 P0 同时验证通过**——手术即根治，「嵌套栈叠加进同一
+> navigation column」读法成立；条件根互换（mountedModes）残面无需根除（T3/T4 类
+> 未再触发，留观察）。**保险牌（8ed7557「归位先行」）据此撤销**（v2 恢复 L3
+> push-first 形状）；823a841 另暴露两处并在 v2 修复：本机列表行点失效（背景 Button
+> → 回退 value-Link；R3「装机第一验收项」预判命中）、切页观感（交叉淡化 + 溶解
+> 垫底 + 缩放延迟 → 瞬切）。
+> 240887a 的动态落点保留为残余「切树后随即 push」站点兜底。
+>
+> **§9.4-② 同批补落**：出栈清理链已按 `poppedRoute`（onChange 两参本地推导）归因——
+> 远端树出栈不再误清 `activeSessionId` / 误推 markHome / 空跑全表刷新；顶栏审计另收口
+> 4 处树根 displayMode 漏网（`TreeTitleDisplayMode`，结构性 no-write）。
 
 ### 9.8 去嵌套手术定案（2026-09-30 晚 · 全 App 单栈化）
 
