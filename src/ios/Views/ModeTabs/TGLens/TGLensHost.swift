@@ -31,6 +31,28 @@
 // 设置（onSettings）、透镜永不驻留/提交该格（拖过钳回 works）；
 // 透镜宽 = 槽宽+8、高 = 栏高；
 // 按下的选中副本放大 1.15（:835），弹簧 0.4（:540/:599）。
+//
+// [拉伸 v4 2026-10-01 · pp「tab切换流体没有被拉伸的感觉」] 拉伸机制解码（TG 真值，
+// 逐条已核对上游源码，勿再猜）：
+//   · TG 底栏**没有**任何主动拉伸代码。TouchEffect.swift 的 stretchVector 系统
+//     在 TG 里只服务「可按压玻璃控件」，且**在底栏根本不挂**——GlassBackgroundView
+//     的那枚 GlassHighlightGestureRecognizer 只在 legacy（<26）分支构造
+//     （GlassBackgroundComponent.swift:552-556），iOS 26 走 nativeView 分支时
+//     legacyView/legacyHighlightContainerView 皆 nil，识别器压根不存在。
+//   · TG 底栏的「液态拉伸」= 私有 _UILiquidLensView 的渲染器随几何弹簧自形变：
+//     TabBarComponent:868-887 逐帧算 lensSelection → LiquidLensView:409-457 逐帧
+//     setPosition/bounds（iOS 26 上 `.spring(0.4)` 落到 bezier(0.38,0.7,0.125,1)，
+//     CAAnimationUtils.swift:210-227）+ :450 那条无 key 的 additive 前缘钉位 +
+//     抬升时 liftedInset 4↔−4 的尺寸变化（LiquidLensView:353/:410）。
+//   · 观感为何退化：私有形变不可观测，且本仓同一份代码照搬时，弹簧在途被
+//     双岛 + 杀链反复打断，形变随之归零 → 只剩刚体平移。
+// 本文件的 v4 对策：①渲染侧单岛收口（同槽位后来者接管、先到者退场静止）；
+//   ②LiquidLensView 侧撤掉看门狗与 removeAllAnimations（在途弹簧活着飞完，
+//     见 LiquidLensView 适配 ⑧）；③透镜拉伸显式化——移动距离 × 0.28 增益、
+//     以槽宽封顶（量级取 TouchEffect.swift:229-231 的 additionalMaxScale），
+//     锚在飞行方向的前缘，衰减曲线与位置动画同款 → 拉伸量随剩余距离同步衰减。
+//   ④TG 的 stretchVector 系统接线：按下/拖动时给「透镜下的选中副本」挂一枚
+//     TouchEffect，按指尖位移喂 setStretchVector（TG 原件零改写）。
 
 import SwiftUI
 import UIKit
@@ -81,15 +103,23 @@ struct TGLensBar: UIViewRepresentable {
         view.onCommit = onCommit
         view.onSettings = onSettings
         view.ownSlot = ownSlot
-        // [探针 2026-10-01] 渲染路径判定：岛已创建（「硬落点」定位；判读后可删）。
+        // [单岛收口 v4] 同槽位的旧岛（若还活着）立即退场——见 slotOwners 注释。
+        view.claimSlotOwner()
+        // [探针 v4 2026-10-01] 渲染路径判定：岛已创建 + 是否顶替了旧岛（「双岛」
+        // 定位；v4 目标 = island-created 反复出现时紧跟一条 retire）。
         NavTrace.log("[LENS#\(view.instanceId)] island-created ownSlot=\(ownSlot)")
         return view
     }
 
     func updateUIView(_ view: TGLensBarView, context: Context) {
+        let previousSlot = view.ownSlot
         view.onCommit = onCommit
         view.onSettings = onSettings
         view.ownSlot = ownSlot
+        // 槽位变了 = 换了归属的树，重新认领（否则会占着旧槽位的活岛身份）。
+        if previousSlot != ownSlot {
+            view.claimSlotOwner()
+        }
         view.apply(selectedIndex: selectedIndex, isDark: isDark)
     }
 }
@@ -150,6 +180,12 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     private let lens = LiquidLensView(kind: .externalContainer)
     private var normalIcons: [UIImageView] = []
     private var selectedIcons: [UIImageView] = []
+    /// [拉伸 v4] 选中副本的承载容器（TG TouchEffect 的作用对象——TG 那枚
+    /// TouchEffect 作用在「被按压的玻璃控件」上，用 `layer.sublayerTransform`
+    /// 做方向性拉缩：TouchEffect.swift:192-251）。本仓被按压的玻璃控件 = 透镜下
+    /// 那一枚选中副本，故给它加一层容器承载，图标自身的 transform（:835 的
+    /// 1.15 / 交接续实数）不受影响、两者相乘。
+    private var selectedIconHosts: [UIView] = []
     /// [第 4 格] 设置齿轮双副本（常态层 + 透镜下选中层，与三 tab 同构：透镜
     /// 拖过第 4 格时穿透窗下也有内容可显，不至镂空）。不进按下/提交逻辑。
     private let settingsNormal = UIImageView()
@@ -157,6 +193,43 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
 
     private var selectionIndex: Int = 0
     private var isDark: Bool = false
+
+    // MARK: [单岛收口 v4 2026-10-01] 同槽位活岛注册表
+
+    /// 装机日志实锤「每次切树新建一只岛、实例号递增、与常驻岛并存」
+    /// （`[LENS#n] island-created ownSlot=1` 反复出现）——SwiftUI 在切树时会重建
+    /// safeAreaInset 的内容，UIViewRepresentable 的身份随之重置；**身份根因在挂载
+    /// 侧**（RootModeTabsView 的 tabTree / 各树 safeAreaInset 链，不在本文件域）。
+    /// 本仓在渲染侧做等价收口：**同一槽位同一时刻只有一只活岛**，后来者接管、
+    /// 先到者立即退场（retire = 静止、不接受任何下发、不参与动画、不被杀）。
+    /// 于是「同一动作下发两次」「出场岛还在动/被杀」两类事故从结构上消失。
+    private final class IslandRef {
+        weak var value: TGLensBarView?
+        init(_ value: TGLensBarView) { self.value = value }
+    }
+    private static var slotOwners: [Int: IslandRef] = [:]
+    /// 「上一次提交发生前，提交方岛的选中位」= 这次切页**是从哪儿出发的**。
+    /// 跨树新建目标岛、又恰好拿不到交接时，这就是唯一正确的兜底起点（旧实现用
+    /// 新岛自己的 previousSelectionIndex——跨树新建时它恒为默认 0，是假起点）。
+    /// 在 .ended 里「改写 selectionIndex 之前」取快照，见 handleSelectionGesture。
+    private static var selectionBeforeLastCommit: Int = 0
+    /// 陈旧交接的宽限窗（新鲜窗 0.5s 之外再给一段，只为「刚过窗就整段弹回」）。
+    private static let staleHandoffGrace: CFTimeInterval = 3.0
+
+    /// 拉伸增益与衰减时长（见文件头 [拉伸 v4]）：移动距离 × 0.28 得额外宽度，
+    /// 以槽宽封顶；衰减 0.4s 与位置动画同曲线同长度（LiquidLensView 适配 ⑦）。
+    private static let stretchGain: CGFloat = 0.28
+    private static let stretchReleaseDuration: Double = 0.4
+
+    /// 本岛是否已退场（被同槽位的新岛接管）。退场后所有下发入口空转。
+    private var isRetired = false
+    /// 上一次推动的目标 x（拉伸方向/距离的基准；nil = 还没推过）。
+    private var lastStretchX: CGFloat?
+    /// 拉伸锚在前缘还是后缘（= 上一次移动方向；向右为 true）。
+    private var lastStretchLeading: Bool = true
+    /// [拉伸 v4] 岛内手势期的 TouchEffect（TG 原件，按下时建、松手时丢）。
+    private var touchEffect: TouchEffect?
+    private var interactionStartFingerY: CGFloat = 0
 
     // 岛内交互态（TG selectionGestureState 的等价物）
     private var interactionPressed: Int?
@@ -180,11 +253,14 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     private var pendingReplay: PendingReplay?
 
     /// [硬落点修复 v3 2026-10-01] 推去重键（目标位/抬升态/岛尺寸；见 pushLens）。
+    /// [静止零重推 · 补漏 2026-10-01] 增 deep：`isDark` 是 LiquidLensView.Params 的
+    /// 一等字段，不带它会把「切深浅色」误判成静默重复推（透镜停在旧材质）。
     private struct PushKey: Equatable {
         var x: CGFloat
         var lifted: Bool
         var width: CGFloat
         var height: CGFloat
+        var dark: Bool
     }
     private var lastPushKey: PushKey?
 
@@ -223,8 +299,13 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             selected.tintColor = .label
             selected.contentMode = .center
             selected.isUserInteractionEnabled = false
-            lens.selectedContentView.addSubview(selected)
+            // [拉伸 v4] 承载容器（TouchEffect 的作用对象，见 selectedIconHosts 注释）。
+            let host = UIView()
+            host.isUserInteractionEnabled = false
+            host.addSubview(selected)
+            lens.selectedContentView.addSubview(host)
             selectedIcons.append(selected)
+            selectedIconHosts.append(host)
         }
 
         // [第 4 格] 设置齿轮双副本（常态/透镜下；着色同未选中件）。
@@ -256,6 +337,59 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         fatalError("init(coder:) has not been implemented")
     }
 
+    deinit {
+        if Self.slotOwners[ownSlot]?.value === self {
+            Self.slotOwners[ownSlot] = nil
+        }
+    }
+
+    // MARK: - [单岛收口 v4] 接管 / 退场
+
+    private static func adoptSlotOwner(_ island: TGLensBarView) {
+        let slot = island.ownSlot
+        if let current = Self.slotOwners[slot]?.value, current !== island {
+            current.retire(replacedBy: island)
+        }
+        Self.slotOwners[slot] = IslandRef(island)
+    }
+
+    /// [单岛收口 v4] 认领本槽位的活岛身份。**幂等**：重复调用只是把同一个引用
+    /// 重新写回（不会误伤自己）。调用点 = 宿主在 makeUIView/updateUIView 写完
+    /// ownSlot 之后——ownSlot 由宿主注入，init 里还是默认值 0，故不能在 init 认领。
+    fileprivate func claimSlotOwner() {
+        if isRetired, Self.slotOwners[ownSlot]?.value === self {
+            return
+        }
+        Self.adoptSlotOwner(self)
+        isRetired = false
+    }
+
+    /// 退场（被同槽位的新岛接管 / SwiftUI 摘下本岛）：清空一切在途与待办，
+    /// 之后本岛的所有下发入口空转。**不清任何在途动画**——让弹簧自己飞完，
+    /// 落点即静止，正是「出场岛静止、不参与动画、不被杀」的字面实现。
+    fileprivate func retire(replacedBy next: TGLensBarView? = nil) {
+        guard !isRetired else { return }
+        isRetired = true
+        pendingReplay = nil
+        interactionPressed = nil
+        interactionLensX = nil
+        gearPressActive = false
+        touchEffect?.setIsTracking(false, animated: false)
+        touchEffect = nil
+        let nextId = next?.instanceId ?? -1
+        NavTrace.log("[LENS#\(instanceId)] retire ownSlot=\(ownSlot) → #\(nextId)")
+    }
+
+    /// 复活判定：只有当本槽位**当前无主**（持有者已被释放）时才重新夺回；
+    /// 否则保持退场（这样「同一动作两次下发」不可能再发生）。
+    private func ensureActive() {
+        guard isRetired else { return }
+        guard Self.slotOwners[ownSlot]?.value == nil else { return }
+        isRetired = false
+        Self.slotOwners[ownSlot] = IslandRef(self)
+        NavTrace.log("[LENS#\(instanceId)] re-adopt ownSlot=\(ownSlot)")
+    }
+
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
         return true
     }
@@ -277,6 +411,10 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             )
             normalIcons[i].frame = frame
             selectedIcons[i].frame = frame
+            // [拉伸 v4] TouchEffect 作用在承载容器上：容器与图标同框（容器尺寸即
+            // TouchEffect 的参考尺寸——它的拉伸公式吃 view.bounds，见 TouchEffect
+            // :192-231）。
+            selectedIconHosts[i].frame = frame
         }
         // [第 4 格] 设置齿轮：同栅格落位（槽位 3 中心）。
         let settingsCenterX = TGLensBar.innerInset + slotWidth * 3.5
@@ -288,6 +426,9 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         )
         settingsNormal.frame = settingsFrame
         settingsSelected.frame = settingsFrame
+        // [单岛收口 v4] 退场岛不再参与任何下发（出场树的岛在 ZStack 里仍活着，
+        // 若继续推就是在隐藏树上跑弹簧）。
+        guard !isRetired else { return }
         // [硬落点修复 v3 2026-10-01] 复播在途 → 由本次布局驱动收口（bounds 现已
         // 就绪）；否则维持即时推（pushLens 内部同参去重，重复推不再杀在途弹簧）。
         if pendingReplay != nil {
@@ -303,7 +444,7 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     /// 就绪则原样保留，等 layoutSubviews（或下一次 apply 复播）再驱。幂等：任一
     /// 调度源先到者执行、后到者 guard 空转。
     private func runPendingReplay() {
-        guard var replay = pendingReplay else { return }
+        guard !isRetired, var replay = pendingReplay else { return }
         let width = bounds.width
         let height = bounds.height
         guard width > 0, height > 0 else { return }
@@ -335,6 +476,9 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     /// SwiftUI 侧状态下发（选中项 / 深色模式）；不做提前返回短路——pushLens 内部
     /// 的 Equatable 参数判重（LiquidLensView.update）已避免重复动画。
     func apply(selectedIndex: Int, isDark: Bool) {
+        // [单岛收口 v4] 退场岛不接受任何下发；槽位无主时先复活再走正常路径。
+        ensureActive()
+        guard !isRetired else { return }
         let indexChanged = selectionIndex != selectedIndex
         let changed = indexChanged || self.isDark != isDark
         // [硬落点修复 2026-10-01] 兜底起点所需的旧选中位（更新前取）。
@@ -344,6 +488,18 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         if changed {
             if overrideUserInterfaceStyle != (isDark ? .dark : .light) {
                 overrideUserInterfaceStyle = isDark ? .dark : .light
+            }
+            // [单岛收口 v4 · 离场树闸] 保活 ZStack 里三棵树的岛都活着，但只有
+            // 「刚被切进来的那一棵」（ownSlot == 新选中位）该驱动透镜——离场树继续
+            // 按 apply 推 = 在 opacity 0 的树上跑一整条弹簧（装机日志「同一动作
+            // 下发两次」的另一半来源，也是隐藏树动画互相打断的源头）。
+            // 本闸只关**位移/复播**，深色等外观更新照旧（pushLens 在闸外，见下）。
+            if indexChanged, ownSlot != selectedIndex {
+                NavTrace.log("[LENS#\(instanceId)] idle-gate own=\(ownSlot) target=\(selectedIndex)")
+                // 无动画地把模型位对齐（保模型状态自洽，也让深浅色之类的外观字段
+                // 落到透镜上），**不起任何弹簧**——隐藏树上不该有动画在跑。
+                pushLens(pressed: nil, lensX: nil, animated: false)
+                return
             }
             // [硬落点修复 2026-10-01] 目标岛进场的起点/光晕槽/图标交接值（消费或
             // 兜底路径写入，下方统一落位 + 推迟起簧）。
@@ -384,11 +540,27 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                 if handoff.iconScale > 1.08 { glowSlot = handoff.slot }
                 iconOverride = (handoff.slot, handoff.iconScale)
             } else if indexChanged, ownSlot == selectedIndex {
-                // [硬落点修复 2026-10-01] 无交接兜底：从本岛上一选中位整段滑入
-                // （保证任何情况下都有整段可见滑动，不再出现「已在终点」的硬落点）。
-                let fallbackX = CGFloat(previousSelectionIndex) * slotWidth()
+                // [单岛收口 v4 · 兜底确定性] 无新鲜交接时的**三级固定兜底**（顺序
+                // 不变、日志打出命中哪一级，杜绝「有时从 0 弹、有时从上一槽弹」）：
+                //   ① 指向本槽位的陈旧交接（≤3s）——刚过 0.5s 新鲜窗时用它，别整段弹回；
+                //   ② 提交方岛「提交前」的选中位（进程级快照 selectionBeforeLastCommit）
+                //      ——跨树**新建**岛时本岛 previousSelectionIndex 恒为默认 0，
+                //      那是假起点（装机「滑动从第一个 tab 开始」即源于此）；
+                //   ③ 本岛自己的上一选中位。
+                var fallbackSource = "prev-index(\(previousSelectionIndex))"
+                var fallbackX = CGFloat(previousSelectionIndex) * slotWidth()
+                if let handoff = Self.commitHandoff,
+                   handoff.slot == selectedIndex,
+                   handoff.fromSlot != ownSlot,
+                   CACurrentMediaTime() - handoff.at <= Self.staleHandoffGrace {
+                    fallbackX = handoff.x
+                    fallbackSource = "stale-handoff"
+                } else if Self.selectionBeforeLastCommit != selectedIndex {
+                    fallbackX = CGFloat(Self.selectionBeforeLastCommit) * slotWidth()
+                    fallbackSource = "prev-commit(\(Self.selectionBeforeLastCommit))"
+                }
                 startX = fallbackX
-                // [探针 2026-10-01] 兜底路径打点（判读后可删；显式分支拆链，规避
+                // [探针 v4 2026-10-01] 兜底路径打点（判读后可删；显式分支拆链，规避
                 // Swift 6.0.3 求解器病理）。
                 let probeH: String
                 if let h = Self.commitHandoff {
@@ -398,7 +570,7 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                     probeH = "nil"
                 }
                 let probeFX = String(format: "%.1f", fallbackX)
-                NavTrace.log("[LENS#\(instanceId)] NO-CONSUME own=\(ownSlot) h=\(probeH) pressed=\(interactionPressed != nil) gear=\(gearPressActive) fallbackX=\(probeFX)")
+                NavTrace.log("[LENS#\(instanceId)] NO-CONSUME own=\(ownSlot) h=\(probeH) pressed=\(interactionPressed != nil) gear=\(gearPressActive) via=\(fallbackSource) fallbackX=\(probeFX)")
             }
             if let startX {
                 // [硬落点修复 v3 2026-10-01] 复播收口：登记起点/光晕/图标交接值 →
@@ -423,6 +595,8 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
 
     @objc private func handleSelectionGesture(_ recognizer: UILongPressGestureRecognizer) {
         let location = recognizer.location(in: self)
+        // [单岛收口 v4] 退场岛的手势整段空转（出场树不该还能点得动透镜）。
+        guard !isRetired else { return }
         switch recognizer.state {
         case .began:
             // [第 4 格·设置齿轮] 动作位不进透镜手势：按下态给齿轮，松手开设置
@@ -436,8 +610,24 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             let slot = slotIndex(forX: location.x)
             interactionPressed = slot
             interactionStartFingerX = location.x
+            interactionStartFingerY = location.y
             interactionStartLensX = CGFloat(slot) * slotWidth()
             interactionLensX = interactionStartLensX
+            // [拉伸 v4] 接线 TG 的 stretchVector 系统（TG 原件零改写）：作用对象 =
+            // 透镜下被按压的那枚选中副本的承载容器。TG 侧这枚识别器只挂在 legacy
+            // 玻璃控件上、iOS 26 的底栏压根不构造它（GlassBackgroundComponent
+            // .swift:552-556），本仓把它接到语义最贴近的位置——「手指按着的那块玻璃
+            // 里的东西」，其 :192-251 的方向性拉缩（按 stretchVector 的方向与长度
+            // 决定压扁/拉长比与位移）即拖拽时的图标拖尾。
+            // pressedSizeIncrease 取 0：按压放大已由 TG :835 的 1.15 提供，
+            // 两处都开会叠成 ~1.5 倍（TG 那 20.0 是给 56pt 高的 tab 项调的）。
+            if selectedIconHosts.indices.contains(slot) {
+                let effect = TouchEffect(view: selectedIconHosts[slot], highlightContainerView: nil)
+                effect.parameters.pressedSizeIncrease = 0.0
+                effect.setStretchVector(.zero, animated: false)
+                effect.setIsTracking(true, animated: false)
+                touchEffect = effect
+            }
             pushLens(pressed: slot, lensX: interactionStartLensX, animated: true)
             // [探针 2026-10-01] 按压打点（判读后可删）。
             NavTrace.log("[LENS#\(instanceId)] press slot=\(slot) x0=\(String(format: "%.1f", interactionStartLensX))")
@@ -456,12 +646,30 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             let slot = slotIndex(forX: location.x)
             if slot != interactionPressed {
                 interactionPressed = slot
+                // 拖过槽位 = 换了被按的图标，TouchEffect 跟着换宿主（TG 语义：拉缩
+                // 始终作用于「当前被按住的那块玻璃」）。
+                if let effect = touchEffect, selectedIconHosts.indices.contains(slot) {
+                    effect.setIsTracking(false, animated: false)
+                    let next = TouchEffect(view: selectedIconHosts[slot], highlightContainerView: nil)
+                    next.parameters.pressedSizeIncrease = 0.0
+                    next.setStretchVector(.zero, animated: false)
+                    next.setIsTracking(true, animated: false)
+                    touchEffect = next
+                }
             }
+            // [拉伸 v4] 喂 TG 的拉伸向量：指尖相对按下点的位移（未归一化，TG 公式
+            // 自己在 TouchEffect:217-231 里按视口尺寸归一）。
+            touchEffect?.setStretchVector(
+                CGPoint(x: location.x - interactionStartFingerX, y: location.y - interactionStartFingerY),
+                animated: false
+            )
             pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: false)
         case .ended:
             if gearPressActive {
                 gearPressActive = false
                 setSettingsPressed(false)
+                touchEffect?.setIsTracking(false, animated: true)
+                touchEffect = nil
                 if rawSlotIndex(forX: location.x) >= Self.iconAssets.count {
                     onSettings?()
                 }
@@ -482,6 +690,14 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             NavTrace.log("[LENS#\(instanceId)] release slot=\(commitSlot) hx=\(probeHX) iScale=\(String(format: "%.3f", handoffIconScale))")
             interactionPressed = nil
             interactionLensX = nil
+            // [拉伸 v4] 松手 = 抬落弹簧（TG TouchEffect 的 liftOff 弹簧，:125-130 /
+            // :253-262 / :306-318）——图标方向性形变自然回弹。
+            touchEffect?.setIsTracking(false, animated: true)
+            touchEffect = nil
+            // [单岛收口 v4 · 确定性兜底] 快照「出发选中位」——必须在本行改写
+            // selectionIndex 之前取，否则记下的是提交槽（= 目标位），兜底时又变成
+            // 「已在终点」的硬落点。
+            Self.selectionBeforeLastCommit = selectionIndex
             // [TG 对齐 :555-604] TG 先清 selectionGestureState、再以提交 item 为目标
             // 做一次 spring——没有「先弹回旧选中」。同步预置 selectionIndex 使本推
             // 直达提交槽；紧随的 apply(selectedIndex:) 因同值短路，不再二次推
@@ -505,6 +721,10 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             }
             interactionPressed = nil
             interactionLensX = nil
+            // [拉伸 v4] 同 .ended：中断也走一次抬落弹簧（与 TG 的 touchesCancelled
+            // 同款，TouchEffect.swift:76-81）。
+            touchEffect?.setIsTracking(false, animated: true)
+            touchEffect = nil
             pushLens(pressed: nil, lensX: nil, animated: true)
         default:
             break
@@ -570,11 +790,13 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         return (bounds.width - TGLensBar.innerInset * 2) / CGFloat(Self.slotCount)
     }
 
-    /// 透镜几何 + 按压放大（对照 TG TabBarComponent:868-887 / :835）。
+    /// 透镜几何 + 按压放大 + [拉伸 v4] 飞行中的横向拉伸（对照 TG TabBarComponent:868-887 / :835）。
     private func pushLens(pressed: Int?, lensX: CGFloat?, animated: Bool) {
         let width = bounds.width
         let height = bounds.height
         guard width > 0, height > 0 else { return }
+        // [单岛收口 v4] 退场岛不推（出场树的岛仍活着的话就是隐藏树上的空跑）。
+        guard !isRetired else { return }
         let slotWidth = self.slotWidth()
         let lensWidth = slotWidth + TGLensBar.innerInset * 2
 
@@ -588,13 +810,15 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         }
 
         // [硬落点修复 v3 2026-10-01] 推去重（治「tab 硬落点」病根）：与上次完全同参
-        // （目标位/抬升态/岛尺寸全同）的推不再下发——这类「目标未变」的静默重复推
+        // （目标位/抬升态/岛尺寸/深色全同）的推不再下发——这类「目标未变」的静默重复推
         // （layoutSubviews 每轮即推、apply 旁路推、复播后紧随的同参推）会走
-        // LiquidLensView 非抬升分支的 removeAllAnimations，把刚起播的滑动弹簧当场
-        // 杀停（上一轮日志实锤：62 条 move 动画全建了、46 次松手读数全为终值 = 动画
-        // 建后被重复推杀掉）。去重后杀链从源头消失；尺寸变化（旋转等）会使 key
-        // 变化 → 照常重算落位。
-        let pushKey = PushKey(x: x, lifted: pressed != nil, width: width, height: height)
+        // LiquidLensView 非抬升分支的清键支路，把刚起播的滑动弹簧打断（上一轮日志
+        // 实锤：62 条 move 动画全建了、46 次松手读数全为终值 = 动画建后被重复推杀掉）。
+        // 去重后静默重复推从源头消失；尺寸变化（旋转等）会使 key 变化 → 照常重算落位。
+        // [静止零重推 · 补漏 2026-10-01] key 增列 isDark：原 key 不含深色，切深浅色
+        // 时「目标位/抬升态/尺寸全同」→ 被误判为静默重复推 → 透镜停在旧深浅的
+        // 材质（LiquidLensView.Params.isDark 不再被下发）。这是 G4 的唯一漏网项。
+        let pushKey = PushKey(x: x, lifted: pressed != nil, width: width, height: height, dark: isDark)
         if pushKey == lastPushKey {
             // 判读用：仅「带意图的动画推」被归并才打点（静默重复推归并不打，防噪）。
             if animated {
@@ -620,6 +844,36 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             isCollapsed: false,
             transition: animated ? .spring(duration: 0.4) : .immediate
         )
+
+        // [拉伸 v4 2026-10-01] 飞行中的横向拉伸（TG 观感的显式化，机制取真值见
+        // 文件头 [拉伸 v4]）。形变量 = 本次目标 x 与上次目标 x 的距离 × 0.28，
+        // 以槽宽封顶（跨两格时不再继续拉长 = 液态的饱和感），换算成透镜视图的
+        // 横向 scale；锚在**飞行方向的前缘**（向右飞 → 前缘在左），于是视觉上
+        // 是「被拖着走、后缘被抹开」，而不是整体横向涨一圈。
+        //   · 带动画的推（按下吸附 / 松手落位 / 复播起簧）→ 起一次衰减动画，时长
+        //     曲线与位置动画同款 → 拉伸量随剩余距离同步衰减到 0；
+        //   · 即时推（拖拽跟手帧）→ 直接落形变，指尖到哪形变到哪；
+        //   · 形变量 ≈ 0 的带动画推（典型：.began 吸附后 .ended 又推同一格）→
+        //     **不动**，否则会把 .began 的衰减从半路掐断（观感上的「回弹一抖」）。
+        let previousX = self.lastStretchX
+        if let previousX, abs(x - previousX) > 0.5 {
+            lastStretchLeading = (x - previousX) > 0
+        }
+        let distance = previousX.map { abs($0 - x) } ?? 0
+        let extra = min(distance, slotWidth) * Self.stretchGain
+        let stretchScaleX = 1.0 + extra / max(1.0, lensWidth)
+        lastStretchX = x
+        if animated {
+            if stretchScaleX > 1.02 {
+                lens.animateLensStretchRelease(
+                    fromScaleX: stretchScaleX,
+                    leadingIsAnchor: lastStretchLeading,
+                    duration: Self.stretchReleaseDuration
+                )
+            }
+        } else {
+            lens.setLensStretch(scaleX: stretchScaleX, leadingIsAnchor: lastStretchLeading)
+        }
 
         // 按下的项：选中副本放大 1.15（TG :835，selectionGestureState != nil 期间）。
         // 缩放随帧过渡：began/ended = spring（:540/:604）、changed = immediate（:550）

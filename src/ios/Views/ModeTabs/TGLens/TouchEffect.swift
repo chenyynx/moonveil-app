@@ -4,7 +4,15 @@
 // 适配记录（唯一）：删除 `import Display`（模块边界消失，该文件不使用其符号；
 // bezierPoint 来自同目录 Spring.swift）。
 // 内容：玻璃「拉缩 + 发光」触摸响应的本体——方向上拉伸/压扁变换（随指尖位移）
-// + 径向渐变光晕 + 抬起/落下双弹簧参数。TabBar/圆钮按住的全部手感来源。
+// + 径向渐变光晕 + 抬起/落下双弹簧参数。
+//
+// [接线登记 2026-10-01] 上游（TG）里本件是**死代码**：GlassHighlightGestureRecognizer
+// 只在 GlassBackgroundView 的 legacy（<26）分支构造（GlassBackgroundComponent.swift
+// :552-556），iOS 26 走 nativeView 分支时 legacyView/legacyHighlightContainerView
+// 皆 nil，识别器压根不存在——底栏「液态拉伸」与本件无关（真值见 TGLensHost 文件头
+// [拉伸 v4] 与 LiquidLensView 适配 ⑦）。
+// 本仓接线点 = 透镜岛里被手指按住的那枚选中副本（TGLensHost.selectedIconHosts，
+// .began 建 / .changed 喂 setStretchVector / .ended 抬落弹簧），零改写复用本件。
 import Foundation
 import UIKit
 

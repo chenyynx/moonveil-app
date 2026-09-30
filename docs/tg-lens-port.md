@@ -160,3 +160,41 @@ setWarpsContentBelow:/setLifted:animated:…）、类方法（alloc 不能用实
 4. 几何：栏高 64、底距 ≈20pt、左右边距 20、格宽 68.25（2026-09-30 对账修正，
    全表见 docs/specs/tg-tabbar-retrofit.md §7）。
 5. 深/浅双模式、登录盖/设置 sheet/资料页 zoom 不受影响。
+
+## 5. 2026-10-01 v4 批次增补（拉伸显式化 + 接线终审）
+
+### 5.1 本仓适配 ⑦⑧（TGLensHost / LiquidLensView）
+- ⑦ 拉伸显式化：TG 底栏**无主动拉伸代码**（TouchEffect 在 TG 的 iOS 26 分支为死代码，
+  GlassBackgroundComponent.swift:552-556 实证）；TG 观感 = 私有 _UILiquidLensView 随
+  几何弹簧自形变。本仓因形变不可观测 + 曾受杀链打断，退化为刚体滑动 → v4 以
+  lensView.transform 显式建模（setLensStretch / animateLensStretchRelease，锚飞行前缘，
+  量级取 TouchEffect:229-231，衰减曲线与位置动画同为 bezier(0.38,0.7,0.125,1)/0.4s）。
+  ⚠️ 登记：这是对上游观感的**近似重建**（上游真值不可观测），非逐字行为。
+- ⑧ 沉降出迟到通道：lift 切换不再等待私有 alongside（T→F 恒迟到）；就地走
+  applyLensGeometry（与非抬升支路同款收口）。removeAllAnimations 收窄为按键排除法
+  （保留 "position" 与本仓拉伸键）——上游 removeAllAnimations 的本意只是清 :450
+  那条无键 additive 动画。
+- v3 沉降看门狗整块撤销（其 removeAllAnimations 后快照落位 = 装机 killed=true 直接来源）。
+
+### 5.2 TouchEffect 接线裁定（有意超集，登记）
+- 上游 iOS 26 底栏不挂本件（死代码）；v4 按 pp 需求（「tab切换流体没有被拉伸的感觉」）
+  接线到透镜岛中被按的选中副本宿主（.began 建 / .changed 喂 setStretchVector /
+  .ended 抬落弹簧），TG 原件零改写。**行为超集于 TG 26 分支**，装机观感为准。
+
+### 5.3 接线完整性终审（2026-10-01，对照 ~/tg-ref 清单）
+- 参数台账：size / selectionOrigin / selectionSize / inset / isDark / isLifted 全传；
+  isCollapsed 恒 false（本仓无收缩模式——有意等价）；disableAnimationWorkarounds 从未传
+  ⇒ userData 恒 nil ⇒ 恒走「workaround 生效」支路（= TG isLiftedStateEnabled=true
+  的正常态，同构；本仓无 disable 场景）。
+- 未搬件逐件核销：ContainedViewLayoutTransition（引用面 0；转场引擎已由 ComponentFlow
+  Transition.swift 承担）/ DisplayLinkDispatcher（零引用、无依赖）/ LegacyGlassView
+  （legacy 分支本仓自绘替代）/ GenerateImage、RuntimeUtils、ComponentDisplayAdapters
+  （折叠入 TGLensSupport/GlassBackgroundComponent，逐行出处已注）。
+- 零调用留守件登记：Spring.swift 的 ViewportItemSpring（上游 ListViewAnimation 转写，
+  本仓无消费点；留作后续备用）。
+- 结论：**无漏接级缺口**；上列「未传/恒 false/零调用」均有意或等价，随本批登记。
+
+### 5.4 v4 装机判读点（新增探针）
+- `[LENS-GEO]` sx/m11：m11 ≠ sx ⇒ 私有渲染器吃掉拉伸（观感退回不崩）。
+- `island-created` 后紧邻 `retire`、`NO-CONSUME … via=`、`idle-gate`：单岛收口生效判据。
+- 目标：`killed=true` 0 次、`watchdog-flush` 0 次（已删）、`queued (stall window)` 0 次。
