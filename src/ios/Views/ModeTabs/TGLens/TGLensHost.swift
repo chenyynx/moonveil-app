@@ -9,7 +9,8 @@
 //     可交互（玻璃 UIGlassEffect.isInteractive 的「拉缩+发光」需要真实触摸命中），
 //     本岛挂一枚 0 延迟 UILongPressGestureRecognizer 跟踪按压（cancelsTouchesInView
 //     = false，与玻璃的触摸响应并行；TG TabSelectionRecognizer 同理，
-//     shouldRecognizeSimultaneously = true）。手势结果经 onCommit 回调 SwiftUI。
+//     shouldRecognizeSimultaneously = true）。手势结果经 onCommit 回调 SwiftUI
+//     （第 4 格设置齿轮另走 onSettings，见 iconAssets 下注释）。
 //   · 透镜跟手 = TG 精确模型（TabBarComponent:538-545）：按下瞬间起点 = 被按槽位
 //     的透镜 minX，其后 lensX = 起点 + 指尖位移增量（保留抓取偏移），钳制栏内。
 //   · 松手落位 = TG 原样单跳（TabBarComponent:555-604）：TG 先清手势态、再以手指
@@ -23,7 +24,9 @@
 //     整段重滑一遍（pp 装机「滑动 tab 落点/动画不对」的另一半根因）。
 //
 // 数值对齐 TG：innerInset 4；槽宽 = (宽-8)/4（TG 4 格布局：本 app 3 实 tab +
-// 第 4 格空占位，pp 2026-09-30 装机要求「加一个图标占位保持和tg一致大小」）；
+// 第 4 格设置齿轮，pp 2026-09-30 装机要求「加一个图标占位保持和tg一致大小」）；
+// 第 4 格设置齿轮（pp 同日「把那个空白占位的 tab 加一个图标」）：动作位，点按开
+// 设置（onSettings）、透镜永不驻留/提交该格（拖过钳回 works）；
 // 透镜宽 = 槽宽+8、高 = 栏高；
 // 按下的选中副本放大 1.15（:835），弹簧 0.4（:540/:599）。
 
@@ -64,6 +67,8 @@ struct TGLensBar: UIViewRepresentable {
     /// 本岛所属 tab 树的槽位序（0=local/1=remote/2=works，与 ModeTabBar.selectableTabs
     /// 同序）。用途 = 提交交接过滤：只有「刚被切进来的目标树」的岛才消费交接。
     var ownSlot: Int
+    /// [第 4 格] 设置齿轮提交（动作位：开设置 sheet；调用方带跨树 guard）。
+    var onSettings: () -> Void
     /// 手势提交（index = 0..2，对应 ModeTabBar.selectableTabs 次序）。
     var onCommit: (Int) -> Void
 
@@ -72,12 +77,14 @@ struct TGLensBar: UIViewRepresentable {
         installTGLensSwizzlesIfNeeded()
         let view = TGLensBarView()
         view.onCommit = onCommit
+        view.onSettings = onSettings
         view.ownSlot = ownSlot
         return view
     }
 
     func updateUIView(_ view: TGLensBarView, context: Context) {
         view.onCommit = onCommit
+        view.onSettings = onSettings
         view.ownSlot = ownSlot
         view.apply(selectedIndex: selectedIndex, isDark: isDark)
     }
@@ -86,6 +93,8 @@ struct TGLensBar: UIViewRepresentable {
 /// 岛的 UIKit 实现：LiquidLensView + 图标副本装载 + 岛内手势（TG 模型）。
 final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     var onCommit: ((Int) -> Void)?
+    /// [第 4 格] 设置齿轮提交（见 TGLensBar.onSettings）。
+    var onSettings: (() -> Void)?
     /// 本岛所属 tab 树的槽位序（0=local/1=remote/2=works）。见 TGLensBar.ownSlot。
     var ownSlot: Int = 0
 
@@ -107,14 +116,27 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     /// [.local, .remote, .works] 保持一致）。
     private static let iconAssets = ["aa-Tabler-MessageCircle", "aa-Tabler-Cloud", "aa-Tabler-Puzzle"]
 
-    /// 槽位数 = 4（TG 4 格布局对齐：3 实图标 + 第 4 格空占位；pp 2026-09-30 装机
-    /// 「加一个图标占位保持和tg一致大小」——TG 是其 4 tab 布局，按 3 格算每格偏大）。
+    /// [4 格对齐·第 4 格 2026-09-30 pp「把那个空白占位的 tab 加一个图标」]
+    /// 设置齿轮：TG 第 4 tab 语义 = 设置（TelegramRootController 的 settings 位）；
+    /// 本仓设置是全局 sheet（B16 单通道 router.showSettings，≡ 齿轮同款入口），
+    /// 故为**动作位**（同 compose 圆钮）：点按开设置、透镜永不驻留该格
+    /// （拖过该格的钳制语义不变，仍归 works）。文案 ="Settings"（沿用 ≡ 齿轮的
+    /// localize key，勿自创）。资产 aa-Tabler-Settings 与 ContentView:7437 同源。
+    private static let settingsAsset = "aa-Tabler-Settings"
+
+    /// 槽位数 = 4（TG 4 格布局对齐：3 实图标 + 第 4 格设置齿轮，见上 settingsAsset；
+    /// pp 2026-09-30 装机「加一个图标占位保持和tg一致大小」——TG 是其 4 tab 布局，
+    /// 按 3 格算每格偏大）。
     /// 与 ModeTabBar.slotCount 同值，两岛/胶囊两处渲染路径几何一致。
     private static let slotCount = 4
 
     private let lens = LiquidLensView(kind: .externalContainer)
     private var normalIcons: [UIImageView] = []
     private var selectedIcons: [UIImageView] = []
+    /// [第 4 格] 设置齿轮双副本（常态层 + 透镜下选中层，与三 tab 同构：透镜
+    /// 拖过第 4 格时穿透窗下也有内容可显，不至镂空）。不进按下/提交逻辑。
+    private let settingsNormal = UIImageView()
+    private let settingsSelected = UIImageView()
 
     private var selectionIndex: Int = 0
     private var isDark: Bool = false
@@ -124,6 +146,8 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     private var interactionLensX: CGFloat?
     private var interactionStartLensX: CGFloat = 0
     private var interactionStartFingerX: CGFloat = 0
+    /// [第 4 格·设置齿轮] 按住在齿轮上（动作位不进透镜手势；见 handleSelectionGesture）。
+    private var gearPressActive = false
 
     private static var tabImageCache: [String: UIImage] = [:]
     private static func tabImage(_ asset: String) -> UIImage {
@@ -160,6 +184,19 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             lens.selectedContentView.addSubview(selected)
             selectedIcons.append(selected)
         }
+
+        // [第 4 格] 设置齿轮双副本（常态/透镜下；着色同未选中件）。
+        let settingsImage = Self.tabImage(Self.settingsAsset)
+        settingsNormal.image = settingsImage
+        settingsNormal.tintColor = .secondaryLabel
+        settingsNormal.contentMode = .center
+        settingsNormal.isUserInteractionEnabled = false
+        lens.contentView.addSubview(settingsNormal)
+        settingsSelected.image = settingsImage
+        settingsSelected.tintColor = .label
+        settingsSelected.contentMode = .center
+        settingsSelected.isUserInteractionEnabled = false
+        lens.selectedContentView.addSubview(settingsSelected)
 
         // TG TabSelectionRecognizer 的等价物：0 延迟长按追踪，不吞触摸（与玻璃的
         // isInteractive 触摸响应并行）。minimumPressDuration 0 = 按下即 began。
@@ -199,6 +236,16 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             normalIcons[i].frame = frame
             selectedIcons[i].frame = frame
         }
+        // [第 4 格] 设置齿轮：同栅格落位（槽位 3 中心）。
+        let settingsCenterX = TGLensBar.innerInset + slotWidth * 3.5
+        let settingsFrame = CGRect(
+            x: settingsCenterX - iconSide * 0.5,
+            y: (height - iconSide) * 0.5,
+            width: iconSide,
+            height: iconSide
+        )
+        settingsNormal.frame = settingsFrame
+        settingsSelected.frame = settingsFrame
         pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: false)
     }
 
@@ -214,12 +261,14 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                 overrideUserInterfaceStyle = isDark ? .dark : .light
             }
             // [提交交接] 本岛 = 刚被切进的目标树（ownSlot == 新选中位）且存有新鲜
-            // 交接、且本岛无在途手势（interactionPressed == nil）→ 先瞬时以
+            // 交接、且本岛无在途手势（interactionPressed == nil 且非齿轮按压——
+            // 齿轮手势不置 interactionPressed，需 gearPressActive 另行排除，
+            // 对抗复审 2026-09-30 低危项）→ 先瞬时以
             // 「按压态」落到交接位——拉缩/光晕/放大图标与出发栏松手瞬间同像素
             // （换栏连续），再经下方同一套松手序列播放 setLifted(false) 收束 +
             // 位置弹簧。旧实现只交接位置、换栏即熄发亮 = pp「发亮也很快」
             // （2026-09-30 第二轮装机判定）。消费即清空。
-            if indexChanged, ownSlot == selectedIndex, interactionPressed == nil,
+            if indexChanged, ownSlot == selectedIndex, interactionPressed == nil, !gearPressActive,
                let handoff = Self.commitHandoff,
                handoff.slot == selectedIndex,
                handoff.fromSlot != ownSlot,
@@ -237,6 +286,13 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         let location = recognizer.location(in: self)
         switch recognizer.state {
         case .began:
+            // [第 4 格·设置齿轮] 动作位不进透镜手势：按下态给齿轮，松手开设置
+            // （同 compose 圆钮语义；拖过第 4 格的钳制归属不变）。
+            if rawSlotIndex(forX: location.x) >= Self.iconAssets.count {
+                gearPressActive = true
+                setSettingsPressed(true)
+                return
+            }
             // TG began：起点 = 被按槽位的透镜 minX（按下即弹簧吸到指尖槽位）。
             let slot = slotIndex(forX: location.x)
             interactionPressed = slot
@@ -245,6 +301,14 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             interactionLensX = interactionStartLensX
             pushLens(pressed: slot, lensX: interactionStartLensX, animated: true)
         case .changed:
+            if gearPressActive {
+                // 齿轮按压中移回 tab 区 = 撤销本次按压（不启动透镜手势）。
+                if rawSlotIndex(forX: location.x) < Self.iconAssets.count {
+                    gearPressActive = false
+                    setSettingsPressed(false)
+                }
+                return
+            }
             guard interactionPressed != nil else { return }
             // TG changed：lensX = 起点 + 指尖位移增量（保留抓取偏移），即时跟手。
             interactionLensX = interactionStartLensX + (location.x - interactionStartFingerX)
@@ -254,6 +318,14 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             }
             pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: false)
         case .ended:
+            if gearPressActive {
+                gearPressActive = false
+                setSettingsPressed(false)
+                if rawSlotIndex(forX: location.x) >= Self.iconAssets.count {
+                    onSettings?()
+                }
+                return
+            }
             guard interactionPressed != nil else { return }
             let commitSlot = slotIndex(forX: location.x)
             // 交接位置必须在推动画之前读：push 一发出，透镜模型位置即指向提交槽。
@@ -275,6 +347,11 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             }
             onCommit?(commitSlot)
         case .cancelled, .failed:
+            if gearPressActive {
+                gearPressActive = false
+                setSettingsPressed(false)
+                return
+            }
             interactionPressed = nil
             interactionLensX = nil
             pushLens(pressed: nil, lensX: nil, animated: true)
@@ -285,9 +362,31 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
 
     /// 容器内坐标 → 槽位（TG item(at:) 的 ClosestItem 语义：越界钳制）。
     private func slotIndex(forX x: CGFloat) -> Int {
+        return min(max(rawSlotIndex(forX: x), 0), Self.iconAssets.count - 1)
+    }
+
+    /// 未钳制槽位（≥3 = 第 4 格设置齿轮；.began/.changed/.ended 的动作位判别用）。
+    private func rawSlotIndex(forX x: CGFloat) -> Int {
         let slotWidth = max(1.0, self.slotWidth())
-        let raw = Int(floor((x - TGLensBar.innerInset) / slotWidth))
-        return min(max(raw, 0), Self.iconAssets.count - 1)
+        return Int(floor((x - TGLensBar.innerInset) / slotWidth))
+    }
+
+    /// [第 4 格] 齿轮按压态（放大 1.15，同三 tab 的按压语言）。
+    private func setSettingsPressed(_ pressed: Bool) {
+        let target: CGAffineTransform = pressed
+            ? CGAffineTransform(scaleX: 1.15, y: 1.15)
+            : .identity
+        for icon in [settingsNormal, settingsSelected] where abs(icon.transform.a - target.a) > 0.001 {
+            UIView.animate(
+                withDuration: 0.4,
+                delay: 0.0,
+                usingSpringWithDamping: 0.8,
+                initialSpringVelocity: 0.0,
+                options: [.allowUserInteraction, .beginFromCurrentState],
+                animations: { icon.transform = target },
+                completion: nil
+            )
+        }
     }
 
     /// 槽宽 = (宽-8)/4（TG 4 格布局；pp 2026-09-30 装机：按 3 格算每格偏大）。

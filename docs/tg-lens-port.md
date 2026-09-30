@@ -83,9 +83,18 @@ GPLv3 开源工程，按「v2 or later」条款并入，许可证兼容路径成
 - **[装机回归·尺寸 2026-09-30]** ⑪槽位几何 3 格 → 4 格（TG 4 tab 布局对齐）：
   TG 栏是 4 tab 布局，本方按 3 格平分导致每格（含透镜宽 = 槽宽+8）整体偏大
   （pp 装机：「加一个图标占位保持和tg一致大小」）。修复 = 两处渲染路径分母统一
-  `slotCount = 4`：TGLensHost（岛：槽宽=(宽-8)/4，图标占 0-2 格、第 3 格空）+
-  ModeTabBar.legacyItemsCapsule（4 等分 HStack 尾插 `Color.clear` 占位格）；
+  `slotCount = 4`：TGLensHost（岛：槽宽=(宽-8)/4，图标占 0-2 格、第 3 格占位）+
+  ModeTabBar.legacyItemsCapsule（4 等分 HStack 尾插占位格）；
   按下/提交/钳制仍只在 0-2 实项（`selectableTabs.count` 不动）。
+- **[装机回归·第 4 格 2026-09-30]** ⑭第 4 格空占位 → 设置齿轮（pp：「把那个空白
+  占位的 tab 加一个图标」）。语义 = TG 第 4 tab（设置）；本仓 = B16 单通道
+  `router.showSettings`（≡ 齿轮同款）→ 动作位：点按开设置，透镜永不驻留/提交该格
+  （拖过钳回 works）。两条手势同语义：岛 TGLensHost（rawSlotIndex 守卫：
+  .began 按下态 / .changed 移回即撤销 / .ended 落点仍在第 4 格才开设置）+
+  legacy selectionGesture（同守卫的 SwiftUI 化，gearDragActive 手势域标志）。
+  资产 aa-Tabler-Settings、文案 "Settings"（zh-Hans=设置）与 ≡ 齿轮同源；
+  岛侧双副本（常态/透镜下）防拖过镂空，legacy 单副本（透镜拖过期间着色差异不入
+  近似）。
 - **[装机回归·尺寸对账 2026-09-30]** ⑫与 TG 源码 + pp 实机像素反演逐项对账，四笔
   联动修正：①栏高 68→64（TabBarComponent.swift:664 = 56+4×2，实机圆钮 192px=64.0
   双证）；②左右边距 12→20（TabBarContollerNode.swift:213-215「底距≤28 档」，实机

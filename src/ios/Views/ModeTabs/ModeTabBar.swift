@@ -49,14 +49,23 @@ struct ModeTabBar: View {
     /// 三个页面位（compose 是动作钮，走右侧独立圆位，见 composeButton）。
     private static let selectableTabs: [AppSourceMode] = [.local, .remote, .works]
 
-    /// 槽位数 = 4（TG 4 格布局对齐：3 实 tab + 第 4 格空占位；pp 2026-09-30 装机
-    /// 「加一个图标占位保持和tg一致大小」——TG 是 4 tab 布局，按 3 格算每格偏大）。
+    /// 槽位数 = 4（TG 4 格布局对齐：3 实 tab + 第 4 格设置齿轮；pp 2026-09-30 装机
+    /// 「加一个图标占位保持和tg一致大小」——TG 是 4 tab 布局，按 3 格算每格偏大；
+    /// 同日「把那个空白占位的 tab 加一个图标」→ 第 4 格 = 设置齿轮，见 settingsSlotItem）。
     /// 与 TGLensHost.slotCount 同值，两处渲染路径几何一致。
     private static let slotCount = 4
 
     /// 按压跟踪（TG selectionGestureState / overrideSelectedItemId 的 SwiftUI 化）：
     /// 手指按住/拖到的 item。nil = 无按压。高亮显示位 = pressed ?? router.mode。
     @State private var pressed: AppSourceMode?
+    /// [第 4 格 · 设置齿轮 2026-09-30 pp「把那个空白占位的 tab 加一个图标」] 设置
+    /// 齿轮按压态（动作位不进透镜手势；见 selectionGesture 的 raw 守卫与 onEnded 的
+    /// 开设置分支）。只撑齿轮图标自身，不参与 tab 高亮槽位（pressed ?? router.mode）。
+    @State private var gearPressed = false
+    /// [第 4 格] 本次手势归属齿轮（起点在第 4 格）：手势存续期抑制透镜逻辑——
+    /// 对应 TGLensHost.gearPressActive 的手势域语义：移回 tab 区仅撤按压态，
+    /// 不启动透镜、不重新武装（与岛侧 .changed 取消分支一字不差）。
+    @State private var gearDragActive = false
     /// 透镜拖动跟手态（TG selectionGestureState 的 SwiftUI 化，:423/:538-545）：
     /// 拖动期间透镜 x = 起点 + 指尖位移（连续跟手）；松手弹簧落位（归 nil）。
     @State private var lensDragBaseX: CGFloat?
@@ -82,6 +91,10 @@ struct ModeTabBar: View {
         .works: "aa-Tabler-Puzzle",
         .compose: "aa-Tabler-Edit",
     ]
+
+    /// [第 4 格] 设置齿轮资产（与 TGLensHost.settingsAsset / ContentView ≡ 齿轮
+    /// 同源 aa-Tabler-Settings，勿另起）。
+    private static let settingsAsset = "aa-Tabler-Settings"
 
     /// Lucide SVG 资产是 24pt viewBox；Muse 的 tab 图标约 19pt，这里栅格化到
     /// 27pt 并保持 template 渲染；颜色由调用处的 .foregroundStyle 按选中态给。
@@ -158,6 +171,12 @@ struct ModeTabBar: View {
                     selectedIndex: Self.selectableTabs.firstIndex(of: router.mode) ?? 0,
                     isDark: colorScheme == .dark,
                     ownSlot: Self.selectableTabs.firstIndex(of: tabMode) ?? 0,
+                    onSettings: {
+                        // [第 4 格] 同 compose 的跨树兜底：按住期间本树被切走则丢弃。
+                        if tabMode == router.mode {
+                            router.showSettings = true   // B16 单通道（≡ 齿轮同款）
+                        }
+                    },
                     onCommit: { index in
                         guard index >= 0, index < Self.selectableTabs.count else { return }
                         // 跨树兜底（同旧 DragGesture onEnded 语义）：按住期间本树被
@@ -198,9 +217,11 @@ struct ModeTabBar: View {
             ForEach(Self.selectableTabs) { mode in
                 tabItem(mode)
             }
-            // [4 格占位 2026-09-30] 第 4 格留空（TG「设置」位）——前 3 格随之为
-            // TG 同尺寸；透镜/槽位算法分母 = slotCount(4)，见文件内各处。
-            Color.clear.frame(maxWidth: .infinity)
+            // [4 格 · 第 4 格 2026-09-30] 设置齿轮（pp「把那个空白占位的 tab 加一个
+            // 图标」）：TG 第 4 tab = 设置的语义；本仓设置是全局 sheet（B16 单通道
+            // router.showSettings），故为动作位——点按开设置、透镜永不驻留此格。
+            // 前 3 格尺寸随之与 TG 对齐（槽位算法分母 = slotCount(4)，见文件内各处）。
+            settingsSlotItem
         }
         .frame(maxWidth: .infinity)
         .frame(height: 56)
@@ -247,6 +268,24 @@ struct ModeTabBar: View {
             .accessibilityAction { commit(mode) }
     }
 
+    /// [第 4 格 · 设置齿轮] 尾格 item：图标居中 + 按压放大 1.15（同 tabItem 的按压
+    /// 语言）。动作位——点按开设置走 selectionGesture 的齿轮分支（同 tab 的「按下
+    /// 即动、松手提交」路径，无独立 tap 手势）；透镜永不驻留/提交本格（slotIndex
+    /// 钳制 0..2）。资产与岛侧 TGLensHost.settingsAsset 同源；文案沿用 ≡ 齿轮的
+    /// "Settings" key（zh-Hans=设置，勿自创）。
+    private var settingsSlotItem: some View {
+        Self.tabImage(Self.settingsAsset)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .scaleEffect(gearPressed ? 1.15 : 1.0)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(String(localized: "Settings")))
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                if tabMode == router.mode { router.showSettings = true }
+            }
+    }
+
     /// 圆钮（新会话 ＋；TG 的 64×64 独立圆搜索钮同位，:899-901 —— 我们的语义
     /// 是"新建"，pp 2026-09-26 拍板借位）。玻璃圆 + 按压回弹。
     private var composeButton: some View {
@@ -280,7 +319,27 @@ struct ModeTabBar: View {
             .onChanged { value in
                 guard itemsWidth > 0 else { return }
                 let slotWidth = itemsWidth / CGFloat(Self.slotCount)
+                // [第 4 格·设置齿轮] 手势存续期只维护按压显隐，不启动/不接管透镜
+                // （镜像岛侧 .changed 的 gearPressActive 守卫；移回 tab 区 = 撤销
+                // 按压、不重新武装）。
+                if gearDragActive {
+                    if gearPressed, rawSlotIndex(forX: value.location.x) < Self.selectableTabs.count {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            gearPressed = false
+                        }
+                    }
+                    return
+                }
                 if lensDragBaseX == nil {
+                    // [第 4 格] 首次回调定手势归属：起点在第 4 格 = 设置齿轮动作位
+                    // （镜像岛侧 .began 的 raw 守卫——按下态给齿轮，松手开设置）。
+                    if rawSlotIndex(forX: value.startLocation.x) >= Self.selectableTabs.count {
+                        gearDragActive = true
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            gearPressed = true
+                        }
+                        return
+                    }
                     // TG began：透镜起点 = 指尖下的槽位（按下即弹簧滑到那里）；
                     // 高亮/缩放同帧并入弹簧事务（TG began 即 .spring；对抗复审 v2
                     // [低]——此前 pressed 在事务外，图标缩放跳变不对称）。
@@ -299,7 +358,22 @@ struct ModeTabBar: View {
                     pressed = target
                 }
             }
-            .onEnded { _ in
+            .onEnded { value in
+                // [第 4 格·设置齿轮] 松手落点仍在第 4 格且按压未被撤销 → 开设置
+                // （镜像岛侧 .ended 的 onSettings 分支；动作位走开设置、不走 commit）。
+                if gearDragActive {
+                    let fire = gearPressed
+                        && rawSlotIndex(forX: value.location.x) >= Self.selectableTabs.count
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        gearPressed = false
+                    }
+                    gearDragActive = false
+                    // 跨树兜底：按住期间本树被外部 route 切走则丢弃（同 compose 圆钮）。
+                    if fire, tabMode == router.mode {
+                        router.showSettings = true   // B16 单通道（≡ 齿轮同款）
+                    }
+                    return
+                }
                 // 系统中断（来电横幅等）也走本路径——SwiftUI DragGesture 无取消
                 // 判别，此处照常提交（TG 的 .cancelled 清零无 SwiftUI 等价；低
                 // 概率低后果，留档接受，对抗复审 v2 [记录]）。
@@ -319,11 +393,19 @@ struct ModeTabBar: View {
 
     /// 容器内横向坐标 → 槽位。容器含 4pt 内边距（innerInset），槽位从 x=4 起；
     /// 越界按最近项钳制（同 TG item(at:) 的 ClosestItem 语义，:623-643）。
+    /// [第 4 格 2026-09-30] 钳制上界 = 末个实 tab（0..2）：透镜提交永不落第 4 格
+    /// （设置齿轮为动作位；拖过该格仍钳回 works，与岛侧 slotIndex 同义）。
     private func slotIndex(forX x: CGFloat) -> Int {
         guard itemsWidth > 0 else { return 0 }
+        return min(max(rawSlotIndex(forX: x), 0), Self.selectableTabs.count - 1)
+    }
+
+    /// 未钳制槽位（≥3 = 第 4 格设置齿轮；手势的动作位判别用——与 TGLensHost
+    /// rawSlotIndex 同义，两渲染路径语义一致）。
+    private func rawSlotIndex(forX x: CGFloat) -> Int {
+        guard itemsWidth > 0 else { return 0 }
         let slotWidth = itemsWidth / CGFloat(Self.slotCount)
-        let raw = Int(floor((x - 4) / slotWidth))
-        return min(max(raw, 0), Self.selectableTabs.count - 1)
+        return Int(floor((x - 4) / slotWidth))
     }
 
     // MARK: - 提交
