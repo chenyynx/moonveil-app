@@ -3046,23 +3046,19 @@ struct ContentView: View {
                                     }
                                 }
                                 .background(
-                                    // [容器化 C3 2026-09-30 · R3 审查修订 F1 · 去嵌套
-                                    // 2026-09-30] NavigationLink → Button：深页 push 已上收
-                                    // 容器栈，本树无 ChatRoute destination（内层栈已于
-                                    // 去嵌套手术中整壳拆除）——value-Link 会失效
-                                    // （且不跨栈冒泡）。
-                                    // ⚠️ 命中区纪律（R3 F1 实锤反例）：旧 Link 靠 List 行的
-                                    // 整行激活语义，Button 无此语义——label 必须是有尺寸的
-                                    // 填充体（EmptyView = 零尺寸 = 不可点）。Color.clear +
-                                    // contentShape 铺满行背景；.buttonStyle(.plain) 防
-                                    // tint/按压高亮污染行观感。⚠️ 装机第一验收项：点会话行
-                                    // 空白区应正常打开聊天；若失效则整体回退本处改造。
-                                    Button {
-                                        containerNav.pushChat(.local(id: session.id))
-                                    } label: {
-                                        Color.clear.contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
+                                    // [收口包 v2 2026-09-30 深夜 · 回退 R3-F1（该注释预判的
+                                    // 「装机第一验收项」在 build 823a841 实锤失效：点会话行
+                                    // 空白区打不开聊天 = 背景 Button 命中区方案真机不生效）。
+                                    // 回退为手术前长期在用的 value-Link——**C3 时代的失效理由
+                                    // 已随去嵌套消失**：本树内层栈已整壳拆除，本列表直接是
+                                    // 容器栈 root 内容，Link 值由容器根的
+                                    // navigationDestination(for: ChatRoute.self) 直接承接
+                                    // （且声明式 Link 的 push 写回恰好是 NAV-TXN-FIX 实测
+                                    // 「全正常」的形状）；更关键 = 只有 Link 能启用 List 的
+                                    // **整行激活语义**（整行含空白区可点，全 App 历史形态）。
+                                    // ⛔ 切勿再换回背景 Button（真机实锤不可点）。
+                                    NavigationLink(value: ChatRoute.local(id: session.id)) { EmptyView() }
+                                        .opacity(0)
                                 )
                             .listRowInsets(EdgeInsets())
                             .listRowSeparator(.hidden)
@@ -3817,8 +3813,9 @@ struct ContentView: View {
         // app, the pop-then-push dance got interrupted, etc).
         pendingNewChatAfterPop = false
         pendingNewChatTargetId = nil
-        // ⚠️ [收口包 2026-09-30 晚] 下方 [L3] 块描述的「先开门、后归位」已被再下一块
-        // [收口包·保险牌] 反转为「归位先行」——历史分层，以靠后的块为准。
+        // ⚠️ [收口包 v2 追注] 下方 [L3] 块描述的形状（先开门、后归位）即现行形状；
+        // 其曾于 8ed7557 被短暂反转为「归位先行」（439 repro 保险牌），后因 823a841
+        // 装机实证手术治愈崩溃而撤销——以本块与下方 [保险牌撤销] 注释为准。
         // [L3 崩溃修复 2026-09-30] [LOCAL-INTENT-TAB-ROUTE] 原实现在这里**先**
         // route(.local)、同帧再开门——438 装机实锤该组合触发 iOS 26 导航状态机
         // 断言（见 RootTabRouter.route(to:) [C3.2] 注释）。改为「先开门、后归位」：
@@ -3827,13 +3824,9 @@ struct ContentView: View {
         // （scheduleReturnToLocalIfNeeded）= 从不崩的形状（同「点 tab」）。两个
         // 动作分属两拍，非法组合消失。归位晚于 push 不影响语义：划回最早 ~0.43s
         // 起手，0.6s 的归位在其后（详见该函数注释）。
-        // [收口包·保险牌 2026-09-30 晚] 热路径在此**再次反转**为「归位先行」：
-        // 跨树时先 route(.local)（空栈上切树 = 点 tab 形状），push 随即撞上刚设
-        // 的树切换窗、由兜底网拆帧到窗关闭后落地（落点 = .local 空栈 = 本地＋
-        // 形状）。438 证否的是「同帧 route+push」而非 route 先行本身；两动作经
-        // 兜底网分属两拍，非法组合依然消失，同时「跨树推页」路径从设计上不复
-        // 存在（436/438/439 断言机理的土壤移除）。详见下方 else 分支注释与
-        // ContainerNav.pushChat 注释。
+        // [收口包 v2 2026-09-30 深夜] 原「[收口包·保险牌] 热路径再次反转为归位
+        // 先行」块**作废**（保险牌随 823a841 装机实证撤销）——现行形状见下方
+        // [保险牌撤销]：L3 的「先开门、后归位」。
         // If a workflow is mid-flight in ensuringHome, ContentView's
         // observers (`onChange(containerNav.path)` / `onChange(selectedSessionId)`)
         // drive the home-then-open sequence. Otherwise this call came
@@ -3862,34 +3855,23 @@ struct ContentView: View {
             // [NAV-ROOT-FIX 2026-09-29] 单一 path 通道：程序化 push 直接写 path
             //（见 pushChat 注释）。T0 的「外部写 × tab 藏显」回写病触发器已随
             // tab 常驻消除；T1 的 Bool 通道因 stuck-true 实锤退役。
-            // [收口包·保险牌 2026-09-30 晚] 「归位先行」：跨树时先把 tab 带回本机
-            // （route 只写 mode、不写 path——单动作即「点 tab」形状）；push 紧随其后
-            // 撞上刚设的树切换窗，由兜底网（consumeTreeSwipePendingDelay）拆帧到窗
-            // 关闭后（~0.75s）落地——落地时 mode 已是 .local，栈空则裸写、栈非空则
-            // withAnimation(nil) 栈顶替换（两形状均经装机长期实证）。
-            // [审修 2026-09-30 晚 · 对抗审 (b)(e) 实锤] 已知代价两条：① 落地前
-            // （0.75s 窗内）用户若再切 tab，草稿页会压在别的树上 → 补 1.0s 自愈腿
-            // （见下）把 tab 带回；② 窗内连按＋：第二次直推即生效、第一次的迟到 push
-            // 以栈顶替换收尾（最终落回第一次的草稿 id，伴随一次重挂，无栈增长）。
-            // UX 代价（装机验证点）：切页先行可见（~0.65s），聊天页晚 ~0.75s 入场。
-            if tabRouter.mode != .local { tabRouter.route(to: .local) }
+            // [收口包 v2 2026-09-30 深夜 · 保险牌撤销] 8ed7557 曾把热路径改「归位
+            // 先行」（route 先行 + 兜底网拆帧落地）以绕开 439 必崩路径；**build
+            // 823a841 装机实证手术（去嵌套）已结构性消除该崩溃（works→本机→＋
+            // 不崩）**——绕行设计及其 UX 代价（切页先行可见、聊天晚 ~0.65s）不再
+            // 必要。恢复 L3 形状：push 裸写（从不崩形状「点会话行」）＋ 0.6s 归位
+            // （从不崩形状「点 tab」）。240887a 兜底网保留为残余站点兜底。
             containerNav.pushChat(.local(id: newId))
-            // 自愈腿（落地后跑）：正常路径 mode==.local 时首行早退、零开销；仅当用户
-            // 在落地前又切走 tab 才 route 回本机（恢复 L3 时期的归位自愈语义——对抗审
-            // (b) 实锤净损失后补回）。只写 mode、不写 path，任何时机都安全。真正的
-            // 保障 = 落地后聊天页盖住整棵含栏页面，用户 t∈[0.75,1.0) 物理点不到 tab
-            // ——故此腿只可能来自落地前的误切，不会覆盖任何合法意图（对抗审 Q1）。
-            Self.scheduleReturnToLocalIfNeeded(delay: 1.0)
+            Self.scheduleReturnToLocalIfNeeded()
         }
     }
 
     /// [L3 崩溃修复 2026-09-30] 跨树开新会话的「归位」腿：若非本机 tab，等页面
     /// 盖住后把 tab 带回本机——其间用户可见区域被新页覆盖，切页不可见。route
     /// 同值幂等（RootTabRouter.route 内建同一性早退），重复调度无副作用。
-    /// [收口包 2026-09-30 晚] 现存调用点两处：① 草稿开门的 1.0s 自愈腿（delay 1.0
-    /// ——「归位先行」后本腿不再等页面盖住，而是补「落地前用户又切走 tab」的自愈，
-    /// 对抗审 (b) 实锤净损失后恢复）；② workflow 分支停滞兜底（1.5 / requireOpen:false，
-    /// 原样）。「等页面盖住后」行文对①已过时，保留作历史语境。
+    /// [收口包 v2 2026-09-30 深夜] 现存调用点两处：① 两处草稿开门的 0.6s 归位
+    /// （L3 原形状——8ed7557 的「归位先行 + 1.0s 自愈腿」随手术装机实证治愈崩溃
+    /// 一并撤销）；② workflow 分支停滞兜底（1.5 / requireOpen:false，原样）。
     /// 数字来源（438 审查校正）：push 转场 ≈0.35s；返回手势最早 ≈0.43s（转场
     /// 结束＋触达）就能让 root 露边 → 取 0.6s 留余量。
     /// requireOpen=true 带「落地判据」：到时若 path 仍空（开门被后台门扣住 /
@@ -3984,15 +3966,11 @@ struct ContentView: View {
         } else {
             // [NAV-ROOT-FIX 2026-09-29] 同 handleNewChatRequest：程序化 push
             // 走单一 path 通道（见 pushChat 注释）。
-            // [收口包·保险牌 2026-09-30 晚] 同 handleNewChatRequest：归位先行 +
-            // 兜底网拆帧 + 1.0s 自愈腿（原理与判据见该函数注释）。挂载晚
-            // ~0.75–1.4s（含兜底网+重试链）不影响本工作流：waitingForChatMount
-            // 无超时（对抗审逐行核实），且视图
-            // 可见性翻转时由 AIChatView.onAppear 直调 + onChange(of: isVisible)
-            // 双路自补 markChatReady。
-            if tabRouter.mode != .local { tabRouter.route(to: .local) }
+            // [收口包 v2 2026-09-30 深夜 · 保险牌撤销] 同 handleNewChatRequest：
+            // 恢复 L3 形状（push 裸写 + 0.6s 归位）；撤销理由（手术装机实证治愈
+            // 崩溃）见该处注释。
             containerNav.pushChat(.local(id: newId))
-            Self.scheduleReturnToLocalIfNeeded(delay: 1.0)
+            Self.scheduleReturnToLocalIfNeeded()
         }
         QuickActionWorkflow.shared.attachTargetSession(newId)
     }
@@ -4188,17 +4166,12 @@ struct ContentView: View {
             Section {
                 ForEach(entry.ids, id: \.self) { sessionId in
                     if let session = byId["\(entry.deviceId):\(sessionId)"] {
-                        // [容器化 C3 2026-09-30] NavigationLink → Button（同会话行：
-                        // 本树无 destination（内层栈已随去嵌套手术整壳拆除），走容器栈
-                        // 单通道）。该分区当前未挂载（死入口），一并改造防未来启用时失效。
-                        Button {
-                            containerNav.pushChat(.remote(deviceId: entry.deviceId, sessionId: session.id))
-                        } label: {
+                        // [收口包 v2 2026-09-30 深夜] 随主列表同批回退 R3-F1（死分区：
+                        // 防未来启用时沿路；去嵌套后 value-Link 由容器根 destination
+                        // 承接，恢复手术前形状）。
+                        NavigationLink(value: ChatRoute.remote(deviceId: entry.deviceId, sessionId: session.id)) {
                             RemoteSessionRow(session: session)
                         }
-                        // [R3 审查修订 F8] 防 List 行默认 Button 样式的 tint/
-                        // 按压高亮（死分区，防未来启用时观感差异）。
-                        .buttonStyle(.plain)
                         .listRowInsets(EdgeInsets())
                         .listRowSeparator(.hidden)
                         .contextMenu {

@@ -78,7 +78,9 @@ struct RootModeTabsView: View {
     /// 缩放曲线与起点缩放随 v2 迁入 TreeSwitchZoom（本文件末尾）；原
     /// switchStartScale / switchScaleAnimation 在此退役——挂在树容器上会破坏
     /// 栈内 safeAreaInset 求值，装机实锤见 tabTree 注释。
-    private static let switchAlphaAnimation: Animation = .easeOut(duration: 0.1)
+    // [收口包 v2 2026-09-30 深夜] switchAlphaAnimation（新页淡入 0.1s，TG :319-321）
+    // 已退役：pp 装机反馈交叉淡化 = 残影/延迟（见 tabTree 瞬切注释）。
+    // private static let switchAlphaAnimation: Animation = .easeOut(duration: 0.1)
 
     var body: some View {
         // [TG-TABBAR 2026-09-30] TabView 退役（「系统栏 + 藏显」病根，pp 拍板
@@ -205,11 +207,11 @@ struct RootModeTabsView: View {
             // [R5 审查修订 P4 · D5 延后决定] 不变式：栏可见 ⇔ 容器栈为空——自洽
             // 于「用户点栏时 path 恒空」（栏被 push 盖住时点不到栏）；**不能**在
             // 此处盲目清空（会把 L3 归位前的在栈新会话误杀——R5 场景 1 推演实锤）。
-            // [L3 2026-09-30 追注] 热路径当时改「先开门、后归位」（route 不再与
+            // [L3 2026-09-30 追注] 热路径已改「先开门、后归位」（route 不再与
             // push 同帧）；残余「切树后随即 push」站点由 ContainerNav 兜底网拆帧。
-            // [收口包 2026-09-30 晚] 热路径再度反转为「归位先行」：栈空时 route 先行、
-            // push 经兜底网拆帧至窗后落地——「与 push 同帧的 route」组合仍不存在
-            // （两动作分属两拍），本条追注的「不同帧」原则不变，仅先后顺序反转。
+            // [收口包 v2 追注] 8ed7557 曾短暂再反转为「归位先行」（针对 439 repro
+            // 的保险牌）；823a841 装机实证手术已结构性治愈该崩溃，保险牌随即撤销
+            // ——热路径回归本追注的「先开门、后归位」形状。
             // 若未来出现「纯程序化切 tab（不随 push）」，清空须挂在该调用点而非此处。
             // [去嵌套 2026-09-30 · 现状复核] remoteAtRoot 已随本批删除（零消费退役）；
             // localAtRoot / localSelecting 仍存但同样零消费（仅写点 + 一行日志），
@@ -225,14 +227,11 @@ struct RootModeTabsView: View {
             // 必须显式收；只收**远端树自有**的路由（本机在栈会话一律不碰）。
             // ⚠️ 不同帧写 path（436/438 崩溃形状）：延后复核栈顶归属才 pop；窗口内若已有
             // 新 push 顶替（深链等），归属不命中、不误伤。
-            // [收口包返修 2026-09-30 晚 · 对抗审实锤] 0.35 → **0.6**：原 0.35 与 439
-            // 判例的不变量正面冲突（0.35s 已被装机否证是 <「树切换转场全长」的值，转场
-            // 窗内裸写 path = 436/438/439 崩溃形状）。且 ＋ 热路径改「归位先行」后，push
-            // 在 t=0 即消耗掉一次性窗令牌（consumeTreeSwipePendingDelay 消费即清零），
-            // t=0.35 的 pop() 会退化为**无兜底裸写**。0.6 > 0.5 验证窗（带 0.1s 余量）
-            // 且早于 push 的 ~0.75s 落点：残留页先收、草稿页随后从空栈裸写上来（两形状
-            // 均经装机长期实证）。pop() 自身仍带兜底网（此处通常已被 push 消费，双保险
-            // 退化为单保险，故本时延即为最终保障——勿再调回）。
+            // [收口包 v2 2026-09-30 深夜] 0.35 → **0.6** 保留：原 0.35 与 439 判例的
+            // 不变量正面冲突（0.35s 已被装机否证是 <「树切换转场全长」的值，转场窗内
+            // 裸写 path = 436/438/439 崩溃形状）。0.6 > 0.5 验证窗（带 0.1s 余量）且
+            // 早于任何后续落点。「保险牌依赖本处时延」的推演随 8ed7557 一并撤销；
+            // pop() 自身兜底网照旧常驻（双保险）。
             if new != .remote {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                     MainActor.assumeIsolated {
@@ -342,8 +341,9 @@ struct RootModeTabsView: View {
     @ViewBuilder
     private func tabTree(_ mode: AppSourceMode) -> some View {
         let isCurrent = router.mode == mode
-        let isDissolvingUnder = router.previousMode == mode && !isCurrent
-        let skipSwitchAnimation = horizontalSizeClass == .regular
+        // [收口包 v2 2026-09-30 深夜 · pp 装机反馈（823a841）「延迟高 / 内容乱跳 /
+        // 残影」] 本函数注释末尾登记的「下一手候选 = 拆溶解窗口」正式执行——见下方
+        // opacity 处。previousMode 记账保留（无害，本渲染不再读）。
         Group {
             switch mode {
             case .local:
@@ -359,8 +359,13 @@ struct RootModeTabsView: View {
                 EmptyView()
             }
         }
-        .opacity(isCurrent || isDissolvingUnder ? 1 : 0)
-        .animation(skipSwitchAnimation || !isCurrent ? nil : Self.switchAlphaAnimation, value: isCurrent)
+        // [收口包 v2 2026-09-30 深夜 · 瞬切] 硬切：原「新页 0.1s 交叉淡化 + 旧页
+        // 120ms 溶解垫底」在双树内容不同的场景下 = 两棵树穿透叠影（残影）+ 切换
+        // 延迟感（pp 装机实锤）。新页同帧以完全不透明在场，「旧树闪隐一帧」的旧顾
+        // 虑不成立；穿新页透明缝隙看到旧树的残影来源一并消除。改回此前先读本注释
+        // （history：v1 a13c765 引入淡入+溶解，瞬切版从未装机跑过——即本次）。
+        .opacity(isCurrent ? 1 : 0)
+        .animation(nil, value: isCurrent)
         .zIndex(isCurrent ? 1 : 0)
         .allowsHitTesting(isCurrent)
         .accessibilityHidden(!isCurrent)
@@ -510,7 +515,9 @@ struct TreeSwitchZoom: ViewModifier {
             )
     }
 
-    private static let switchScaleAnimation: Animation = .spring(response: 0.15, dampingFraction: 1.0).delay(0.1)
+    // [收口包 v2 2026-09-30 深夜] .delay(0.1)（TG :319-321 的延迟段）移除——pp 装机
+    // 反馈切页延迟感；3pt 缩量本就不可辨，延迟只造成挫顿。弹簧曲线本身保留。
+    private static let switchScaleAnimation: Animation = .spring(response: 0.15, dampingFraction: 1.0)
 }
 
 extension View {

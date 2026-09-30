@@ -81,12 +81,9 @@ final class ContainerNav: ObservableObject {
         // 现改动态落点「窗剩余 + 0.25s 尾巴」——写成窗关闭之后，而不是赌固定时长
         // （机理与不变量见 RootTabRouter.consumeTreeSwipePendingDelay）。
         // 本网为**残余路径的公共兜底**：深链/通知/分享等「切树后随即 push」站点，
-        // 以及同树迟到场景（tab 已落本机后再点＋：tab 点击自设窗、＋ 不再 route）
-        // ——延迟只落在这类调用上。跨树热路径（＋）已改「归位先行」显式 route + 本网
-        // 拆帧（见下）。
-        // ⚠️ [收口包 2026-09-30 晚] ＋ 热路径改「归位先行」后，本网同时成为该热
-        // 路径的**唯一拆帧机制**（route(.local) 先写 → push 随即撞窗被本网拆帧；
-        // 动机与判据见 ContentView.handleNewChatRequest 的 [收口包·保险牌] 注释）。
+        // 以及热路径的迟到场景（切 tab 后 0.2–0.5s 内点＋）——延迟只落在这类调用上。
+        // （[收口包 v2 2026-09-30 深夜] 8ed7557 曾令 ＋ 热路径「归位先行」把本网当
+        // 拆帧主通道；823a841 装机实证手术治愈崩溃后保险牌撤销，本网回归本定位。）
         if let delay = RootTabRouter.shared.consumeTreeSwipePendingDelay() {
             // [审修 2026-09-30 晚 · N1] 拆帧会把下面 OPEN 打点推到落点（按压瞬间锚点
             // 见 QuickActionRouter 的 PUSHTRACE press；装机读时间线时须知本行）。
