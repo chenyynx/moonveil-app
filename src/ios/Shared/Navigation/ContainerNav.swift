@@ -70,6 +70,17 @@ final class ContainerNav: ObservableObject {
     /// 动画纪律（原 `commitNavigationPath` 逐字平移）：只有「根→单页 push」
     /// 带动画；栈顶替换走禁动画原子提交（moveto-transfer-race 防护）。
     func pushChat(_ route: ChatRoute) {
+        // [C3.2 崩溃修复 2026-09-30] 见 RootTabRouter.route(to:) 的 [C3.2] 注释：
+        // 与「程序化切 tab（树切换）」同帧写 path 会触发 iOS 26 导航状态机断言
+        // （EXC_BREAKPOINT in NavigationColumnState.boundPathChange，build 436
+        // .ips 实锤；装机对照：本地列表点＋不崩、跨树点＋崩）。切 tab 后的第一次
+        // push 延后一拍（一次性消费，async 重入直达，无递归）——拆开同帧组合。
+        if RootTabRouter.shared.consumeTreeSwipePending() {
+            DispatchQueue.main.async { [weak self] in
+                self?.pushChat(route)
+            }
+            return
+        }
         NavTrace.log("OPEN route=\(route.logTag) trig=\(NavTrace.trigger)+\(NavTrace.age)")
         if UIApplication.shared.applicationState == .background {
             pendingChatRoute = route

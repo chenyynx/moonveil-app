@@ -4,6 +4,7 @@
 
 import SwiftUI
 import Combine
+import QuartzCore   // [C3.2] CACurrentMediaTime（树切换标记窗）
 
 // Moved from ModeTabPicker.swift (bottom-dock batch) — the picker is gone.
 /// The app's source modes (D4: the single fork point).
@@ -80,7 +81,23 @@ final class RootTabRouter: ObservableObject {
     func route(to target: AppSourceMode) {
         guard mode != target else { return }
         mode = target
+        // [C3.2 崩溃修复 2026-09-30] 树切换标记：与「程序化切 tab 同帧写容器栈
+        // path」的组合会触发 iOS 26 导航状态机断言（build 436 .ips 实锤：
+        // EXC_BREAKPOINT in NavigationColumnState.boundPathChange；装机对照：
+        // 本地列表点＋（无切 tab）不崩、跨树点＋崩）。ContainerNav.pushChat
+        // 消费本标记把「切换后的第一次 push」延后一拍，拆开该组合；0.2s 窗内有效。
+        treeSwipeAt = CACurrentMediaTime()
     }
+
+    /// 见 route(to:) 的 [C3.2] 注释。≤0.2s 窗内的一次性消费。
+    func consumeTreeSwipePending() -> Bool {
+        guard CACurrentMediaTime() - treeSwipeAt < 0.2 else { return false }
+        treeSwipeAt = 0
+        return true
+    }
+
+    /// 最近一次树切换时刻（CACurrentMediaTime；0 = 无在窗标记）。
+    private var treeSwipeAt: CFTimeInterval = 0
 
     /// B16: the Settings sheet is presented by RootModeTabsView, not by ContentView.
     /// On the Remote tab ContentView is alive but `opacity 0`, and "can an invisible
