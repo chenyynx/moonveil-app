@@ -2242,36 +2242,43 @@ struct ContentView: View {
     // MARK: - Stack Layout (iPhone / narrow window)
 
     private var stackLayout: some View {
-        // [容器化 C3] 内层栈退役 path——深页 push 已上收容器栈（RootModeTabsView
-        // 的 NavigationStack + ContainerNav）；本栈保留为 root 壳（导航栏/
-        // toolbar 之家），无 path/destination 职责。原 :2240 处注释（TABBAR 沿革）
-        // 见 git 历史。
-        NavigationStack {
-            sessionList(useNavigationLinks: true)
-                // [切页转场 v3 2026-09-30 · cc] 缩放已从本行（v2 位：栈内、但仍在
-                // safeAreaInset 求值链上）下沉到 sessionList 内部的最内层列表本体
-                // （sessionList 内 stackList 分支，:2924）。v2 残留在本行仍能打坏
-                // 安全区记账：
-                // 装机日志（build 431）实锤离场树底安全区窗口收尾塌到 0.0（隐藏期
-                // 不可见）、进场树保持 0 直到切页后 ~214ms 才弹回 98 = 用户可见
-                // 「画面高度在掉」。求值链必须零动画变换，勿把缩放挂回本层。
-                // 详见 RootModeTabsView 末尾 TreeSwitchZoom「挂点纪律」。
-                // [TG-TABBAR 2026-09-30] 自绘 tab 栏挂栈内 root 页底边：push 从
-                // 栈内部盖上来整页覆盖含栏；划回 root 页（含栏）整体平移揭示。
-                // 系统栏与藏显机制整体退役（见 RootModeTabsView / ModeTabBar 头注）。
-                .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .local) }
-                // [TG-TABBAR-FIX 2026-09-30 pp 装机] 键盘豁免·权威挂点：栏的落位由
-                // **被 safeAreaInset 修饰的整链**的安全区决定，豁免必须包在 inset
-                // 外侧（子树安全区剔除键盘区）；挂在栏内部（ModeTabBar.body）实测
-                // 无效——键盘开启从聊天页划回时，栏随输入框一起上浮（TG = 钉死底部、
-                // 被键盘覆盖）。有意副效果：root 页列表内容随之可下穿键盘（搜索聚焦
-                // 时内容滚到键盘下，iOS 惯例）。勿把本行上移到 stack 或下移到栏内。
-                .ignoresSafeArea(.keyboard, edges: .bottom)
-                // [容器化 C3 2026-09-30] 原 navigationDestination 整块（含
-                // AIChatView 构造/ENV-DEFENSE 注入/APPEAR·DISAPPEAR 探针）已迁至
-                // 容器栈（RootModeTabsView 的 NavigationStack 内容）——深页从
-                // 容器栈推出，整页盖住含栏容器；替换点见彼处 [容器化 C3] 注释。
-        }
+        // [去嵌套 2026-09-30] 壳已拆——本层的 NavigationStack 外壳删除。根因（判例）：
+        // 嵌套栈时内层导航栏不渲染、内层 toolbar 按钮上浮到被 `.toolbar(.hidden,
+        // for: .navigationBar)` 藏掉的容器栏，装机实锤「顶部所有按钮都没了、只剩
+        // 底栏」（build 438）。现在容器栏（RootModeTabsView 的
+        // NavigationStack(path: $containerNav.path)）= 全 App 唯一顶栏宿主。
+        // [容器化 C3] 内层栈退役 path——深页 push 已上收容器栈；本层随壳拆除后
+        // 已无栈壳、无 path/destination 职责（行内按钮一律
+        // containerNav.pushChat，见 sessionList 内 [容器化 C3 · R3 F1] 注释）。
+        // 原 :2240 处注释（TABBAR 沿革）见 git 历史。
+        sessionList(useNavigationLinks: true)
+            // [切页转场 v3 2026-09-30 · cc] 缩放已从本行（v2 位：栈内、但仍在
+            // safeAreaInset 求值链上）下沉到 sessionList 内部的最内层列表本体
+            // （sessionList 内 stackList 分支，:2924）。v2 残留在本行仍能打坏
+            // 安全区记账：
+            // 装机日志（build 431）实锤离场树底安全区窗口收尾塌到 0.0（隐藏期
+            // 不可见）、进场树保持 0 直到切页后 ~214ms 才弹回 98 = 用户可见
+            // 「画面高度在掉」。求值链必须零动画变换，勿把缩放挂回本层。
+            // 详见 RootModeTabsView 末尾 TreeSwitchZoom「挂点纪律」。
+            // [TG-TABBAR 2026-09-30] 自绘 tab 栏挂栈内 root 页底边：push 从
+            // 栈内部盖上来整页覆盖含栏；划回 root 页（含栏）整体平移揭示。
+            // 系统栏与藏显机制整体退役（见 RootModeTabsView / ModeTabBar 头注）。
+            // [去嵌套 2026-09-30] 壳拆后「栈」= 容器栈：栏仍挂本树 root 内容底边、
+            // push 仍从容器栈整页盖住含栏——语义逐字不变，只是宿主换人。
+            .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .local) }
+            // [TG-TABBAR-FIX 2026-09-30 pp 装机] 键盘豁免·权威挂点：栏的落位由
+            // **被 safeAreaInset 修饰的整链**的安全区决定，豁免必须包在 inset
+            // 外侧（子树安全区剔除键盘区）；挂在栏内部（ModeTabBar.body）实测
+            // 无效——键盘开启从聊天页划回时，栏随输入框一起上浮（TG = 钉死底部、
+            // 被键盘覆盖）。有意副效果：root 页列表内容随之可下穿键盘（搜索聚焦
+            // 时内容滚到键盘下，iOS 惯例）。勿把本行上移到 stack 或下移到栏内。
+            // [去嵌套 2026-09-30] 本层已无内层栈，「上移到 stack」字面失效（无处可
+            // 上移）；纪律照旧——豁免仍必须包在 safeAreaInset 外侧。
+            .ignoresSafeArea(.keyboard, edges: .bottom)
+            // [容器化 C3 2026-09-30] 原 navigationDestination 整块（含
+            // AIChatView 构造/ENV-DEFENSE 注入/APPEAR·DISAPPEAR 探针）已迁至
+            // 容器栈（RootModeTabsView 的 NavigationStack 内容）——深页从
+            // 容器栈推出，整页盖住含栏容器；替换点见彼处 [容器化 C3] 注释。
         // [容器化 C3] 观察源改挂容器栈（原内层栈 path 已上收 ContainerNav）。
         .onChange(of: containerNav.path.count) { old, new in
             NavTrace.log("PATH \(old)→\(new) top=\(containerNav.path.last?.logTag ?? "nil") trig=\(NavTrace.trigger)+\(NavTrace.age)")
@@ -2938,6 +2945,9 @@ struct ContentView: View {
     /// Plain List with NavigationLink for stack (iPhone) layout.
     /// ScrollViewReader feeds the mini-bar's "back to header" jump; wrapping
     /// the List is inert otherwise (no layout/behavior change).
+    /// [去嵌套 2026-09-30] 名录保留未改名：这里的「stack」= 容器栈（RootModeTabsView
+    /// 的那层），本树已无自有栈壳。行内控件也早已不是 NavigationLink（[容器化 C3]
+    /// 改为 Button + containerNav.pushChat），上方首句为沿革留档。
     private var stackList: some View {
         ScrollViewReader { scrollProxy in
         List {
@@ -3008,9 +3018,11 @@ struct ContentView: View {
                                     }
                                 }
                                 .background(
-                                    // [容器化 C3 2026-09-30 · R3 审查修订 F1] NavigationLink
-                                    // → Button：深页 push 已上收容器栈，内层栈无 ChatRoute
-                                    // destination——value-Link 会失效（且不跨栈冒泡）。
+                                    // [容器化 C3 2026-09-30 · R3 审查修订 F1 · 去嵌套
+                                    // 2026-09-30] NavigationLink → Button：深页 push 已上收
+                                    // 容器栈，本树无 ChatRoute destination（内层栈已于
+                                    // 去嵌套手术中整壳拆除）——value-Link 会失效
+                                    // （且不跨栈冒泡）。
                                     // ⚠️ 命中区纪律（R3 F1 实锤反例）：旧 Link 靠 List 行的
                                     // 整行激活语义，Button 无此语义——label 必须是有尺寸的
                                     // 填充体（EmptyView = 零尺寸 = 不可点）。Color.clear +
@@ -3108,13 +3120,28 @@ struct ContentView: View {
         .ignoresSafeArea(edges: .top)
         .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { sidebarToolbarContent }
-        // [容器化 C2-FIX 2026-09-30] 顶栏对冲（装机实锤）：容器 root 的
-        // .toolbar(.hidden, for: .navigationBar) 会经 SwiftUI 环境传播把内层栈
-        // 的导航栏一并藏掉（「顶部所有按钮都没了、只剩底栏」）——此处就近显式
-        // 钉 visible，覆盖环境值（SwiftUI 就近覆盖语义）。
-        .toolbar(.visible, for: .navigationBar)
-        .toolbarBackground(.hidden, for: .navigationBar)
+        // [去嵌套 2026-09-30] chrome 门控：三棵树同时活着（RootModeTabsView 的
+        // 溶解窗口还会把上一棵树压在下层 120ms），toolbar 内容必须按
+        // RootTabRouter.mode 门控，否则本机的 ≡/胶囊/搜索会串到远端/构件树的
+        // 容器栏上（反过来同理）。tabRouter 已是本视图的 @ObservedObject
+        // （:942），mode 变化即重求值，无需额外订阅；非 .local 时整块不产出
+        // ToolbarContent = 本树对顶栏零贡献。
+        .toolbar { if tabRouter.mode == .local { sidebarToolbarContent } }
+        // [容器化 C2-FIX 2026-09-30 · 去嵌套 2026-09-30 退役] 原顶栏对冲已删。
+        // 判例留档：容器 root 当时带 .toolbar(.hidden, for: .navigationBar)，
+        // 经 SwiftUI 环境传播把内层栈的导航栏一并藏掉（「顶部所有按钮都没了、
+        // 只剩底栏」），故此处就近钉 visible 覆盖。容器栏转正后容器 root 不再
+        // hidden，泄漏源已除，对冲已无对象可覆盖，留着反而会盖掉别树的栏策略。
+        // [去嵌套 2026-09-30 · R1/R3 审查修订 2026-09-30] 栏背景按 mode 门控，且
+        // 门控纪律 = **结构性 no-write**（非当前 tab 时什么都不写）：
+        //  ① hidden 是三树里只有本机树声明的值（works 声明 0.45 色、远端用默认），
+        //     非本机时必须让位；
+        //  ② 让位 ≠ 写 `.automatic`——它是真写进栏背景偏好仲裁的实值（Apple 语义 =
+        //     按内容滚动位置自动显隐），三树挂点深度相同、与 works 的 0.45 色偏好
+        //     胜负不可控；若它在 works 当值时胜出，胶囊玻璃的折射底会消失
+        //     （MUSE-GLASS-BG，pp 2026-09-27 验收项）。R1 审查实锤该冲突面。
+        // 形状对照 WorksListView.WorksToolbarBackground（同一判据）。
+        .modifier(LocalToolbarBackground(isCurrentTab: tabRouter.mode == .local))
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
@@ -3311,17 +3338,50 @@ struct ContentView: View {
         .ignoresSafeArea(edges: .top)
         .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { sidebarToolbarContent }
-        // [容器化 C2-FIX 2026-09-30] 顶栏对冲（装机实锤）：容器 root 的
-        // .toolbar(.hidden, for: .navigationBar) 会经 SwiftUI 环境传播把内层栈
-        // 的导航栏一并藏掉（「顶部所有按钮都没了、只剩底栏」）——此处就近显式
-        // 钉 visible，覆盖环境值（SwiftUI 就近覆盖语义）。
-        .toolbar(.visible, for: .navigationBar)
-        .toolbarBackground(.hidden, for: .navigationBar)
+        // [去嵌套 2026-09-30] chrome 门控（宽屏/分栏同款，判据见 compact 侧
+        // stackList 处的完整说明）：三棵树同时活着（RootModeTabsView 的溶解
+        // 窗口还会把上一棵树压在下层 120ms），toolbar 内容必须按
+        // RootTabRouter.mode 门控，否则本机的 ≡/胶囊/搜索会串到远端/构件树的
+        // 容器栏上（反过来同理）。tabRouter 已是本视图的 @ObservedObject
+        // （:942），mode 变化即重求值，无需额外订阅；非 .local 时整块不产出
+        // ToolbarContent = 本树对顶栏零贡献。
+        .toolbar { if tabRouter.mode == .local { sidebarToolbarContent } }
+        // [容器化 C2-FIX 2026-09-30 · 去嵌套 2026-09-30 退役] 原顶栏对冲已删。
+        // 判例留档：容器 root 当时带 .toolbar(.hidden, for: .navigationBar)，
+        // 经 SwiftUI 环境传播把内层栈的导航栏一并藏掉（「顶部所有按钮都没了、
+        // 只剩底栏」），故此处就近钉 visible 覆盖。容器栏转正后容器 root 不再
+        // hidden，泄漏源已除，对冲已无对象可覆盖，留着反而会盖掉别树的栏策略。
+        // [去嵌套 2026-09-30 · R1/R3 审查修订 2026-09-30] 栏背景按 mode 门控，且
+        // 门控纪律 = **结构性 no-write**（非当前 tab 时什么都不写）：
+        //  ① hidden 是三树里只有本机树声明的值（works 声明 0.45 色、远端用默认），
+        //     非本机时必须让位；
+        //  ② 让位 ≠ 写 `.automatic`——它是真写进栏背景偏好仲裁的实值（Apple 语义 =
+        //     按内容滚动位置自动显隐），三树挂点深度相同、与 works 的 0.45 色偏好
+        //     胜负不可控；若它在 works 当值时胜出，胶囊玻璃的折射底会消失
+        //     （MUSE-GLASS-BG，pp 2026-09-27 验收项）。R1 审查实锤该冲突面。
+        // 形状对照 WorksListView.WorksToolbarBackground（同一判据）。
+        .modifier(LocalToolbarBackground(isCurrentTab: tabRouter.mode == .local))
         .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
         .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
     }
+    // MARK: - Toolbar background（[R1/R3 审查修订 2026-09-30]）
+
+    /// 本机树栏背景的**结构性 no-write** 门控：当前时写 `.hidden`（透明栏、内容
+    /// 可下穿——本机设计），非当前时**不挂任何修饰符**（把栏背景让给当值树，而不是
+    /// 写 `.automatic` 参与仲裁——理由见调用点注释）。形状对照
+    /// WorksListView.WorksToolbarBackground。
+    private struct LocalToolbarBackground: ViewModifier {
+        let isCurrentTab: Bool
+        @ViewBuilder func body(content: Content) -> some View {
+            if isCurrentTab {
+                content.toolbarBackground(.hidden, for: .navigationBar)
+            } else {
+                content
+            }
+        }
+    }
+
     // MARK: - Sidebar Toolbar
 
     /// 胶囊 → 资料页 sheet。namespace 为 nil（preview）时降级为普通 sheet；
@@ -4048,8 +4108,8 @@ struct ContentView: View {
                 ForEach(entry.ids, id: \.self) { sessionId in
                     if let session = byId["\(entry.deviceId):\(sessionId)"] {
                         // [容器化 C3 2026-09-30] NavigationLink → Button（同会话行：
-                        // 内层栈无 destination，走容器栈单通道）。该分区当前未挂载
-                        // （死入口），一并改造防未来启用时失效。
+                        // 本树无 destination（内层栈已随去嵌套手术整壳拆除），走容器栈
+                        // 单通道）。该分区当前未挂载（死入口），一并改造防未来启用时失效。
                         Button {
                             containerNav.pushChat(.remote(deviceId: entry.deviceId, sessionId: session.id))
                         } label: {

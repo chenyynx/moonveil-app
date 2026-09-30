@@ -101,19 +101,13 @@ struct RemoteSessionListView: View {
     @State private var showsPairSheet = false
     @State private var showsProjectEditor = false
     @State private var showsNewSession = false
-    /// P1-CHAT：会话聊天页 push（官方由 ChatShellView 的 selection 承担，本仓导航 =
-    /// NavigationStack → navigationDestination）。
-    @State private var showsChat = false
-    @State private var chatSessionId: String?
     /// [NEW-SESSION-OPEN] 新建会话成功后的待打开 sessionId：官方是原地换 selection
     /// （ChatShellView:209 `openSession`），本仓新会话页是 fullScreenCover，必须等
-    /// cover 关掉再 push——与 dismiss 同一事务里改 NavigationStack 路径有被吞的先例
+    /// cover 关掉再 push——与 dismiss 同一事务里改导航路径有被吞的先例
     /// （[T-ios-stacknav-transition-attributegraph-race]）。
+    /// [去嵌套 2026-09-30] 载体不变（时序纪律不变），落点从「本视图的
+    /// showsChat/navigationDestination」换成容器栈 `ContainerNav.pushChat`。
     @State private var pendingChatSessionId: String?
-    /// 官方 ChatShellView:198 `appState.connectors.first { $0.id == connectorID }?.name`
-    /// 的本仓等价物：无常驻 connectors 镜像 → 就绪时拉一次，供聊天页副标题与文件页标题。
-    @State private var connectorNames: [String: String] = [:]
-    @Environment(\.dismiss) private var dismiss
     /// 官方 AgentsAnywhereApp.swift:23 的后台钩子（方案 B：App 根属本机线，
     /// 死隔离禁动 → 挂远端线页面根；services 未就绪时短路）。
     @Environment(\.scenePhase) private var scenePhase
@@ -123,8 +117,6 @@ struct RemoteSessionListView: View {
     @AppStorage("aa.native.sidebar.session-list") private var showsAllSessions = false
     /// 归档筛选三态（AA V2DeviceSessionFilter 等价；仅按项目模式出现在菜单，同官方 filters()）。
     @State private var archiveFilter: RemoteSessionFilter = .active
-    /// 设备详情页 push（长按终端卡；REMOTE-DEVICE-1，pp 2026-09-20 指定入口）。
-    @State private var showsDeviceDetail = false
     /// 「添加设备」表：终端卡在没有可用 connector 时弹出（pp 2026-09-27）。
     @State private var showsAddDevice = false
     /// [FIX-nested-sheet 2026-09-27] 添加设备页点登录后，由本页直接弹登录页
@@ -137,9 +129,11 @@ struct RemoteSessionListView: View {
     /// P3-3：页面级错误 toast 存储（官方一槽一错语义，AAV2 冻结件）。
     @State private var toasts = ChatToastStore()
 
-    // 导航容器由 RemoteRootView 的 NavigationStack 提供（bottom-dock 批次：顶栏胶囊
-    // 已迁壳层，本页顶栏只剩右上角控件）；列表选项菜单在板块结构的项目头 …，
-    // 本视图不再另挂右上角菜单。
+    // [去嵌套 2026-09-30] 导航容器 = 容器栈（RootModeTabsView 的
+    // `NavigationStack(path: $containerNav.path)`）；本页是远端树的 root 内容，不再
+    // 自带栈。深页（聊天 / 设备详情）一律 `ContainerNav.shared.pushChat(·)`，
+    // 目的地视图（RemoteTreeChatDestination / RemoteDeviceDestination）在本文件末尾。
+    // 顶栏：bottom-dock 批次起胶囊已迁壳层，本页顶栏只剩右上角控件。
     var body: some View {
         content
             // 页面画布与本机一致 = systemBackground（pp 2026-09-26「远端背景改成和
@@ -147,8 +141,12 @@ struct RemoteSessionListView: View {
             .background(RemotePalette.canvas.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // 顶栏右上角：⋯ 菜单（配对新设备已收进菜单第一项，pp 2026-09-26）。
-                ToolbarItem(placement: .topBarTrailing) { topBarOptionsButton }
+                // [去嵌套 2026-09-30] chrome 门控：顶层栏全 App 只有一根，三棵树的
+                // root 内容同时活着（保活切页）——本页的 ⋯ 不门控会串到别的树的栏上。
+                if tabRouter.mode == .remote {
+                    // 顶栏右上角：⋯ 菜单（配对新设备已收进菜单第一项，pp 2026-09-26）。
+                    ToolbarItem(placement: .topBarTrailing) { topBarOptionsButton }
+                }
             }
             // P3-3（2026-09-21）错误 toast 细化：官方 ChatErrorToasts + ChatToastStore
             // 分类逐字（网络已断开 / 登录状态需要验证 / 会话数据格式不兼容 / 操作未完成，
@@ -187,11 +185,13 @@ struct RemoteSessionListView: View {
             }
             // [NEW-SESSION-OPEN] 官方 onCreated 的第二半（`openSession(session.id)`）：
             // cover 关闭事件到达后才 push，避免与 dismiss 抢同一次事务。
+            // [去嵌套 2026-09-30] push 落点改容器栈（.remoteTreeChat）；「等 cover 关掉
+            // 再动路径」的时序纪律原样保留——它守的是「dismiss 与导航路径写入同事务」
+            // 这条先例（[T-ios-stacknav-transition-attributegraph-race]），与栈是哪一层无关。
             .onChange(of: showsNewSession) { _, presented in
                 guard !presented, let id = pendingChatSessionId else { return }
                 pendingChatSessionId = nil
-                chatSessionId = id
-                showsChat = true
+                ContainerNav.shared.pushChat(.remoteTreeChat(sessionId: id))
             }
             .sheet(isPresented: $showsArchives) {
                 RemoteArchivedSessionsSheet(service: service)
@@ -202,75 +202,86 @@ struct RemoteSessionListView: View {
                 guard let services = service.chat else { return }
                 services.setAppInBackground(phase == .background)
             }
-            // [SWIPE-ROOT-RESET] pp 2026-09-24「滑到本地页再滑回远端页是远端聊天页？」：
-            // 页切语义 = 两条线各自的根列表页互切（B16-SWIPE-SCOPE），push 态不该劫持
-            // 返回落点——聊天/设备详情开着时切走远端线，滑回来会落在残留的聊天页上。
-            // 切走即弹回根列表（capsule 与横滑同规则，都经 router.mode 变化触发）；
-            // showsChat/详情复位经既有 onChange 链连带 remoteAtRoot=true，齿轮/返回键
-            // 状态随之归位。仅远端线——本机线是 upstream 本体（死隔离），待 pp 表态对称。
-            .onChange(of: tabRouter.mode) { _, mode in
-                guard mode != .remote else { return }
-                if showsChat { showsChat = false }
-                if showsDeviceDetail { showsDeviceDetail = false }
-            }
+            // [SWIPE-ROOT-RESET 退役 2026-09-30] pp 2026-09-24「滑到本地页再滑回远端页
+            // 是远端聊天页？」的原解法（本页 onChange(tabRouter.mode) 复位
+            // showsChat / showsDeviceDetail）随树内层栈一起退役：深页不再挂在树自己的
+            // 路径上，而是容器栈的 path——切树不碰 path，返回落点自然由容器栈管。
+            // 留档：当初那条规则（push 态不劫持返回落点）仍然成立，只是它的宿主从
+            // 「树内 NavigationStack」换成了「容器 NavigationStack」，规则无需重写。
             .onAppear {
                 guard service.state == .ready else { return }
                 loader.load(service: service, filter: archiveFilter)
                 loader.loadArchived(service: service)
-                Task { await refreshConnectorNames() }
                 // dashboard 兜底：RemoteService.syncState 只在跃迁到 .ready 时拉一次，
                 // 那一发若因网络失败落地，connectors 仍是空 → 终端卡点进去没有设备身份。
                 // repository.refresh 自带 isValid / !isLoading 守门，重复调用不会打串。
                 Task { await service.chat?.dashboardRepository.refresh() }
+            }
+            // [去嵌套 2026-09-30] 常驻根通道注册（id = service.state：状态跃迁时补注册，
+            // 幂等重复调用无害）。为何归到列表而不是聊天页目的地，见 registerRootChannels 注释。
+            .task(id: service.state) {
+                registerRootChannels()
             }
             .onChange(of: archiveFilter) { _, newFilter in
                 loader.load(service: service, filter: newFilter, force: true)
             }
     }
 
-    /// 设备名镜像（一次性；配对/改名后的刷新随设备页批走）。失败静默：
-    /// 聊天页副标题按官方回退链使用 connectorId。
-    private func refreshConnectorNames() async {
-        guard let connectors = try? await service.listConnectors() else { return }
-        connectorNames = Dictionary(connectors.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+    // MARK: - 常驻根通道（[去嵌套 2026-09-30] 从聊天页目的地搬来）
+
+    /// 注册两条「根层」组合根回调。**为什么归列表而不是聊天页目的地**：
+    /// 这两条通道的消费端本来就在本页——
+    ///  ① `sessionReads.onChange`（官方 AppState:804，已读态变化投影回列表）闭包里
+    ///     读的是本页的 `archiveFilter`；把它留在目的地 wrapper 里就得给共享单例
+    ///     `RemoteSessionLoader` 开一个 `currentFilter` 读口（跨文件改动、且等于把
+    ///     列表的私有状态提到数据层），或让 wrapper 反向依赖列表——两条都比
+    ///     「常驻根自己持有」差。列表是容器栈之下的常驻 root（切树/推深页都不销毁
+    ///     它），本来就是这条投影的宿主。
+    ///  ② `onReturnToNewSession`（官方 onSelectPage(.newSession) 的等价物）要求
+    ///     「关聊天页 + 开新会话页」。新会话页（`showsNewSession` / `pendingChatSessionId`）
+    ///     是本页的状态，且本页是唯一持有 `archiveFilter` 的人（新建成功后要用它
+    ///     强刷列表）；让 wrapper 自持一份 cover 会把这两处状态劈成两份。
+    /// 副作用方向也一致：两条都只由「打开的聊天页」触发，列表侧无行为差异。
+    /// 幂等：重复注册只是覆盖同一个闭包。
+    private func registerRootChannels() {
+        guard service.state == .ready, let services = service.chat else { return }
+        // 官方 AppState:804 sessionReads.onChange：已读态变化投影回列表。
+        // 本仓列表项由 RemoteSessionLoader 持有（无单条 upsert API）→
+        // 已读变化触发一次列表刷新等价覆盖，refresh 内部自带节流。
+        // 闭包捕获的是本视图结构体本身：@State/@StateObject 的存储盒是引用，
+        // 之后读 archiveFilter 拿到的是**当前**值，不是注册那一刻的快照（原写法
+        // 在目的地 .task 里隐式捕获 self，同款语义）。
+        services.sessionReads.onChange = { _ in
+            guard self.service.state == .ready else { return }
+            self.loader.load(service: self.service, filter: self.archiveFilter)
+        }
+        // 「返回编辑」跳页通道（官方 onSelectPage(.newSession) 的本仓等价物）：
+        // 聊天页 editCreation 暂存草稿后回调这里 → 出栈关聊天页 + 开新会话页。
+        services.onReturnToNewSession = {
+            self.returnToNewSession()
+        }
     }
 
-    /// P1-CHAT：聊天页目的地。`service.chat`（组合根）未就绪（未登录/未 bootstrap）
-    /// 时列表本身不可点（state != .ready），此处仍做真实判空而非强解包。
-    @ViewBuilder private var chatDestination: some View {
-        if let id = chatSessionId, let services = service.chat {
-            let session = services.sessionRepository.session(id: id)
-            SessionChatView(session: session, services: services,
-                            deviceName: connectorNames[session.metadata?.connectorId ?? ""],
-                            onMenu: { dismiss() })
-                // [TG-TABBAR 2026-09-30] 原 TABBAR-NATIVE 藏栏退役：系统栏不存在
-                // （自绘栏是远端 root 页内件，本页 push 即整页盖住含栏的 root 页）。
-                // （原注释：远端聊天页同为被 push 的目的地，声明式藏 tab。）
-                .task(id: id) {
-                    // 官方 AppState.makeV2Services → services.restoreCache(selection:)：
-                    // 进页面先把本地缓存铺进仓库（离线可见），网络回来再覆盖。
-                    await services.restoreCache(selection: .session(id))
-                    // 官方 AppState:372 sessionReads.setVisibleSession：
-                    // local: 前缀的本地草稿不计已读，同官方判据。
-                    services.sessionReads.setVisibleSession(
-                        id.hasPrefix("local:") ? nil : id)
-                    // 官方 AppState:804 sessionReads.onChange：已读态变化投影回列表。
-                    // 本仓列表项由 RemoteSessionLoader 持有（无单条 upsert API）→
-                    // 已读变化触发一次列表刷新等价覆盖，refresh 内部自带节流。
-                    services.sessionReads.onChange = { _ in
-                        guard service.state == .ready else { return }
-                        loader.load(service: service, filter: archiveFilter)
-                    }
-                    // 「返回编辑」跳页通道（官方 onSelectPage(.newSession) 的本仓等价物）：
-                    // 聊天页 editCreation 暂存草稿后回调这里 → 关聊天页 + 开新会话页。
-                    services.onReturnToNewSession = {
-                        showsChat = false
-                        showsNewSession = true
-                    }
-                }
-        } else {
-            Color.clear
+    /// 原 `{ showsChat = false; showsNewSession = true }` 的容器栈等价物：
+    /// 出栈（回根列表）+ 开新会话全屏页，两次写入仍在同一 tick（与原写法同序同帧）。
+    private func returnToNewSession() {
+        // 只在栈顶确实是本页推的聊天页时出栈——陈旧注册（聊天页早已退栈、闭包仍挂在
+        // 组合根上）不许误伤别的页。判据取 ChatRoute 本值，不依赖 path.count。
+        if case .remoteTreeChat = ContainerNav.shared.path.last {
+            ContainerNav.shared.pop()
         }
+        showsNewSession = true
+    }
+
+    /// 设备详情页的容器栈入口（REMOTE-DEVICE-1 / P2-A）。
+    /// connector 解析与终端卡单击同款（在线优先、回退第一台），解析不出时传空串
+    /// ——目的地 `RemoteDeviceDestination` 按同款判据再解析一次，仍解析不出才落
+    /// pending 空态（「正在同步设备信息…」+ 重试）。空串不是 bug 值，是「数据未到」
+    /// 的显式载体（ChatRoute.remoteDevice 注释同款判据）。
+    private func pushDeviceDetail() {
+        let connectors = service.chat?.dashboardRepository.connectors ?? []
+        let id = (connectors.first { $0.status == .online } ?? connectors.first)?.id ?? ""
+        ContainerNav.shared.pushChat(.remoteDevice(connectorId: id))
     }
 
     private var content: some View {
@@ -381,64 +392,14 @@ struct RemoteSessionListView: View {
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.immediately)
         .refreshable { await refresh() }
-        // REMOTE-DEVICE-1 + P2-A：设备详情页（单击终端卡进入）；per-connector 数据面
-        // （官方 ChatShellView:107-143 形状：connector 从 dashboardRepository.connectors
-        // 取、删除回调走组合根 removeConnector、.id(connectorId) 官方 190 行）。
-        .navigationDestination(isPresented: $showsDeviceDetail) {
-            // [TAB-RESTORE pp 拍板 ffd2d84] 终端卡进去的设备详情 = push 二级页，
-            // 无底部 tab。[TG-TABBAR 2026-09-30] 原「系统栏恢复原生渲染后由目的地
-            // 显式声明（hidesBottomBarWhenPushed 等价）」已退役——系统栏不存在，
-            // 本页从栈内 push 即整页盖住含栏的 root 页（见下方原藏栏处墓碑）。
-            Group {
-                if let connector = deviceConnector, let services = service.chat {
-                // [BATCH-A/A3-同族][SEAM-LOSSLESS] 设备页四条归档写路径无损回传真实
-                // 变更集（[RemoteSessionMeta]）：服务端与 dashboard 仓库在写路径内部
-                // 已推进（setSessionsArchived/archiveProject/updateSessions 均回写
-                // 仓库），这里只把变更集增量并入 loader 镜像——不再整表 force 重拉，
-                // 因为 force 重拉把 phase 打到 .loading，返回列表页时闪一帧
-                // 「正在加载远程会话…」骨架。「无损」的上游字据（archive-all 的
-                // sessions 恒等于全量受影响集）见 V2RemoteChatServices.archiveProject
-                // 注释；在途 load 与增量合并的竞态由 RemoteSessionLoader.changeLog
-                // 的有界重放收敛（快照落地后把晚于请求起点、且仍在日志窗口内的
-                // 变更集重新并入；超出 changeLogCap 被丢的条目不重放，其行由下
-                // 一次全量拉取纠正）。
-                RemoteDeviceDetailView(service: service, connector: connector,
-                    onDeleted: { id in
-                        services.removeConnector(connectorId: id)
-                        showsDeviceDetail = false
-                    },
-                    onSessionsChanged: { changed in
-                        loader.applyRemoteChange(changed)
-                    })
-                    .id(connector.id)
-                } else {
-                    deviceDetailPending
-                }
-            }
-            // [TG-TABBAR 2026-09-30] 原藏栏退役：设备详情页 = 栈内 push 目的地，
-            // 从右滑入即整页盖住含栏的 root 页，无需藏显声明。
-        }
-        // 页切栅栏 + 顶栏齿轮的归属从「详情页 onAppear 自报」改成「push 状态」：
-        // 原写法把 remoteAtRoot 挂在 RemoteDeviceDetailView.onAppear 上，目的地
-        // 一旦渲染不出内容（pp 2026-09-21 白屏那次根本没 appear），横滑漏切本机
-        // 和外壳 topLeading 齿轮压住系统返回箭头这两个问题就一起复发。
-        // 系统返回箭头与齿轮共用这一个开关：push 中 → 齿轮隐藏 → 导航栏露出返回键。
-        .onChange(of: showsDeviceDetail) { _, pushed in
-            RootTabRouter.shared.remoteAtRoot = !pushed
-        }
-        // P1-CHAT：会话聊天页（官方 ChatShell selection 的本仓导航等价物）
-        .navigationDestination(isPresented: $showsChat) {
-            chatDestination
-        }
-        // 与上面 showsDeviceDetail 同款页切栅栏/顶栏齿轮开关（pp 2026-09-21：
-        // 聊天页左上角两个 ≡ 叠着）。聊天页 push 时没复位 remoteAtRoot，外壳
-        // topLeading 齿轮（RootModeTabsView gearVisible = remoteAtRoot）继续显示，
-        // 和 ChatPageToolbar 自己的 topBarLeading 返回键叠在一起。
-        .onChange(of: showsChat) { _, pushed in
-            RootTabRouter.shared.remoteAtRoot = !pushed
-            // [TG-TABBAR 2026-09-30] 原 remoteChatPushed（进聊天页藏底栏）随藏显
-            // 机制退役：栏是一级页内件，push 天然整页盖住，无"藏栏标志"可写。
-        }
+        // [去嵌套 2026-09-30] 原此处两条 `.navigationDestination(isPresented:)`
+        // （设备详情 / 会话聊天）连同它们的 remoteAtRoot 栅栏整体退役，改由容器栈的
+        // `navigationDestination(for: ChatRoute.self)` 统一承接（目的地视图 =
+        // 本文件末尾 RemoteDeviceDestination / RemoteTreeChatDestination）。
+        // 留档：当年「页切栅栏 + 顶栏齿轮共用一个 push 开关」解决的是
+        // 「目的地渲染不出内容时 onAppear 不跑 → 标志卡死 → 齿轮压住返回箭头」
+        // （pp 2026-09-21 白屏那次）；根治点已换成结构性的——顶栏只有一根且由容器栏
+        // 独占，标志本身（remoteAtRoot）不再存在，没有可卡死的东西。
         // PAIRING-FULL 收尾（P2-B）：官方 ChatShellView:39-45/53-59 形状——配对就绪的
         // 设备弹 AgentSetupSheet（原「跳设备详情页」过渡移除）；关闭 = finish + 刷 dashboard。
         .sheet(item: agentSetupBinding) { facade in
@@ -473,31 +434,9 @@ struct RemoteSessionListView: View {
         return connectors.first { $0.status == .online } ?? connectors.first
     }
 
-    /// 设备身份还没到位时的目的地可见态（替掉原 `Color.clear`——纯透明铺在
-    /// 系统白底上就是 pp 看到的白屏，且没有任何可操作出口）。
-    /// 空态诚实：直接读仓库的 error / isLoading，失败时显示失败原因并放开重试，
-    /// 而不是无限转圈静默（本仓远端线空态惯例；读法同 RemoteDeviceDetailView 的
-    /// `dashboard?.error`）。dashboard 未落地 / 首发放失败 / 失败后等待重试都走这里。
-    private var deviceDetailPending: some View {
-        let error = service.chat?.dashboardRepository.error
-        let loading = service.chat?.dashboardRepository.isLoading == true
-        return VStack(spacing: 14) {
-            if loading { ProgressView() }
-            Text(error ?? "正在同步设备信息…")
-                .font(.system(size: 13))
-                .foregroundStyle(RemotePalette.body)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            Button("重试") {
-                Task { await service.chat?.dashboardRepository.refresh() }
-            }
-            .font(.system(size: 14, weight: .medium))
-            .disabled(loading)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(RemotePalette.canvas.ignoresSafeArea())
-        // [DOCK-ON-PAGE 2026-09-28] 设备详情兜底页是二级页：不挂导航 dock。
-    }
+    // [去嵌套 2026-09-30] 原 `deviceDetailPending`（设备身份未到位时的目的地空态，
+    // 含重试按钮）随目的地迁到本文件末尾 RemoteDeviceDestination —— 它的唯一消费方
+    // 就是那个 destination，留在列表里就成了死成员。文案与形状逐字保留。
 
     /// 会话区内的状态行（加载 / 错误）——保持页面骨架完整，不替换整页
     /// （pp 2026-09-20「这个页面没改？」：空态也不许把设备卡吞掉）。
@@ -732,12 +671,15 @@ struct RemoteSessionListView: View {
         // 2026-09-20 版改单击——「现在是长按卡片才能进去 改为点一次就进入」）。
         // [PP-2026-09-27] 点按直进设备页，不再按配置状态分流弹登录（恢复 5863f33；
         // d20295d 的未配置分流未经 pp 确认，已 revert）。未配置时目的地显示
-        // deviceDetailPending（「正在同步设备信息…」+ 重试），不白屏。
+        // deviceDetailPending（「正在同步设备信息…」+ 重试，不白屏）——[去嵌套
+        // 2026-09-30] 该空态随目的地迁到 RemoteDeviceDestination。
         // pp 2026-09-27：有 connector 直接进设备页；没有则弹「添加设备」表
         // （扫码登录/手动登录），登录成功后再进设备页。
         .onTapGesture {
+            // [去嵌套 2026-09-30] 进设备详情 = 推容器栈（.remoteDevice）；没有设备
+            // 身份时仍旧弹「添加设备」表（pp 2026-09-27 的分流，不动）。
             if deviceConnector != nil {
-                showsDeviceDetail = true
+                pushDeviceDetail()
             } else {
                 showsAddDevice = true
             }
@@ -761,7 +703,7 @@ struct RemoteSessionListView: View {
                 service: service,
                 onLoginSucceeded: {
                     // 登录成功：dashboard 拉到 connector 后进设备页
-                    showsDeviceDetail = true
+                    pushDeviceDetail()
                 },
                 onQRLoginRequested: {
                     pendingAuthSheet = .qr
@@ -774,13 +716,13 @@ struct RemoteSessionListView: View {
         .sheet(isPresented: $showsQRLogin) {
             QRCodeLoginView(service: service) {
                 showsQRLogin = false
-                showsDeviceDetail = true
+                pushDeviceDetail()
             }
         }
         .sheet(isPresented: $showsManualLogin) {
             ManualLoginView(service: service) {
                 showsManualLogin = false
-                showsDeviceDetail = true
+                pushDeviceDetail()
             }
         }
         .accessibilityHint(Text(deviceConnector != nil ? "查看设备详情" : "添加设备"))
@@ -885,9 +827,10 @@ struct RemoteSessionListView: View {
     private func openSession(_ item: RemoteSessionItem) {
         // 打开即标记已读（AA 官方语义；写失败不阻断查看）
         loader.markRead([item.id], service: service)
-        // P1-CHAT：进入官方聊天页（push 目的地，数据面走组合根 sessionRepository）
-        chatSessionId = item.id
-        showsChat = true
+        // P1-CHAT：进入官方聊天页。[去嵌套 2026-09-30] push 落点从「本视图的
+        // showsChat + navigationDestination」换成容器栈（数据面仍走组合根
+        // sessionRepository，目的地 RemoteTreeChatDestination）。
+        ContainerNav.shared.pushChat(.remoteTreeChat(sessionId: item.id))
     }
 
     private func togglePin(_ item: RemoteSessionItem) {
@@ -965,7 +908,8 @@ struct RemoteSessionListView: View {
 
     // 列表选项（归档/断开）= 页面级操作，挂顶栏右上角 …（本机同位；
     // REMOTE-REDESIGN-3 从项目头 … 迁回，项目头只留 ▾ 折叠与 ＋ 新建）。
-    // 导航容器仍由 RemoteRootView 提供（顶栏胶囊已迁壳层）。
+    // [去嵌套 2026-09-30] 导航容器改由容器栈提供（顶栏胶囊已迁壳层；⋯ 的 toolbar
+    // 件已按 tabRouter.mode == .remote 门控，见 body）。
     @ViewBuilder
     private var listOptionsMenuContent: some View {
         // pp 2026-09-26：＋ 配对新设备收进 ⋯ 菜单第一项，右上角只剩 🔍 + ⋯。
@@ -1035,4 +979,189 @@ struct RemoteSessionItem: Identifiable, Equatable {
 
 enum RemoteSessionMenuAction {
     case open, rename, togglePin, archive, delete, copyId
+}
+
+// MARK: - [去嵌套 2026-09-30] 容器栈目的地（远端树深页）
+//
+// 原先这两页是 RemoteSessionListView 里的两条 `.navigationDestination(isPresented:)`
+// + 本视图的 @State；树内层 NavigationStack 拆掉后没有栈可 push，改由 RootModeTabsView
+// 的容器栈 `navigationDestination(for: ChatRoute.self)` 统一承接（.remoteTreeChat /
+// .remoteDevice）。视图本体放在本文件末尾而不是新建文件：数据面全在 RemoteKit 组合根，
+// 与 RemoteDeviceDetailView / SessionChatView 是同一族消费方，同文件便于对照搬运。
+// ⚠️ 身份：`.id(route)` 由调用侧（RootModeTabsView）钉——navigationDestination 的视图
+// 按**栈深度**识别、不按 path 值，同深度换路由会复用旧视图的 @StateObject。
+
+/// 远端树会话聊天页目的地（原 `chatDestination`，逐字搬运 + 拆栈适配）。
+struct RemoteTreeChatDestination: View {
+    @ObservedObject var service: RemoteService
+    let sessionId: String
+
+    /// 官方 ChatShellView:198 `appState.connectors.first { $0.id == connectorID }?.name`
+    /// 的本仓等价物：无常驻 connectors 镜像 → 就绪时拉一次，供聊天页副标题与文件页
+    /// 标题（[去嵌套 2026-09-30] 从列表迁来——原镜像只为这一个消费方存在）。
+    @State private var connectorNames: [String: String] = [:]
+
+    /// [去嵌套 2026-09-30 · R4 审查修订] 全局 tint 数据源（同 RemoteRootView 的
+    /// 官方 RootView.swift:52 语义——主文本色，把 Menu/Label/裸 Button 染黑/白）。
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// P1-CHAT：聊天页目的地。`service.chat`（组合根）未就绪（未登录/未 bootstrap）
+    /// 时列表本身不可点（state != .ready），此处仍做真实判空而非强解包。
+    var body: some View {
+        Group {
+            if let services = service.chat {
+                let session = services.sessionRepository.session(id: sessionId)
+                // [R2 审查修订 2026-09-30] 设备名优先读 dashboardRepository 常驻镜像
+                // （列表侧 onAppear/refresh 已维护、零网络）——旧实现名字在列表 onAppear
+                // 已拉好；只靠下方 wrapper 自己的一次性拉取会让副标题首帧先闪 connectorId
+                // 再跳设备名。镜像查不到才回退 connectorNames（一次性拉取的兜底）。
+                let cid = session.metadata?.connectorId ?? ""
+                let dashName = services.dashboardRepository.connectors.first { $0.id == cid }?.name
+                SessionChatView(session: session, services: services,
+                                deviceName: dashName ?? connectorNames[cid],
+                                // [去嵌套 2026-09-30] onMenu 语义 = 「关掉本页」。
+                                // 消费侧实测：SessionChatView 把它交给 ChatPageToolbar 的
+                                // `showsSidebarButton: false` 分支，而该 toolbar 只在
+                                // `showsSidebarButton == true` 时才渲染 ≡ → **本调用点上
+                                // onMenu 根本不会被触发**（pp 2026-09-22 装机后刻意关掉
+                                // 的：系统已有返回箭头，≡ 与之重复）。这里按「返回/出栈
+                                // 类」实现成 `ContainerNav.shared.pop()`，等价且未来
+                                // 若恢复 ≡ 键也是对的。
+                                onMenu: { ContainerNav.shared.pop() })
+                    // [TG-TABBAR 2026-09-30] 原 TABBAR-NATIVE 藏栏退役：系统栏不存在
+                    // （自绘栏是远端 root 页内件，本页 push 即整页盖住含栏的 root 页）。
+                    // （原注释：远端聊天页同为被 push 的目的地，声明式藏 tab。）
+                    .task(id: sessionId) {
+                        // 官方 AppState.makeV2Services → services.restoreCache(selection:)：
+                        // 进页面先把本地缓存铺进仓库（离线可见），网络回来再覆盖。
+                        await services.restoreCache(selection: .session(sessionId))
+                        // 官方 AppState:372 sessionReads.setVisibleSession：
+                        // local: 前缀的本地草稿不计已读，同官方判据。
+                        services.sessionReads.setVisibleSession(
+                            sessionId.hasPrefix("local:") ? nil : sessionId)
+                        // [去嵌套 2026-09-30] 原链条里还有两条**根层**回调
+                        // （sessionReads.onChange 投影回列表 / onReturnToNewSession 回新
+                        // 会话页），二者都搬去了常驻根 RemoteSessionListView
+                        // （registerRootChannels）——原因与等价性论证见那里的注释。
+                    }
+            } else {
+                // [去嵌套 2026-09-30] 判空兜底注释沿用原 chatDestination：组合根未就绪
+                // 时透明铺底。⚠️ 纯透明在系统底色上就是白屏（设备详情那边有
+                // deviceDetailPending 兜底，聊天页这侧没有对应件）——保持原行为，不在本
+                // 批造新的空态件；可点不进本页的状态判据在上游（列表 state != .ready
+                // 不可点），这里只是防御。
+                Color.clear
+            }
+        }
+        // 设备名镜像与页面副作用链并行拉：官方形状是一次性拉取，失败静默（副标题
+        // 按官方回退链使用 connectorId，见 SessionChatView 的 subtitle 组装）。
+        // [R2 审查修订 2026-09-30] 现在只是 dashboard 常驻镜像（见 body 内解析）的
+        // 兜底路径——首选解析不依赖本拉取，保留为镜像缺 id 时的补拉。
+        .task {
+            await refreshConnectorNames()
+        }
+        // [去嵌套 2026-09-30 · R4 审查修订] 补回全局 tint：原 `.tint(AppTheme.primaryText)`
+        // 挂在 RemoteRootView 树内栈的**外侧**，覆盖栈内 push 的聊天页/设备详情页；
+        // 拆壳后本页从容器栈 push、环境继承自容器层（无 tint）——不补则本页 toolbar/
+        // Menu/裸 Button 回落系统 accent 蓝（pp 2026-09-21 截图定案过"系统蓝"回归）。
+        // 挂在 destination 子树上，其 toolbar items（渲染于容器栏）随之继承。
+        .tint(AppTheme.primaryText(colorScheme))
+    }
+
+    /// 设备名镜像（一次性；配对/改名后的刷新随设备页批走）。失败静默：
+    /// 聊天页副标题按官方回退链使用 connectorId。
+    private func refreshConnectorNames() async {
+        guard let connectors = try? await service.listConnectors() else { return }
+        connectorNames = Dictionary(connectors.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+    }
+}
+
+/// 远端树设备详情页目的地（原列表 `.navigationDestination(isPresented: $showsDeviceDetail)`，
+/// 逐字搬运 + 拆栈适配）。
+struct RemoteDeviceDestination: View {
+    @ObservedObject var service: RemoteService
+    /// 目标 connector id。空串 = 登录/配对刚成功、数据未到（列表侧 pushDeviceDetail
+    /// 的兜底载体），此时按「在线优先 → 第一台」再解析一次，仍解析不出落 pending 空态。
+    let connectorId: String
+
+    /// [去嵌套 2026-09-30 · R4 审查修订] 全局 tint 数据源（同 RemoteTreeChatDestination）。
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        content
+            // [去嵌套 2026-09-30 · R4 审查修订] 补回全局 tint：同 RemoteTreeChatDestination
+            // （原挂 RemoteRootView 树内栈外侧，覆盖本页「全部项目/新设备/创建项目」等
+            // 裸 Button/Menu；拆壳后不补即回落系统 accent 蓝——pp 2026-09-21 截图判据）。
+            .tint(AppTheme.primaryText(colorScheme))
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        // [去嵌套 2026-09-30] 解析判据同列表的 `deviceConnector`（在线优先、回退
+        // 第一台），多出「精确 id」优先档——容器栈的 route 带 id，能对上就对上。
+        if let services = service.chat {
+            let connectors = services.dashboardRepository.connectors
+            if let connector = connectors.first(where: { $0.id == connectorId })
+                ?? connectors.first(where: { $0.status == .online })
+                ?? connectors.first {
+                // [TAB-RESTORE pp 拍板 ffd2d84] 终端卡进去的设备详情 = push 二级页，
+                // 无底部 tab。[TG-TABBAR 2026-09-30] 原「系统栏恢复原生渲染后由目的地
+                // 显式声明（hidesBottomBarWhenPushed 等价）」已退役——系统栏不存在，
+                // 本页从容器栈 push 即整页盖住含栏的 root 页。
+                // [BATCH-A/A3-同族][SEAM-LOSSLESS] 设备页四条归档写路径无损回传真实
+                // 变更集（[RemoteSessionMeta]）：服务端与 dashboard 仓库在写路径内部
+                // 已推进（setSessionsArchived/archiveProject/updateSessions 均回写
+                // 仓库），这里只把变更集增量并入 loader 镜像——不再整表 force 重拉，
+                // 因为 force 重拉把 phase 打到 .loading，返回列表页时闪一帧
+                // 「正在加载远程会话…」骨架。「无损」的上游字据（archive-all 的
+                // sessions 恒等于全量受影响集）见 V2RemoteChatServices.archiveProject
+                // 注释；在途 load 与增量合并的竞态由 RemoteSessionLoader.changeLog
+                // 的有界重放收敛（快照落地后把晚于请求起点、且仍在日志窗口内的
+                // 变更集重新并入；超出 changeLogCap 被丢的条目不重放，其行由下
+                // 一次全量拉取纠正）。
+                RemoteDeviceDetailView(service: service, connector: connector,
+                    onDeleted: { id in
+                        // 官方 636-639 removeConnector + 出栈。顺序与原实现逐字相同
+                        // （先写仓库再关页）；容器栈下「关页」= pop。闪帧风险评估：
+                        // pop 只改 path，仓库已先行落地，目的地同帧退栈，无二次读。
+                        services.removeConnector(connectorId: id)
+                        ContainerNav.shared.pop()
+                    },
+                    onSessionsChanged: { changed in
+                        RemoteSessionLoader.shared.applyRemoteChange(changed)
+                    })
+                    .id(connector.id)
+            } else {
+                deviceDetailPending
+            }
+        } else {
+            deviceDetailPending
+        }
+    }
+
+    /// 设备身份还没到位时的目的地可见态（替掉原 `Color.clear`——纯透明铺在
+    /// 系统白底上就是 pp 看到的白屏，且没有任何可操作出口）。
+    /// 空态诚实：直接读仓库的 error / isLoading，失败时显示失败原因并放开重试，
+    /// 而不是无限转圈静默（本仓远端线空态惯例；读法同 RemoteDeviceDetailView 的
+    /// `dashboard?.error`）。dashboard 未落地 / 首发放失败 / 失败后等待重试都走这里。
+    private var deviceDetailPending: some View {
+        let error = service.chat?.dashboardRepository.error
+        let loading = service.chat?.dashboardRepository.isLoading == true
+        return VStack(spacing: 14) {
+            if loading { ProgressView() }
+            Text(error ?? "正在同步设备信息…")
+                .font(.system(size: 13))
+                .foregroundStyle(RemotePalette.body)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button("重试") {
+                Task { await service.chat?.dashboardRepository.refresh() }
+            }
+            .font(.system(size: 14, weight: .medium))
+            .disabled(loading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(RemotePalette.canvas.ignoresSafeArea())
+        // [DOCK-ON-PAGE 2026-09-28] 设备详情兜底页是二级页：不挂导航 dock。
+    }
 }

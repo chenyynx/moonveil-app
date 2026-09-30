@@ -120,8 +120,15 @@ final class RootTabRouter: ObservableObject {
     /// this edge, so the fixed gear stands down instead of doubling it.
     @Published var localSelecting: Bool = false
 
-    /// `remoteAtRoot` — 远端线是否在列表根（REMOTE-DEVICE-1：设备详情页 push 时为 false）。
-    @Published var remoteAtRoot: Bool = true
+    // [R1 审查留档 2026-09-30] `localAtRoot` / `localSelecting` = 零消费死 flag（唯一
+    // 读点是 ContentView 的打点日志）——与 remoteAtRoot 同判据，但**不在本批删除**：
+    // spec §8 已登记归 C5 统一清理（连同 ContentView 的写点/日志块一起处理，避免把
+    // 一条日志劈成两次写）。
+
+    // [去嵌套 2026-09-30] `remoteAtRoot` 已删（零消费退役）：原用途 = 远端 push 时
+    // 藏外壳顶栏齿轮；该外壳齿轮早已不在此路由（bottom-dock/藏显批次退役），写主
+    // （SWIPE-ROOT-RESET / push 栅栏）随去嵌套整体退役。顶栏内容现在由各树 chrome
+    // 按 `mode == 树` 门控单独决定，不再需要每树标志。
 
     // [TG-TABBAR 2026-09-30] remoteChatPushed 已删（随藏显机制退役）：底栏 =
     // 自绘 ModeTabBar，是一级页 root 页内件——push 的目的地（聊天/设备详情）

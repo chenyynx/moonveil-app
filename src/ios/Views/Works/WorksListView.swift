@@ -1,7 +1,10 @@
 // WorksListView.swift — Q2 第三 tab「构件 | 影音内容」.
 // 顶部大分段胶囊（构件 / 影音内容）；构件 = AI 生成产物文件列表；影音内容 =
 // 三列九宫格缩略图，点开走仓库现成的 MessageImageGallery 全屏浏览。
-// 顶栏不放标题（身份胶囊在壳层，页切/顶栏归并行任务管）。
+// 顶栏不放标题（身份胶囊在本页 principal 位；页切/顶栏归并行任务管）。
+// [去嵌套 2026-09-30] 壳已拆：本文件不再自带 NavigationStack，顶栏由容器
+// 壳层（RootModeTabsView 的 NavigationStack）唯一渲染，本页 toolbar 按
+// RootTabRouter.mode 门控（见 body）。
 //
 // 数据源说明（偏离「优先复用 FileMentionIndex」的定案记录）：FileMentionIndex 的
 // workspace 根需要当前 sessionId（session-scoped 扫描 + 预算 + @ mention 语义），
@@ -38,6 +41,10 @@ private enum WorksSection: Hashable {
 // MARK: - View
 
 struct WorksListView: View {
+    /// [去嵌套 2026-09-30] chrome 门控真源：拆壳后三棵树共用容器栏（同一
+    /// NavigationStack / 同一条顶栏），且三树都保活——toolbar / 栏背景不按 mode
+    /// 门控必串台（本树的胶囊 + 搜索会跑到别的树上）。
+    @ObservedObject private var tabRouter = RootTabRouter.shared
     /// zoom 转场 namespace（壳层注入；nil 时胶囊不挂转场源，sheet 降级普通）。
     var soulProfileNS: Namespace.ID? = nil
     @State private var section: WorksSection = .components
@@ -55,32 +62,44 @@ struct WorksListView: View {
         ? "Kite" : SoulStore.cachedMetadata.name
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 12) {
-                segmentBar
-                    .padding(.horizontal, 16)
-                    // [CAPSULE-PRINCIPAL] 跟本机列表同值：导航栏超高胶囊
-                    // （~71.5pt）撑高原生 bar，内容顶部补 34pt 让分段 tab
-                    // 躲开胶囊（pp 2026-09-27「tab 往下移一点」，后又要求再下移）。
-                    .padding(.top, 34)
-                content
-            }
-            // [切页转场 v3 2026-09-30 · cc] 缩放已从本行（v2 位：栈内、但仍在
-            // safeAreaInset 求值链上）下沉到 VStack 内的内容分支本体（content 的
-            // 四个叶子，见下半）。v2 残留在本行仍打坏安全区记账：装机日志
-            // （build 431）实锤离场树底安全区窗口收尾塌到 0.0、进场树保持 0 直到
-            // 切页后 ~214ms 才弹回 98 = 用户可见「画面高度在掉」。求值链必须零
-            // 动画变换，勿挂回本层。详见 RootModeTabsView 末尾 TreeSwitchZoom
-            // 「挂点纪律」。
-            // [TG-TABBAR 2026-09-30] 自绘栏挂栈内 root 页底边（push 整页覆盖含栏）。
-            .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .works) }
-            // [TG-TABBAR-FIX 2026-09-30] 键盘豁免·权威挂点（原理与勿动理由见
-            // ContentView.stackLayout 同款注释）：豁免须包在 inset 外侧。
-            .ignoresSafeArea(.keyboard, edges: .bottom)
-            // 原生标题留空：导航栏 principal 位放身份胶囊（跟本机页同位置）。
-            .navigationTitle(Text(verbatim: ""))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
+        // [去嵌套 2026-09-30] 拆壳：原 NavigationStack 已删（内层栈在容器栈内
+        // 不渲染导航栏、toolbar 按钮上浮被容器 root hidden 吸走 = build 438
+        // 「三树顶部全灭」）。顶栏改由容器栈唯一那层渲染，本页只提供 root 内容
+        // ——其上修饰符链原样搬到这里（safeAreaInset / 键盘 / 标题 / toolbar /
+        // sheet / cover 一处未改语义），深页 push 一律走容器栈（ContainerNav）。
+        VStack(spacing: 12) {
+            segmentBar
+                .padding(.horizontal, 16)
+                // [CAPSULE-PRINCIPAL] 跟本机列表同值：导航栏超高胶囊
+                // （~71.5pt）撑高原生 bar，内容顶部补 34pt 让分段 tab
+                // 躲开胶囊（pp 2026-09-27「tab 往下移一点」，后又要求再下移）。
+                .padding(.top, 34)
+            content
+        }
+        // [切页转场 v3 2026-09-30 · cc] 缩放不在本行（v2 位：栈内、但仍在
+        // safeAreaInset 求值链上），已下沉到 VStack 内的内容分支本体（content
+        // 的四个叶子，见下半）。v2 残留在本行仍打坏安全区记账：装机日志
+        // （build 431）实锤离场树底安全区窗口收尾塌到 0.0、进场树保持 0 直到
+        // 切页后 ~214ms 才弹回 98 = 用户可见「画面高度在掉」。求值链必须零
+        // 动画变换，勿挂回本层。详见 RootModeTabsView 末尾 TreeSwitchZoom
+        // 「挂点纪律」。
+        // [TG-TABBAR 2026-09-30] 自绘栏挂 root 内容底边（push 整页覆盖含栏）。
+        .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .works) }
+        // [TG-TABBAR-FIX 2026-09-30] 键盘豁免·权威挂点（原理与勿动理由见
+        // ContentView.stackLayout 同款注释）：豁免须包在 inset 外侧。
+        .ignoresSafeArea(.keyboard, edges: .bottom)
+        // 原生标题留空：导航栏 principal 位放身份胶囊（跟本机页同位置）。
+        // [去嵌套 2026-09-30 · R1/R3 审查修订] 标题**进门控**（WorksTitleChrome）：
+        //  ① 单栈化后本行 = 全 App 唯一栈的根标题，且它同时决定所有 push 页返回键
+        //     的文案来源（三树保活、只有本树声明）——非当前 tab 时声明空标题同样是
+        //     "写"，会与当值树的 principal 胶囊抢同一根共享栏的槽位；
+        //  ② 结构性 no-write 同 WorksToolbarBackground：当前时声明（值不变），
+        //     非当前时裸 content。
+        .modifier(WorksTitleChrome(isCurrentTab: tabRouter.mode == .works))
+        .toolbar {
+            // [去嵌套 2026-09-30] 门控：三树保活 + 共用容器栏，不门控即串台
+            // （胶囊/搜索跑到别的树上）。条件体只包 toolbar items，不包整条链。
+            if tabRouter.mode == .works {
                 ToolbarItem(placement: .principal) {
                     SoulProfileCapsule(
                         soulName: soulName,
@@ -96,18 +115,22 @@ struct WorksListView: View {
                     SearchToolbarButton(showsSearch: $showsSearch)
                 }
             }
-            // [MUSE-GLASS-BG 2026-09-27] 跟本机页同理：导航栏底用简单半透明
-            // tint 替代系统 blur，胶囊玻璃可折射内容，深浅色自适应。
-            .toolbarBackground(Color(UIColor.systemBackground).opacity(0.45), for: .navigationBar)
-            // [容器化 C2-FIX 2026-09-30] 顶栏对冲：容器 root 的
-            // .toolbar(.hidden) 经环境传播会藏掉内层导航栏——就近钉 visible。
-            .toolbar(.visible, for: .navigationBar)
-            // [TG-TABBAR 2026-09-30] 底栏 = 自绘 ModeTabBar（本页 root 页
-            // safeAreaInset，见上）；系统栏时代的 BottomDock/TAB-RESTORE 沿革
-            // 一并退役（系统栏已不存在）。
-            .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
-            .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         }
+        // [MUSE-GLASS-BG 2026-09-27] 跟本机页同理：导航栏底用简单半透明
+        // tint 替代系统 blur，胶囊玻璃可折射内容，深浅色自适应。
+        // [去嵌套 2026-09-30] 改按 tab 条件化（见 WorksToolbarBackground）：
+        // 非当前 tab 时本树对共享栏**不贡献任何背景**，把栏让给本机树的
+        // .hidden / 远端树的系统默认——写死 .clear 或 .hidden 反而会把那两树
+        // 的栏背景打掉（跨树串台的新形态）。本树为当前时的值一字未改。
+        .modifier(WorksToolbarBackground(isCurrentTab: tabRouter.mode == .works))
+        // [容器化 C2-FIX 2026-09-30] 的顶栏对冲 .toolbar(.visible) 已退役
+        // （去嵌套 2026-09-30）：其对冲对象 = 容器 root 的 .toolbar(.hidden)，
+        // 该 hidden 同批删除，对冲随之失去对象。
+        // [TG-TABBAR 2026-09-30] 底栏 = 自绘 ModeTabBar（本页 root 内容
+        // safeAreaInset，见上）；系统栏时代的 BottomDock/TAB-RESTORE 沿革
+        // 一并退役（系统栏已不存在）。
+        .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
+        .fullScreenCover(isPresented: $showsSoulProfile) { soulProfileSheet() }
         .task { rescan() }
         // [PP-2026-09-27] 切分段也重扫：.task 只在 view appear 跑一次，
         // 构件↔影音内容是同 view 的 @State 切换，不触发重扫。
@@ -352,6 +375,49 @@ struct WorksListView: View {
         generator.maximumSize = CGSize(width: maxPixelSize, height: maxPixelSize)
         guard let cg = try? await generator.image(at: .zero).image else { return nil }
         return UIImage(cgImage: cg)
+    }
+}
+
+// MARK: - [去嵌套 2026-09-30] 顶栏背景按 tab 条件化
+
+/// 拆壳后三树共用容器栏（同一 NavigationStack 渲染的那一条顶栏），但三棵树的
+/// 栏背景诉求不同：构件 = 0.45 半透明底（[MUSE-GLASS-BG]，胶囊玻璃折射）、
+/// 本机 = `.hidden`、远端 = 系统默认。本树保活可见，所以**非当前 tab 时必须
+/// 完全不写**——写成 `.clear` / `.hidden` 都是「替别人做决定」，会把本机或远端
+/// 的栏背景一起打掉（= 顶部 chrome 串台的新形态，比 toolbar items 串台更难查）。
+/// 只在当前时挂原值，行为与拆壳前完全一致。
+/// （同一原则的本机树版本 = ContentView.LocalToolbarBackground（R1 审查后同款
+/// 结构化 no-write）；本树多一层 style overload，故用本 modifier 而非 Visibility 三元。）
+private struct WorksToolbarBackground: ViewModifier {
+    let isCurrentTab: Bool
+
+    func body(content: Content) -> some View {
+        if isCurrentTab {
+            content.toolbarBackground(Color(UIColor.systemBackground).opacity(0.45), for: .navigationBar)
+        } else {
+            content
+        }
+    }
+}
+
+// MARK: - [R1/R3 审查修订 2026-09-30] 根标题按 tab 条件化
+
+/// 单栈化后 `.navigationTitle` 是**全 App 唯一栈的根标题**，且同时决定所有 push 页
+/// 返回键的文案来源；本树是三树里唯一声明者。空标题同样是"写"——非当前 tab 时
+/// 声明会与当值树的 principal 胶囊抢同一根共享栏的槽位（拆壳前两者分属不同
+/// NavigationStack、互不影响）。门控纪律 = 结构性 no-write（同
+/// WorksToolbarBackground）：当前时声明原值、非当前时不挂任何修饰符。
+private struct WorksTitleChrome: ViewModifier {
+    let isCurrentTab: Bool
+
+    func body(content: Content) -> some View {
+        if isCurrentTab {
+            content
+                .navigationTitle(Text(verbatim: ""))
+                .navigationBarTitleDisplayMode(.inline)
+        } else {
+            content
+        }
     }
 }
 

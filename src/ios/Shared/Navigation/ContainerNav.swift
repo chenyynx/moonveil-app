@@ -109,6 +109,28 @@ final class ContainerNav: ObservableObject {
         }
     }
 
+    /// [去嵌套 2026-09-30] 程序化出栈（远端设备删除后退出详情页等）。裸写删除尾项
+    /// ——NAV-TXN-FIX 验证过的安全形状（与 pushChat 的根→单页裸写同族）；系统回写
+    /// （划回）与程序化路径共用同一 path 绑定，currentStackSessionId 锁步由既有观察者
+    /// 按系统 pop 同路处理（ContentView 的 PATH 观察链）。
+    /// [R2 审查观察项 2026-09-30] 退场转场形态装机盯：裸写预期继承调用事务（默认滑动
+    /// 退场）；若实测为「闪回」，改 withAnimation(nil)（对齐 pushChat 栈顶替换纪律）
+    /// 或补显式动画。
+    func pop() {
+        guard !path.isEmpty else { return }
+        // [R4 审查修订 2026-09-30] 与 pushChat 同款兜底网：树切换转场内写 path 会触发
+        // NavigationColumnState 断言（436/438 实锤，机理见 pushChat 注释）——pop 同属
+        // path 写，同窗内同样延后 0.25s 拆帧。三个调用点（设备删除 / 聊天页 onMenu /
+        // 返回编辑）全在远端树深页，切树后 0.35s 内触达属边缘但可达，防护成本一行。
+        if RootTabRouter.shared.consumeTreeSwipePending() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                MainActor.assumeIsolated { self?.pop() }
+            }
+            return
+        }
+        path.removeLast()
+    }
+
     /// 落地后台挂起的程序化 push 意图（见 pushChat 注释）。时机 = 前台第一帧
     /// （ContentView 的 onAppear / scenePhase==.active 兜底调用）。
     func flushPending() {

@@ -23,9 +23,11 @@
 //   • 错误面 = ChatToastStore 四源（agents/device/sync/action，官方 61/125/126/233 行）
 //     + sessionActionError alert（官方 ChatShellView:176-181 形状）。
 //
-// 页切栅栏：本页不再自报 remoteAtRoot；唯一写主 = 调用方 RemoteSessionListView 的
-// `.onChange(of: showsDeviceDetail)`（远端 push 页不参与横滑切 tab——B16-SWIPE-SCOPE
-// 的远端线同规则；同一个开关兼作外壳 topLeading 齿轮的隐藏条件）。
+// [去嵌套 2026-09-30 改判] 页切栅栏机制整体退役：remoteAtRoot 已全仓删除（原写主 =
+// 列表的 `.onChange(of: showsDeviceDetail)`，随列表侧 push 状态一并退役）。本页现挂
+// 容器栈（RemoteDeviceDestination 承接，见 RemoteSessionListView.swift 末尾）——push 态
+// 整页盖住含栏 root，不存在「push 页参与横滑切 tab」问题；删除回调 = 调用方执行组合根
+// removeConnector 后 `ContainerNav.pop()` 出栈（见 onDeleted 注释）。
 
 import SwiftUI
 import UIKit

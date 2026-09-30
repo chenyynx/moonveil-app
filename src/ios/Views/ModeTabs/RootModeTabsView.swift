@@ -7,9 +7,15 @@
 // 出处见 ModeTabBar.swift 头注）。系统 TabView 整体退役——原方案「系统栏 +
 // toolbar(.hidden, for:.tabBar) 藏显」在 iOS 26 有 hide/reveal 回归，且藏显
 // 机制在新会话草稿→正式换视图面前失序（Unbalanced/卡死，见 AIChatView 墓碑）。
-// 现在：三棵 tab 树在 ZStack 保活（瞬切），自绘栏挂进各树 NavigationStack 的
-// root 页——push 整页覆盖含栏、划回原位揭示，没有任何隐藏/出现（对照 pp 的
-// TG 截图语义）。
+// 现在：三棵 tab 树在 ZStack 保活（瞬切），自绘栏仍是各树 root 页内件
+// （safeAreaInset 挂法一字未改）——push 整页覆盖含栏、划回原位揭示，没有任何
+// 隐藏/出现（对照 pp 的 TG 截图语义）。
+// [去嵌套 2026-09-30] 树壳已拆：本容器外层的 NavigationStack 现在是全 App
+// 唯一的栈 = 唯一的顶栏宿主，三棵树各自的内层 NavigationStack 全部退役
+// （根因：嵌套时内层栈的导航栏不渲染、其 toolbar 按钮上浮到外层栏，而外层栏
+// 又被 root 的 .toolbar(.hidden) 吸走 = build 438 装机「三树顶部全灭」）。
+// 顶栏身份胶囊 / ≡ / 搜索等 chrome 改由各树 root 内容挂、并在 toolbar 内按
+// RootTabRouter.shared.mode 门控（三树都活着，不门控必串台）。
 //
 // [NATIVE-TABS 2026-09-26pm 沿革] pp 按 Muse 对齐：纯图标 tab（Lucide 20pt 黑）；
 // 搜索在导航栏右上角（SearchEntry.swift）；独立圆钮 = 新建会话 ＋（ModeTabBar
@@ -76,22 +82,26 @@ struct RootModeTabsView: View {
 
     var body: some View {
         // [TG-TABBAR 2026-09-30] TabView 退役（「系统栏 + 藏显」病根，pp 拍板
-        // 「用tg的自绘」）→ ZStack 三树保活：每棵树自带 NavigationStack，自绘栏
-        // （ModeTabBar）挂各树 root 页——push 整页覆盖含栏、划回原位揭示。
+        // 「用tg的自绘」）→ ZStack 三树保活：自绘栏（ModeTabBar）挂各树 root 页
+        // ——push 整页覆盖含栏、划回原位揭示。
         // [切页转场 2026-09-30] 原「瞬切」（pp 2026-09-16 的旧拍板）按 pp 装机
         // 反馈修正为 TG 转场（TabBarController.swift:279-330 数字化）：新页
         // 0.1s 淡入 + 从 (高−3)/高 弹簧放到 1（0.15s、延迟 0.1s）；旧页同缩并在
         // 溶解窗口内留于下层（见 tabTree 注释）。
         // [容器化 C2/C3 2026-09-30] 外层容器栈包住三树（TG 根栈等价物；深页
-        // 从这里 push、天然盖住含栏的容器）。root 隐藏自身导航栏（D11）——
-        // 导航栏归各树内层栈。
+        // 从这里 push、天然盖住含栏的容器）。
+        // [去嵌套 2026-09-30] 原 root 上的 .toolbar(.hidden, for: .navigationBar)
+        // （D11：导航栏归各树内层栈）**退役**——容器栏转正 = 全 App 唯一顶栏宿主。
+        // 根因（build 438 装机实锤）：三棵树各自嵌套的 NavigationStack 在被外层
+        // 包住时不渲染自己的导航栏，内层 toolbar 按钮上浮到外层容器栏，而外层栏
+        // 又被这一句 hidden 吸走 → 三树顶部全灭。容器栈收成一层后，本 hidden 的
+        // 对冲对象（内层栈）已不存在，留着只会继续吞掉三树的 toolbar。
         NavigationStack(path: $containerNav.path) {
             ZStack {
                 tabTree(.local)
                 tabTree(.remote)
                 tabTree(.works)
             }
-            .toolbar(.hidden, for: .navigationBar)
             // [容器化 C3] 深页目的地：逐字迁自 ContentView 内层栈的
             // navigationDestination（原 :2261-2320），替换点以 [容器化 C3] 标注：
             // ①Self.isNewSessionId/extractGroupId → ContentView.前缀（static 改
@@ -117,11 +127,10 @@ struct RootModeTabsView: View {
                     AIChatView(sessionId: sessionId, remoteDeviceId: deviceId)
                         .environmentObject(ShareCoordinator.shared)
                         .id(route)
-                        // [R3 审查修订 F2] 显式钉导航栏可见——容器 root 的
-                        // .toolbar(.hidden) 若泄漏到 pushed 页会丢标题/返回键/≡ 菜单；
-                        // 仓内先例（RemoteChatPageToolbar.swift:36）在 push 页同样补
-                        // .toolbar(.visible)（“push 页曾被工具栏可见性坑过”的实锤）。
-                        .toolbar(.visible, for: .navigationBar)
+                        // [去嵌套 2026-09-30] 退役：[R3 审查修订 F2] 的显式钉
+                        // .toolbar(.visible) —— 它对冲的是容器 root 的
+                        // .toolbar(.hidden)，而该 hidden 已同批退役（对冲对象
+                        // 不存在，destination 的栏可见性回归容器栈默认态）。
                 case .local(let id):
                     // [容器化 C3] 搜索锚点改读 ContainerNav 镜像（ContentView
                     // 单向同步；时序：点行 push 同帧、镜像在搜索期已同步，
@@ -129,8 +138,8 @@ struct RootModeTabsView: View {
                     AIChatView(sessionId: ContentView.isNewSessionId(id) ? nil : id, draftId: ContentView.isNewSessionId(id) ? id : nil, initialGroupId: ContentView.extractGroupId(from: id), searchAnchorMessageId: containerNav.searchAnchor(for: id))
                         .environmentObject(ShareCoordinator.shared) // [ENV-DEFENSE] 同上（#4 崩溃发生点）
                         .id(route)
-                        // [R3 审查修订 F2] 同 .remote 分支：显式钉导航栏可见。
-                        .toolbar(.visible, for: .navigationBar)
+                        // [去嵌套 2026-09-30] 退役：同 .remote 分支，容器 root 的
+                        // .toolbar(.hidden) 已除，本处对冲失去对象。
                         .onAppear {
                             NavTrace.log("APPEAR ch=path trig=\(NavTrace.trigger)+\(NavTrace.age) path=\(containerNav.path.count)")
                             if containerNav.currentStackSessionId != id {
@@ -166,6 +175,27 @@ struct RootModeTabsView: View {
                             containerNav.pathProbe("destDISAPPEAR:\(id)")
                             containerNav.pathProbeLater("destDISAPPEAR+0.3s:\(id)")
                         }
+                case .remoteTreeChat(let sessionId):
+                    // [去嵌套 2026-09-30] 远端树（bridge 线）聊天页改由容器栈承接：
+                    // 原先在 RemoteRootView 的树内层栈里 push，拆壳后无栈可 push。
+                    // 目的地视图本体在 RemoteSessionListView.swift 末尾（internal），
+                    // 解析 connector/session + 搬运 .task(id:) 副作用都在那边。
+                    // `.id(route)` 沿用 .remote/.local 分支同款理由（见本 switch
+                    // 上方「navigationDestination views are identified by stack
+                    // depth…」段）：目的地按栈深度识别、不按 path 值，同深度换路由
+                    // 会复用旧视图的 @StateObject。
+                    // 环境注入：不加 —— 旧远端 push 走的是树内层栈、链上从未就地
+                    // 注入过 ShareCoordinator（无 #4 同款崩溃史）；且
+                    // SessionChatView / RemoteDeviceDetailView 链上无任何
+                    // @EnvironmentObject 读取（已 grep 复核），依赖根部注入即可。
+                    RemoteTreeChatDestination(service: remoteService, sessionId: sessionId)
+                        .id(route)
+                case .remoteDevice(let connectorId):
+                    // [去嵌套 2026-09-30] 远端树设备详情页同上改走容器栈；connector
+                    // 就绪后由 RemoteSessionListView push（未就绪时传空串 → 目的地
+                    // 的「精确 id ?? online 优先 ?? 第一台 → pending 空态」兜底）。
+                    RemoteDeviceDestination(service: remoteService, connectorId: connectorId)
+                        .id(route)
                 }
             }
         }
@@ -178,6 +208,33 @@ struct RootModeTabsView: View {
             // [L3 2026-09-30 追注] 热路径已改「先开门、后归位」（route 不再与
             // push 同帧）；残余「切树后随即 push」站点由 ContainerNav 兜底网拆帧。
             // 若未来出现「纯程序化切 tab（不随 push）」，清空须挂在该调用点而非此处。
+            // [去嵌套 2026-09-30 · 现状复核] remoteAtRoot 已随本批删除（零消费退役）；
+            // localAtRoot / localSelecting 仍存但同样零消费（仅写点 + 一行日志），
+            // 留待 C5 清理（spec §8 已登记，勿在本批误删——它不在本批范围）。三树的
+            // 导航栏可见性改由「容器栏 = 唯一顶栏宿主 + 各树 toolbar 按 mode 门控」
+            // 保证。不变式本体不变：容器栈空 ⇔ 顶栏可见仍是全 App 唯一的栏/栈关系，
+            // 去嵌套后更无例外（内层栈不存在了）。仍**不得**在此处盲目清 path
+            // （窄口径的远端深页收页见下方 [R2 审查修订] 块，仅 pop 远端树自有的路由）。
+            //
+            // [R2 审查修订 2026-09-30] SWIPE-ROOT-RESET 的容器栈等价物（窄口径）：
+            // 旧行为 = 程序化离开远端树时收起远端 push 页（pp 2026-09-24 判例——
+            // 滑走再滑回不应落在残留聊天页）。拆壳后远端页挂在容器栈上、不随树退役，
+            // 必须显式收；只收**远端树自有**的路由（本机在栈会话一律不碰）。
+            // ⚠️ 不同帧写 path（436/438 崩溃形状）：延后 0.35s（≥ 树切换转场全长）
+            // 再复核栈顶归属才 pop；窗口内若已有新 push 顶替（深链等），归属不命中、
+            // 不误伤。pop() 自身另有 consumeTreeSwipePending 兜底网（双保险）。
+            if new != .remote {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    MainActor.assumeIsolated {
+                        switch containerNav.path.last {
+                        case .remoteTreeChat, .remoteDevice:
+                            containerNav.pop()
+                        default:
+                            break
+                        }
+                    }
+                }
+            }
         }
         // [TG-TABBAR] 原 TabView 级 .tint(.primary)（治系统栏选中黑）随系统栏
         // 退役；各树与各 sheet 的 tint 均为自带显式声明，不受影响。
@@ -245,9 +302,10 @@ struct RootModeTabsView: View {
 
     /// [TG-TABBAR] 单棵 tab 树壳：挂载门控 + 当前性（opacity/命中/无障碍）。
     /// 保活语义 = 原 TabView 的"首次访问才建树、此后保持"（B16：非当前树仍在
-    /// 树上，只是不可见/不可点/不进朗读）。自绘栏挂在各树 NavigationStack 的
-    /// root 页内（ContentView/RemoteRootView/WorksListView 三处 safeAreaInset），
-    /// 不在本层——push 才能整页盖住含栏的 root 页。
+    /// 树上，只是不可见/不可点/不进朗读）。自绘栏仍是各树 root 页内件
+    /// （ContentView/RemoteRootView/WorksListView 三处 safeAreaInset），不在本层
+    /// ——push 才能整页盖住含栏的 root 页。[去嵌套 2026-09-30] 「各树
+    /// NavigationStack」已拆（树壳不再是壳，只是容器栈里的三棵内容树）。
     /// [切页转场 v2 2026-09-30] v1（a13c765）在本容器上挂 .scaleEffect，装机实锤
     /// 打坏栈内 safeAreaInset 求值：root-list 底安全区切页后从 98（栏 64 + Home 34）
     /// 掉到 64、且 64↔98 瞬跳（build 430 日志；旧瞬切版同类操作恒 98）——整页上下
@@ -299,8 +357,10 @@ struct RootModeTabsView: View {
     }
 
     /// [NATIVE-TABS] 每个 tab 的根内容。本机 = upstream ContentView 本体（带它的
-    /// 原生导航栏：≡ 齿轮 / principal 身份胶囊 / toolbar）；远端 = RemoteRootView
-    ///（自带 NavigationStack）；构件影音 = WorksListView（自带 NavigationStack）。
+    /// chrome：≡ 齿轮 / principal 身份胶囊 / toolbar）；远端 = RemoteRootView；
+    /// 构件影音 = WorksListView。
+    /// [去嵌套 2026-09-30] 后两者原「自带 NavigationStack」已拆——三树的导航栏
+    /// 一律由容器栈这一层渲染，各树只提供 root 内容（toolbar 按 mode 门控）。
     /// 远端沿用 seenRemote 懒挂载语义（B12：首次访问才建树，此后保活）。
     @ViewBuilder
     private func tabContent(_ mode: AppSourceMode) -> some View {
@@ -374,10 +434,13 @@ struct RootModeTabsView: View {
 
 // MARK: - [切页转场 v2] 树内容缩放（栈内挂点）
 
-/// [切页转场 v2 2026-09-30] 切页缩放：v2 起挂在**各树 NavigationStack 的 root 内容上**、
+/// [切页转场 v2 2026-09-30] 切页缩放：v2 起挂在**各树的 root 内容上**、
 /// `safeAreaInset(栏)` **内侧**（v2 三挂点：ContentView.stackLayout / RemoteRootView /
 /// WorksListView 的 body）。[切页转场 v3 2026-09-30 · cc] v3 全部下沉一层，见下
-/// 「挂点纪律」。非当前树恒为起点缩放（隐藏不可见），成为当前树时弹簧到 1
+/// 「挂点纪律」。[去嵌套 2026-09-30] 三树内层 NavigationStack 已拆，但 v2/v3 的
+/// 「栈内 / safeAreaInset 内侧」相对位置原样成立（容器栈即「栈内」），缩放挂点
+/// 一个都没动。
+/// 非当前树恒为起点缩放（隐藏不可见），成为当前树时弹簧到 1
 /// （TG TabBarController.swift:287-289 数字化：起点 = (视图高−3)/视图高 ≈ 0.9965，
 /// 0.15s 弹簧、延迟 0.1s；取不到视图高度用 TG 回退值 0.998）。宽屏 regular 恒 1
 /// （TG :283-285 不播）。

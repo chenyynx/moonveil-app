@@ -1,6 +1,15 @@
 // RemoteRootView.swift — 远程 tab 三态壳（U1 终案；bottom-dock 批次起顶栏胶囊已迁壳层，
 // 本壳顶栏留空——不补标题、不补词条）。
 //
+// [去嵌套 2026-09-30] 本壳**不再是导航容器**：原 body 的 NavigationStack 已拆，
+// `content` 直接作为 body 根交给外层容器栈（RootModeTabsView 的
+// `NavigationStack(path: $containerNav.path)`）承载。拆壳原因（build 438 装机实锤）：
+// 树内层栈嵌在外层容器栈里时不渲染自己的导航栏，内层 toolbar 按钮上浮到容器栏，
+// 而容器栏当时被 root 的 `.toolbar(.hidden)` 吸走 → 远端线顶栏全灭。全 App 收成
+// 一层栈后：容器栏 = 唯一顶栏宿主，本壳的 ≡ / 🔍 按 `RootTabRouter.shared.mode`
+// 门控挂在这里（见 body），树内深页（聊天 / 设备详情）push 全部改走容器栈
+// `ContainerNav.shared.pushChat(_:)`。
+//
 // Consumes ONLY RemoteKit's public facade (RemoteService / RemoteServiceState).
 // Staged with deadlines (完整性铁律 — 明示不藏):
 //   • QR camera pairing → batch 8（manual bootstrap(url, token) 现在就是活路）
@@ -23,23 +32,29 @@ struct RemoteRootView: View {
     var onOpenLogin: () -> Void = {}
 
     var body: some View {
-        NavigationStack {
-            content
-                // [切页转场 v3 2026-09-30 · cc] 缩放已从本行（v2 位：栈内、但仍在
-                // safeAreaInset 求值链上）下沉到 content 各分支本体（pairingPending /
-                // connected，见文件下半）。v2 残留在本行仍打坏安全区记账：装机日志
-                // （build 431）实锤离场树底安全区窗口收尾塌到 0.0、进场树保持 0 直到
-                // 切页后 ~214ms 才弹回 98 = 用户可见「画面高度在掉」。求值链必须零
-                // 动画变换，勿挂回本层。详见 RootModeTabsView 末尾 TreeSwitchZoom
-                // 「挂点纪律」。
-                // [TG-TABBAR 2026-09-30] 自绘栏挂栈内 root 页底边——远端线的
-                // 二级页（会话聊天/设备详情）push 时整页覆盖含栏。
-                .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .remote) }
-                // [TG-TABBAR-FIX 2026-09-30] 键盘豁免·权威挂点（原理与勿动理由见
-                // ContentView.stackLayout 同款注释）：豁免须包在 inset 外侧。
-                .ignoresSafeArea(.keyboard, edges: .bottom)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
+        // [去嵌套 2026-09-30] 导航由容器栈承担：本壳不再自带 NavigationStack，
+        // `content` 直接作为 body 根，其上的修饰符链原样重挂（语义逐字不变，只是
+        // 求值宿主从「树内层栈」换成了「容器栈的 root 内容」）。
+        content
+            // [切页转场 v3 2026-09-30 · cc] 缩放已从本层（v2 位：栈内、但仍在
+            // safeAreaInset 求值链上）下沉到 content 各分支本体（pairingPending /
+            // connected，见文件下半）。v2 残留在本层仍打坏安全区记账：装机日志
+            // （build 431）实锤离场树底安全区窗口收尾塌到 0.0、进场树保持 0 直到
+            // 切页后 ~214ms 才弹回 98 = 用户可见「画面高度在掉」。求值链必须零
+            // 动画变换，勿挂回本层。详见 RootModeTabsView 末尾 TreeSwitchZoom
+            // 「挂点纪律」。
+            // [TG-TABBAR 2026-09-30] 自绘栏挂 root 页底边——远端线的
+            // 二级页（会话聊天/设备详情）从容器栈 push 时整页覆盖含栏。
+            .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .remote) }
+            // [TG-TABBAR-FIX 2026-09-30] 键盘豁免·权威挂点（原理与勿动理由见
+            // ContentView.stackLayout 同款注释）：豁免须包在 inset 外侧。
+            .ignoresSafeArea(.keyboard, edges: .bottom)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                // [去嵌套 2026-09-30] chrome 门控：三棵树的 root 内容在容器栈的
+                // ZStack 里同时活着（保活切页），而顶层栏是**唯一**一根——不门控
+                // 三树的 ≡ / 🔍 / ⋯ 会一起出现在同一根栏里（串台）。判据 = 当前树。
+                if tabRouter.mode == .remote {
                     // [TABLER-ICONS] 与本机页左上角一致的设置入口（Tabler menu 两横，
                     // 走 tabRouter.showSettings，sheet 由壳层呈现）。
                     ToolbarItem(placement: .topBarLeading) {
@@ -62,28 +77,24 @@ struct RemoteRootView: View {
                         .tint(.primary)
                     }
                 }
-                .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
-                // [容器化 C2-FIX 2026-09-30] 顶栏对冲：容器 root 的
-                // .toolbar(.hidden) 经环境传播会藏掉内层导航栏——就近钉 visible。
-                .toolbar(.visible, for: .navigationBar)
-        }
-        // 子树拆卸兜底：content 按 service.state 分支，.pairing 会把整棵
-        // RemoteSessionListView 换成 pairingPending——它的 @State 随葬，详情页 push
-        // 期间由该列表 `.onChange(of: showsDeviceDetail)` 维护的 remoteAtRoot 就再也
-        // 没人复位（标志永久卡 false：远端根部横滑切 tab 报废 + 齿轮回不来）。
-        // 复位必须挂在活着的壳上，不能挂回被销毁的子树。
-        // .idle/.degraded 仍渲染列表（同 switch），故只有 .pairing 需要。
-        .onChange(of: service.state) { _, newState in
-            if newState == .pairing {
-                tabRouter.remoteAtRoot = true
-                // [TG-TABBAR 2026-09-30] 原 remoteChatPushed 复位随藏显机制退役
-                // （栏是 push 目的地天然盖住的一级页内件，没有"藏栏标志"可卡）。
             }
-        }
-        // 官方 RootView.swift:52 逐字同源：全局 tint = 主文本色（黑/白），官方
-        // Assets 无 AccentColor、仅靠这行把 Menu/Label 图标/裸 Button 全染黑。
-        // 漏搬导致「全部项目/新设备/创建项目」显示系统蓝（pp 官方截图 2026-09-21 定案）。
-        .tint(AppTheme.primaryText(colorScheme))
+            .sheet(isPresented: $showsSearch) { SearchPlaceholderView() }
+            // [去嵌套 2026-09-30] 原 `.toolbar(.visible, for: .navigationBar)` 对冲退役
+            // （原 [容器化 C2-FIX] 判「容器 root 的 .toolbar(.hidden) 经环境传播会藏掉
+            // 内层导航栏——就近钉 visible」）：容器 root 已不再 hidden，泄漏源已除，
+            // 这句钉 visible 没有对冲对象了，留着只会盖住未来真正的可见性判据。
+            // 判例留档：可见性对冲只在**确有对冲对象**时才加；根因（嵌套栈不渲染
+            // 导航栏）被摘掉后，对冲必须同批摘，否则下一次容器栏改动会被它顶住。
+            // [去嵌套 2026-09-30] 原 `.onChange(of: service.state)` 子树拆卸兜底
+            // （.pairing 复位 remoteAtRoot）整体退役：remoteAtRoot 全仓删除，顶栏
+            // 可见性改由「容器栏 = 唯一顶栏宿主」保证，不再需要任何标志复位。
+            // 教训浓缩留档：**兜底复位必须挂在活着的宿主上**——原写法把复位挂在本壳
+            // 是对的（壳在子树被 .pairing 换掉时仍活着），但它守的标志本身没了，
+            // 于是整块随标志一起退役，不必移植到容器层。
+            // 官方 RootView.swift:52 逐字同源：全局 tint = 主文本色（黑/白），官方
+            // Assets 无 AccentColor、仅靠这行把 Menu/Label 图标/裸 Button 全染黑。
+            // 漏搬导致「全部项目/新设备/创建项目」显示系统蓝（pp 官方截图 2026-09-21 定案）。
+            .tint(AppTheme.primaryText(colorScheme))
     }
 
     @ViewBuilder
@@ -114,8 +125,9 @@ struct RemoteRootView: View {
         // 自绘栏（ModeTabBar）照常在场。
     }
 
-    // MARK: State 3 — 已连接（R0 列表已接线：RemoteSessionListView 挂进本 NavigationStack，
-    // 顶栏留空（胶囊已迁壳层，bottom-dock 批次），断开入口在列表右上角菜单）
+    // MARK: State 3 — 已连接（R0 列表已接线：RemoteSessionListView 是远端树的 root
+    // 内容；[去嵌套 2026-09-30] 树壳已拆，本壳不再自带 NavigationStack，导航由容器栈
+    // 承担；顶栏留空（胶囊已迁壳层，bottom-dock 批次），断开入口在列表右上角菜单）
 
     private var connected: some View {
         RemoteSessionListView(service: service,
