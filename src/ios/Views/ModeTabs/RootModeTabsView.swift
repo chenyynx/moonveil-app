@@ -496,7 +496,17 @@ struct TreeSwitchZoom: ViewModifier {
         return (height - 3.0) / height
     }
 
-    private var scale: CGFloat {
+    // [切页高度弹升修复 2026-10-01] 缩放改由本地 @State 显式驱动（withAnimation
+    // 只包 scale 这一个赋值）：此前 `.animation(spring, value: router.mode)` 挂在
+    // 本视图上，其作用域 = 整棵 stackList 子树——mode 翻转事务里**任何**子树 diff
+    // （顶栏门控 / displayMode / 边距重算…）都会被这个 0.15s 弹簧一并动画化 =
+    // 切页时列表内容可见的"弹"（pp 实锤「先底后弹升，每切一次」）。改后用显式
+    // withAnimation 事务（只覆盖闭包内变更 = scale 本身），其余 diff 回到树级
+    // .animation(nil) 硬切。挂点位置与缩放量均未动，430/431 安全区判例与挂点
+    // 纪律不受影响。
+    @State private var scale: CGFloat = 1.0
+
+    private var targetScale: CGFloat {
         if horizontalSizeClass == .regular { return 1.0 }
         return router.mode == mode ? 1.0 : startScale
     }
@@ -504,15 +514,17 @@ struct TreeSwitchZoom: ViewModifier {
     func body(content: Content) -> some View {
         content
             .scaleEffect(scale)
-            // TG :319-321：新页 0.15s 弹簧、延迟 0.1s。旧页 TG 真值为 :297
-            // 「1→起点缩放、0.12s 弹簧、无延迟」——本仓共用新页曲线（0.15s、延迟
-            // 0.1s）为 v1 起已知近似：差异段（0~0.1s 旧页不动、0.12~0.25s 缩量残余）
-            // 全程被新页 0.1s 淡入 + 旧页移除窗口（120ms）遮蔽，量级 ≤2px，不可辨；
-            // 如装机可察再拆方向曲线。宽屏不播（nil）。
-            .animation(
-                horizontalSizeClass == .regular ? nil : Self.switchScaleAnimation,
-                value: router.mode
-            )
+            .onAppear { scale = targetScale }
+            .onChange(of: router.mode) { _, _ in
+                // TG :319-321：新页 0.15s 弹簧（v2 已撤延迟段，见下）。旧页曲线
+                // 近似沿革见 git 历史。宽屏不播（nil）。
+                withAnimation(horizontalSizeClass == .regular ? nil : Self.switchScaleAnimation) {
+                    scale = targetScale
+                }
+            }
+            .onChange(of: horizontalSizeClass) { _, _ in
+                withAnimation(nil) { scale = targetScale }
+            }
     }
 
     // [收口包 v2 2026-09-30 深夜] .delay(0.1)（TG :319-321 的延迟段）移除——pp 装机

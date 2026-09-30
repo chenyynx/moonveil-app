@@ -81,6 +81,8 @@ struct TGLensBar: UIViewRepresentable {
         view.onCommit = onCommit
         view.onSettings = onSettings
         view.ownSlot = ownSlot
+        // [探针 2026-10-01] 渲染路径判定：岛已创建（「硬落点」定位；判读后可删）。
+        NavTrace.log("[LENS] island-created ownSlot=\(ownSlot)")
         return view
     }
 
@@ -157,6 +159,9 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     private var interactionStartFingerX: CGFloat = 0
     /// [第 4 格·设置齿轮] 按住在齿轮上（动作位不进透镜手势；见 handleSelectionGesture）。
     private var gearPressActive = false
+    /// [硬落点修复 2026-10-01] 延迟簧在途标记：apply 落位后登记、簧起播时清除；
+    /// layoutSubviews 本轮跳过即时推动作（对抗审建议的低成本保险）。
+    private var deferredSpringPending = false
 
     private static var tabImageCache: [String: UIImage] = [:]
     private static func tabImage(_ asset: String) -> UIImage {
@@ -255,7 +260,11 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         )
         settingsNormal.frame = settingsFrame
         settingsSelected.frame = settingsFrame
-        pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: false)
+        // [硬落点修复 2026-10-01] 延迟簧在途时跳过即时推（防把在途滑动打回硬落点；
+        // 簧起播会带上当前几何，本轮跳过无副作用）。
+        if !deferredSpringPending {
+            pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: false)
+        }
     }
 
     /// SwiftUI 侧状态下发（选中项 / 深色模式）；不做提前返回短路——pushLens 内部
@@ -263,12 +272,19 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     func apply(selectedIndex: Int, isDark: Bool) {
         let indexChanged = selectionIndex != selectedIndex
         let changed = indexChanged || self.isDark != isDark
+        // [硬落点修复 2026-10-01] 兜底起点所需的旧选中位（更新前取）。
+        let previousSelectionIndex = selectionIndex
         selectionIndex = selectedIndex
         self.isDark = isDark
         if changed {
             if overrideUserInterfaceStyle != (isDark ? .dark : .light) {
                 overrideUserInterfaceStyle = isDark ? .dark : .light
             }
+            // [硬落点修复 2026-10-01] 目标岛进场的起点/光晕槽/图标交接值（消费或
+            // 兜底路径写入，下方统一落位 + 推迟起簧）。
+            var startX: CGFloat?
+            var glowSlot: Int?
+            var iconOverride: (Int, CGFloat)?
             // [提交交接] 本岛 = 刚被切进的目标树（ownSlot == 新选中位）且存有新鲜
             // 交接、且本岛无在途手势（interactionPressed == nil 且非齿轮按压——
             // 齿轮手势不置 interactionPressed，需 gearPressActive 另行排除，
@@ -280,6 +296,8 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                handoff.fromSlot != ownSlot,
                CACurrentMediaTime() - handoff.at <= 0.5 {
                 Self.commitHandoff = nil
+                // [探针 2026-10-01] 交接消费打点（「硬落点」定位；判读后可删）。
+                NavTrace.log("[LENS] consume own=\(ownSlot) from=\(handoff.fromSlot) x=\(String(format: "%.1f", handoff.x)) iScale=\(String(format: "%.3f", handoff.iconScale))")
                 // [交接续实数 v3 2026-09-30] 交接从「快照补满」改为「续真实进度」。
                 // 旧实现在此一步把透镜补到满态（isLifted 拉缩 + 光晕，图标 1.15），
                 // 而出发栏松手时弹簧通常只走到中途（快点按约半程）——补满那一步
@@ -295,20 +313,55 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                 // 从 1.0 走到 1.15 约 0.3s）。够久 = 图标本已接近满态，维持今天带
                 // 光晕的交接；不够久 = 快速点击，光晕此刻炸开比图标更突兀，故不吃
                 // lift。阈值可按装机反馈微调（只动这一个数）。
-                let keepGlow = handoff.iconScale > 1.08
-                if keepGlow {
-                    pushLens(pressed: handoff.slot, lensX: handoff.x, animated: false)
+                // [硬落点修复 2026-10-01] 消费成功：只登记起点/光晕/图标交接值，
+                // 落位与起簧走下方统一路径（起点同帧落位 → 簧推迟一拍再起）。
+                startX = handoff.x
+                if handoff.iconScale > 1.08 { glowSlot = handoff.slot }
+                iconOverride = (handoff.slot, handoff.iconScale)
+            } else if indexChanged, ownSlot == selectedIndex {
+                // [硬落点修复 2026-10-01] 无交接兜底：从本岛上一选中位整段滑入
+                // （保证任何情况下都有整段可见滑动，不再出现「已在终点」的硬落点）。
+                let fallbackX = CGFloat(previousSelectionIndex) * slotWidth()
+                startX = fallbackX
+                // [探针 2026-10-01] 兜底路径打点（判读后可删；显式分支拆链，规避
+                // Swift 6.0.3 求解器病理）。
+                let probeH: String
+                if let h = Self.commitHandoff {
+                    let age = String(format: "%.2f", CACurrentMediaTime() - h.at)
+                    probeH = "slot=\(h.slot) from=\(h.fromSlot) age=\(age)"
                 } else {
-                    pushLens(pressed: nil, lensX: handoff.x, animated: false)
+                    probeH = "nil"
                 }
-                // 图标显式落在交接携带值上（覆盖上面 pushLens 写的 1.15/1.0；
-                // 直接赋值、无动画）。下方 release 推送再由 pushLens 的图标循环
-                // （abs(transform.a - target) > 0.001 守卫）从该值弹回 1.0。
-                selectedIcons[handoff.slot].transform = CGAffineTransform(
-                    scaleX: handoff.iconScale, y: handoff.iconScale
-                )
+                let probeFX = String(format: "%.1f", fallbackX)
+                NavTrace.log("[LENS] NO-CONSUME own=\(ownSlot) h=\(probeH) pressed=\(interactionPressed != nil) gear=\(gearPressActive) fallbackX=\(probeFX)")
             }
-            pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: true)
+            if let startX {
+                // [硬落点修复 2026-10-01] 跨树续滑健壮化：起点同帧落位（硬切首帧
+                // 不再跳）→ 簧推迟一拍（DispatchQueue.main.async）再起播——确保在
+                // 树切换硬切首帧渲染之后才起簧，不受切页事务/渲染时序干扰
+                // （pp 实锤「点击切换硬落点、没有流体滑动」的修复点）。图标交接
+                // 值须在落位 pushLens 的图标循环之后写（否则被其 1.0/1.15 目标
+                // 覆盖）；延迟簧再从该值弹回 1.0（续实数语义不变）。
+                let hadBounds = bounds.width > 0 && bounds.height > 0
+                pushLens(pressed: glowSlot, lensX: startX, animated: false)
+                if let iconOverride {
+                    selectedIcons[iconOverride.0].transform = CGAffineTransform(
+                        scaleX: iconOverride.1, y: iconOverride.1
+                    )
+                }
+                // [对抗审 2026-10-01 保险] 延迟簧在途标记：layoutSubviews 本轮跳过
+                // 即时推，防把在途滑动打回硬落点（切页时岛 bounds 不变、本不应触发，
+                // 此为低成本兜底）。首挂载（apply 时 bounds 未就绪）→ 无在途可视
+                // 滑动可言，直接落位不播簧（避免从初始 (0,0) 起簧的角落滑入）。
+                deferredSpringPending = true
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    self.deferredSpringPending = false
+                    self.pushLens(pressed: self.interactionPressed, lensX: self.interactionLensX, animated: hadBounds)
+                }
+            } else {
+                pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: true)
+            }
         }
     }
 
@@ -332,6 +385,8 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             interactionStartLensX = CGFloat(slot) * slotWidth()
             interactionLensX = interactionStartLensX
             pushLens(pressed: slot, lensX: interactionStartLensX, animated: true)
+            // [探针 2026-10-01] 按压打点（判读后可删）。
+            NavTrace.log("[LENS] press slot=\(slot) x0=\(String(format: "%.1f", interactionStartLensX))")
         case .changed:
             if gearPressActive {
                 // 齿轮按压中移回 tab 区 = 撤销本次按压（不启动透镜手势）。
@@ -366,6 +421,11 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             // （与 handoffX 同一时刻）：push 一发出，被按图标即被弹向 1.0，
             // presentation 就不再是松手瞬间的屏上值了。
             let handoffIconScale = currentSelectedIconScale(ofSlot: commitSlot)
+            // [探针 2026-10-01] 松手打点（判读后可删）。Swift 6.0.3 求解器病理规避：
+            // 链式 map+?? 拆为显式解包（判例见 Bug 库「求解器误诊」条）。
+            let probeHX: String
+            if let hx = handoffX { probeHX = String(format: "%.1f", hx) } else { probeHX = "nil" }
+            NavTrace.log("[LENS] release slot=\(commitSlot) hx=\(probeHX) iScale=\(String(format: "%.3f", handoffIconScale))")
             interactionPressed = nil
             interactionLensX = nil
             // [TG 对齐 :555-604] TG 先清 selectionGestureState、再以提交 item 为目标
@@ -473,6 +533,10 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             x = CGFloat(selectionIndex) * slotWidth
         }
 
+        // [探针 2026-10-01] 推动作与目标位（「硬落点」定位；判读后可删）。
+        if animated {
+            NavTrace.log("[LENS] push→ x=\(String(format: "%.1f", x)) lifted=\(pressed != nil)")
+        }
         lens.update(
             size: CGSize(width: width, height: height),
             cornerRadius: nil,

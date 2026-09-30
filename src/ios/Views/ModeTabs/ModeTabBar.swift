@@ -188,6 +188,9 @@ struct ModeTabBar: View {
                 )
             } else {
                 legacyItemsCapsule
+                    // [探针 2026-10-01] 渲染路径判定：岛不可用时打点（定位「底栏点击
+                    // 硬落点」是否走了 legacy 玻璃栏；判读后随其它探针一并删除）。
+                    .onAppear { NavTrace.log("[LENS] legacy-path appeared (island unsupported)") }
                     .contentShape(Capsule())
                     .gesture(selectionGesture)
             }

@@ -9,6 +9,9 @@
 //   ③ 删 update() 内 legacy 蒙版更新块（同 ②）。
 //   ④ 追加 currentSelectionOriginXForHandoff 读取口（本仓「每树一栏 + 瞬切」架构
 //      的跨树提交交接用；上游单栏架构无此需求。见 TGLensHost.CommitHandoff 注释）。
+//   ⑤ [探针 2026-10-01] updateLens/update 内追加 [LENS-LLV] 只读打点四处（lifted
+//      切换同步态 / 位置移动前值→目标 / position 动画是否材料化 / displaylink 开关）
+//      ——「底栏点击硬落点」定位用；判读后随其它探针一并删除。
 // 内容：TG 液态透镜的本体——iOS 26 走苹果私有 _UILiquidLensView（运行时反射），
 // 驱动 resting 背景/lifted 容器/内容穿透（punchout）与升起弹跳。⚠️ 私有 API，
 // 与 TG App Store 版同款用法；见 docs/ 风险记录。
@@ -367,11 +370,24 @@ public final class LiquidLensView: UIView {
             } else {
                 shouldScheduleUpdate = true
             }
+            // [探针 2026-10-01] lifted 切换同步态 + 位置动画材料化（判读后可删；
+            // 显式局部量，规避 Swift 6.0.3 求解器病理）。
+            let probeFromLifted = previousParams?.isLifted == true
+            let probeHasPosAnim = lensView.layer.animation(forKey: "position") != nil
+            NavTrace.log("[LENS-LLV] lifted \(probeFromLifted ? "T" : "F")→\(params.isLifted ? "T" : "F") didSync=\(didProcessUpdate) posAnim=\(probeHasPosAnim)")
         } else {
             let liftedInset: CGFloat = params.isLifted ? params.liftedInset : (-params.inset)
             let lensBounds = CGRect(origin: CGPoint(), size: CGSize(width: params.baseFrame.width + liftedInset * 2.0, height: params.baseFrame.height + liftedInset * 2.0))
             let lensCenter = CGPoint(x: params.baseFrame.midX, y: params.baseFrame.midY)
-            
+            // [探针 2026-10-01] 移动前可见位置捕获（必须在 setPosition/
+            // removeAllAnimations 之前；显式 if-let，规避 Swift 6.0.3 求解器病理）。
+            let probePreviousPosition: CGPoint
+            if lensView.layer.animation(forKey: "position") != nil, let presentation = lensView.layer.presentation() {
+                probePreviousPosition = presentation.position
+            } else {
+                probePreviousPosition = lensView.layer.position
+            }
+
             let previousBounds: CGRect = lensView.bounds
             transition.animateView {
                 lensView.bounds = lensBounds
@@ -396,7 +412,12 @@ public final class LiquidLensView: UIView {
             })
             // No idea why
             transition.animatePosition(layer: lensView.layer, from: CGPoint(x: (lensBounds.width - previousBounds.width) * 0.5, y: 0.0), to: CGPoint(), additive: true)
-            
+            // [探针 2026-10-01] 位置移动前值→目标 + 动画材料化（判读后可删）。
+            let probePrevX = String(format: "%.1f", probePreviousPosition.x)
+            let probeToX = String(format: "%.1f", lensCenter.x)
+            let probePosAnim = lensView.layer.animation(forKey: "position") != nil
+            NavTrace.log("[LENS-LLV] move prev=\(probePrevX) → \(probeToX) anim=\(!transition.animation.isImmediate) posAnim=\(probePosAnim)")
+
             self.isApplyingLensParams = false
         }
     }
@@ -466,6 +487,8 @@ public final class LiquidLensView: UIView {
 
         if params.isLifted {
             if self.liftedDisplayLink == nil {
+                // [探针 2026-10-01] 弹跳驱动开关（按压路径生死；判读后可删）。
+                NavTrace.log("[LENS-LLV] displaylink ON")
                 self.liftedDisplayLink = SharedDisplayLinkDriver.shared.add(framesPerSecond: .max, { [weak self] _ in
                     guard let self else {
                         return
@@ -474,6 +497,7 @@ public final class LiquidLensView: UIView {
                 })
             }
         } else if let liftedDisplayLink = self.liftedDisplayLink {
+            NavTrace.log("[LENS-LLV] displaylink OFF")
             self.liftedDisplayLink = nil
             liftedDisplayLink.invalidate()
         }
