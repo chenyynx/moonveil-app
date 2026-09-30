@@ -49,7 +49,10 @@ struct RemoteRootView: View {
             // [TG-TABBAR-FIX 2026-09-30] 键盘豁免·权威挂点（原理与勿动理由见
             // ContentView.stackLayout 同款注释）：豁免须包在 inset 外侧。
             .ignoresSafeArea(.keyboard, edges: .bottom)
-            .navigationBarTitleDisplayMode(.inline)
+            // [顶栏审计收口 2026-09-30 晚] displayMode 同属栏偏好写：按 mode 门控
+            // （原无条件写 = 非当前树也替当值树顶值；审计漏网名单之一）。形状对照
+            // .toolbar 门控与 TreeTitleDisplayMode。
+            .treeTitleDisplayMode(tabRouter.mode == .remote)
             .toolbar {
                 // [去嵌套 2026-09-30] chrome 门控：三棵树的 root 内容在容器栈的
                 // ZStack 里同时活着（保活切页），而顶层栏是**唯一**一根——不门控

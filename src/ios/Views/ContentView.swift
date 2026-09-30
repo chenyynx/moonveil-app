@@ -1378,6 +1378,11 @@ struct ContentView: View {
                 // 定时器时，这是归位的落地点（flush 承载的程序化 push 按历史
                 // 语义都是本机线意图，route 在旧实现里与点按同帧先行）。route
                 // 同值幂等。
+                // [审修 2026-09-30 晚] 隐式契约（勿破）：本配对假定 flush 落地的
+                // push 必为本机线——pendingChatRoute 目前只可能由本机＋路径的
+                // pushChat 写入（ContainerNav 后台门；远端三处 push 均为用户手势、
+                // 不撞后台门）。将来若向后台门塞入远端路由，这里会把 tab 错误拽回
+                // 本机，须同步加判据。
                 let wasEmpty = containerNav.path.isEmpty
                 containerNav.flushPending()
                 if wasEmpty && !containerNav.path.isEmpty {
@@ -1954,7 +1959,16 @@ struct ContentView: View {
                 scheduleOutgoingPreviewRefresh()
             }
         }
-        .onChange(of: containerNav.path) { _ in
+        .onChange(of: containerNav.path) { oldPath, newPath in
+            // [残项收口 2026-09-30 晚 · spec §9.4-② 补落] 本次变更若为出栈，弹出的栈顶
+            // 是谁：单栈化后 path 混装远端树深页（.remoteTreeChat/.remoteDevice），出栈
+            // 清理链只看 path.isEmpty 分不出出栈来源——远端树出栈不代表本机会话离开
+            // 屏幕（iPad 宽窗档它仍在 detail 列）。只在「向下」（count 变少）记 pop；
+            // push / 整栈替换（count 不变或增加）记 nil = 本机线语义，逐字同旧行为。
+            // ⚠️ 隐式契约：本判据假定全仓 path 写只有三种原子整栈形态（= [route] /
+            // = [] / removeLast，栈深恒 ≤1）——将来若引入 append 式叠栈，此处会
+            // 静默失准，须同步重估。
+            let poppedRoute: ChatRoute? = newPath.count < oldPath.count ? oldPath.last : nil
             // [T-ios-stacknav-transition-attributegraph-race] The SAME hosting-
             // view teardown race the `selectedSessionId` observer above guards
             // — but that observer only fires in the SPLIT (iPad / wide) layout.
@@ -2018,11 +2032,19 @@ struct ContentView: View {
             }
             if containerNav.path.isEmpty {
                 containerNav.currentStackSessionId = nil
-                AIChatViewModel.activeSessionId = nil
+                // [残项收口 2026-09-30 晚 · §9.4-②] 只有弹掉的本机线栈顶才清本机线
+                // 全局活跃标记：远端树深页出栈时本机会话并未离开（iPad detail 列仍在
+                // 显示它；窄屏无此影响——单栈原子替换下两类不会同时在栈）。
+                if poppedRoute?.isRemoteTreeRoute != true {
+                    AIChatViewModel.activeSessionId = nil
+                }
                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 // If a quick-action workflow asked us to ensure-home,
                 // we're there now — let it advance to pendingDispatch.
-                if case .ensuringHome = QuickActionWorkflow.shared.state {
+                // [同 §9.4-②] 远端树出栈不算「本机线到根」，不推进工作流（误触会让
+                // 它错判；真在等的工作流自有 ensureHomeTimeout(1s) 兜底）。
+                if case .ensuringHome = QuickActionWorkflow.shared.state,
+                   poppedRoute?.isRemoteTreeRoute != true {
                     QuickActionWorkflow.shared.markHome()
                 }
             }
@@ -2032,10 +2054,15 @@ struct ContentView: View {
             // PUSH (entering a session, the cold-open hot path) this scan only
             // head-of-line-blocked loadSession on the ChatStore actor. Delayed
             // so it never races the incoming load's actor hops.
-            if containerNav.path.isEmpty {
+            // [残项收口 2026-09-30 晚 · §9.4-②] 远端树深页出栈不触发本机线的全表
+            // 预览刷新（大库上 ~1.4s 的 listSessions 扫描；本机列表内容未变）。
+            if containerNav.path.isEmpty,
+               poppedRoute?.isRemoteTreeRoute != true {
                 scheduleOutgoingPreviewRefresh()
             }
-            fetchAlarmsIfNeeded()
+            if poppedRoute?.isRemoteTreeRoute != true {
+                fetchAlarmsIfNeeded()
+            }
         }
         .onChange(of: shareCoordinator.hasPendingShare) { hasPending in
             if hasPending {
@@ -2142,7 +2169,8 @@ struct ContentView: View {
                     // runloop turn with a full frame budget, never inside the
                     // foreground-transition tick.
                     // [NAV-ROOT-FIX] 落地后台挂起的程序化 push 意图（单通道）。
-                    // [L3 审查补丁 2026-09-30] 配对归位（同上处 onAppear 兜底）。
+                    // [L3 审查补丁 2026-09-30] 配对归位（同上处 onAppear 兜底；隐式
+                    // 契约与风险见该处 [审修 2026-09-30 晚] 注释）。
                     let wasEmpty = containerNav.path.isEmpty
                     containerNav.flushPending()
                     if wasEmpty && !containerNav.path.isEmpty {
@@ -3115,11 +3143,13 @@ struct ContentView: View {
         // [FIX-list-top-jitter] 系统对超大 principal 的 bar 高度自适应不完整，
         // 自动 top inset 在 iOS 26 上抖动（列表内容上下窜）。这里断开系统的
         // 自动边距（ignoresSafeArea top），改用冻结值：sessionList 用
-        // onGeometryChange 采样真实 top safe area 取最大 + 26pt（26pt 是之前
-        // 按截图调好的胶囊补偿量）。视觉位置与之前一致，但不再抖动。
+        // onGeometryChange 采样真实 top safe area 取最大后加当前补偿量（调参史
+        // 26→12→6，现值 +6）。视觉位置与之前一致，但不再抖动。
         .ignoresSafeArea(edges: .top)
         .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
-        .navigationBarTitleDisplayMode(.inline)
+        // [顶栏审计收口 2026-09-30 晚] displayMode 同属栏偏好写：按 mode 门控（原无条件
+        // 写 = 非当前树也替当值树顶值；审计漏网名单之一）。形状对照下方 toolbar 门控。
+        .treeTitleDisplayMode(tabRouter.mode == .local)
         // [去嵌套 2026-09-30] chrome 门控：三棵树同时活着（RootModeTabsView 的
         // 溶解窗口还会把上一棵树压在下层 120ms），toolbar 内容必须按
         // RootTabRouter.mode 门控，否则本机的 ≡/胶囊/搜索会串到远端/构件树的
@@ -3333,11 +3363,13 @@ struct ContentView: View {
         // [FIX-list-top-jitter] 系统对超大 principal 的 bar 高度自适应不完整，
         // 自动 top inset 在 iOS 26 上抖动（列表内容上下窜）。这里断开系统的
         // 自动边距（ignoresSafeArea top），改用冻结值：sessionList 用
-        // onGeometryChange 采样真实 top safe area 取最大 + 26pt（26pt 是之前
-        // 按截图调好的胶囊补偿量）。视觉位置与之前一致，但不再抖动。
+        // onGeometryChange 采样真实 top safe area 取最大后加当前补偿量（调参史
+        // 26→12→6，现值 +6）。视觉位置与之前一致，但不再抖动。
         .ignoresSafeArea(edges: .top)
         .contentMargins(.top, frozenTopContentMargin, for: .scrollContent)
-        .navigationBarTitleDisplayMode(.inline)
+        // [顶栏审计收口 2026-09-30 晚] displayMode 同属栏偏好写：按 mode 门控（判据同
+        // compact 侧 stackList 处，审计漏网名单之二）。
+        .treeTitleDisplayMode(tabRouter.mode == .local)
         // [去嵌套 2026-09-30] chrome 门控（宽屏/分栏同款，判据见 compact 侧
         // stackList 处的完整说明）：三棵树同时活着（RootModeTabsView 的溶解
         // 窗口还会把上一棵树压在下层 120ms），toolbar 内容必须按
@@ -3785,6 +3817,8 @@ struct ContentView: View {
         // app, the pop-then-push dance got interrupted, etc).
         pendingNewChatAfterPop = false
         pendingNewChatTargetId = nil
+        // ⚠️ [收口包 2026-09-30 晚] 下方 [L3] 块描述的「先开门、后归位」已被再下一块
+        // [收口包·保险牌] 反转为「归位先行」——历史分层，以靠后的块为准。
         // [L3 崩溃修复 2026-09-30] [LOCAL-INTENT-TAB-ROUTE] 原实现在这里**先**
         // route(.local)、同帧再开门——438 装机实锤该组合触发 iOS 26 导航状态机
         // 断言（见 RootTabRouter.route(to:) [C3.2] 注释）。改为「先开门、后归位」：
@@ -3793,6 +3827,13 @@ struct ContentView: View {
         // （scheduleReturnToLocalIfNeeded）= 从不崩的形状（同「点 tab」）。两个
         // 动作分属两拍，非法组合消失。归位晚于 push 不影响语义：划回最早 ~0.43s
         // 起手，0.6s 的归位在其后（详见该函数注释）。
+        // [收口包·保险牌 2026-09-30 晚] 热路径在此**再次反转**为「归位先行」：
+        // 跨树时先 route(.local)（空栈上切树 = 点 tab 形状），push 随即撞上刚设
+        // 的树切换窗、由兜底网拆帧到窗关闭后落地（落点 = .local 空栈 = 本地＋
+        // 形状）。438 证否的是「同帧 route+push」而非 route 先行本身；两动作经
+        // 兜底网分属两拍，非法组合依然消失，同时「跨树推页」路径从设计上不复
+        // 存在（436/438/439 断言机理的土壤移除）。详见下方 else 分支注释与
+        // ContainerNav.pushChat 注释。
         // If a workflow is mid-flight in ensuringHome, ContentView's
         // observers (`onChange(containerNav.path)` / `onChange(selectedSessionId)`)
         // drive the home-then-open sequence. Otherwise this call came
@@ -3821,14 +3862,34 @@ struct ContentView: View {
             // [NAV-ROOT-FIX 2026-09-29] 单一 path 通道：程序化 push 直接写 path
             //（见 pushChat 注释）。T0 的「外部写 × tab 藏显」回写病触发器已随
             // tab 常驻消除；T1 的 Bool 通道因 stuck-true 实锤退役。
+            // [收口包·保险牌 2026-09-30 晚] 「归位先行」：跨树时先把 tab 带回本机
+            // （route 只写 mode、不写 path——单动作即「点 tab」形状）；push 紧随其后
+            // 撞上刚设的树切换窗，由兜底网（consumeTreeSwipePendingDelay）拆帧到窗
+            // 关闭后（~0.75s）落地——落地时 mode 已是 .local，栈空则裸写、栈非空则
+            // withAnimation(nil) 栈顶替换（两形状均经装机长期实证）。
+            // [审修 2026-09-30 晚 · 对抗审 (b)(e) 实锤] 已知代价两条：① 落地前
+            // （0.75s 窗内）用户若再切 tab，草稿页会压在别的树上 → 补 1.0s 自愈腿
+            // （见下）把 tab 带回；② 窗内连按＋：第二次直推即生效、第一次的迟到 push
+            // 以栈顶替换收尾（最终落回第一次的草稿 id，伴随一次重挂，无栈增长）。
+            // UX 代价（装机验证点）：切页先行可见（~0.65s），聊天页晚 ~0.75s 入场。
+            if tabRouter.mode != .local { tabRouter.route(to: .local) }
             containerNav.pushChat(.local(id: newId))
-            Self.scheduleReturnToLocalIfNeeded()
+            // 自愈腿（落地后跑）：正常路径 mode==.local 时首行早退、零开销；仅当用户
+            // 在落地前又切走 tab 才 route 回本机（恢复 L3 时期的归位自愈语义——对抗审
+            // (b) 实锤净损失后补回）。只写 mode、不写 path，任何时机都安全。真正的
+            // 保障 = 落地后聊天页盖住整棵含栏页面，用户 t∈[0.75,1.0) 物理点不到 tab
+            // ——故此腿只可能来自落地前的误切，不会覆盖任何合法意图（对抗审 Q1）。
+            Self.scheduleReturnToLocalIfNeeded(delay: 1.0)
         }
     }
 
     /// [L3 崩溃修复 2026-09-30] 跨树开新会话的「归位」腿：若非本机 tab，等页面
     /// 盖住后把 tab 带回本机——其间用户可见区域被新页覆盖，切页不可见。route
     /// 同值幂等（RootTabRouter.route 内建同一性早退），重复调度无副作用。
+    /// [收口包 2026-09-30 晚] 现存调用点两处：① 草稿开门的 1.0s 自愈腿（delay 1.0
+    /// ——「归位先行」后本腿不再等页面盖住，而是补「落地前用户又切走 tab」的自愈，
+    /// 对抗审 (b) 实锤净损失后恢复）；② workflow 分支停滞兜底（1.5 / requireOpen:false，
+    /// 原样）。「等页面盖住后」行文对①已过时，保留作历史语境。
     /// 数字来源（438 审查校正）：push 转场 ≈0.35s；返回手势最早 ≈0.43s（转场
     /// 结束＋触达）就能让 root 露边 → 取 0.6s 留余量。
     /// requireOpen=true 带「落地判据」：到时若 path 仍空（开门被后台门扣住 /
@@ -3923,8 +3984,15 @@ struct ContentView: View {
         } else {
             // [NAV-ROOT-FIX 2026-09-29] 同 handleNewChatRequest：程序化 push
             // 走单一 path 通道（见 pushChat 注释）。
+            // [收口包·保险牌 2026-09-30 晚] 同 handleNewChatRequest：归位先行 +
+            // 兜底网拆帧 + 1.0s 自愈腿（原理与判据见该函数注释）。挂载晚
+            // ~0.75–1.4s（含兜底网+重试链）不影响本工作流：waitingForChatMount
+            // 无超时（对抗审逐行核实），且视图
+            // 可见性翻转时由 AIChatView.onAppear 直调 + onChange(of: isVisible)
+            // 双路自补 markChatReady。
+            if tabRouter.mode != .local { tabRouter.route(to: .local) }
             containerNav.pushChat(.local(id: newId))
-            Self.scheduleReturnToLocalIfNeeded()
+            Self.scheduleReturnToLocalIfNeeded(delay: 1.0)
         }
         QuickActionWorkflow.shared.attachTargetSession(newId)
     }

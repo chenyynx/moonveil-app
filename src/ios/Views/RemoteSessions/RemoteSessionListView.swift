@@ -139,7 +139,9 @@ struct RemoteSessionListView: View {
             // 页面画布与本机一致 = systemBackground（pp 2026-09-26「远端背景改成和
             // 本地背景颜色一样」；原方案 B 暖奶油画布退役），列表背景让位
             .background(RemotePalette.canvas.ignoresSafeArea())
-            .navigationBarTitleDisplayMode(.inline)
+            // [顶栏审计收口 2026-09-30 晚] displayMode 同属栏偏好写：按 mode 门控（原与
+            // RemoteRootView:52 同链重复无条件写——审计漏网；两处均已门控，双写无害）。
+            .treeTitleDisplayMode(tabRouter.mode == .remote)
             .toolbar {
                 // [去嵌套 2026-09-30] chrome 门控：顶层栏全 App 只有一根，三棵树的
                 // root 内容同时活着（保活切页）——本页的 ⋯ 不门控会串到别的树的栏上。

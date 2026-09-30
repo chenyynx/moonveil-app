@@ -32,6 +32,18 @@ enum ChatRoute: Hashable {
         }
     }
 
+    /// [残项收口 2026-09-30 晚 · spec §9.4-② 补落] 远端树自有路由判据（聊天 / 设备
+    /// 详情）。单栈化后容器 path 混装两类路由，出栈清理链（ContentView 的
+    /// onChange(path) 块）需要区分「这次出栈是不是本机线的」——远端树出栈不代表本机
+    /// 会话离开屏幕（iPad 宽窗档它仍在 detail 列里显示）。`.remote` 属本机线（iCloud
+    /// 只读视图，有 sessionId），不在此列。
+    var isRemoteTreeRoute: Bool {
+        switch self {
+        case .remoteTreeChat, .remoteDevice: return true
+        case .local, .remote: return false
+        }
+    }
+
     /// 导航日志用短标签（完整 id 不进日志）。
     var logTag: String {
         switch self {

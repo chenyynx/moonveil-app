@@ -87,14 +87,17 @@ final class RootTabRouter: ObservableObject {
         // EXC_BREAKPOINT in NavigationColumnState.boundPathChange；装机对照：
         // 本地列表点＋（无切 tab）不崩、跨树点＋崩）。⚠️ build 438 实锤「延后
         // 一拍」不够（SwiftUI 帧末统一结算，一跳仍赶进同一窗）；现 ContainerNav
-        // .pushChat 消费本标记改走「窗剩余 + 0.25s 尾巴」的动态落点，且正常路径已由
-        // L3「先开门、后归位」改造绕开本网；窗长 0.5s（不变量与 439 返修见
-        // consumeTreeSwipePendingDelay）。
+        // .pushChat 消费本标记改走「窗剩余 + 0.25s 尾巴」的动态落点；窗长 0.5s
+        // （不变量与 439 返修见 consumeTreeSwipePendingDelay）。[收口包 2026-09-30
+        // 晚] ＋ 热路径改「归位先行」后，本网成为该热路径的拆帧主通道（原「残余
+        // 路径公共兜底」定位不变）。
         treeSwipeAt = CACurrentMediaTime()
     }
 
     /// 见 route(to:) 的 [C3.2] 注释。返回「把 path 写推迟到安全落点所需的时长」；
-    /// nil = 无在窗标记（可直接写 path）。窗内一次性消费（L3 后为残余路径的公共兜底网）。
+    /// nil = 无在窗标记（可直接写 path）。窗内一次性消费（L3 后为残余路径的公共
+    /// 兜底网；收口包后 ＋ 热路径「归位先行」亦依赖本网拆帧——见 ContainerNav
+    /// .pushChat 与 ContentView.handleNewChatRequest 注释）。
     /// 🔴 不变量（438 审查校正 → **439 判例返修 2026-09-30 晚**）：窗长必须 ≥ 树切换
     /// 转场全长。初值 0.35s 被 build 439 装机实锤否证——works 挂载后的重转场（三树 +
     /// 首访文件扫描 + 原生透镜栏）下，旧「固定 0.25s 延后」会重新落回转场窗内，撞出
