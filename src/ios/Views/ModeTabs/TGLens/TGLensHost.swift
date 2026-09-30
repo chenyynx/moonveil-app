@@ -19,9 +19,11 @@
 //     apply(selectedIndex:) 同值短路不再二次推（旧实现两段弹簧竞速，第二推的
 //     removeAllAnimations 会把透镜瞬打回旧槽模型位再重滑，2026-09-30 pp 装机实锤）。
 //   · 跨树提交交接（本仓「每树一栏 + ZStack 瞬切」架构的桥，TG 单栏无此需求）：
-//     跨树松手会换栏，出发岛把「松手瞬间透镜可见位」寄存 commitHandoff，目标树的
-//     岛在紧随的 apply() 里先瞬时落到该位、再续簧到提交槽——否则目标栏会从旧槽位
-//     整段重滑一遍（pp 装机「滑动 tab 落点/动画不对」的另一半根因）。
+//     跨树松手会换栏，出发岛把「松手瞬间透镜可见位 + 选中图标实际缩放」寄存
+//     commitHandoff，目标树的岛在紧随的 apply() 里先瞬时落到该位、再续簧到提交槽
+//     ——否则目标栏会从旧槽位整段重滑一遍（pp 装机「滑动 tab 落点/动画不对」的
+//     另一半根因）。交接改「续实数」（带图标实际缩放，不一步补满）见 CommitHandoff
+//     处的 [交接续实数 v3 2026-09-30]。
 //
 // 数值对齐 TG：innerInset 4；槽宽 = (宽-8)/4（TG 4 格布局：本 app 3 实 tab +
 // 第 4 格设置齿轮，pp 2026-09-30 装机要求「加一个图标占位保持和tg一致大小」）；
@@ -104,10 +106,17 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     /// 消费规则（apply 内）：仅「目标树岛」（ownSlot == 新选中位）且交接来自别岛
     /// （fromSlot != ownSlot，防同岛复读）、槽位吻合、≤0.5s 新鲜时消费，消费即清空。
     /// 同槽提交写出的交接因 fromSlot == ownSlot == slot 永不被消费，残留无害。
+    /// [交接续实数 v3 2026-09-30] iconScale = 松手瞬间被提交槽位选中图标的**实际**
+    /// 缩放（按下弹簧在途时的屏上真值，非模型满值）。旧交接只带位置，消费端把图标
+    /// 连同拉缩/光晕一步补满 = pp build 431 装机反馈「点击 tab 切换 放大和发亮
+    /// 太快了；同页连点正常」——同树路径不经交接，故只有跨树复现。带实数后消费端
+    /// 从真值续簧，跨树与同树的节奏一致（消费侧见 apply 内的 [交接续实数 v3]）。
     struct CommitHandoff {
         let slot: Int
         let fromSlot: Int
         let x: CGFloat
+        /// 松手瞬间的选中图标缩放（1.0..~1.15 的在途值；读取失败兜底 1.15 = 旧行为）。
+        let iconScale: CGFloat
         let at: CFTimeInterval
     }
     static var commitHandoff: CommitHandoff?
@@ -263,18 +272,41 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             // [提交交接] 本岛 = 刚被切进的目标树（ownSlot == 新选中位）且存有新鲜
             // 交接、且本岛无在途手势（interactionPressed == nil 且非齿轮按压——
             // 齿轮手势不置 interactionPressed，需 gearPressActive 另行排除，
-            // 对抗复审 2026-09-30 低危项）→ 先瞬时以
-            // 「按压态」落到交接位——拉缩/光晕/放大图标与出发栏松手瞬间同像素
-            // （换栏连续），再经下方同一套松手序列播放 setLifted(false) 收束 +
-            // 位置弹簧。旧实现只交接位置、换栏即熄发亮 = pp「发亮也很快」
-            // （2026-09-30 第二轮装机判定）。消费即清空。
+            // 对抗复审 2026-09-30 低危项）→ 先瞬时落到交接位，再经下方同一套松手
+            // 序列播放 setLifted(false) 收束 + 位置弹簧。消费即清空。
             if indexChanged, ownSlot == selectedIndex, interactionPressed == nil, !gearPressActive,
                let handoff = Self.commitHandoff,
                handoff.slot == selectedIndex,
                handoff.fromSlot != ownSlot,
                CACurrentMediaTime() - handoff.at <= 0.5 {
                 Self.commitHandoff = nil
-                pushLens(pressed: handoff.slot, lensX: handoff.x, animated: false)
+                // [交接续实数 v3 2026-09-30] 交接从「快照补满」改为「续真实进度」。
+                // 旧实现在此一步把透镜补到满态（isLifted 拉缩 + 光晕，图标 1.15），
+                // 而出发栏松手时弹簧通常只走到中途（快点按约半程）——补满那一步
+                // 就成了「放大和发亮瞬间到位」= pp build 431 装机反馈「点击 tab
+                // 切换 放大和发亮太快了；同页连点正常」（同树不经交接，故不复现）。
+                // 改法：交接携带 handoff.iconScale（松手瞬间的屏上真值），快按时
+                // 就在交接位保持半途、只把透镜落位，剩下进度交给下方同一条 release
+                // 弹簧收尾——跨树与同树的观感节奏由此对齐。
+                //
+                // 光晕（isLifted）只能二值：TG 透镜的 lift 是私有类的一次性
+                // setLifted:animated:，没有可寻的中间态，故用 iconScale 阈值近似
+                // 「按得够不够久」——1.08 ≈ 按压 ≥0.15-0.3s（damping 0.8 的弹簧
+                // 从 1.0 走到 1.15 约 0.3s）。够久 = 图标本已接近满态，维持今天带
+                // 光晕的交接；不够久 = 快速点击，光晕此刻炸开比图标更突兀，故不吃
+                // lift。阈值可按装机反馈微调（只动这一个数）。
+                let keepGlow = handoff.iconScale > 1.08
+                if keepGlow {
+                    pushLens(pressed: handoff.slot, lensX: handoff.x, animated: false)
+                } else {
+                    pushLens(pressed: nil, lensX: handoff.x, animated: false)
+                }
+                // 图标显式落在交接携带值上（覆盖上面 pushLens 写的 1.15/1.0；
+                // 直接赋值、无动画）。下方 release 推送再由 pushLens 的图标循环
+                // （abs(transform.a - target) > 0.001 守卫）从该值弹回 1.0。
+                selectedIcons[handoff.slot].transform = CGAffineTransform(
+                    scaleX: handoff.iconScale, y: handoff.iconScale
+                )
             }
             pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: true)
         }
@@ -330,6 +362,10 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             let commitSlot = slotIndex(forX: location.x)
             // 交接位置必须在推动画之前读：push 一发出，透镜模型位置即指向提交槽。
             let handoffX = lens.currentSelectionOriginXForHandoff
+            // [交接续实数 v3 2026-09-30] 同理读图标的实际缩放，且必须在推动画之前
+            // （与 handoffX 同一时刻）：push 一发出，被按图标即被弹向 1.0，
+            // presentation 就不再是松手瞬间的屏上值了。
+            let handoffIconScale = currentSelectedIconScale(ofSlot: commitSlot)
             interactionPressed = nil
             interactionLensX = nil
             // [TG 对齐 :555-604] TG 先清 selectionGestureState、再以提交 item 为目标
@@ -342,7 +378,8 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             // 跨树提交交接：寄存松手瞬间的透镜可见位，供目标树的岛续簧（见 CommitHandoff）。
             if let handoffX {
                 Self.commitHandoff = CommitHandoff(
-                    slot: commitSlot, fromSlot: ownSlot, x: handoffX, at: CACurrentMediaTime()
+                    slot: commitSlot, fromSlot: ownSlot, x: handoffX,
+                    iconScale: handoffIconScale, at: CACurrentMediaTime()
                 )
             }
             onCommit?(commitSlot)
@@ -369,6 +406,19 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     private func rawSlotIndex(forX x: CGFloat) -> Int {
         let slotWidth = max(1.0, self.slotWidth())
         return Int(floor((x - TGLensBar.innerInset) / slotWidth))
+    }
+
+    /// [交接续实数 v3 2026-09-30] 被提交槽位的选中图标「松手瞬间」的实际缩放。
+    /// 读 presentation 层：按下弹簧在途时模型 transform 已是满值 1.15，屏上真值
+    /// 则按压时长停在 1.0→1.15 之间——正是要交给目标栏续弹簧的进度；无在途动画
+    /// （presentation 返回 nil）退回模型层。两层都取不到 / 读出非正数或非有限值时
+    /// 兜底 1.15 = 旧行为（补满）。读法与 LiquidLensView
+    /// .currentSelectionOriginXForHandoff 同源（同一 .ended 时刻取屏上真值）。
+    private func currentSelectedIconScale(ofSlot slot: Int) -> CGFloat {
+        guard selectedIcons.indices.contains(slot) else { return 1.15 }
+        let scale = selectedIcons[slot].layer.presentation()?.transform.m11
+            ?? selectedIcons[slot].transform.m11
+        return scale > 0 && scale.isFinite ? scale : 1.15
     }
 
     /// [第 4 格] 齿轮按压态（放大 1.15，同三 tab 的按压语言）。

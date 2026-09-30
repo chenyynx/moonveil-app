@@ -163,9 +163,18 @@ struct RootModeTabsView: View {
     /// 的数字化——旧页在 TG 保持全不透明、到点硬移除，不淡出）——注意此三者与
     /// v1 缩放同批（a13c765）引入，瞬切版从未跑过；若装机仍异常，下一手候选 =
     /// 拆溶解窗口 / geometryGroup。
-    /// 宽屏 regular 不播（:283-285）。缩放纪律：v2 起栏挂在缩放修饰符之外侧
+    /// 宽屏 regular 不播（:283-285）。v2 缩放纪律：栏挂在缩放修饰符之外侧
     /// （TreeSwitchZoom 挂在 safeAreaInset 内侧）——栏不随缩放，TG「栏独立层不缩」
     /// 的 parity 偏差随之消除。
+    /// [切页转场 v3 2026-09-30 · cc] v2 位（栈内、inset 内侧）**不够深**：那一层
+    /// 仍在 safe-area 求值链上，缩放弹簧动画期间 SwiftUI 对子树安全区记账失稳——
+    /// 装机日志（build 431）实锤离场树底安全区在窗口收尾塌到 0.0（隐藏期不可见）、
+    /// 进场树保持 0 直到切页后 ~214ms 才弹回 98 = 用户可见「画面高度在掉」。
+    /// v3 = 三棵树的缩放再降一层，挂在 root 内容最内层（列表本体级：ContentView
+    /// .sessionList 的 stackList 分支 / RemoteRootView 的 pairingPending +
+    /// connected / WorksListView.content 的四个叶子），使求值链零动画变换。
+    /// 缩放量本身极小（3pt 级，导航栏本就不缩，差异 <0.5px，接受）。
+    /// 未采用的备选：geometryGroup（把缩放隔离进独立渲染层）/ 拆溶解窗口。
     @ViewBuilder
     private func tabTree(_ mode: AppSourceMode) -> some View {
         let isCurrent = router.mode == mode
@@ -269,19 +278,31 @@ struct RootModeTabsView: View {
 
 // MARK: - [切页转场 v2] 树内容缩放（栈内挂点）
 
-/// [切页转场 v2 2026-09-30] 切页缩放：挂在**各树 NavigationStack 的 root 内容上**、
-/// `safeAreaInset(栏)` **内侧**（三个挂点：ContentView.stackLayout / RemoteRootView /
-/// WorksListView）。非当前树恒为起点缩放（隐藏不可见），成为当前树时弹簧到 1
+/// [切页转场 v2 2026-09-30] 切页缩放：v2 起挂在**各树 NavigationStack 的 root 内容上**、
+/// `safeAreaInset(栏)` **内侧**（v2 三挂点：ContentView.stackLayout / RemoteRootView /
+/// WorksListView 的 body）。[切页转场 v3 2026-09-30 · cc] v3 全部下沉一层，见下
+/// 「挂点纪律」。非当前树恒为起点缩放（隐藏不可见），成为当前树时弹簧到 1
 /// （TG TabBarController.swift:287-289 数字化：起点 = (视图高−3)/视图高 ≈ 0.9965，
 /// 0.15s 弹簧、延迟 0.1s；取不到视图高度用 TG 回退值 0.998）。宽屏 regular 恒 1
 /// （TG :283-285 不播）。
 ///
-/// ⚠️ 挂点纪律（v1 装机实锤，勿动）：修饰符必须在**栈内内容**上——v1 曾把
-/// `.scaleEffect` 挂在树容器（NavigationStack 外层），切页后 root-list 底安全区
-/// 从 98 掉到 64 且 64↔98 瞬跳（栏与整页内容上下跳 34pt = pp「整个页面都在抖 /
-/// 栏被截一半」，build 430 日志）。社区同款结论：缩放/位移必须作用在栈内内容上
+/// ⚠️ 挂点纪律（v1/v2 装机实锤，勿动）：修饰符必须一路下沉到
+/// **safe-area 求值链之外的最内层内容（列表本体级）**，链上不许留任何动画变换。
+/// ① v1 挂在树容器（NavigationStack 外层）：切页后 root-list 底安全区从 98 掉到
+/// 64 且 64↔98 瞬跳（栏与整页内容上下跳 34pt = pp「整个页面都在抖 / 栏被截
+/// 一半」，build 430 日志）。社区同款结论：缩放/位移必须作用在栈内内容上
 /// （StackOverflow 77169874），挂栈外包裹层会让栈内内容丢 safe area。
-/// 由此栏也天然不参与缩放（TG 栏独立层不缩的 parity 偏差消除）。
+/// ② v2 下沉到栈内、`safeAreaInset` 内侧**仍不够**：该层仍在求值链上，缩放弹簧
+/// 动画期间 SwiftUI 对子树安全区记账失稳——build 431 日志实锤离场树底安全区在
+/// 窗口收尾塌到 0.0（隐藏期不可见）、进场树保持 0 直到切页后 ~214ms 才弹回 98
+/// = 用户可见「画面高度在掉」。
+/// ③ [切页转场 v3 2026-09-30 · cc] 定案挂点（三处，均为列表本体级）：
+/// ContentView.sessionList 内 `if useNavigationLinks` 的 `stackList`（宽屏 split
+/// 分支不挂，TreeSwitchZoom 内部 regular 恒 1；`.debugSafeBottom("root-list")`
+/// 留在缩放之外）、RemoteRootView 的 `pairingPending` 与 `connected`、
+/// WorksListView `content` 的四个分支叶子（List / ScrollView / 两个 emptyView）。
+/// safeAreaInset / ModeTabBar 调用点一律不动；缩放量 3pt 级，导航栏本就不缩，
+/// 视觉差异 <0.5px。栏天然在缩放之外（TG 栏独立层不缩的 parity 偏差消除）。
 ///
 /// 已知取舍：缩放只覆盖各树 root 内容——若该树停在 push 的页面上切页，不播缩放
 /// （目录页绝大多数切页场景在 root；待装机观感再评估是否扩到 push 目的地）。

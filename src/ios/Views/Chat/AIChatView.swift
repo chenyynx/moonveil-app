@@ -347,6 +347,8 @@ struct AIChatView: View {
     }
 
     init(sessionId: String? = nil, draftId: String? = nil, remoteDeviceId: String? = nil, initialGroupId: String? = nil, searchAnchorMessageId: String? = nil) {
+        // [PUSHTRACE 2026-09-30] push 分段计时锚点②：视图构造入口。只读日志。
+        NavTrace.log("PUSHTRACE init-begin +\(NavTrace.age)")
         self.sessionId = sessionId
         self.draftId = draftId
         self.remoteDeviceId = remoteDeviceId
@@ -371,6 +373,9 @@ struct AIChatView: View {
         // line is dropped.
         _cached = StateObject(wrappedValue: CachedViewModel(sessionId: sessionId))
         AIChatViewModel.onAppearTimestamp = CFAbsoluteTimeGetCurrent()
+        // [PUSHTRACE 2026-09-30] push 分段计时锚点③：视图构造出口（init 最末尾）。
+        // init-begin → init-end = 单次 init 的自身耗时；与 onAppear 差 = 构造到首帧的排队。
+        NavTrace.log("PUSHTRACE init-end +\(NavTrace.age)")
     }
     @StateObject private var oauth = ClaudeOAuthManager.shared
     @StateObject private var geminiOAuth = GeminiOAuthManager.shared
@@ -428,6 +433,9 @@ struct AIChatView: View {
     /// frames) go through the 300ms trailing debounce that fixes the stuck
     /// stale-height voice-panel-blank bug.
     @State private var didSeedInputBarHeight = false
+    /// [PUSHTRACE 2026-09-30] push 分段计时：输入栏几何首回调的日志守卫（每次视图构造只打一次）。
+    /// 纯观测，不参与任何 inputBarHeight 判定。
+    @State private var didLogPushTraceGeometry = false
     /// Swipe-up-to-send drag progress in 0...1. Drives the floating send-arrow
     /// hint opacity / scale and acts as the threshold check on gesture end.
     /// Only updated while the input field has non-empty text.
@@ -1422,6 +1430,9 @@ struct AIChatView: View {
             // (sessionId=nil) won't match the workflow's target and
             // are correctly skipped.
             tryMarkWorkflowChatReady(reason: "onAppear")
+            // [PUSHTRACE 2026-09-30] push 分段计时锚点④⑤：onAppear 同步块尾 + 主线程首次腾空。
+            NavTrace.log("PUSHTRACE onAppear-end +\(NavTrace.age)")
+            DispatchQueue.main.async { NavTrace.log("PUSHTRACE drain1 +\(NavTrace.age)") }
         }
         .observingQuickActions(modifier: quickActionObserver)
         .onChange(of: vm.sessionId) { _ in
@@ -3979,6 +3990,13 @@ struct AIChatView: View {
                 // [voice-inputbar-padding-zero] Guard against transient 0.
                 guard newH > 0 else { return }
 
+                // [PUSHTRACE 2026-09-30] push 分段计时锚点⑥：输入栏几何首次回调。
+                // 与 PUSHTRACE onAppear-end 差 = onAppear 之后到输入栏首帧之间主线程排的队。
+                if !didLogPushTraceGeometry {
+                    didLogPushTraceGeometry = true
+                    NavTrace.log("PUSHTRACE inputbar-geometry-first +\(NavTrace.age)")
+                }
+
                 // [T-voice-inputbar-cross-session-bleed] During session
                 // transition animations, SwiftUI fires onGeometryChange for
                 // BOTH the outgoing and incoming AIChatView. The outgoing
@@ -4043,6 +4061,9 @@ struct AIChatView: View {
                     inputBarHeightDebounce?.cancel()
                     inputBarHeight = newH
                     AppLogger(category: "InputBarLayout").info("inputBarHeight seeded=\(newH) x=\(Int(frame.minX))")
+                    // [PUSHTRACE 2026-09-30] push 分段计时锚点⑦：seeded 落位后主线程首次腾空。
+                    // 与 inputbar-geometry-first 差 = 同步 seed + 同批次布局的实际耗时。
+                    DispatchQueue.main.async { NavTrace.log("PUSHTRACE drain2 +\(NavTrace.age)") }
                     // [T-inputbar-stale-across-reentry] The seed is applied
                     // SYNCHRONOUSLY (the message list needs a bottom inset on its
                     // very first pass, else it scrolls to a fake bottom). That

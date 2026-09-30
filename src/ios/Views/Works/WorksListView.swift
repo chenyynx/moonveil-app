@@ -65,10 +65,13 @@ struct WorksListView: View {
                     .padding(.top, 34)
                 content
             }
-            // [切页转场 v2 2026-09-30] 缩放挂栈内、safeAreaInset 内侧（勿移到
-            // NavigationStack 外——v1 装机实锤栈外缩放会让栈内内容丢 34pt 底
-            // 安全区：整页抖 + 栏被裁；详见 TreeSwitchZoom 挂点纪律注释）。
-            .treeSwitchZoom(.works)
+            // [切页转场 v3 2026-09-30 · cc] 缩放已从本行（v2 位：栈内、但仍在
+            // safeAreaInset 求值链上）下沉到 VStack 内的内容分支本体（content 的
+            // 四个叶子，见下半）。v2 残留在本行仍打坏安全区记账：装机日志
+            // （build 431）实锤离场树底安全区窗口收尾塌到 0.0、进场树保持 0 直到
+            // 切页后 ~214ms 才弹回 98 = 用户可见「画面高度在掉」。求值链必须零
+            // 动画变换，勿挂回本层。详见 RootModeTabsView 末尾 TreeSwitchZoom
+            // 「挂点纪律」。
             // [TG-TABBAR 2026-09-30] 自绘栏挂栈内 root 页底边（push 整页覆盖含栏）。
             .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .works) }
             // [TG-TABBAR-FIX 2026-09-30] 键盘豁免·权威挂点（原理与勿动理由见
@@ -139,12 +142,18 @@ struct WorksListView: View {
 
     // MARK: 内容两段
 
+    // [切页转场 v3 2026-09-30 · cc] 缩放挂点：四个分支叶子本体（v3 最内层）。
+    // 纪律 = 缩放必须落在下方 safeAreaInset（body）求值链的最里侧，链上零变换；
+    // v2 挂在 VStack 外层（body 原位）仍带动画变换 → 装机实锤离场树底安全区
+    // 98→0.0 塌陷、进场树 ~214ms 迟恢复 98（build 431 日志）。分段条
+    // segmentBar 不再随缩放（3pt 级，差异 <0.5px，TG 栏本就不缩）。
     @ViewBuilder
     private var content: some View {
         switch section {
         case .components:
             if files.isEmpty {
                 emptyView("No components yet")
+                    .treeSwitchZoom(.works)
             } else {
                 List {
                     ForEach(files) { file in
@@ -152,10 +161,12 @@ struct WorksListView: View {
                     }
                 }
                 .listStyle(.plain)
+                .treeSwitchZoom(.works)
             }
         case .media:
             if media.isEmpty {
                 emptyView("No media yet")
+                    .treeSwitchZoom(.works)
             } else {
                 ScrollView {
                     LazyVGrid(
@@ -174,6 +185,7 @@ struct WorksListView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 16)
                 }
+                .treeSwitchZoom(.works)
             }
         }
     }

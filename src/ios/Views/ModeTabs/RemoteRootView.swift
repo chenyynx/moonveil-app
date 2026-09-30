@@ -25,10 +25,13 @@ struct RemoteRootView: View {
     var body: some View {
         NavigationStack {
             content
-                // [切页转场 v2 2026-09-30] 缩放挂栈内、safeAreaInset 内侧（勿移到
-                // NavigationStack 外——v1 装机实锤栈外缩放会让栈内内容丢 34pt 底
-                // 安全区：整页抖 + 栏被裁；详见 TreeSwitchZoom 挂点纪律注释）。
-                .treeSwitchZoom(.remote)
+                // [切页转场 v3 2026-09-30 · cc] 缩放已从本行（v2 位：栈内、但仍在
+                // safeAreaInset 求值链上）下沉到 content 各分支本体（pairingPending /
+                // connected，见文件下半）。v2 残留在本行仍打坏安全区记账：装机日志
+                // （build 431）实锤离场树底安全区窗口收尾塌到 0.0、进场树保持 0 直到
+                // 切页后 ~214ms 才弹回 98 = 用户可见「画面高度在掉」。求值链必须零
+                // 动画变换，勿挂回本层。详见 RootModeTabsView 末尾 TreeSwitchZoom
+                // 「挂点纪律」。
                 // [TG-TABBAR 2026-09-30] 自绘栏挂栈内 root 页底边——远端线的
                 // 二级页（会话聊天/设备详情）push 时整页覆盖含栏。
                 .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .remote) }
@@ -100,6 +103,9 @@ struct RemoteRootView: View {
             Text("等待配对完成…").font(.callout)
             Button("取消，回到引导") { service.reset() }.font(.callout)
         }
+        // [切页转场 v3 2026-09-30 · cc] 缩放挂点：等待态本体（v3 最内层，见
+        // RootModeTabsView 末尾 TreeSwitchZoom 挂点纪律——求值链零变换）。
+        .treeSwitchZoom(.remote)
         // [TG-TABBAR 2026-09-30] 此段原为 [TAB-RESTORE 2026-09-28] 的「系统 tab
         // 栏恢复原生渲染」说明——系统栏已整体退役；等待态在远端树 root 页内，
         // 自绘栏（ModeTabBar）照常在场。
@@ -116,5 +122,9 @@ struct RemoteRootView: View {
                                   pendingNotices = 0
                               },
                               onOpenLogin: onOpenLogin)
+            // [切页转场 v3 2026-09-30 · cc] 缩放挂点：已连接态列表本体（v3 最内层，
+            // 与 pairingPending 同款；求值链零变换——v2 挂在 safeAreaInset 内侧仍
+            // 致 98→0.0 塌陷 + ~214ms 迟恢复，build 431 日志）。
+            .treeSwitchZoom(.remote)
     }
 }

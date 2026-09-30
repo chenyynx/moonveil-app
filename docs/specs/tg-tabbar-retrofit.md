@@ -160,6 +160,24 @@ ZStack 三树保活（瞬切：当前树 opacity 1 + 可命中，其余保活不
   （TG animateAlpha 默认曲线未验证）；③spring 阻尼近似（TG kCAMediaTimingFunctionSpring
   有微过冲）；④栏为每树一栏随树淡入（TG 单栏常驻不参与任何切换动画——架构差异，
   本仓栏在栈内所致；两层同像素叠加，淡入期约 0.1s，不可辨）。
+- **切页转场 v3·缩放降层（2026-09-30 第四轮装机修正，pp「（本地页）画面高度在掉」）**：
+  v2 把缩放挂到「栈内、safeAreaInset 内侧」**仍不够深**——该层仍在 safe-area 求值
+  链上，缩放弹簧动画期间（flip+0.1~0.25s）SwiftUI 对子树安全区记账失稳。build 431
+  日志实锤：离场树底安全区在溶解窗口收尾塌到 **0.0**（隐藏期不可见）；进场树保持
+  0 直到切页后 **~214ms** 才弹回 98.2→98.0 = 用户可见「画面高度在掉」（页面淡入后
+  ~0.2s 内容区突然收缩 98pt）。修复 = 缩放**再降一层**到各树 root 内容最内层
+  （列表本体级：ContentView.sessionList 的 stackList / RemoteRootView 的
+  pairingPending+connected / WorksListView.content 四个叶子），求值链零动画变换；
+  `.debugSafeBottom("root-list")` 探针留在缩放之外（从现在起它测的是未缩放链 =
+  正确值）。缩放量 3pt 级，导航栏/分段条本就不缩，视觉差 <0.5px。**装机判据：
+  切页期间 `[SAFE] root-list bottom` 不再出现 0.0（v2 残留）；v1 的 64.0 同禁。**
+  未采用备选 = geometryGroup / 拆溶解窗口（若 v3 仍未清干净，按此序排除）。
+- **跨树交接续实数（2026-09-30 第四轮装机修正，pp「点击 tab 切换 放大和发亮太快；
+  同页连点正常」）**：同树按压/落位路径正常（不经交接），跨树交接消费端一步补满
+  （图标 1.15 + 透镜拉缩 + 光晕）而出发栏松手多在弹簧途中 → 放大/发亮瞬间到位。
+  修复 = 交接携带 `iconScale`（.ended 于推动画前读 presentation 屏上真值），消费端
+  `keepGlow = iconScale > 1.08`（光晕私有二值、阈值近似）——快按不吃 lift、图标自
+  真值续簧；合约与单点调参记录见 docs/tg-lens-port.md §2 ⑮。
 
 ## 7. TG 数值对照表（2026-09-30 立表——源码 + pp 实机像素反演双据）
 

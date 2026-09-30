@@ -117,6 +117,8 @@ final class QuickActionRouter: ObservableObject {
     /// opens a fresh local session (routing back to the local tab first).
     func requestNewChat() {
         NavTrace.log("ROUTER requestNewChat n=\(newChatTrigger &+ 1) src=\(NavTrace.trigger)+\(NavTrace.age)")
+        // [PUSHTRACE 2026-09-30] push 分段计时锚点①：按下瞬间。只读日志，不改任何行为。
+        NavTrace.log("PUSHTRACE press +\(NavTrace.age)")
         postNewChat()
     }
 

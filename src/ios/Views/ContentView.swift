@@ -2239,11 +2239,14 @@ struct ContentView: View {
     private var stackLayout: some View {
         NavigationStack(path: $navigationPath) {
             sessionList(useNavigationLinks: true)
-                // [切页转场 v2 2026-09-30] 缩放挂栈内、safeAreaInset 内侧（勿移到
-                // NavigationStack 外——v1 装机实锤栈外缩放会让栈内内容丢 34pt 底
-                // 安全区：整页抖 + 栏被裁；详见 TreeSwitchZoom 挂点纪律注释）。
-                // 挂在 inset 内侧 ⇒ 栏不参与缩放。
-                .treeSwitchZoom(.local)
+                // [切页转场 v3 2026-09-30 · cc] 缩放已从本行（v2 位：栈内、但仍在
+                // safeAreaInset 求值链上）下沉到 sessionList 内部的最内层列表本体
+                // （sessionList 内 stackList 分支，:2924）。v2 残留在本行仍能打坏
+                // 安全区记账：
+                // 装机日志（build 431）实锤离场树底安全区窗口收尾塌到 0.0（隐藏期
+                // 不可见）、进场树保持 0 直到切页后 ~214ms 才弹回 98 = 用户可见
+                // 「画面高度在掉」。求值链必须零动画变换，勿把缩放挂回本层。
+                // 详见 RootModeTabsView 末尾 TreeSwitchZoom「挂点纪律」。
                 // [TG-TABBAR 2026-09-30] 自绘 tab 栏挂栈内 root 页底边：push 从
                 // 栈内部盖上来整页覆盖含栏；划回 root 页（含栏）整体平移揭示。
                 // 系统栏与藏显机制整体退役（见 RootModeTabsView / ModeTabBar 头注）。
@@ -2911,6 +2914,15 @@ struct ContentView: View {
         Group {
             if useNavigationLinks {
                 stackList
+                    // [切页转场 v3 2026-09-30 · cc] 缩放挂点（窄屏专用）：列表本体
+                    // 这一层。挂点纪律 = 缩放必须落在下方 safeAreaInset（:2252 栏
+                    // 挂点）的求值链**最里侧**，链上只许留探针 / .task / 几何采样
+                    // 等零变换修饰符（.debugSafeBottom 就在缩放之外，见下）。v2 挂在
+                    // Group 外层（stackLayout :2246 原位）仍带动画变换 → 装机实锤
+                    // 离场树底安全区 98→0.0 塌陷、进场树 ~214ms 迟恢复 98
+                    // （build 431 日志）。缩放量仅 3pt 级，导航栏本就不缩，视觉不变。
+                    // 宽屏 split 分支维持不挂（TreeSwitchZoom 内部 regular 恒 1）。
+                    .treeSwitchZoom(.local)
             } else {
                 splitList
             }
