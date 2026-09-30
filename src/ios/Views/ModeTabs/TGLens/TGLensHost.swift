@@ -416,8 +416,20 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     /// .currentSelectionOriginXForHandoff 同源（同一 .ended 时刻取屏上真值）。
     private func currentSelectedIconScale(ofSlot slot: Int) -> CGFloat {
         guard selectedIcons.indices.contains(slot) else { return 1.15 }
-        let scale = selectedIcons[slot].layer.presentation()?.transform.m11
-            ?? selectedIcons[slot].transform.m11
+        // [CI 修复 2026-09-30] 刻意不用 `a()?.b.m11 ?? c.d.m11` 一条链的写法：
+        // 该形态在 iOS target（default-isolation MainActor）下被 Swift 6.0.3 求解器
+        // 误诊——第四轮构建实锤 TGLensHost.swift:420 报「no exact matches in call to
+        // subscript」（把 Array 的 Int 下标判失败），而本文件他处同款下标正常、
+        // Linux 等价复现器通过 ⇒ 纯求解器病理。拆成显式解包 + 单层读取，语义不变
+        // （presentation 优先、模型层兜底）。`.a` 与 `.m11` 同义（CGAffineTransform
+        // 的 1,1 位），此处用 `.a` 与本文件既有写法（pushLens/setSettingsPressed）一致。
+        let icon: UIImageView = selectedIcons[slot]
+        let scale: CGFloat
+        if let presented: CALayer = icon.layer.presentation() {
+            scale = presented.transform.m11
+        } else {
+            scale = icon.transform.a
+        }
         return scale > 0 && scale.isFinite ? scale : 1.15
     }
 
