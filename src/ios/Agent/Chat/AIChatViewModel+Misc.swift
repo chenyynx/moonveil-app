@@ -13,29 +13,42 @@ extension AIChatViewModel {
         guard kernelStatus == .notBooted else { return }
         kernelStatus = .booting
 
-        // [T-kernelboot-main-thread-stall 2026-09-30] ISHBootGate 的文档契约
-        // （"Synchronous, and slow on first boot … callers must hop off the main
-        // thread before calling"）：本类 @MainActor，原 `Task {}` 继承主 actor
-        // ——首次启动的 installIfNeeded + kernel boot + rootfs overlay（装机
-        // 实测 TOTAL 128.4ms，其中 overlay 109.5ms）整段阻塞主线程，恰好压在
-        // 首次 compose→聊天页 push 动画上（pp 装机「滑出来的聊天页有点掉帧」；
-        // 后续 push 命中 isBooted 快路径 0.0ms 无感）。换 detached（不继承
-        // actor）+ MainActor 回写状态；同步置 .booting、失败态、TOTAL 日志
-        // 语义均与原实现一致。
-        Task.detached(priority: .userInitiated) { [weak self] in
-            let bootStart = CFAbsoluteTimeGetCurrent()
-            do {
-                // Serialized with every other boot path (e.g. SSH settings)
-                // via ISHBootGate; no-op when the kernel is already up.
-                try ISHBootGate.ensureBooted()
-                Task { @MainActor in MirrorSpeedTestViewModel.shared.autoDetectOnceIfNeeded() }
-                await MainActor.run { self?.kernelStatus = .booted }
+        // [T-kernelboot-main-thread-stall v3 2026-09-30] 前两版均实测压在主线程：
+        // v1 `Task {}` 继承主 actor（预期内）；v2 `Task.detached` 也没生效——
+        // 本 target 开了 default-isolation MainActor（SWIFT_DEFAULT_ACTOR_ISOLATION
+        // = MainActor，Minis.xcodeproj E51000072/73），该模式下 detached 的未标注
+        // 闭包仍被推断为主 actor。装机实锤（build 430，pp「点新会话掉帧还是没解决」）：
+        // boot 全链日志（RootfsManager/ISHKernel/overlay 共 48 行）全在主线程，首个
+        // 新会话 TOTAL 219.1ms 恰压在 push 动画上；重复点按 76.9/73.9ms（旧包同
+        // 操作 0.0ms——皆主线程拥塞排队）。v3 = GCD 后台队列 + nonisolated 同步
+        // 执行体：同步函数没有 executor 语义、不受 actor 推断影响，执行线程由
+        // libdispatch 钉在后台；状态回写走 MainActor。同步置 .booting、失败态、
+        // TOTAL 日志语义均与 v1/v2 一致。勿改回 Task.detached（同坑前两版踩过）。
+        let vm = self
+        DispatchQueue.global(qos: .userInitiated).async {
+            Self.kernelBootOffMain(vm)
+        }
+    }
+
+    /// [v3] boot 后台执行体——nonisolated：不触碰主 actor 状态，一切回写经 MainActor。
+    /// ISHBootGate 自带 app 级串行化（ishBootQueue）；kernel 已在跑时是快路径 no-op。
+    private nonisolated static func kernelBootOffMain(_ vm: AIChatViewModel) {
+        let bootStart = CFAbsoluteTimeGetCurrent()
+        do {
+            // Serialized with every other boot path (e.g. SSH settings)
+            // via ISHBootGate; no-op when the kernel is already up.
+            try ISHBootGate.ensureBooted()
+            Task { @MainActor in
+                MirrorSpeedTestViewModel.shared.autoDetectOnceIfNeeded()
+                vm.kernelStatus = .booted
                 let totalElapsed = (CFAbsoluteTimeGetCurrent() - bootStart) * 1000
                 logger.info("[KernelBoot] TOTAL: \(String(format: "%.1f", totalElapsed))ms")
-            } catch {
-                await MainActor.run { self?.kernelStatus = .failed(error.localizedDescription) }
-                logger.error("[KernelBoot] error: \(error.localizedDescription)")
             }
+        } catch {
+            Task { @MainActor in
+                vm.kernelStatus = .failed(error.localizedDescription)
+            }
+            logger.error("[KernelBoot] error: \(error.localizedDescription)")
         }
     }
 

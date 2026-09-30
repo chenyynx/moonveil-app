@@ -14,12 +14,16 @@
 3. 划回（交互式 pop）中途：一级页（含栏）整体随手势平移揭示，栏相对页面纹丝不动。
 4. 新会话圆钮 → 草稿页 = 标准 push（无硬切/无底部空档）。
 5. tab 切换瞬切（无 crossfade）；各 tab 保留各自页面历史；远端线保持"切走弹根"。
+   （时态注：2026-09-30 起按 pp 装机要求改为 TG 缩放淡入转场——「瞬切」表述作废，
+   现行行为见 §6「切页转场 v2」。）
 6. 深色/浅色双模式正常；登录盖 / 设置 sheet / 资料页 zoom 不受影响。
 
 ## 2. 架构（治根点）
 
 ```
 ZStack 三树保活（瞬切：当前树 opacity 1 + 可命中，其余保活不可见）
+  ⤷ 时态注（2026-09-30）：切 tab 已改为 TG 缩放淡入转场（§1.5 注 / §6「切页转场 v2」），
+    「瞬切」仅存于此行历史叙述
  ├─ 树1 ContentView.stackLayout: NavigationStack { 列表+safeAreaInset(ModeTabBar)
  │      → push AIChatView（整页盖，含栏） }
  ├─ 树2 RemoteRootView:          NavigationStack { 列表+safeAreaInset(ModeTabBar)
@@ -129,6 +133,20 @@ ZStack 三树保活（瞬切：当前树 opacity 1 + 可命中，其余保活不
   **已知偏差（tg-parity 记录）**：TG 的栏是 TabBarControllerNode 的独立层、不参与
   缩放；本仓栏挂树内（safeAreaInset 架构所限）会随树缩放——幅度 0.35%（≈0.2pt
   栏高）+溶解期与旧栏约 1px 重影 0.1s，肉眼不可辨，若日后可察再评估反缩放。
+  （时态注：本条为 v1 记录；该偏差已由下方 v2 条目消除——栏不再随缩放。）
+- **切页转场 v2·缩放迁入栈内（2026-09-30 第三轮装机修正，pp「整个页面都在抖
+  根本不是切页动画 / 切页时 tab 栏被截一半」）**：v1 把 `.scaleEffect` 挂在树容器
+  （NavigationStack 外层）——装机实锤打坏栈内 safeAreaInset 求值：root-list 底安全
+  区切页后从 98（栏 64 + Home 34）掉到 64、且 64↔98 瞬跳（build 430 日志；旧瞬切
+  版同类操作恒 98）→ 整页内容上下跳 34pt + 栏底被裁出屏。修复 = 缩放迁入**各树
+  NavigationStack 的 root 内容、safeAreaInset 内侧**（新 `TreeSwitchZoom`，挂点 =
+  ContentView.stackLayout / RemoteRootView / WorksListView 三处；社区同款结论：
+  缩放/位移必须作用在栈内内容，挂栈外包裹层会丢 safe area）。树容器只保留 v1
+  装机中除缩放外未见异常的部分（opacity/zIndex/溶解窗口——注意 zIndex 与溶解
+  窗口系 v1 同批引入、瞬切版未跑过；若装机仍异常，下一手候选 = 拆溶解窗口 /
+  geometryGroup）。**栏不再随缩放**——上一条「已知偏差」随之
+  消除。装机判据：切页期间 `[SAFE] root-list bottom=98.0` 恒定（再见 64.0 = 复现）。
+  已知取舍：缩放只覆盖 root 内容——树停在 push 页面时切页不播（待装机观感再评估）。
 
 ## 7. TG 数值对照表（2026-09-30 立表——源码 + pp 实机像素反演双据）
 

@@ -2239,6 +2239,11 @@ struct ContentView: View {
     private var stackLayout: some View {
         NavigationStack(path: $navigationPath) {
             sessionList(useNavigationLinks: true)
+                // [切页转场 v2 2026-09-30] 缩放挂栈内、safeAreaInset 内侧（勿移到
+                // NavigationStack 外——v1 装机实锤栈外缩放会让栈内内容丢 34pt 底
+                // 安全区：整页抖 + 栏被裁；详见 TreeSwitchZoom 挂点纪律注释）。
+                // 挂在 inset 内侧 ⇒ 栏不参与缩放。
+                .treeSwitchZoom(.local)
                 // [TG-TABBAR 2026-09-30] 自绘 tab 栏挂栈内 root 页底边：push 从
                 // 栈内部盖上来整页覆盖含栏；划回 root 页（含栏）整体平移揭示。
                 // 系统栏与藏显机制整体退役（见 RootModeTabsView / ModeTabBar 头注）。

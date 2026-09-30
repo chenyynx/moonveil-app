@@ -53,27 +53,17 @@ struct RootModeTabsView: View {
     /// 走本表。图标资产与栅格化缓存随 Tab 构建器迁入 ModeTabBar.swift。
     @State private var mountedModes: Set<AppSourceMode> = [.local, RootTabRouter.shared.mode]
 
-    /// [切页转场] 宽屏（iPad / 横屏 Max）档 TG 不播切页动画（TabBarController
-    /// .swift:283-285 widthClass == .regular → animated = false），此处同守。
+    /// [切页转场 v2 2026-09-30] 宽屏（iPad / 横屏 Max）档 TG 不播切页动画
+    /// （TabBarController.swift:283-285 widthClass == .regular → animated = false），
+    /// 此处同守（溶解淡入不播；缩放侧由 TreeSwitchZoom 内部同款守卫）。
     /// 溶解窗口的「上一棵树」状态在 RootTabRouter（与 mode 同步落定，见其
     /// didSet 注释——视图侧 onChange 写入会有次序不确定导致的旧树闪隐）。
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    /// [切页转场] TG TabBarController.swift:287-289 的数字化：新页缩放起点
-    /// = (视图高−3)/视图高（≈0.9965，缩 3pt）；取不到视图高度时用 TG 回退值
-    /// 0.998。树全屏 ≈ 当前 key window 高。
-    private var switchStartScale: CGFloat {
-        let height = UIApplication.shared.connectedScenes
-            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
-            .first?.bounds.height ?? 0
-        guard height > 0 else { return 0.998 }
-        return (height - 3.0) / height
-    }
-
-    /// [切页转场] TG :319-321 数字化：新页缩放 0.15s 弹簧、延迟 0.1s；淡入
-    /// 0.1s（CA 默认曲线，取 easeOut 近似）。旧页收缩（TG :297：1→起点缩放、
-    /// 0.12s 弹簧）因共用此曲线自 0.1s 起（TG 无延迟）——溶解窗口内不可辨。
-    private static let switchScaleAnimation: Animation = .spring(response: 0.15, dampingFraction: 1.0).delay(0.1)
+    /// [切页转场 v2] 淡入曲线（TG :319-321 数字化：0.1s，CA 默认曲线取 easeOut 近似）。
+    /// 缩放曲线与起点缩放随 v2 迁入 TreeSwitchZoom（本文件末尾）；原
+    /// switchStartScale / switchScaleAnimation 在此退役——挂在树容器上会破坏
+    /// 栈内 safeAreaInset 求值，装机实锤见 tabTree 注释。
     private static let switchAlphaAnimation: Animation = .easeOut(duration: 0.1)
 
     var body: some View {
@@ -162,35 +152,37 @@ struct RootModeTabsView: View {
     /// 树上，只是不可见/不可点/不进朗读）。自绘栏挂在各树 NavigationStack 的
     /// root 页内（ContentView/RemoteRootView/WorksListView 三处 safeAreaInset），
     /// 不在本层——push 才能整页盖住含栏的 root 页。
-    /// [切页转场 2026-09-30] 换页动效（TG TabBarController.swift:279-330）：新页
-    /// zIndex 置顶 → 淡入 0.1s + 从 switchStartScale 弹簧到 1（0.15s、延迟 0.1s）；
-    /// 旧页在 previousMode 窗口内留在下层、动画同缩（TG 旧页 1→起点缩放 0.12s
-    /// 弹簧；共用曲线自 0.1s 起，溶解窗口内不可辨）。宽屏 regular 不播（:283-285）。
-    /// 已知偏差：TG 的栏是独立层、不参与缩放；本仓栏在树内随缩放（全屏高
-    /// ≈0.35%、溶解期与旧栏约 1px 重影 0.1s，tg-parity 记录在同批 spec §6）。
+    /// [切页转场 v2 2026-09-30] v1（a13c765）在本容器上挂 .scaleEffect，装机实锤
+    /// 打坏栈内 safeAreaInset 求值：root-list 底安全区切页后从 98（栏 64 + Home 34）
+    /// 掉到 64、且 64↔98 瞬跳（build 430 日志；旧瞬切版同类操作恒 98）——整页上下
+    /// 抖 + 栏被裁出屏幕。修复 = 缩放迁入各树栈内内容层（TreeSwitchZoom，见本文件
+    /// 末尾；社区同款结论：缩放/位移修饰符必须作用在栈内内容上，挂栈外包裹层会让
+    /// 内容丢 safe area）。本容器只保留 v1 装机中除缩放外未见异常的部分：zIndex
+    /// 置顶 + 新页淡入 0.1s（TG :319-321）+ previousMode 溶解窗口（旧页留下层，
+    /// TG :314-330 语义）——注意此三者与 v1 缩放同批（a13c765）引入，瞬切版从未跑过；
+    /// 若装机仍异常，下一手候选 = 拆溶解窗口 / geometryGroup。
+    /// 宽屏 regular 不播（:283-285）。缩放纪律：v2 起栏挂在缩放修饰符之外侧
+    /// （TreeSwitchZoom 挂在 safeAreaInset 内侧）——栏不随缩放，TG「栏独立层不缩」
+    /// 的 parity 偏差随之消除。
     @ViewBuilder
     private func tabTree(_ mode: AppSourceMode) -> some View {
         let isCurrent = router.mode == mode
         let isDissolvingUnder = router.previousMode == mode && !isCurrent
         let skipSwitchAnimation = horizontalSizeClass == .regular
         Group {
-            Group {
-                switch mode {
-                case .local:
-                    tabContent(.local)
-                case .remote:
-                    tabContent(.remote)   // seenRemote 懒挂载门控原样在 tabContent 内
-                case .works:
-                    if mountedModes.contains(.works) || isCurrent {
-                        tabContent(.works)
-                    }
-                case .compose:
-                    // ACTION 位：mode 永不变为 .compose（ModeTabBar.commit 拦截）。
-                    EmptyView()
+            switch mode {
+            case .local:
+                tabContent(.local)
+            case .remote:
+                tabContent(.remote)   // seenRemote 懒挂载门控原样在 tabContent 内
+            case .works:
+                if mountedModes.contains(.works) || isCurrent {
+                    tabContent(.works)
                 }
+            case .compose:
+                // ACTION 位：mode 永不变为 .compose（ModeTabBar.commit 拦截）。
+                EmptyView()
             }
-            .scaleEffect(isCurrent ? 1.0 : switchStartScale)
-            .animation(skipSwitchAnimation ? nil : Self.switchScaleAnimation, value: isCurrent)
         }
         .opacity(isCurrent || isDissolvingUnder ? 1 : 0)
         .animation(skipSwitchAnimation || !isCurrent ? nil : Self.switchAlphaAnimation, value: isCurrent)
@@ -270,5 +262,65 @@ struct RootModeTabsView: View {
                 router.route(to: .local)
             }
         )
+    }
+}
+
+// MARK: - [切页转场 v2] 树内容缩放（栈内挂点）
+
+/// [切页转场 v2 2026-09-30] 切页缩放：挂在**各树 NavigationStack 的 root 内容上**、
+/// `safeAreaInset(栏)` **内侧**（三个挂点：ContentView.stackLayout / RemoteRootView /
+/// WorksListView）。非当前树恒为起点缩放（隐藏不可见），成为当前树时弹簧到 1
+/// （TG TabBarController.swift:287-289 数字化：起点 = (视图高−3)/视图高 ≈ 0.9965，
+/// 0.15s 弹簧、延迟 0.1s；取不到视图高度用 TG 回退值 0.998）。宽屏 regular 恒 1
+/// （TG :283-285 不播）。
+///
+/// ⚠️ 挂点纪律（v1 装机实锤，勿动）：修饰符必须在**栈内内容**上——v1 曾把
+/// `.scaleEffect` 挂在树容器（NavigationStack 外层），切页后 root-list 底安全区
+/// 从 98 掉到 64 且 64↔98 瞬跳（栏与整页内容上下跳 34pt = pp「整个页面都在抖 /
+/// 栏被截一半」，build 430 日志）。社区同款结论：缩放/位移必须作用在栈内内容上
+/// （StackOverflow 77169874），挂栈外包裹层会让栈内内容丢 safe area。
+/// 由此栏也天然不参与缩放（TG 栏独立层不缩的 parity 偏差消除）。
+///
+/// 已知取舍：缩放只覆盖各树 root 内容——若该树停在 push 的页面上切页，不播缩放
+/// （目录页绝大多数切页场景在 root；待装机观感再评估是否扩到 push 目的地）。
+struct TreeSwitchZoom: ViewModifier {
+    let mode: AppSourceMode
+
+    @ObservedObject private var router = RootTabRouter.shared
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    /// TG :287-289：起点缩放 = (视图高−3)/视图高（缩 3pt）；取不到用回退值 0.998。
+    /// 树全屏 ≈ 当前 key window 高。
+    private var startScale: CGFloat {
+        let height = UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+            .first?.bounds.height ?? 0
+        guard height > 0 else { return 0.998 }
+        return (height - 3.0) / height
+    }
+
+    private var scale: CGFloat {
+        if horizontalSizeClass == .regular { return 1.0 }
+        return router.mode == mode ? 1.0 : startScale
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(scale)
+            // TG :319-321：新页 0.15s 弹簧、延迟 0.1s；旧页同播（TG :297 旧页
+            // 1→起点缩放；共用曲线，溶解窗口内不可辨）。宽屏不播（nil）。
+            .animation(
+                horizontalSizeClass == .regular ? nil : Self.switchScaleAnimation,
+                value: router.mode
+            )
+    }
+
+    private static let switchScaleAnimation: Animation = .spring(response: 0.15, dampingFraction: 1.0).delay(0.1)
+}
+
+extension View {
+    /// 见 `TreeSwitchZoom`（切页缩放·栈内挂点纪律）。
+    func treeSwitchZoom(_ mode: AppSourceMode) -> some View {
+        modifier(TreeSwitchZoom(mode: mode))
     }
 }

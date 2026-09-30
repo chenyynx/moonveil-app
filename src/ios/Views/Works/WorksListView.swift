@@ -65,6 +65,10 @@ struct WorksListView: View {
                     .padding(.top, 34)
                 content
             }
+            // [切页转场 v2 2026-09-30] 缩放挂栈内、safeAreaInset 内侧（勿移到
+            // NavigationStack 外——v1 装机实锤栈外缩放会让栈内内容丢 34pt 底
+            // 安全区：整页抖 + 栏被裁；详见 TreeSwitchZoom 挂点纪律注释）。
+            .treeSwitchZoom(.works)
             // [TG-TABBAR 2026-09-30] 自绘栏挂栈内 root 页底边（push 整页覆盖含栏）。
             .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .works) }
             // [TG-TABBAR-FIX 2026-09-30] 键盘豁免·权威挂点（原理与勿动理由见
