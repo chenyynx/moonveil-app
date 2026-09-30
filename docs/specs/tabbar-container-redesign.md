@@ -263,13 +263,25 @@ visible**，禁止依赖「外层 hidden 只作用于外层」的假设。
 零 App 代码）＝ iOS 26 导航状态机对一次程序化 path 变更抛防御断言。
 **装机对照**：本地列表点＋（route 同值早退、无树切换）不崩；跨树入口点＋崩
 → 条件 = 「程序化切 tab（树切换）× 同帧写容器栈 path」。
-**修复（C3.2）**：RootTabRouter.route(to:) 置 0.2s 窗一次性标记；
-ContainerNav.pushChat 消费之——树切换后的第一次 push 延后一拍（拆开同帧组合，
-async 重入直达无递归）。
+**修复（C3.2，已被 438 装机否证）**：RootTabRouter.route(to:) 置标记 +
+ContainerNav.pushChat「延后一拍」——**438 二次装机同断言**（.ips 驱动栈从 UC
+update-sequence 换成 `NSRunLoop.flushObservers → Update.end`）＝ SwiftUI **帧末
+统一结算**，一跳异步仍赶进同一结算窗：「延后一拍」不足以拆帧。
+
+**修复（L3，438 装机后）**：热路径（handleNewChatRequest /
+openSessionForPendingQuickAction）改「**先开门、后归位**」——push 裸写（装机
+验证从不崩的「点会话行」形状）＋ 0.6s 后归位切 tab（从不崩的「点 tab」形状；
+期间页面已盖住、切换不可见；带落地判据＝path 仍空则不切，改由 flushPending
+后的配对检查补；workflow 分支另加 1.5s 停滞兜底）。ContainerNav 兜底网改
+asyncAfter 0.25s，消费窗 0.2→**0.35s**（🔴 不变量：窗长 ≥ 树切换转场全长
+＝ alpha 0.1s＋弹簧收束 0.25–0.35s＋溶解 120ms；窗短了，route 后 0.2–0.35s
+到达的 push 仍撞进转场＝436/438 形状）。
+
 🔴 **判例**：嵌套栈（外层 NavigationStack 包内层栈）下，任何「驱动外层栈 path
-的写」都不得与「树切换/内容大变更」同帧——新增 push 入口一律经 ContainerNav
-（已内置该保护），禁止绕过。**残留观察项**：若仍有非切 tab 场景的偶发断言，
-下一手 = 把 pushChat 的全部对外入口改为「下一 runloop 恒延迟」（牺牲一帧保稳定）。
+的写」都不得与「树切换/内容大变更」同帧；且 **SwiftUI 的帧末统一结算意味着
+「延后一拍」拆不开同帧组合**——同帧组合只能靠（a）结构性拆开（拆进两个手势/
+两个结算拍），或（b）≥ 转场全长的时距。新增 push 入口一律经 ContainerNav
+（已内置该保护），禁止绕过。
 
 ## 10. C4 施工单（草案 · 待 C3 装机验证通过后启动）
 

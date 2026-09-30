@@ -70,14 +70,19 @@ final class ContainerNav: ObservableObject {
     /// 动画纪律（原 `commitNavigationPath` 逐字平移）：只有「根→单页 push」
     /// 带动画；栈顶替换走禁动画原子提交（moveto-transfer-race 防护）。
     func pushChat(_ route: ChatRoute) {
-        // [C3.2 崩溃修复 2026-09-30] 见 RootTabRouter.route(to:) 的 [C3.2] 注释：
+        // [C3.2→L3 崩溃修复 2026-09-30] 见 RootTabRouter.route(to:) 的 [C3.2] 注释：
         // 与「程序化切 tab（树切换）」同帧写 path 会触发 iOS 26 导航状态机断言
-        // （EXC_BREAKPOINT in NavigationColumnState.boundPathChange，build 436
-        // .ips 实锤；装机对照：本地列表点＋不崩、跨树点＋崩）。切 tab 后的第一次
-        // push 延后一拍（一次性消费，async 重入直达，无递归）——拆开同帧组合。
+        // （EXC_BREAKPOINT in NavigationColumnState.boundPathChange；build 436/438
+        // 两次 .ips 实锤；装机对照：本地列表点＋不崩、跨树点＋崩）。
+        // ⚠️ [L3 修订] 438 装机实锤「延后一拍不够」：SwiftUI 在帧末
+        // （NSRunLoop.flushObservers → Update.end）才把一批变更统一结算，一跳
+        // 异步仍会赶进同一结算窗。现改用定时 0.25s（推过结算窗；0.25 的绑定约束
+        // 是树切换转场 ≈0.25–0.35s 的收束段，窗长不变量见 consumeTreeSwipePending）。
+        // 本网为**残余路径的公共兜底**：深链/通知/分享等「切树后随即 push」站点，
+        // 以及热路径的迟到场景（切 tab 后 0.2–0.35s 内点＋）——延迟只落在这类调用上。
         if RootTabRouter.shared.consumeTreeSwipePending() {
-            DispatchQueue.main.async { [weak self] in
-                self?.pushChat(route)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                MainActor.assumeIsolated { self?.pushChat(route) }
             }
             return
         }

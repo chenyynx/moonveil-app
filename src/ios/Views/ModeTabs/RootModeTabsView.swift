@@ -173,11 +173,11 @@ struct RootModeTabsView: View {
             mountedModes.insert(new)   // [TG-TABBAR] 保活表记账（访问过不卸载）
             NavTrace.log("MODE \(old)→\(new) trig=\(NavTrace.trigger)+\(NavTrace.age)")
             // [R5 审查修订 P4 · D5 延后决定] 不变式：栏可见 ⇔ 容器栈为空——自洽
-            // 于「用户点栏时 path 恒空」（栏被 push 盖住时点不到栏）；全仓程序化
-            // route(to:) 均为「切树后立即 push」的一体式路径（route 先、push 后、
-            // 同一同步块），**不能**在此处盲目清空（会把同帧 push 的新会话误杀
-            // ——R5 场景 1 推演实锤）。若未来出现「纯程序化切 tab（不随 push）」，
-            // 清空须挂在该调用点而非此处；C4 remote 上栈时复核本注释。
+            // 于「用户点栏时 path 恒空」（栏被 push 盖住时点不到栏）；**不能**在
+            // 此处盲目清空（会把 L3 归位前的在栈新会话误杀——R5 场景 1 推演实锤）。
+            // [L3 2026-09-30 追注] 热路径已改「先开门、后归位」（route 不再与
+            // push 同帧）；残余「切树后随即 push」站点由 ContainerNav 兜底网拆帧。
+            // 若未来出现「纯程序化切 tab（不随 push）」，清空须挂在该调用点而非此处。
         }
         // [TG-TABBAR] 原 TabView 级 .tint(.primary)（治系统栏选中黑）随系统栏
         // 退役；各树与各 sheet 的 tint 均为自带显式声明，不受影响。

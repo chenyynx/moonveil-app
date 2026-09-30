@@ -21,8 +21,9 @@ enum AppSourceMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-// NOTE B8-FIX: intentionally NOT @MainActor — ContentView (nonisolated struct)
-// initializes it as a stored property; all mutations originate from UI (main).
+// NOTE B8-FIX: 曾注「intentionally NOT @MainActor」——[438 审查校正 2026-09-30]
+// 现工程配置 SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor，本类型实际即为 MainActor
+// 隔离；全部变更源本就是 UI（main），语义未变，仅注释纠偏。
 final class RootTabRouter: ObservableObject {
     static let shared = RootTabRouter()
 
@@ -81,17 +82,22 @@ final class RootTabRouter: ObservableObject {
     func route(to target: AppSourceMode) {
         guard mode != target else { return }
         mode = target
-        // [C3.2 崩溃修复 2026-09-30] 树切换标记：与「程序化切 tab 同帧写容器栈
+        // [C3.2→L3 崩溃修复 2026-09-30] 树切换标记：与「程序化切 tab 同帧写容器栈
         // path」的组合会触发 iOS 26 导航状态机断言（build 436 .ips 实锤：
         // EXC_BREAKPOINT in NavigationColumnState.boundPathChange；装机对照：
-        // 本地列表点＋（无切 tab）不崩、跨树点＋崩）。ContainerNav.pushChat
-        // 消费本标记把「切换后的第一次 push」延后一拍，拆开该组合；0.2s 窗内有效。
+        // 本地列表点＋（无切 tab）不崩、跨树点＋崩）。⚠️ build 438 实锤「延后
+        // 一拍」不够（SwiftUI 帧末统一结算，一跳仍赶进同一窗）；现 ContainerNav
+        // .pushChat 消费本标记改为延后 0.25s，且正常路径已由 L3「先开门、后归位」
+        // 改造绕开本网；窗长 0.35s（不变量见 consumeTreeSwipePending）。
         treeSwipeAt = CACurrentMediaTime()
     }
 
-    /// 见 route(to:) 的 [C3.2] 注释。≤0.2s 窗内的一次性消费。
+    /// 见 route(to:) 的 [C3.2] 注释。≤0.35s 窗内的一次性消费（L3 后为残余路径的公共兜底网）。
+    /// 🔴 不变量（438 审查校正）：窗长必须 ≥ 树切换转场全长（alpha 0.1s + 缩放弹簧
+    /// 0.1s 延迟 + ≈0.15–0.25s 收束 + 120ms 溶解 ≈ 0.25–0.35s）——窗短了，route 之后
+    /// 0.2~0.35s 才到达的 push 不触发延后，path 写仍落进未结束的转场＝436/438 形状。
     func consumeTreeSwipePending() -> Bool {
-        guard CACurrentMediaTime() - treeSwipeAt < 0.2 else { return false }
+        guard treeSwipeAt > 0, CACurrentMediaTime() - treeSwipeAt < 0.35 else { return false }
         treeSwipeAt = 0
         return true
     }

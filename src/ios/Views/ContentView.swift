@@ -1373,7 +1373,16 @@ struct ContentView: View {
             // NavigationStack must have attached `$containerNav.path` first.
             DispatchQueue.main.async {
                 // [NAV-ROOT-FIX] 后台挂起的程序化 push 意图在此落地（单通道）。
+                // [L3 审查补丁 2026-09-30] 配对归位：本次 flush 若真的推入
+                // （path 空→非空），补一发 route(.local)——后台门吞掉 0.6s 归位
+                // 定时器时，这是归位的落地点（flush 承载的程序化 push 按历史
+                // 语义都是本机线意图，route 在旧实现里与点按同帧先行）。route
+                // 同值幂等。
+                let wasEmpty = containerNav.path.isEmpty
                 containerNav.flushPending()
+                if wasEmpty && !containerNav.path.isEmpty {
+                    tabRouter.route(to: .local)
+                }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .sessionDidCreate)) { note in
@@ -1432,7 +1441,10 @@ struct ContentView: View {
             // [LOCAL-INTENT-TAB-ROUTE] 本机线的导航目的地，必须把 tab 也带到本机。
             // ContentView 常驻（远端在前时 opacity 0 但 alive），只 push 不切 tab 会
             // 出现「人已经在聊天页里、屏幕还在远端」——远端 tab 引入后才有的一类缺口。
-            // route(to:) 的 didSet 带 `oldValue != mode` 门，已在本机时是纯 no-op。
+            // route(to:) 内部带 `mode != target` 同值早退门，已在本机时是纯 no-op。
+            // [L3 2026-09-30] 热路径（＋按钮）已改「先开门、后归位」；本处是
+            // 「切树后随即 push」的残余站点之一，由 ContainerNav.pushChat 的
+            // 0.25s 兜底网拆帧（全部此类站点的公共保护，勿逐点复制逻辑）。
             tabRouter.route(to: .local)
             // Skip navigation if the target session is already visible
             if isWideLayout {
@@ -2130,7 +2142,12 @@ struct ContentView: View {
                     // runloop turn with a full frame budget, never inside the
                     // foreground-transition tick.
                     // [NAV-ROOT-FIX] 落地后台挂起的程序化 push 意图（单通道）。
+                    // [L3 审查补丁 2026-09-30] 配对归位（同上处 onAppear 兜底）。
+                    let wasEmpty = containerNav.path.isEmpty
                     containerNav.flushPending()
+                    if wasEmpty && !containerNav.path.isEmpty {
+                        tabRouter.route(to: .local)
+                    }
                     fetchAlarmsIfNeeded()
                     if #available(iOS 17.0, *) {
                         SyncCore.shared.isAppInBackground = false
@@ -3708,11 +3725,14 @@ struct ContentView: View {
         // app, the pop-then-push dance got interrupted, etc).
         pendingNewChatAfterPop = false
         pendingNewChatTargetId = nil
-        // [LOCAL-INTENT-TAB-ROUTE] 快捷指令「新会话」是本机线意图，三个出口（下面的
-        // ensuringHome 早退 / wide openSession / compact push）的目的地全在本机线，
-        // 所以 tab 也必须在分支之前就带回来。放在函数顶部而非各出口：早退路径同样
-        // 需要切 tab，否则「ensuringHome + 远端在前」会弹了远端看不见的本机页。
-        tabRouter.route(to: .local)
+        // [L3 崩溃修复 2026-09-30] [LOCAL-INTENT-TAB-ROUTE] 原实现在这里**先**
+        // route(.local)、同帧再开门——438 装机实锤该组合触发 iOS 26 导航状态机
+        // 断言（见 RootTabRouter.route(to:) [C3.2] 注释）。改为「先开门、后归位」：
+        // 开门（push 裸写；pop 走 [NAV-TXN-FIX] 的 withAnimation(nil) 包写）
+        // = 装机验证从不崩的形状（同「点会话行」）；切 tab 延后到页面盖住之后
+        // （scheduleReturnToLocalIfNeeded）= 从不崩的形状（同「点 tab」）。两个
+        // 动作分属两拍，非法组合消失。归位晚于 push 不影响语义：划回最早 ~0.43s
+        // 起手，0.6s 的归位在其后（详见该函数注释）。
         // If a workflow is mid-flight in ensuringHome, ContentView's
         // observers (`onChange(containerNav.path)` / `onChange(selectedSessionId)`)
         // drive the home-then-open sequence. Otherwise this call came
@@ -3723,16 +3743,47 @@ struct ContentView: View {
             return false
         }()
         if workflowEnsuringHome {
+            // pop 先行（pop 走 withAnimation(nil) 包写，安全形状）；归位由后续
+            // openSessionForPendingQuickAction 在 push 之后排期（三条活路都必达
+            // 该函数）。⚠️ [438 审查补丁] 漏条：reset()/resetIfStale() 落在
+            // pop→pendingDispatch 之间会使工作流直接回 .idle、该函数永不运行——
+            // 故这里加一发停滞兜底（1.5s、无落地判据：正常路径到时 mode 已 local
+            // 幂等空转；真死掉的工作流由它在空栈上归位，还原旧行为语义）。
             popToHomeForQuickAction()
+            Self.scheduleReturnToLocalIfNeeded(delay: 1.5, requireOpen: false)
             return
         }
         if isWideLayout {
+            // 宽屏（iPad split）保守档不动：不涉及容器栈 path 写。
+            tabRouter.route(to: .local)
             openSession(newId)
         } else {
             // [NAV-ROOT-FIX 2026-09-29] 单一 path 通道：程序化 push 直接写 path
             //（见 pushChat 注释）。T0 的「外部写 × tab 藏显」回写病触发器已随
             // tab 常驻消除；T1 的 Bool 通道因 stuck-true 实锤退役。
             containerNav.pushChat(.local(id: newId))
+            Self.scheduleReturnToLocalIfNeeded()
+        }
+    }
+
+    /// [L3 崩溃修复 2026-09-30] 跨树开新会话的「归位」腿：若非本机 tab，等页面
+    /// 盖住后把 tab 带回本机——其间用户可见区域被新页覆盖，切页不可见。route
+    /// 同值幂等（RootTabRouter.route 内建同一性早退），重复调度无副作用。
+    /// 数字来源（438 审查校正）：push 转场 ≈0.35s；返回手势最早 ≈0.43s（转场
+    /// 结束＋触达）就能让 root 露边 → 取 0.6s 留余量。
+    /// requireOpen=true 带「落地判据」：到时若 path 仍空（开门被后台门扣住 /
+    /// 被 0.25s 兜底网再延后），不归位——改由开门的落地点（flushPending 后的
+    /// 配对检查）补，避免「先空切 tab、后开门」倒序。requireOpen=false 仅用于
+    /// workflow 分支的停滞兜底（delay 1.5s，晚于 ensureHomeTimeout(1s) 的开门
+    /// 覆盖，不会倒序）。原理见 handleNewChatRequest 头注。
+    private static func scheduleReturnToLocalIfNeeded(delay: Double = 0.6, requireOpen: Bool = true) {
+        guard RootTabRouter.shared.mode != .local else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            MainActor.assumeIsolated {
+                guard RootTabRouter.shared.mode != .local else { return }
+                if requireOpen && ContainerNav.shared.path.isEmpty { return }
+                RootTabRouter.shared.route(to: .local)
+            }
         }
     }
 
@@ -3785,18 +3836,22 @@ struct ContentView: View {
     /// can match.
     fileprivate func openSessionForPendingQuickAction() {
         guard case .pendingDispatch = QuickActionWorkflow.shared.state else { return }
-        // [LOCAL-INTENT-TAB-ROUTE] 本函数不止 `handleNewChatRequest` 一条来路：
-        // `QuickActionWorkflow.$state` 的 observer 会让上一次启动残留的 `ensuringHome`
-        // 超时在本轮独立触发这里（见 [T-share-vs-shortcut-state] 对该 stranded 状态的
-        // 描述）。那条来路没有经过 `handleNewChatRequest` 的路由，故这里必须自带。
-        tabRouter.route(to: .local)
+        // [L3 崩溃修复 2026-09-30] 原在函数首行 route(.local)——与随后的 push 同帧
+        // （[LOCAL-INTENT-TAB-ROUTE] 的原理由：本函数不止 `handleNewChatRequest` 一条
+        // 来路——`QuickActionWorkflow.$state` 的 observer 会让上一次启动残留的
+        // `ensuringHome` 超时在本轮独立触发这里，见 [T-share-vs-shortcut-state]）。
+        // 现改为「先开门、后归位」：push 裸写（安全形状）＋ push 之后排期归位
+        // （scheduleReturnToLocalIfNeeded）。见 handleNewChatRequest 头注。
         let newId = Self.makeNewSessionId()
         if isWideLayout {
+            // 宽屏保守档不动（原语义：先归位再开）。
+            tabRouter.route(to: .local)
             openSession(newId)
         } else {
             // [NAV-ROOT-FIX 2026-09-29] 同 handleNewChatRequest：程序化 push
             // 走单一 path 通道（见 pushChat 注释）。
             containerNav.pushChat(.local(id: newId))
+            Self.scheduleReturnToLocalIfNeeded()
         }
         QuickActionWorkflow.shared.attachTargetSession(newId)
     }
