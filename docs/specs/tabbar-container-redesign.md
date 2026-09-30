@@ -241,3 +241,50 @@ owner 或随树切换清理）。
 ③ 划回后 PATH-PROBE count 归零（写回存活）；④ 宿主被外层 push 期间内层 onChange
 仍触发（destDISAPPEAR 后 vm 挂起日志）；⑤ push 滑入动画在（Button 事务）；
 ⑥ 搜索/宽屏/登录盖/设置不受影响。
+
+## 10. C4 施工单（草案 · 待 C3 装机验证通过后启动）
+
+> 目标：remote 线深页上收容器栈（D9）+ 栏单实例化（D2/D3/D10 落地）+
+> 跨树交接机制退役。本单是施工前的设计冻结，落码前按 §9.4 清单复核。
+
+### 10.1 remote 深页迁移（B-2 审计地图）
+- **路由类型**：扩展 `ChatRoute` 加 `case deviceDetail(connectorId: String)`
+  （H45/48 现有 `.local/.remote` 不变；logTag/sessionId 兼容分支补全）。
+- **两个目的地的写入点**改 value 容器路由（isPresented 退役）：
+  `RemoteSessionListView` showsChat 写入 4 处（:194/:267/:890 + 切走弹根 :213）→
+  `containerNav.pushChat(.remote(...))` / 退出 `dismiss` 语义换 `containerNav.path` 清；
+  showsDeviceDetail 写入 5 处（:740/:764/:777/:783 + :408 出栈）→ `.deviceDetail`。
+- **destination 渲染**：两分支整体迁 RootModeTabsView destination
+  （SessionChatView 的 `service.chat` 依赖守卫/RemoteDeviceDetailView 的
+  connector 解析 :392-417 逐字搬迁+防白屏 pending 分支）。
+- **remoteAtRoot 维护点上收**（:426/:437 onChange → 容器层 path 推导；R5-P4 的
+  “纯程序化切换”清栈挂点同批定稿）。
+
+### 10.2 栏单实例化（4 挂点 → 1 + 3 占位）
+- 容器栏 = RootModeTabsView 的 ZStack 顶层 `ModeTabBar`（**本体零改动**，
+  D2 几何原样；仅挂点变化）。
+- **各档各树归位公式（防回退关键）**：
+  `showContainerBar = (horizontalSizeClass != .regular) || (router.mode != .local)`
+  —— iPad 宽窗档 local 树的栏仍由 `ContentView.splitLayout` 自带
+  （selectedSessionId==nil 条件保留，:2232 不动）；其余全部尺寸/树由容器栏
+  承担（含 iPad 宽窗的 remote/works——现状它们树内自带栏，若直接占位化会丢栏
+  =功能倒退，本公式即对策）。
+- 三树 root 的 `safeAreaInset(ModeTabBar)` → `safeAreaInset { Color.clear
+  .frame(height: ModeTabBar.barHeight) }`（D10；三处：ContentView 窄屏分支
+  :2253、RemoteRootView :37、WorksListView :76）。
+- 占位高度对账：`[SAFE] root-list bottom=98` 恒定（64+34 自动）。
+
+### 10.3 交接退役（TGLens 域）
+- `TGLensBarView.CommitHandoff` 结构体（:114-122）、消费块（apply 内
+  :277-310）、寄存块（.ended 内 :378-384）、`currentSelectedIconScale`
+  （:417-434）整段删除；相关 v3 注释墓碑同删。
+- `keepGlow` 阈值逻辑随消费块一并消失。
+- **删除后自检**：单实例栏下 lens.update 的 transition 调用点只剩
+  began/changed/ended 三态（TG 原件语义），grep `CommitHandoff` 全仓归零。
+
+### 10.4 C4 验收（装机）
+- 复跑 §9.5 ①②③⑤（现在涵盖 remote 线）；新增：
+  ① remote 会话行→SessionChatView（push 盖住含栏容器）；② 设备详情进出；
+  ③ **切页判据全量**（§6 1-3：单次连续滑动/无二次/发亮连续——栏单实例后首次
+  真正可验）；④ iPad 宽窗档四态矩阵（local 有栏收栏规则/remote 有栏/works 有栏）；
+  ⑤ 跨树交接相关代码删除后：快按/慢按/拖动三节奏不回归。
