@@ -101,6 +101,26 @@ ZStack 三树保活（瞬切：当前树 opacity 1 + 可命中，其余保活不
   透镜视觉改为「item 槽位本身」——TG 私有透镜渲染内收 4（26 路径 LiquidLensView
   :464/:376；legacy blob 分支 :471 同义）：视觉 = item 矩形（宽=槽宽、距胶囊边
   4pt）；旧式 +8 宽、x 不加 4 → 首格左缘顶边。
+- **松手落位/动画·对 TG 单跳语义（2026-09-30 同日，pp 报「滑动 tab 落点和动画
+  有问题」）**：根因两半——①旧 `.ended` 先朝**旧** `selectionIndex` 推一段弹簧，
+  再靠 SwiftUI 回推新槽：两段弹簧竞速，且第二推在 `LiquidLensView.updateLens`
+  else 分支的 `removeAllAnimations()` 处把透镜瞬打回旧槽模型位再重滑（Transition
+  `setPosition` 中断续位机制被清动画截断）；②三树 ZStack 瞬切、每树一栏：跨树
+  提交后可见栏换成目标树的岛，而该岛从旧槽位**整段重滑**（非从松手位置落位）。
+  修复 = 岛 `.ended` 按 TG :555-604 单跳语义（同步预置 `selectionIndex` 直达提交
+  槽、同值短路消除二次推）+ 跨树**提交交接** `TGLensHost.commitHandoff`（松手瞬间
+  寄存透镜可见位，目标树的岛在紧随 apply 里先瞬时落位再续簧）；同期把拖动中图标
+  放大改为即时（对齐 TG :550 的 immediate 帧过渡）。档 = docs/tg-lens-port.md §2 ⑬。
+- **切页转场·对齐 TG 缩放淡入（2026-09-30 同日，pp「tg 不是瞬切，有个切页的轻微
+  放大动画」）**：原 ZStack 三树瞬切（pp 2026-09-16 旧拍板）改为 TG 数字化转场
+  （TabBarController.swift:279-330）：新页 zIndex 置顶 → alpha 0→1（0.1s）+
+  从 (视图高−3)/视图高（≈0.9965，缩 3pt）弹簧到 1.0（0.15s、延迟 0.1s）；旧页
+  1→同起点缩放（TG :297，0.12s 弹簧）并在 ~0.28s 溶解窗口内留于下层（TG :314-330
+  新页盖旧页淡入的语义）；宽屏 regular 不播（TG :283-285）。实现 =
+  RootModeTabsView.tabTree 的 scale/opacity/zIndex + previousMode 窗口。
+  **已知偏差（tg-parity 记录）**：TG 的栏是 TabBarControllerNode 的独立层、不参与
+  缩放；本仓栏挂树内（safeAreaInset 架构所限）会随树缩放——幅度 0.35%（≈0.2pt
+  栏高）+溶解期与旧栏约 1px 重影 0.1s，肉眼不可辨，若日后可察再评估反缩放。
 
 ## 7. TG 数值对照表（2026-09-30 立表——源码 + pp 实机像素反演双据）
 

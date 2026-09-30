@@ -30,7 +30,8 @@ GPLv3 开源工程，按「v2 or later」条款并入，许可证兼容路径成
 - **模块边界消失**：上游 Bazel 多模块（Display/ComponentFlow/…）→ 本仓单模块，
   所有 `import` 已收敛（逐文件头注列明删了哪个、并已全文件扫描确认无残留符号）。
 - **LiquidLensView**：删 <26 遗留 blob-mask 分支（本集成 iOS 26+ 专用；私有类
-  取不到时优雅空转）。其余逐字。
+  取不到时优雅空转）。其余逐字；2026-09-30 装机回归追加适配 ④
+  `currentSelectionOriginXForHandoff` 读取口（跨树提交交接用，presentation 优先）。
 - **GlassBackgroundComponent**：LegacyGlassView 类型引用改 UIView（同 <26 不可达域）；
   删组件系统包装类（ComponentFlow 依赖）与 GlassContextExtractableContainer（本集成
   不用）；其余逐字。
@@ -93,6 +94,22 @@ GPLv3 开源工程，按「v2 or later」条款并入，许可证兼容路径成
   私有件渲染内收 4——26 路径 :464/:376、legacy blob 分支 :471 同义；视觉=item
   矩形：宽=槽宽、距胶囊边 4pt）——修 pp 装机报「首格灰体触边」。对账全表见
   docs/specs/tg-tabbar-retrofit.md §7。
+- **[装机回归·落位 2026-09-30]** ⑬松手落点/动画对齐 TG 单跳语义（pp 报「滑动 tab
+  落点和动画有问题」）：①岛 `.ended` 旧实现先推**旧**选中槽、再由 SwiftUI 回推提交
+  槽——两段弹簧竞速，第二推在 LiquidLensView.updateLens else 分支的
+  `removeAllAnimations()`（TG 原版 workaround，本桥不带 userData）处把透镜瞬打回
+  旧槽模型位再重滑；修复 = 同步预置 `selectionIndex` 使本推直达提交槽（对齐 TG
+  :555-604：先清手势态、再以提交 item 为目标单次 spring），紧随 apply 同值短路；
+  ②三树 ZStack 瞬切 × 每树一栏：跨树提交换栏后目标树的岛从旧槽整段重滑（非从
+  松手位落位）——加跨树**提交交接**（`TGLensHost.CommitHandoff`：出发岛 .ended 寄存
+  透镜可见位（presentation 优先，LiquidLensView 适配 ④），目标树岛在紧随 apply()
+  消费：先瞬时以**按压态**（拉缩/光晕/放大图标，与出发栏松手瞬间同像素）落到交接位、
+  再走松手序列（setLifted(false) 收束 + 位置弹簧）——旧版只交接位置、换栏即熄发亮
+  的问题同批消（pp 二轮「切 tab 弹簧/发亮都很快」）；消费门 = 目标树
+  ownSlot==新选中位 + 来自别岛 fromSlot≠ownSlot + 槽位吻合 + ≤0.5s + 无在途手势）；
+  ③同期对齐 TG :550：拖动
+  （changed）中图标 1.15 放大改即时（began/:540、ended/:604 仍 spring）——旧实现
+  恒 0.4s 弹簧致拖过槽位放大滞后。
 
 ## 3. ⚠️ 私有 API 清单（与 TG 同款用法）
 

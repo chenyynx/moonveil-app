@@ -53,18 +53,42 @@ struct RootModeTabsView: View {
     /// 走本表。图标资产与栅格化缓存随 Tab 构建器迁入 ModeTabBar.swift。
     @State private var mountedModes: Set<AppSourceMode> = [.local, RootTabRouter.shared.mode]
 
+    /// [切页转场] 宽屏（iPad / 横屏 Max）档 TG 不播切页动画（TabBarController
+    /// .swift:283-285 widthClass == .regular → animated = false），此处同守。
+    /// 溶解窗口的「上一棵树」状态在 RootTabRouter（与 mode 同步落定，见其
+    /// didSet 注释——视图侧 onChange 写入会有次序不确定导致的旧树闪隐）。
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    /// [切页转场] TG TabBarController.swift:287-289 的数字化：新页缩放起点
+    /// = (视图高−3)/视图高（≈0.9965，缩 3pt）；取不到视图高度时用 TG 回退值
+    /// 0.998。树全屏 ≈ 当前 key window 高。
+    private var switchStartScale: CGFloat {
+        let height = UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+            .first?.bounds.height ?? 0
+        guard height > 0 else { return 0.998 }
+        return (height - 3.0) / height
+    }
+
+    /// [切页转场] TG :319-321 数字化：新页缩放 0.15s 弹簧、延迟 0.1s；淡入
+    /// 0.1s（CA 默认曲线，取 easeOut 近似）。旧页收缩（TG :297：1→起点缩放、
+    /// 0.12s 弹簧）因共用此曲线自 0.1s 起（TG 无延迟）——溶解窗口内不可辨。
+    private static let switchScaleAnimation: Animation = .spring(response: 0.15, dampingFraction: 1.0).delay(0.1)
+    private static let switchAlphaAnimation: Animation = .easeOut(duration: 0.1)
+
     var body: some View {
         // [TG-TABBAR 2026-09-30] TabView 退役（「系统栏 + 藏显」病根，pp 拍板
         // 「用tg的自绘」）→ ZStack 三树保活：每棵树自带 NavigationStack，自绘栏
-        // （ModeTabBar）挂各树 root 页——push 整页覆盖含栏、划回原位揭示；
-        // 切 tab = 当前树可见其余隐藏（瞬切语义延续，无 crossfade）。
+        // （ModeTabBar）挂各树 root 页——push 整页覆盖含栏、划回原位揭示。
+        // [切页转场 2026-09-30] 原「瞬切」（pp 2026-09-16 的旧拍板）按 pp 装机
+        // 反馈修正为 TG 转场（TabBarController.swift:279-330 数字化）：新页
+        // 0.1s 淡入 + 从 (高−3)/高 弹簧放到 1（0.15s、延迟 0.1s）；旧页同缩并在
+        // 溶解窗口内留于下层（见 tabTree 注释）。
         ZStack {
             tabTree(.local)
             tabTree(.remote)
             tabTree(.works)
         }
-        // pp 2026-09-16 拍板延续：tap/横滑切 tab 内容层瞬切，不带系统 crossfade。
-        .animation(nil, value: router.mode)
         .onChange(of: router.mode) { old, new in
             mountedModes.insert(new)   // [TG-TABBAR] 保活表记账（访问过不卸载）
             NavTrace.log("MODE \(old)→\(new) trig=\(NavTrace.trigger)+\(NavTrace.age)")
@@ -138,25 +162,39 @@ struct RootModeTabsView: View {
     /// 树上，只是不可见/不可点/不进朗读）。自绘栏挂在各树 NavigationStack 的
     /// root 页内（ContentView/RemoteRootView/WorksListView 三处 safeAreaInset），
     /// 不在本层——push 才能整页盖住含栏的 root 页。
+    /// [切页转场 2026-09-30] 换页动效（TG TabBarController.swift:279-330）：新页
+    /// zIndex 置顶 → 淡入 0.1s + 从 switchStartScale 弹簧到 1（0.15s、延迟 0.1s）；
+    /// 旧页在 previousMode 窗口内留在下层、动画同缩（TG 旧页 1→起点缩放 0.12s
+    /// 弹簧；共用曲线自 0.1s 起，溶解窗口内不可辨）。宽屏 regular 不播（:283-285）。
+    /// 已知偏差：TG 的栏是独立层、不参与缩放；本仓栏在树内随缩放（全屏高
+    /// ≈0.35%、溶解期与旧栏约 1px 重影 0.1s，tg-parity 记录在同批 spec §6）。
     @ViewBuilder
     private func tabTree(_ mode: AppSourceMode) -> some View {
         let isCurrent = router.mode == mode
+        let isDissolvingUnder = router.previousMode == mode && !isCurrent
+        let skipSwitchAnimation = horizontalSizeClass == .regular
         Group {
-            switch mode {
-            case .local:
-                tabContent(.local)
-            case .remote:
-                tabContent(.remote)   // seenRemote 懒挂载门控原样在 tabContent 内
-            case .works:
-                if mountedModes.contains(.works) || isCurrent {
-                    tabContent(.works)
+            Group {
+                switch mode {
+                case .local:
+                    tabContent(.local)
+                case .remote:
+                    tabContent(.remote)   // seenRemote 懒挂载门控原样在 tabContent 内
+                case .works:
+                    if mountedModes.contains(.works) || isCurrent {
+                        tabContent(.works)
+                    }
+                case .compose:
+                    // ACTION 位：mode 永不变为 .compose（ModeTabBar.commit 拦截）。
+                    EmptyView()
                 }
-            case .compose:
-                // ACTION 位：mode 永不变为 .compose（ModeTabBar.commit 拦截）。
-                EmptyView()
             }
+            .scaleEffect(isCurrent ? 1.0 : switchStartScale)
+            .animation(skipSwitchAnimation ? nil : Self.switchScaleAnimation, value: isCurrent)
         }
-        .opacity(isCurrent ? 1 : 0)
+        .opacity(isCurrent || isDissolvingUnder ? 1 : 0)
+        .animation(skipSwitchAnimation || !isCurrent ? nil : Self.switchAlphaAnimation, value: isCurrent)
+        .zIndex(isCurrent ? 1 : 0)
         .allowsHitTesting(isCurrent)
         .accessibilityHidden(!isCurrent)
     }

@@ -157,6 +157,7 @@ struct ModeTabBar: View {
                 TGLensBar(
                     selectedIndex: Self.selectableTabs.firstIndex(of: router.mode) ?? 0,
                     isDark: colorScheme == .dark,
+                    ownSlot: Self.selectableTabs.firstIndex(of: tabMode) ?? 0,
                     onCommit: { index in
                         guard index >= 0, index < Self.selectableTabs.count else { return }
                         // 跨树兜底（同旧 DragGesture onEnded 语义）：按住期间本树被

@@ -13,18 +13,27 @@ extension AIChatViewModel {
         guard kernelStatus == .notBooted else { return }
         kernelStatus = .booting
 
-        Task {
+        // [T-kernelboot-main-thread-stall 2026-09-30] ISHBootGate 的文档契约
+        // （"Synchronous, and slow on first boot … callers must hop off the main
+        // thread before calling"）：本类 @MainActor，原 `Task {}` 继承主 actor
+        // ——首次启动的 installIfNeeded + kernel boot + rootfs overlay（装机
+        // 实测 TOTAL 128.4ms，其中 overlay 109.5ms）整段阻塞主线程，恰好压在
+        // 首次 compose→聊天页 push 动画上（pp 装机「滑出来的聊天页有点掉帧」；
+        // 后续 push 命中 isBooted 快路径 0.0ms 无感）。换 detached（不继承
+        // actor）+ MainActor 回写状态；同步置 .booting、失败态、TOTAL 日志
+        // 语义均与原实现一致。
+        Task.detached(priority: .userInitiated) { [weak self] in
             let bootStart = CFAbsoluteTimeGetCurrent()
             do {
                 // Serialized with every other boot path (e.g. SSH settings)
                 // via ISHBootGate; no-op when the kernel is already up.
                 try ISHBootGate.ensureBooted()
                 Task { @MainActor in MirrorSpeedTestViewModel.shared.autoDetectOnceIfNeeded() }
-                kernelStatus = .booted
+                await MainActor.run { self?.kernelStatus = .booted }
                 let totalElapsed = (CFAbsoluteTimeGetCurrent() - bootStart) * 1000
                 logger.info("[KernelBoot] TOTAL: \(String(format: "%.1f", totalElapsed))ms")
             } catch {
-                kernelStatus = .failed(error.localizedDescription)
+                await MainActor.run { self?.kernelStatus = .failed(error.localizedDescription) }
                 logger.error("[KernelBoot] error: \(error.localizedDescription)")
             }
         }

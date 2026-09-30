@@ -7,6 +7,8 @@
 //   ② 删 <26 遗留 blob-mask 分支（init 的 else 支与 4 个属性；本集成 iOS 26+ 专用，
 //      私有类取不到时优雅空转，兜底在上层 SwiftUI）。
 //   ③ 删 update() 内 legacy 蒙版更新块（同 ②）。
+//   ④ 追加 currentSelectionOriginXForHandoff 读取口（本仓「每树一栏 + 瞬切」架构
+//      的跨树提交交接用；上游单栏架构无此需求。见 TGLensHost.CommitHandoff 注释）。
 // 内容：TG 液态透镜的本体——iOS 26 走苹果私有 _UILiquidLensView（运行时反射），
 // 驱动 resting 背景/lifted 容器/内容穿透（punchout）与升起弹跳。⚠️ 私有 API，
 // 与 TG App Store 版同款用法；见 docs/ 风险记录。
@@ -149,6 +151,17 @@ public final class LiquidLensView: UIView {
 
     public var selectionSize: CGSize? {
         return self.params?.selectionSize
+    }
+
+    /// [TG-LENS-PORT 本仓适配 ④] 提交交接读取：透镜当前**可见**位置换算回选中
+    /// 坐标系 x（selectionOrigin 空间）。presentation 优先——按下弹簧在途时屏上
+    /// 真实位置 ≠ 模型位置；无在途动画则退回模型。仅供 TGLensHost 跨树交接。
+    public var currentSelectionOriginXForHandoff: CGFloat? {
+        guard let lensView = self.lensView, let params = self.appliedLensParams else {
+            return nil
+        }
+        let centerX = lensView.layer.presentation()?.position.x ?? lensView.center.x
+        return centerX - params.baseFrame.width * 0.5
     }
     
     public private(set) var isAnimating: Bool = false {

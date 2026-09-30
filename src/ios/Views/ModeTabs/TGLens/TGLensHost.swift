@@ -12,6 +12,15 @@
 //     shouldRecognizeSimultaneously = true）。手势结果经 onCommit 回调 SwiftUI。
 //   · 透镜跟手 = TG 精确模型（TabBarComponent:538-545）：按下瞬间起点 = 被按槽位
 //     的透镜 minX，其后 lensX = 起点 + 指尖位移增量（保留抓取偏移），钳制栏内。
+//   · 松手落位 = TG 原样单跳（TabBarComponent:555-604）：TG 先清手势态、再以手指
+//     下最后跟踪的 item 为目标做一次 spring——不存在「先弹回旧选中再回推」。
+//     本岛 .ended 同步预置 selectionIndex 使推送直达提交槽；紧随的
+//     apply(selectedIndex:) 同值短路不再二次推（旧实现两段弹簧竞速，第二推的
+//     removeAllAnimations 会把透镜瞬打回旧槽模型位再重滑，2026-09-30 pp 装机实锤）。
+//   · 跨树提交交接（本仓「每树一栏 + ZStack 瞬切」架构的桥，TG 单栏无此需求）：
+//     跨树松手会换栏，出发岛把「松手瞬间透镜可见位」寄存 commitHandoff，目标树的
+//     岛在紧随的 apply() 里先瞬时落到该位、再续簧到提交槽——否则目标栏会从旧槽位
+//     整段重滑一遍（pp 装机「滑动 tab 落点/动画不对」的另一半根因）。
 //
 // 数值对齐 TG：innerInset 4；槽宽 = (宽-8)/4（TG 4 格布局：本 app 3 实 tab +
 // 第 4 格空占位，pp 2026-09-30 装机要求「加一个图标占位保持和tg一致大小」）；
@@ -52,6 +61,9 @@ struct TGLensBar: UIViewRepresentable {
 
     var selectedIndex: Int
     var isDark: Bool
+    /// 本岛所属 tab 树的槽位序（0=local/1=remote/2=works，与 ModeTabBar.selectableTabs
+    /// 同序）。用途 = 提交交接过滤：只有「刚被切进来的目标树」的岛才消费交接。
+    var ownSlot: Int
     /// 手势提交（index = 0..2，对应 ModeTabBar.selectableTabs 次序）。
     var onCommit: (Int) -> Void
 
@@ -60,11 +72,13 @@ struct TGLensBar: UIViewRepresentable {
         installTGLensSwizzlesIfNeeded()
         let view = TGLensBarView()
         view.onCommit = onCommit
+        view.ownSlot = ownSlot
         return view
     }
 
     func updateUIView(_ view: TGLensBarView, context: Context) {
         view.onCommit = onCommit
+        view.ownSlot = ownSlot
         view.apply(selectedIndex: selectedIndex, isDark: isDark)
     }
 }
@@ -72,6 +86,22 @@ struct TGLensBar: UIViewRepresentable {
 /// 岛的 UIKit 实现：LiquidLensView + 图标副本装载 + 岛内手势（TG 模型）。
 final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     var onCommit: ((Int) -> Void)?
+    /// 本岛所属 tab 树的槽位序（0=local/1=remote/2=works）。见 TGLensBar.ownSlot。
+    var ownSlot: Int = 0
+
+    /// [提交交接 2026-09-30] 「每树一栏 + ZStack 瞬切」架构的桥：跨树提交时可见栏
+    /// 瞬切，出发岛的 .ended 把「松手瞬间透镜的可见位」寄存于此，目标树的岛在紧随
+    /// 的 apply() 里先瞬时落到该位、再弹簧到提交槽——拼出 TG 单栏的连续落位。
+    /// 消费规则（apply 内）：仅「目标树岛」（ownSlot == 新选中位）且交接来自别岛
+    /// （fromSlot != ownSlot，防同岛复读）、槽位吻合、≤0.5s 新鲜时消费，消费即清空。
+    /// 同槽提交写出的交接因 fromSlot == ownSlot == slot 永不被消费，残留无害。
+    struct CommitHandoff {
+        let slot: Int
+        let fromSlot: Int
+        let x: CGFloat
+        let at: CFTimeInterval
+    }
+    static var commitHandoff: CommitHandoff?
 
     /// 与 ModeTabBar.tabIcon 同源（注意：次序须与 ModeTabBar.selectableTabs
     /// [.local, .remote, .works] 保持一致）。
@@ -175,12 +205,27 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     /// SwiftUI 侧状态下发（选中项 / 深色模式）；不做提前返回短路——pushLens 内部
     /// 的 Equatable 参数判重（LiquidLensView.update）已避免重复动画。
     func apply(selectedIndex: Int, isDark: Bool) {
-        let changed = selectionIndex != selectedIndex || self.isDark != isDark
+        let indexChanged = selectionIndex != selectedIndex
+        let changed = indexChanged || self.isDark != isDark
         selectionIndex = selectedIndex
         self.isDark = isDark
         if changed {
             if overrideUserInterfaceStyle != (isDark ? .dark : .light) {
                 overrideUserInterfaceStyle = isDark ? .dark : .light
+            }
+            // [提交交接] 本岛 = 刚被切进的目标树（ownSlot == 新选中位）且存有新鲜
+            // 交接、且本岛无在途手势（interactionPressed == nil）→ 先瞬时以
+            // 「按压态」落到交接位——拉缩/光晕/放大图标与出发栏松手瞬间同像素
+            // （换栏连续），再经下方同一套松手序列播放 setLifted(false) 收束 +
+            // 位置弹簧。旧实现只交接位置、换栏即熄发亮 = pp「发亮也很快」
+            // （2026-09-30 第二轮装机判定）。消费即清空。
+            if indexChanged, ownSlot == selectedIndex, interactionPressed == nil,
+               let handoff = Self.commitHandoff,
+               handoff.slot == selectedIndex,
+               handoff.fromSlot != ownSlot,
+               CACurrentMediaTime() - handoff.at <= 0.5 {
+                Self.commitHandoff = nil
+                pushLens(pressed: handoff.slot, lensX: handoff.x, animated: false)
             }
             pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: true)
         }
@@ -211,10 +256,23 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         case .ended:
             guard interactionPressed != nil else { return }
             let commitSlot = slotIndex(forX: location.x)
+            // 交接位置必须在推动画之前读：push 一发出，透镜模型位置即指向提交槽。
+            let handoffX = lens.currentSelectionOriginXForHandoff
             interactionPressed = nil
             interactionLensX = nil
-            // 落位（spring 回当前选中槽；提交引发的选中变化会再驱动一次到新槽）。
+            // [TG 对齐 :555-604] TG 先清 selectionGestureState、再以提交 item 为目标
+            // 做一次 spring——没有「先弹回旧选中」。同步预置 selectionIndex 使本推
+            // 直达提交槽；紧随的 apply(selectedIndex:) 因同值短路，不再二次推
+            // （旧实现：先推旧槽、再由 SwiftUI 回推新槽——第二推的 removeAllAnimations
+            // 把透镜瞬打回旧槽模型位再重滑 = pp 装机实锤「落点/动画不对」的主半）。
+            selectionIndex = commitSlot
             pushLens(pressed: nil, lensX: nil, animated: true)
+            // 跨树提交交接：寄存松手瞬间的透镜可见位，供目标树的岛续簧（见 CommitHandoff）。
+            if let handoffX {
+                Self.commitHandoff = CommitHandoff(
+                    slot: commitSlot, fromSlot: ownSlot, x: handoffX, at: CACurrentMediaTime()
+                )
+            }
             onCommit?(commitSlot)
         case .cancelled, .failed:
             interactionPressed = nil
@@ -267,9 +325,16 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         )
 
         // 按下的项：选中副本放大 1.15（TG :835，selectionGestureState != nil 期间）。
+        // 缩放随帧过渡：began/ended = spring（:540/:604）、changed = immediate（:550）
+        // ——跟手扫过槽位时放大要瞬时；旧实现恒 0.4s 弹簧，拖过槽位图标放大滞后
+        // （2026-09-30 装机回归修正）。
         for (index, icon) in selectedIcons.enumerated() {
             let targetScale: CGFloat = (pressed == index) ? 1.15 : 1.0
-            if abs(icon.transform.a - targetScale) > 0.001 {
+            guard abs(icon.transform.a - targetScale) > 0.001 else { continue }
+            let targetTransform: CGAffineTransform = targetScale == 1.0
+                ? .identity
+                : CGAffineTransform(scaleX: targetScale, y: targetScale)
+            if animated {
                 UIView.animate(
                     withDuration: 0.4,
                     delay: 0.0,
@@ -277,12 +342,12 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                     initialSpringVelocity: 0.0,
                     options: [.allowUserInteraction, .beginFromCurrentState],
                     animations: {
-                        icon.transform = targetScale == 1.0
-                            ? .identity
-                            : CGAffineTransform(scaleX: targetScale, y: targetScale)
+                        icon.transform = targetTransform
                     },
                     completion: nil
                 )
+            } else {
+                icon.transform = targetTransform
             }
         }
     }

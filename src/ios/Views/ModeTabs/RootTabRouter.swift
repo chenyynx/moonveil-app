@@ -34,8 +34,25 @@ final class RootTabRouter: ObservableObject {
             // First visit marks the remote tab as "seen" so the shell can keep
             // it alive afterwards (lazy-create once, then both tabs persist).
             if mode == .remote { seenRemote = true }
+
+            // [切页转场 2026-09-30] 供 RootModeTabsView 的交叉溶解窗口用：上一棵
+            // 树在下层保留 ~0.28s（TG 新页盖旧页淡入）。状态写在这里而非视图
+            // onChange = 与 mode 同步落定，视图首个更新帧就能读到正确值（视图侧
+            // onChange 先于/后于 body 求值的次序不确定，会造成旧树闪隐一帧）；
+            // 窗口结束清空（纯清场，旧树已被新页全盖，无可见变化）。
+            previousMode = oldValue
+            previousModeClearTask?.cancel()
+            previousModeClearTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(280))
+                guard !Task.isCancelled else { return }
+                self?.previousMode = nil
+            }
         }
     }
+
+    /// [切页转场] 上一棵树（溶解窗口用）；由 mode 的 didSet 维护，勿外部写。
+    @Published private(set) var previousMode: AppSourceMode?
+    private var previousModeClearTask: Task<Void, Never>?
 
     /// Whether the remote tab has ever been opened — drives lazy instantiation.
     @Published private(set) var seenRemote: Bool = false
