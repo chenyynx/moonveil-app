@@ -5650,6 +5650,13 @@ private struct ChatTrailingMenuButton: UIViewRepresentable {
     }
 
     private static func buildMenu(key: Key, coordinator: Coordinator) -> UIMenu {
+        // [PushPerf 2026-09-30] 分段计时：菜单全量构建耗时（20± UIAction +
+        // AppLocalized 查表 + SF Symbol 图片）；defer 覆盖所有 return 路径。
+        let pushPerfT0 = CFAbsoluteTimeGetCurrent()
+        defer {
+            let pushPerfMs = (CFAbsoluteTimeGetCurrent() - pushPerfT0) * 1000
+            minisLogger.info("[PushPerf] menuBuild=\(String(format: "%.1f", pushPerfMs))ms")
+        }
         var groups: [UIMenuElement] = []
 
         groups.append(UIMenu(options: .displayInline, children: [

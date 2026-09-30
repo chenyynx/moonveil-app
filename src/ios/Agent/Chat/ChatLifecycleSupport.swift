@@ -453,8 +453,13 @@ final class ViewModelCache {
 
     /// Create a fresh (uncached) ViewModel for draft sessions (nil sessionId).
     func createDraft() -> AIChatViewModel {
+        // [PushPerf 2026-09-30] 分段计时：草稿 VM 构造耗时（属性初始化器族——
+        // BrowserTabPool/AVSpeechSynthesizer/51 publisher 等全在此段内）。
+        // 与 PUSHTRACE 时间轴配合，定位「点新会话掉帧」的主线程分段。
+        let pushPerfT0 = CFAbsoluteTimeGetCurrent()
         let vm = AIChatViewModel()
-        logger.info("🔄SESSION ViewModelCache createDraft vm=\(vm.vmInstanceId)")
+        let pushPerfMs = (CFAbsoluteTimeGetCurrent() - pushPerfT0) * 1000
+        logger.info("🔄SESSION ViewModelCache createDraft vm=\(vm.vmInstanceId) [PushPerf] vmInit=\(String(format: "%.1f", pushPerfMs))ms")
         return vm
     }
 

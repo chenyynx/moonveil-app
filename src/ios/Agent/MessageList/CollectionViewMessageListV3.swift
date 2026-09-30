@@ -72,8 +72,13 @@ struct CollectionViewMessageListV3: UIViewControllerRepresentable {
     var inputBarHeight: CGFloat
 
     func makeUIViewController(context: Context) -> MessageListViewController {
+        // [PushPerf 2026-09-30] 分段计时：消息列表首建 + attach（loadViewIfNeeded /
+        // diffable dataSource / 4×CellRegistration / SheetOverlay hosting child 全在此段内）。
+        let pushPerfT0 = CFAbsoluteTimeGetCurrent()
         let vc = MessageListViewController()
         context.coordinator.attach(to: vc, vm: vm)
+        let pushPerfMs = (CFAbsoluteTimeGetCurrent() - pushPerfT0) * 1000
+        AppLogger(category: "PushPerf").info("[PushPerf] msgList make+attach=\(String(format: "%.1f", pushPerfMs))ms")
         // Drops are handled exclusively by the SwiftUI `.onDrop` on the chat
         // root view. Previously a UIDropInteraction here intercepted drops on
         // top of the collection view, which (a) suppressed SwiftUI's

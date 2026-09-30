@@ -35,6 +35,9 @@
 import SwiftUI
 import UIKit
 
+/// [PushPerf 埋点 2026-09-30] 透镜岛判定的一次性日志通道（见 TGLensBar.isSupported）。
+private let tgLensLogger = AppLogger(category: "TGLens")
+
 /// 透镜岛：26+ 且私有类可选器形态完备时渲染 TG 移植透镜栏。
 struct TGLensBar: UIViewRepresentable {
     /// 私有类可用性（调用方据此决定走岛还是回退玻璃版）。
@@ -50,7 +53,21 @@ struct TGLensBar: UIViewRepresentable {
     ///      类方法不进探针（alloc 万类皆有）。
     /// 硬性集 = initWithRestingBackground:（:201）/ setLiftedContainerView:（:223,225,298）/
     /// setLiftedContentView:（:227）/ setOverridePunchoutView:（:228）。
+    /// [PushPerf 埋点 2026-09-30] 判定结果一次性落日志（装机验收用：明确透镜岛在跑
+    /// 还是回退 legacy——两条渲染路径的切换手感不同，排障需要知道走了哪条）。
+    /// 本属性被 body 高频求值，禁止每次打点。static var 由文件默认 MainActor 隔离。
+    private static var supportProbeLogged = false
+
     static var isSupported: Bool {
+        let result = isSupportedProbe()
+        if !Self.supportProbeLogged {
+            Self.supportProbeLogged = true
+            tgLensLogger.info("[TGLens] isSupported=\(result) — \(result ? "lens island active" : "legacy fallback")")
+        }
+        return result
+    }
+
+    private static func isSupportedProbe() -> Bool {
         guard let cls = NSClassFromString("_UILiquidLensView") else { return false }
         for name in [
             "initWithRestingBackground:", "setLiftedContainerView:",
