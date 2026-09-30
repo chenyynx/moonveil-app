@@ -128,7 +128,9 @@ ZStack 三树保活（瞬切：当前树 opacity 1 + 可命中，其余保活不
   （TabBarController.swift:279-330）：新页 zIndex 置顶 → alpha 0→1（0.1s）+
   从 (视图高−3)/视图高（≈0.9965，缩 3pt）弹簧到 1.0（0.15s、延迟 0.1s）；旧页
   1→同起点缩放（TG :297，0.12s 弹簧）并在 ~0.28s 溶解窗口内留于下层（TG :314-330
-  新页盖旧页淡入的语义）；宽屏 regular 不播（TG :283-285）。实现 =
+  新页盖旧页淡入的语义）（⚠️ 2026-09-30 v2 复核订正：「0.28s 溶解窗口」系误读——
+  TG 真值 = 新页 alpha（0.1s）完成即 commit、旧页才被 remove（TabBarController.swift
+  :321-326）；本仓已改为 120ms 窗口，见下方 v2 条目）；宽屏 regular 不播（TG :283-285）。实现 =
   RootModeTabsView.tabTree 的 scale/opacity/zIndex + previousMode 窗口。
   **已知偏差（tg-parity 记录）**：TG 的栏是 TabBarControllerNode 的独立层、不参与
   缩放；本仓栏挂树内（safeAreaInset 架构所限）会随树缩放——幅度 0.35%（≈0.2pt
@@ -147,6 +149,17 @@ ZStack 三树保活（瞬切：当前树 opacity 1 + 可命中，其余保活不
   geometryGroup）。**栏不再随缩放**——上一条「已知偏差」随之
   消除。装机判据：切页期间 `[SAFE] root-list bottom=98.0` 恒定（再见 64.0 = 复现）。
   已知取舍：缩放只覆盖 root 内容——树停在 push 页面时切页不播（待装机观感再评估）。
+  **同批 TG 源码全量复核（pp 令，对照 ~/tg-ref/TabBarController.swift:274-355 +
+  TabBarContollerNode.swift:76-99/:223-226）**：除上方「溶解窗口 0.28→0.12s」订正外
+  逐项对上——触发链（selectedIndex setter → animated:true :82）、旧页保持全不透明
+  到窗口末（TG 旧页无 alpha 动画，硬移除）、新页插在旧页上方（insertSubnode
+  aboveSubnode + commit 闭包移除旧页 :76-99）、缩放值 (H−3)/H 中心锚、delay 0.1、
+  栏选中 spring 0.4（ContollerNode :223-226）、regular 宽屏不播（:280-282）。
+  记录在案的近似（量级均 ≤2px/0.1s 级，装机可察再拆）：①旧页曲线共用新页
+  （TG :297 为 0.12s 无延迟，本仓 0.15s 延迟 0.1s）；②alpha 曲线 easeOut 近似
+  （TG animateAlpha 默认曲线未验证）；③spring 阻尼近似（TG kCAMediaTimingFunctionSpring
+  有微过冲）；④栏为每树一栏随树淡入（TG 单栏常驻不参与任何切换动画——架构差异，
+  本仓栏在栈内所致；两层同像素叠加，淡入期约 0.1s，不可辨）。
 
 ## 7. TG 数值对照表（2026-09-30 立表——源码 + pp 实机像素反演双据）
 

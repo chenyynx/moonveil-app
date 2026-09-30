@@ -159,8 +159,10 @@ struct RootModeTabsView: View {
     /// 末尾；社区同款结论：缩放/位移修饰符必须作用在栈内内容上，挂栈外包裹层会让
     /// 内容丢 safe area）。本容器只保留 v1 装机中除缩放外未见异常的部分：zIndex
     /// 置顶 + 新页淡入 0.1s（TG :319-321）+ previousMode 溶解窗口（旧页留下层，
-    /// TG :314-330 语义）——注意此三者与 v1 缩放同批（a13c765）引入，瞬切版从未跑过；
-    /// 若装机仍异常，下一手候选 = 拆溶解窗口 / geometryGroup。
+    /// 窗口长见 RootTabRouter 注释：v2 收口为 120ms = TG「新页 alpha 完成即 commit」
+    /// 的数字化——旧页在 TG 保持全不透明、到点硬移除，不淡出）——注意此三者与
+    /// v1 缩放同批（a13c765）引入，瞬切版从未跑过；若装机仍异常，下一手候选 =
+    /// 拆溶解窗口 / geometryGroup。
     /// 宽屏 regular 不播（:283-285）。缩放纪律：v2 起栏挂在缩放修饰符之外侧
     /// （TreeSwitchZoom 挂在 safeAreaInset 内侧）——栏不随缩放，TG「栏独立层不缩」
     /// 的 parity 偏差随之消除。
@@ -307,8 +309,11 @@ struct TreeSwitchZoom: ViewModifier {
     func body(content: Content) -> some View {
         content
             .scaleEffect(scale)
-            // TG :319-321：新页 0.15s 弹簧、延迟 0.1s；旧页同播（TG :297 旧页
-            // 1→起点缩放；共用曲线，溶解窗口内不可辨）。宽屏不播（nil）。
+            // TG :319-321：新页 0.15s 弹簧、延迟 0.1s。旧页 TG 真值为 :297
+            // 「1→起点缩放、0.12s 弹簧、无延迟」——本仓共用新页曲线（0.15s、延迟
+            // 0.1s）为 v1 起已知近似：差异段（0~0.1s 旧页不动、0.12~0.25s 缩量残余）
+            // 全程被新页 0.1s 淡入 + 旧页移除窗口（120ms）遮蔽，量级 ≤2px，不可辨；
+            // 如装机可察再拆方向曲线。宽屏不播（nil）。
             .animation(
                 horizontalSizeClass == .regular ? nil : Self.switchScaleAnimation,
                 value: router.mode
