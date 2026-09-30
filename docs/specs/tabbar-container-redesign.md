@@ -10,9 +10,15 @@
 ## 0. 状态
 
 - 分支：`feature/tabbar-container`（自 feature/tg-lens @ 1611efc 起）
-- 审计输入：B-1（local 线路由矩阵）⟨待补⟩、B-2（remote/works 线）⟨待补⟩、
-  B-3（栏挂点/壳层）⟨待补⟩、B-4（TG 对照核验）⟨待补⟩
+- 审计输入 B-1（local 线路由矩阵）、B-2（remote/works 线）、B-3（栏挂点/壳层）、
+  B-4（TG 对照核验）：**审计产出已在本文件定稿**——摘要见 §附录 A/B，行号矩阵以
+  §3 精化段 + 会话记录为准（施工时以当时代码复核），⟨待补⟩ 占位作废。
 - 落码前须过：本文件 §4/§5 清单评审 → 开工
+
+> **当前实况（2026-09-30 晚更新）**：C1-C3 已落码；build 436/438 两次装机暴露
+> 顶栏全灭与同帧崩溃（判例见 §9.6/§9.7）；**去嵌套手术（= C4 深页外迁提前 +
+> 栈单实例化）已实施**（见 §9.8）；C4 剩余 = 底栏单实例化（三处 inset → 占位）
+> + 交接退役（见 §10 进展注记）。
 
 ## 1. 根因（实锤链）
 
@@ -58,13 +64,20 @@ legacy 路径无交接；光晕（二值私有态）用 `iconScale > 1.08` 阈�
  └─ destination: 全部深页——聊天（local/remote）· 设备详情 · works 详情（如有）
 ```
 
+> 🔴 **结构改判（2026-09-30 晚 · 去嵌套手术）**：图上方框里「外层/内层」两级栈的
+> 形态已作废。现结构 = **全 App 单栈**（容器栈即唯一 NavigationStack），**三树无栈**
+> （各自的内层 NavigationStack 已拆，根内容直接作容器栈 root 的内容）；三树的
+> toolbar 改由 chrome 按 `RootTabRouter.shared.mode` 门控后挂容器栏，容器 root 的
+> `.toolbar(.hidden)` 一并删除——即 D11 改判、D1 补充（见下方决策修订注记）与
+> §9.8 去嵌套手术定案。图内原文保留留痕。
+
 - 切 tab = 容器内内容切换（现行 TG 数字化转场保留：新页 alpha 0.1 / scale 0.15·delay 0.1，
   旧页 scale 0.12，溶解窗口 120ms）——**栏在容器顶层不动**，透镜弹簧天然连续。
 - push 深页 = 容器栈 push → 整页盖住容器（含栏）✓；pop 手势 → 容器（含栏）原位
   揭示、纹丝不动 ✓——验收判据 2/3 由结构本身兑现，零 hack。
 - **CommitHandoff / keepGlow 阈值 / 跨树交接整段退役**（单实例无跨树可跨）。
 
-### 核心设计决策（D1-D8）
+### 核心设计决策（D1-D11）
 
 | # | 决策 | 理由 |
 |---|---|---|
@@ -80,7 +93,32 @@ legacy 路径无交接；光晕（二值私有态）用 `iconScale > 1.08` 阈�
 | D10 | 占位形态定稿：三树 root 底部改 `Color.clear.frame(height: ModeTabBar.barHeight /*64*/)` 作 `safeAreaInset(edge:.bottom,spacing:0)`——**不硬编码 98**：inset 传播 64 + 系统 home 区（34/0 自适应）= 现状 98 的自动等价；无 UIKit、无测量、无动画 | B-3 实锤：现状栏布局高即 64（.offset(y:14) 是视觉位移不占布局），98=64+34 全链对账 |
 | D11 | 外层栈 root（容器）隐藏自己的导航栏（`.toolbar(.hidden, for:.navigationBar)` 或等价），导航栏归各树内层栈 | 防双层导航栏；内层栈保留 D1 |
 
+#### 决策修订注记（2026-09-30 晚 · 去嵌套手术后 · D1/D11 改判）
+
+> 原文两行保留留痕；下列修订**推翻**其前提，判例依据见 §9.6.1、方案定案见 §9.8。
+
+- **D11 改判**：容器栏转正为**全 App 唯一顶栏宿主**。「导航栏归各树内层栈」的说法
+  **作废**——嵌套 NavigationStack 时内层栈的导航栏**根本不渲染**（§9.6.1 实锤），
+  「内层栈当 toolbar 家」这个前提从一开始就不成立。容器 root 的
+  `.toolbar(.hidden, for: .navigationBar)` 已随去嵌套手术删除，容器栈自带的导航栏
+  即全 App 顶栏；「防双层导航栏」不再靠显隐修饰符维持，改由**结构上不存在第二根栈**
+  兑现（单栈化后该风险面自然消失）。
+- **D1 补充**：三树**不再各自带 NavigationStack**（拆壳，见 §9.8）。原决策里
+  「树内 NavigationStack 保留（root 壳+toolbar 家）」与「深页统一迁外层容器栈」
+  两半在 2026-09-30 晚一并作废：**树内深页 push 全迁容器栈**（本机树早已完成，
+  远端树两条 push 随本批上收；works 线本就零 push 零迁移），**工具栏
+  （≡/齿轮/身份胶囊/搜索/⋯）改由各树 chrome 按 `RootTabRouter.shared.mode` 门控
+  后挂容器栏**——保活树（opacity-0）同样会向共享栏贡献 items，不门控即三树串台。
+  D1 原理由「toolbar 体系零改动」随之改判：**改的是挂载宿主（树内栈 → 容器栏），
+  不是 toolbar 内容本身**。
+
 ### 已知社区风险与 C2 空壳验证点（嵌套栈）
+
+> ⚠️ **阶段注（2026-09-30 晚 · 去嵌套手术后）**：本段是 **C2 时期的记录**。其中
+> 「内层栈只作 root 容器、永不 push，风险面不同」这个**前提已随去嵌套手术消失**
+> （内层栈不复存在），末句的**备选 b2「单栈化」已从备选转为定案**（§9.8）——本段
+> 描述的嵌套栈形态整体作废。原文保留留痕，不再作为风险评估依据；现行风险面见
+> §7 与 §9.8「遗留风险」。
 
 社区对"NavigationStack 嵌 NavigationStack"有警告（toolbar 裁剪 FB14898777、toolbar 持久化/标题丢失等——
 症状场景多为"内层还会 push/多栈互动"）：本设计中**内层栈只作 root 容器、永不 push**，风险面不同，
@@ -130,13 +168,32 @@ legacy 路径无交接；光晕（二值私有态）用 `iconScale > 1.08` 阈�
 8. 注释墓碑更新（各树 root 的"栏在栈内"说明改"栏在容器层"）。
 9. 占位高度对账：探针（debugSafeBottom 基线 98）复核。
 
+> 🔴 **进展注（2026-09-30 晚 · 去嵌套手术后 · 3/4/5 项已改判）**：这三项原写作
+> 「栏 → 占位」，**已不描述这三个文件的实际改动**：
+> - `ContentView.swift`（3）实际 = **拆 stackLayout 的 NavigationStack**（保留
+>   sessionList + safeAreaInset + 键盘链）+ **chrome 按 mode 门控挂容器栏**；
+> - `RemoteRootView.swift`（4）实际 = **删 NavigationStack** + **chrome 门控**
+>   （⚠️ 非"同上"：safeAreaInset / 键盘 / `.sheet` 链原样保留——这一链属于
+>   **C4 剩余项**的占位改造，不在本批）；
+> - `Works/WorksListView.swift`（5）实际 = **拆 NavigationStack** + **chrome 门控**
+>   + **背景条件化**；works 线仍零 push 零迁移（B-2 结论不变）。
+> **「栏 → 占位」不属于本批**：三处 `safeAreaInset(ModeTabBar)` → 静态占位仍是
+> **C4 剩余项**（§10 进展注记），连同第 9 项的 98 基线对账一起做。
+
 ## 5. 施工序列（一个包，多 commit）
 
 - C1：本 spec 落档（设计冻结）。
 - C2：容器栈 + RootContainer 空壳（三树+栏迁入；深页暂留树内——视觉与现状一致）。
 - C3：local 线深页外迁（path 机制整体迁容器共享路由；14 上游入口不动；宽屏通道不动；
   内层栈去 path/destination）+ 装机验证锚点。
-- C4：remote/works 线外迁 + 栏单实例化（三处 inset → 占位）+ 交接退役。
+- **去嵌套手术（2026-09-30）** ＝ **C4 深页外迁提前实施 + 扩展（栈单实例化）**：
+  全 App 单栈化、三树拆壳、树内深页 push 全迁容器栈、三树 chrome 门控挂容器栏、
+  `.toolbar(.hidden/.visible)` 一并退役——定案与范围见 §9.8（性质是本批结构改动
+  最大的一次，C1-C3 的设计前提由它改判）。
+- **崩溃线（436/438）**：切 tab × 同帧写容器栈 path 的断言，两次装机否证
+  C3.2「延后一拍」，最终以 L3「先开门、后归位」修复——判例见 §9.7（不展开）。
+- C4：**外迁已提前随去嵌套实施**；剩余 = **底栏单实例化（三处 inset → 占位）+
+  交接退役**（§10）。
 - C5：清理（墓碑注释、死码、探针盲区补 welcome overlay 探针）。
 - 门禁：swift-parse-check --changed / audit-swift-registration / import-scan /
   freeze-check（每 commit 前跑）；push → dispatch → 出包（全链）。
@@ -183,10 +240,25 @@ legacy 路径无交接；光晕（二值私有态）用 `iconScale > 1.08` 阈�
 - 三树 root 的 `safeAreaInset(ModeTabBar)` 调用（→静态占位）。
 - **死 flag 实锤（B-3）**：`localAtRoot`/`localSelecting`（仅 :1501/:1502 日志消费）、
   `remoteAtRoot`（全仓零读取，注释所指 gearVisible 不存在）——C5 全仓双查后删。
+  🔴 2026-09-30 晚：`remoteAtRoot` 已随去嵌套手术删除（原拟「上收容器层」的方案
+  被「随迁移退役」取代，见下方补充）。
 - **死残留（B-1）**：`pendingNewChatAfterPop`(:1307)/`pendingNewChatTargetId`(:1311)
   无消费者；`deepLink.pendingSessionId`(:2118-2126) 无写入者——C5 处理。
 - 外壳卫生（可另批）：RootModeTabsView `showsSoulProfile` 死 presenter(:36/:92)、
   `soulName` write-only(:38-41)。
+
+> **退役清单补充（2026-09-30 晚 · 去嵌套手术，已随本批删除）**
+>
+> - **`.toolbar(.visible)` 显隐对冲 ×4**（C3.1 的手段）：RootModeTabsView 两处
+>   （destination 分支）+ RemoteRootView + WorksListView。§9.6.1 判例已证其
+>   **原理上无效**——嵌套栈下按钮压根没挂到任何可渲染的栏上，override 只让一条空
+>   容器栏显出来。随内层栈拆除一并退役（§9.2-2「导航栏泄漏保险」自此无对象）。
+> - **容器 root 的 `.toolbar(.hidden, for: .navigationBar)`**：容器栏转正，随本批
+>   删除（D11 改判）。
+> - **`remoteAtRoot`**：随远端树深页上收 + 容器语义取代（页面在容器栈、不随树存活）
+>   退役——全仓零读取（附录 A 已实锤），无消费者可搬。
+> - **SWIPE-ROOT-RESET**（RemoteSessionListView 切走弹根块）：容器栈语义取代——
+>   页面不再随树保活，programmatic route + push 走整栈替换。
 
 ## 9. 审查记录与修订（2026-09-30 · R1-R5 五路并行对抗审）
 
@@ -240,9 +312,14 @@ owner 或随树切换清理）。
 仓内先例 ContentView:4489）；② 聊天页返回键/边缘划回存在（导航栏不泄漏）；
 ③ 划回后 PATH-PROBE count 归零（写回存活）；④ 宿主被外层 push 期间内层 onChange
 仍触发（destDISAPPEAR 后 vm 挂起日志）；⑤ push 滑入动画在（Button 事务）；
+⚠️ 2026-09-30 晚注：第 ④ 项中的「内层栈」已于去嵌套手术中不存在，该项**须按
+容器栈语义重读**（等价观察点 = 容器 destination 存活期间宿主 onChange 是否仍触发）。
 ⑥ 搜索/宽屏/登录盖/设置不受影响。
 
 ### 9.6 首装机判例（2026-09-30 包 B 第一版 · 顶栏环境传播）
+
+> 🔴 **2026-09-30 晚改判：本节结论已被 build 438 装机实况推翻**，改判正文见
+> §9.6.1、「环境传播 / 就近钉 visible」模型**不再作为设计依据**。原文保留留痕。
 
 **实锤**：容器 root 的 `.toolbar(.hidden, for: .navigationBar)` **写进 SwiftUI
 环境**、顺视图树把**三棵内层栈的导航栏一并隐藏**（装机症状：顶部所有按钮消失、
@@ -255,6 +332,31 @@ visible**，禁止依赖「外层 hidden 只作用于外层」的假设。
 **同包遗留（待崩溃日志定性）**：① 新会话闪退（行点击开会话正常——机制通、
 命中链修复生效；疑点=嵌套栈×draft 专属链）；② 切页残影/套层（疑点=溶解窗口
 在嵌套结构下的渲染）。
+
+#### 9.6.1 判例更正（2026-09-30 晚 · build 438 装机实况 · 顶栏全灭根因）
+
+🔴 **推翻**：「`.toolbar(.hidden)` 顺环境把三棵内层栈的导航栏一并隐藏」不是根因。
+**实锤根因**：嵌套 NavigationStack 时，**内层栈的导航栏根本不渲染**——内层挂的
+toolbar 按钮不会渲染在内层，而是「上浮」到**最近一条真实渲染的栏** = 外层容器栏；
+而容器栏被 RootModeTabsView 的 `.toolbar(.hidden)` 藏着 → **三树按钮全被吸进一条
+不可见的栏** → 顶部全灭。截图佐证：根页**连栏区都不存在**（「远程 Agent」是页面内
+自绘大标题，RemoteSessionListView:605），不是「栏在但被透明化」。
+
+**C3.1 显隐对冲为何永远无效**（`.toolbar(.visible)` ×4）：问题从来不是「被藏了」，
+而是**按钮根本没挂到任何可渲染的栏上**——把外层的 hidden 就近 override 回 visible，
+只是让一条**空的**容器栏显出来，被吸上去的按钮依然无处可渲染。该对冲在嵌套结构下
+原理上不可用，不是调参能救的。
+
+**佐证**：
+1. **官方**：openminis 从不嵌套栈（根内容直接 ZStack；全仓 **0 处**
+   `toolbar(.hidden)`）——没有这个问题要修。
+2. **社区**：「嵌套 NavigationStack = 导航栏缺失」是已知病灶共识（与 §2 立项时的
+   嵌套栈风险同源，但严重级别从「toolbar 裁剪」升到「整条栏不存在」）。
+3. **装机**：build 438 二装实况——**顶部无任何按钮**，且原崩溃仍在（崩溃侧判例见
+   §9.7，处置见「先开门、后归位」）。
+
+**处置**：改法不是继续对冲，而是**去嵌套手术**（全 App 单栈化）——定案与范围见
+§9.8；随之无对象的机制与退役项见 §8。
 
 ### 9.7 崩溃判例（2026-09-30 包 B 首装 · 切 tab × 容器栈 push 同帧）
 
@@ -283,23 +385,106 @@ asyncAfter 0.25s，消费窗 0.2→**0.35s**（🔴 不变量：窗长 ≥ 树�
 两个结算拍），或（b）≥ 转场全长的时距。新增 push 入口一律经 ContainerNav
 （已内置该保护），禁止绕过。
 
+> ⚠️ **适用域注（2026-09-30 晚）**：本段判例的触发前提「嵌套栈（外层
+> NavigationStack 包内层栈）」属**内层栈架构**；去嵌套手术后该组合**已不存在**。
+> 本段**留作机理记录**（「帧末统一结算 ⇒ 一拍异步拆不开同帧组合」这条 SwiftUI
+> 行为与栈嵌套无关，仍然有效），但**不得再当作活的不变量套用**——单栈化后若再现
+> 同帧崩溃，按新的调用形态重新定位。
+
+### 9.8 去嵌套手术定案（2026-09-30 晚 · 全 App 单栈化）
+
+**定案**：全 App **只保留一根栈**——`RootModeTabsView` 的容器栈是唯一
+NavigationStack。依据 §9.6.1：嵌套栈下内层导航栏不渲染，只要还留着第二根栈，
+工具栏就随时可能被吸进一条不渲染或被隐藏的栏里，对冲型修法在此结构下原理上不可用；
+官方 openminis 的做法（从不嵌套）就是同一结论。§2 立项时列的「备选 b2 单栈化」
+由备选**转为定案**。
+
+**范围（2026-09-30 手术时随本批实施）**：
+- **三树拆壳**：ContentView（stackLayout）/ RemoteRootView / WorksListView 各自的
+  内层 NavigationStack 删除，根内容直接作为容器栈 root 的内容。
+- **树内深页 push 全迁容器栈**：本机树早已完成（唯一活口 = 会话行 → 容器栈）；
+  远端树两条 push（`showsDeviceDetail` / `showsChat`）随本批上收——
+  `ChatRoute` 新增 `remoteTreeChat` / `remoteDevice` 两个 case
+  （⚠️ **不得复用**既有 `.remote`：它渲染的是本机线 iCloud 只读的 AIChatView，
+  远端树聊天是 SessionChatView/bridge 数据面），destination 侧新增两个目的地包装
+  `RemoteTreeChatDestination` / `RemoteDeviceDestination`（service / session /
+  connector 解析与原 `.task(id:)` 副作用链随迁；逐条细节见施工单与代码注释）。
+  works 线本就零 push 零迁移，仅拆壳 + chrome 归位。
+- **三树 chrome 门控挂容器栏**：各树 toolbar（≡/齿轮/身份胶囊/搜索/⋯）改为
+  `.toolbar { if RootTabRouter.shared.mode == <本树> { … } }` 门控后挂容器栏——
+  **保活树（opacity-0）同样会向共享栏贡献 items，不门控即三树串台**，门控须覆盖
+  全部 chrome 源，含 RemoteSessionListView 的 list 级 `⋯`。
+- **同步退役**：`.toolbar(.visible)` 对冲 ×4、容器 root 的 `.toolbar(.hidden)`、
+  `remoteAtRoot`、SWIPE-ROOT-RESET（清单见 §8）。
+
+**性质**：＝ **C4 的深页外迁提前 + 扩展**——外迁（§10.1）提前实施；扩展部分是
+**栈单实例化**（不只是路由外迁，还拆掉了三棵内层栈）。C4 剩余项见 §10 进展注记。
+
+**装机判据（2026-09-30 手术时）**：三树顶栏全归位（本机 ≡+身份胶囊+搜索 /
+远端 ≡+搜索+⋯ /构件 胶囊+搜索）；跨树点＋不崩、点会话行不崩；远端设备详情与远端
+聊天可进可划回；切页无抖动；列表顶部间距与现状一致。
+
+**遗留风险（装机盯）**：① 三树 toolbar 串台（见上，门控不全即串台）；② 容器栏
+背景跨树切换（local=hidden / works=0.45 / remote=默认）的平滑性；③ 身份胶囊 zoom
+转场（NS 不变，挂点迁移后复验）；④ `frozenTopContentMargin`（按旧内层栏高标定、
+单调冻结）在栏高变化处的残留；⑤ TreeSwitchZoom 挂点链（拆栈 = 删层，理论更安全，
+但切页抖动要盯）。各 sheet 自带的栈（works 搜索 sheet / 资料 cover /
+local SettingsSheet 等）不在手术范围，不动。
+
 ## 10. C4 施工单（草案 · 待 C3 装机验证通过后启动）
+
+> ⚠️ **标题状态已过期（2026-09-30 晚）**：「待 C3 装机验证通过后启动」不再成立——
+> 外迁部分已随去嵌套手术实施（见内文进展注记与 §9.8）。旧标题保留留痕。
 
 > 目标：remote 线深页上收容器栈（D9）+ 栏单实例化（D2/D3/D10 落地）+
 > 跨树交接机制退役。本单是施工前的设计冻结，落码前按 §9.4 清单复核。
 
+> 🔴 **进展注记（2026-09-30 晚 · 去嵌套手术）**
+>
+> 本单**深页外迁部分已随去嵌套手术提前实施**（远端树两条 push 上收容器栈：新增
+> `ChatRoute.remoteTreeChat` / `remoteDevice` 两 case + 两个目的地 wrapper
+> `RemoteTreeChatDestination` / `RemoteDeviceDestination`；详见 §9.8）。
+> §10.1 的迁移地图与行号已被该实施**取代**，原文保留留痕；其中
+> 「remoteAtRoot 维护点上收（:426/:437 onChange → 容器层 path 推导）」实际执行为
+> **随迁移退役**（全仓零读取，见 §8），非上收。
+>
+> **C4 剩余项**：
+> 1. **底栏单实例化**（§10.2 原公式不变，仍有效）：三处
+>    `safeAreaInset(ModeTabBar)` → 静态占位（D10），容器栏回
+>    `showContainerBar` 判定；占位高度以 `[SAFE] root-list bottom=98` 恒定对账。
+> 2. **交接退役**（§10.3 TGLens 域）：`CommitHandoff` / `keepGlow` /
+>    `currentSelectedIconScale` 整段删除，grep 归零自检。
+>
+> §10.4 验收第 ③ 条（切页判据全量 §6 1-3）**仍待验**——须等底栏单实例化落地后，
+> 单次连续滑动/无二次滑动/发亮连续才有意义。§10.4 其余各条随深页外迁覆盖面扩大。
+
 ### 10.1 remote 深页迁移（B-2 审计地图）
-- **路由类型**：扩展 `ChatRoute` 加 `case deviceDetail(connectorId: String)`
-  （H45/48 现有 `.local/.remote` 不变；logTag/sessionId 兼容分支补全）。
+
+> 🔴 **已按实际实施更正（2026-09-30 晚）**：下列「路由类型 / 写入点」两行为**原文
+> 设计稿**，与落码不符，已在条目内就地更正；其余条目（destination 渲染 / 逐字搬迁
+> 依赖）仍成立。
+
+- **路由类型**：扩展 `ChatRoute` 加**两个** case
+  —— `case remoteDevice(connectorId: String)`（远端树设备详情，
+  原文写的 `deviceDetail(connectorId:)` **未采用**）与
+  `case remoteTreeChat(sessionId: String)`（远端树聊天，原文缺此项）；
+  H45/48 现有 `.local/.remote` 不变；logTag/sessionId 兼容分支补全。
+  ⚠️ **远端两页的 push 不得复用 `.remote`**：`.remote` 渲染的是 **AIChatView
+  （本机线 iCloud 只读）**，远端树聊天要的是 **SessionChatView**（V2 / bridge
+  数据面）——误复用会渲染成另一个页面。
 - **两个目的地的写入点**改 value 容器路由（isPresented 退役）：
-  `RemoteSessionListView` showsChat 写入 4 处（:194/:267/:890 + 切走弹根 :213）→
-  `containerNav.pushChat(.remote(...))` / 退出 `dismiss` 语义换 `containerNav.path` 清；
-  showsDeviceDetail 写入 5 处（:740/:764/:777/:783 + :408 出栈）→ `.deviceDetail`。
-- **destination 渲染**：两分支整体迁 RootModeTabsView destination
-  （SessionChatView 的 `service.chat` 依赖守卫/RemoteDeviceDetailView 的
-  connector 解析 :392-417 逐字搬迁+防白屏 pending 分支）。
+  `RemoteSessionListView` showsChat 写入点（:194/:267/:890 + 切走弹根 :213）→
+  `containerNav.pushChat(.remoteTreeChat(sessionId: ...))`（原文写作
+  `pushChat(.remote(...))`，**已更正**）/ 退出 `dismiss` 语义换 `containerNav.path` 清；
+  showsDeviceDetail 写入点（:740/:764/:777/:783 + :408 出栈）→ `.remoteDevice`。
+- **destination 渲染**：两分支整体迁 RootModeTabsView destination（SessionChatView
+  的 `service.chat` 依赖守卫/RemoteDeviceDetailView 的 connector 解析 :392-417
+  逐字搬迁+防白屏 pending 分支）；落码时由两个**私有目的地包装视图**承接
+  （`RemoteTreeChatDestination` / `RemoteDeviceDestination`，并搬运原 `.task(id:)`
+  副作用链；逐条见施工单与代码注释）。
 - **remoteAtRoot 维护点上收**（:426/:437 onChange → 容器层 path 推导；R5-P4 的
-  “纯程序化切换”清栈挂点同批定稿）。
+  “纯程序化切换”清栈挂点同批定稿）。🔴 2026-09-30 晚更正：实际执行为
+  **随迁移退役**（全仓零读取），非上收；SWIPE-ROOT-RESET（:205-215）同批退役。
 
 ### 10.2 栏单实例化（4 挂点 → 1 + 3 占位）
 - 容器栏 = RootModeTabsView 的 ZStack 顶层 `ModeTabBar`（**本体零改动**，
