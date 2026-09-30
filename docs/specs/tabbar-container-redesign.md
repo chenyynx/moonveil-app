@@ -256,6 +256,21 @@ visible**，禁止依赖「外层 hidden 只作用于外层」的假设。
 命中链修复生效；疑点=嵌套栈×draft 专属链）；② 切页残影/套层（疑点=溶解窗口
 在嵌套结构下的渲染）。
 
+### 9.7 崩溃判例（2026-09-30 包 B 首装 · 切 tab × 容器栈 push 同帧）
+
+**实锤（build 436 .ips）**：EXC_BREAKPOINT/SIGTRAP——`libswiftCore._assertionFailure
+← swift_unexpectedError ← SwiftUI NavigationColumnState.boundPathChange`（29 帧
+零 App 代码）＝ iOS 26 导航状态机对一次程序化 path 变更抛防御断言。
+**装机对照**：本地列表点＋（route 同值早退、无树切换）不崩；跨树入口点＋崩
+→ 条件 = 「程序化切 tab（树切换）× 同帧写容器栈 path」。
+**修复（C3.2）**：RootTabRouter.route(to:) 置 0.2s 窗一次性标记；
+ContainerNav.pushChat 消费之——树切换后的第一次 push 延后一拍（拆开同帧组合，
+async 重入直达无递归）。
+🔴 **判例**：嵌套栈（外层 NavigationStack 包内层栈）下，任何「驱动外层栈 path
+的写」都不得与「树切换/内容大变更」同帧——新增 push 入口一律经 ContainerNav
+（已内置该保护），禁止绕过。**残留观察项**：若仍有非切 tab 场景的偶发断言，
+下一手 = 把 pushChat 的全部对外入口改为「下一 runloop 恒延迟」（牺牲一帧保稳定）。
+
 ## 10. C4 施工单（草案 · 待 C3 装机验证通过后启动）
 
 > 目标：remote 线深页上收容器栈（D9）+ 栏单实例化（D2/D3/D10 落地）+
