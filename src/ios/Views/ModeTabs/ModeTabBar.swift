@@ -43,6 +43,16 @@ struct ModeTabBar: View {
     /// 外部 route(to:) 把本树切走，松手不再 commit（对抗复审 [低] 项，2026-09-30）。
     var tabMode: AppSourceMode
 
+    /// [圆钮改造 2026-10-01] 右侧玻璃圆钮的动作入口。
+    /// 原实现：本栏自己调 `commit(.compose)` → QuickActionRouter 新建本机会话，
+    /// 动作语义与「新建会话」强耦合在栏内；跨树守卫（`tabMode == router.mode`）
+    /// 也在栏内。现改为由调用方注入闭包——动作语义归调用方所有，栏只负责
+    /// 「点了就调」。**刻意不设默认值**：四个挂点（ContentView 窄窗 stackLayout /
+    /// ContentView 宽窗 / RemoteRootView / WorksListView）必须全部显式接线，
+    /// 漏一个即为编译错误——这正是想要的：静默走旧的 compose 路径比编译失败更糟。
+    /// 视觉（玻璃圆 + 拉缩发光 + 图标 + a11y 文案）本批一字未动。
+    var onSearchTapped: () -> Void
+
     /// 单通道（D4 红线）：选中读这里、切页写这里，与旧 tabSelection binding 同源。
     @ObservedObject private var router = RootTabRouter.shared
 
@@ -289,15 +299,16 @@ struct ModeTabBar: View {
             }
     }
 
-    /// 圆钮（新会话 ＋；TG 的 64×64 独立圆搜索钮同位，:899-901 —— 我们的语义
-    /// 是"新建"，pp 2026-09-26 拍板借位）。玻璃圆 + 按压回弹。
+    /// 圆钮（TG 的 64×64 独立圆搜索钮同位，:899-901）。玻璃圆 + 按压回弹。
+    /// [圆钮改造 2026-10-01] 动作 = `onSearchTapped()`；原「本栏自己 commit(.compose)
+    /// + 跨树守卫」整段退役（动作语义归调用方，栏内不该再猜）。视觉一字未动。
     private var composeButton: some View {
         Button {
-            // 跨树兜底：同 drag onEnded（按住期间本树被外部 route 切走则丢弃，
-            // 对抗复审 v2 [低]）。
-            if tabMode == router.mode {
-                commit(.compose)
-            }
+            // 追踪打点保留（原先挂在 commit(.compose) 上；动作外移后若不同步搬
+            /// 过来，切 tab 的链路追踪会断在这里——判例见 NavTrace 相关注释）。
+            NavTrace.mark("composeTab")
+            NavTrace.log("BINDING action=composeTab mode=\(router.mode) trig=\(NavTrace.trigger)+\(NavTrace.age)")
+            onSearchTapped()
         } label: {
             Self.tabImage(Self.tabIcon[.compose] ?? "aa-Circle")
                 .foregroundStyle(Self.tabIconColor(.compose, active: false))
@@ -414,16 +425,13 @@ struct ModeTabBar: View {
     // MARK: - 提交
 
     /// 与旧 tabSelection binding 完全同语义（NavTrace 打点保留，切 tab 追踪
-    /// 不断线）。compose 是 ACTION 位：永不选中，点击 = 新建本机会话走
-    /// QuickActionRouter 单通道（tab 停在原页，ContentView 接到后切回本机页）。
+    /// 不断线）。[圆钮改造 2026-10-01] compose 是 ACTION 位且**不再从本栏发起**
+    /// ——圆钮改调 `onSearchTapped()`，故 commit 只剩页面切换一支；
+    /// `AppSourceMode.compose` 枚举 case 按约定保留勿删（树侧仍可能用到）。
     private func commit(_ mode: AppSourceMode) {
-        NavTrace.mark(mode == .compose ? "composeTab" : "-")
+        NavTrace.mark("-")
         NavTrace.log("BINDING set=\(mode) mode=\(router.mode) trig=\(NavTrace.trigger)+\(NavTrace.age)")
-        if mode == .compose {
-            QuickActionRouter.shared.requestNewChat()
-        } else {
-            router.route(to: mode)
-        }
+        router.route(to: mode)
     }
 }
 

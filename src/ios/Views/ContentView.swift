@@ -1156,7 +1156,10 @@ struct ContentView: View {
     /// 壳层 sheet 的 navigationTransition 同一 namespace；同名 @Namespace 是独立实例）。
     var soulProfileNS: Namespace.ID? = nil
     @State private var showsSoulProfile = false
-    /// 右上角 🔍（pp 2026-09-26「搜索放右上角」）：sheet 出搜索占位页。
+    /// 搜索占位 sheet 的开关。[SEARCH-SWAP 2026-10-01 pp「搜索 ⇄ 新会话 互换
+    /// 位置」] 写入方从顶栏 🔍 换成底栏 ModeTabBar 的玻璃圆钮（两条布局路径的
+    /// 挂载点各传一次 `onSearchTapped`）；sheet 仍在 sessionList 的两条分支上
+    /// （:3256 分屏 / :3477 栈），行为未变。
     @State private var showsSearch = false
     /// iCloud 同步是否启用（决定胶囊同步指示器与新胶囊点击语义）。原 principal
     /// 内联计算上提为存储属性——principal 每次 body 重建都要用，抽出来避免重复
@@ -2340,7 +2343,7 @@ struct ContentView: View {
         // 收起（selectedSessionId 一有值即收，返回列表即回）。
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if selectedSessionId == nil {
-                ModeTabBar(tabMode: .local)
+                ModeTabBar(tabMode: .local, onSearchTapped: { showsSearch = true })
             }
         }
     }
@@ -2371,7 +2374,9 @@ struct ContentView: View {
             // 系统栏与藏显机制整体退役（见 RootModeTabsView / ModeTabBar 头注）。
             // [去嵌套 2026-09-30] 壳拆后「栈」= 容器栈：栏仍挂本树 root 内容底边、
             // push 仍从容器栈整页盖住含栏——语义逐字不变，只是宿主换人。
-            .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .local) }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                ModeTabBar(tabMode: .local, onSearchTapped: { showsSearch = true })
+            }
             // [TG-TABBAR-FIX 2026-09-30 pp 装机] 键盘豁免·权威挂点：栏的落位由
             // **被 safeAreaInset 修饰的整链**的安全区决定，豁免必须包在 inset
             // 外侧（子树安全区剔除键盘区）；挂在栏内部（ModeTabBar.body）实测
@@ -3763,12 +3768,17 @@ struct ContentView: View {
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
-            // [SEARCH-TOPRIGHT] pp 2026-09-26「搜索放右上角」：声明在最前 = 最右侧。
-            // 多选时隐藏（与 ⋯ 菜单同规则）。
+            // [SEARCH-SWAP 2026-10-01 pp「搜索 ⇄ 新会话 互换位置」] 本位原是 🔍
+            // （搜索已迁底栏玻璃圆钮，见各 ModeTabBar 挂载点的 onSearchTapped），
+            // 现为 ＋ 新会话，声明顺序不动（仍在最前 = 最右侧，与 alarm / ⋯ 的相
+            // 对位置一字未变）。多选时隐藏（规则随本位平移，与 ⋯ 菜单同）。
+            // 动作接 QuickActionRouter 单通道（与 ModeTabBar 原 ＋ 圆钮同款入口，
+            // postNewChat → ContentView 的 newChatTrigger 观察者 → 新建本机会话
+            // 并归位本机树）；本机树无连接/登录前置，恒显示（同原 🔍）。
             if !isSelecting {
-                SearchToolbarButton(showsSearch: $showsSearch)
-                // [TINT-FIX2] 盖住 AccentColor 蓝。
-                .tint(.primary)
+                NewSessionToolbarButton {
+                    QuickActionRouter.shared.requestNewChat()
+                }
             }
         }
         ToolbarItem(placement: .topBarTrailing) {

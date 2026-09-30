@@ -6,7 +6,8 @@
 // `NavigationStack(path: $containerNav.path)`）承载。拆壳原因（build 438 装机实锤）：
 // 树内层栈嵌在外层容器栈里时不渲染自己的导航栏，内层 toolbar 按钮上浮到容器栏，
 // 而容器栏当时被 root 的 `.toolbar(.hidden)` 吸走 → 远端线顶栏全灭。全 App 收成
-// 一层栈后：容器栏 = 唯一顶栏宿主，本壳的 ≡ / 🔍 按 `RootTabRouter.shared.mode`
+// 一层栈后：容器栏 = 唯一顶栏宿主，本壳的 ≡ / ＋（[SEARCH-SWAP 2026-10-01] 原为
+// ≡ / 🔍，搜索已迁底栏）按 `RootTabRouter.shared.mode`
 // 门控挂在这里（见 body），树内深页（聊天 / 设备详情）push 全部改走容器栈
 // `ContainerNav.shared.pushChat(_:)`。
 //
@@ -24,7 +25,9 @@ struct RemoteRootView: View {
     @ObservedObject private var tabRouter = RootTabRouter.shared
 
     @State private var pendingNotices = 0
-    /// 右上角 🔍（pp 2026-09-26「搜索放右上角」）：sheet 出搜索占位页。
+    /// 搜索占位 sheet 的开关。[SEARCH-SWAP 2026-10-01 pp「搜索 ⇄ 新会话 互换
+    /// 位置」] 写入方从顶栏 🔍 换成底栏 ModeTabBar 的玻璃圆钮（onSearchTapped，
+    /// 见 body 的 safeAreaInset）；sheet 本身与呈现位置未动。
     @State private var showsSearch = false
     /// 官方 RootView.swift:52 的全局染色数据源（黑/白自适应）。
     @Environment(\.colorScheme) private var colorScheme
@@ -45,7 +48,9 @@ struct RemoteRootView: View {
             // 「挂点纪律」。
             // [TG-TABBAR 2026-09-30] 自绘栏挂 root 页底边——远端线的
             // 二级页（会话聊天/设备详情）从容器栈 push 时整页覆盖含栏。
-            .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .remote) }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                ModeTabBar(tabMode: .remote, onSearchTapped: { showsSearch = true })
+            }
             // [TG-TABBAR-FIX 2026-09-30] 键盘豁免·权威挂点（原理与勿动理由见
             // ContentView.stackLayout 同款注释）：豁免须包在 inset 外侧。
             .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -56,7 +61,8 @@ struct RemoteRootView: View {
             .toolbar {
                 // [去嵌套 2026-09-30] chrome 门控：三棵树的 root 内容在容器栈的
                 // ZStack 里同时活着（保活切页），而顶层栏是**唯一**一根——不门控
-                // 三树的 ≡ / 🔍 / ⋯ 会一起出现在同一根栏里（串台）。判据 = 当前树。
+                // 三树的 ≡ / ＋（原 🔍）/ ⋯ 会一起出现在同一根栏里（串台）。判据 =
+                // 当前树。
                 if tabRouter.mode == .remote {
                     // [TABLER-ICONS] 与本机页左上角一致的设置入口（Tabler menu 两横，
                     // 走 tabRouter.showSettings，sheet 由壳层呈现）。
@@ -73,11 +79,27 @@ struct RemoteRootView: View {
                         .tint(.primary)
                         .accessibilityLabel(Text(String(localized: "Settings")))
                     }
-                    // [SEARCH-TOPRIGHT] pp 2026-09-26「搜索放右上角」。
-                    ToolbarItem(placement: .topBarTrailing) {
-                        SearchToolbarButton(showsSearch: $showsSearch)
-                        // [TINT-FIX2] 盖住 AccentColor 蓝。
-                        .tint(.primary)
+                    // [SEARCH-SWAP 2026-10-01 pp「搜索 ⇄ 新会话 互换位置」] 本位
+                    // 原是 🔍（搜索已迁底栏玻璃圆钮，见上 safeAreaInset 的
+                    // onSearchTapped），现为 ＋ 新建远端会话，声明顺序不动。
+                    // 显示条件 = 已登录/已连接（service.state == .ready）：新会话页
+                    // 及其创建链路（services → repository）只在组合根就绪时存在，
+                    // 非就绪态给出按钮 = 点了没反应，故直接不渲染（同 pairingPending
+                    // 态整片无远端 chrome 的既有处理）。
+                    // 动作复用远端已有的「开新会话页」单通道 `onReturnToNewSession`
+                    //（官方 onSelectPage(.newSession) 的本仓等价物，由
+                    // RemoteSessionListView.registerRootChannels 在 .ready 时注册
+                    // ——注册条件与本按钮显示条件同值，故显示即可点）。该闭包持有
+                    // 常驻列表页自身：栈顶不是 .remoteTreeChat 时不 pop，只开
+                    // fullScreenCover(RemoteNewSessionView)，创建成功后的「刷新列表 +
+                    // 关 cover 后 push 聊天页」时序沿用原链路（pendingChatSessionId），
+                    // 不在本壳复刻、不阉割。
+                    if service.state == .ready {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            NewSessionToolbarButton {
+                                service.chat?.onReturnToNewSession?()
+                            }
+                        }
                     }
                 }
             }

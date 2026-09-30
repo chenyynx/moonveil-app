@@ -54,7 +54,9 @@ struct WorksListView: View {
     @State private var scanToken = UUID()
     /// 复用 MessageImageGallery 的呈现载荷（同文件已定义，memberwise init 可用）。
     @State private var gallery: GalleryPresentation?
-    /// 右上角 🔍（pp 2026-09-26「搜索放右上角」）：sheet 出搜索占位页。
+    /// 搜索占位 sheet 的开关。[SEARCH-SWAP 2026-10-01 pp「搜索 ⇄ 新会话 互换
+    /// 位置」] 写入方从顶栏 🔍 换成底栏 ModeTabBar 的玻璃圆钮（onSearchTapped，
+    /// 见 body 的 safeAreaInset）；sheet 本身与呈现位置未动。
     @State private var showsSearch = false
     /// 身份胶囊 → 资料页。
     @State private var showsSoulProfile = false
@@ -84,7 +86,9 @@ struct WorksListView: View {
         // 动画变换，勿挂回本层。详见 RootModeTabsView 末尾 TreeSwitchZoom
         // 「挂点纪律」。
         // [TG-TABBAR 2026-09-30] 自绘栏挂 root 内容底边（push 整页覆盖含栏）。
-        .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .works) }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            ModeTabBar(tabMode: .works, onSearchTapped: { showsSearch = true })
+        }
         // [TG-TABBAR-FIX 2026-09-30] 键盘豁免·权威挂点（原理与勿动理由见
         // ContentView.stackLayout 同款注释）：豁免须包在 inset 外侧。
         .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -110,10 +114,11 @@ struct WorksListView: View {
                         }
                     )
                 }
-                // [SEARCH-TOPRIGHT] pp 2026-09-26「搜索放右上角」。
-                ToolbarItem(placement: .topBarTrailing) {
-                    SearchToolbarButton(showsSearch: $showsSearch)
-                }
+                // [SEARCH-SWAP 2026-10-01 pp「搜索 ⇄ 新会话 互换位置」] 本位原是
+                // 🔍（pp 2026-09-26「搜索放右上角」）。搜索已迁底栏 ModeTabBar 的
+                // 玻璃圆钮（onSearchTapped，见上 safeAreaInset），顶栏右侧因此空出；
+                // 构件树按任务书**不加 ＋**（无本树会话可新建），故此处不再声明
+                // topBarTrailing 项——principal 胶囊与其它顶栏件的相对位置不变。
             }
         }
         // [MUSE-GLASS-BG 2026-09-27] 跟本机页同理：导航栏底用简单半透明
