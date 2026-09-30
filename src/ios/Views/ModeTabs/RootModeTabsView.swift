@@ -202,7 +202,14 @@ struct RootModeTabsView: View {
             }
         }
         .onChange(of: router.mode) { old, new in
-            mountedModes.insert(new)   // [TG-TABBAR] 保活表记账（访问过不卸载）
+            // [切页帧去噪 2026-10-01] 仅在真的新增挂载时写 @State：原写法每次切树
+            // （含 local↔remote 这类「早就挂过」的切换）都无条件 insert，@State 写入
+            // 即产生一次无条件失效 → 切页窗内多一整轮根视图求值（ZStack ×3 子树
+            // 全部重算），恰好压在进场树布局收敛的窗口上。语义不变（保活表仍是
+            // 「访问过不卸载」），只是把恒等写去掉。
+            if !mountedModes.contains(new) {
+                mountedModes.insert(new)   // [TG-TABBAR] 保活表记账（访问过不卸载）
+            }
             NavTrace.log("MODE \(old)→\(new) trig=\(NavTrace.trigger)+\(NavTrace.age)")
             // [R5 审查修订 P4 · D5 延后决定] 不变式：栏可见 ⇔ 容器栈为空——自洽
             // 于「用户点栏时 path 恒空」（栏被 push 盖住时点不到栏）；**不能**在
@@ -338,6 +345,18 @@ struct RootModeTabsView: View {
     /// connected / WorksListView.content 的四个叶子），使求值链零动画变换。
     /// 缩放量本身极小（3pt 级，导航栏本就不缩，差异 <0.5px，接受）。
     /// 未采用的备选：geometryGroup（把缩放隔离进独立渲染层）/ 拆溶解窗口。
+    /// [进场树 insets 迟到 2026-10-01 · cc · build 444] v3 换挂点**没治好**这一条：
+    /// 进场树在 mode 落定 **+43ms**（onChange 触发的同一轮 body 里 opacity 已翻 1）
+    /// 就被点亮，而它的底部留白（[SCROLL] root-list bot）要 **+134~210ms** 才从 0
+    /// 收敛到 98、顶部边距（[LISTFRAME] y 0↔114）同一窗内翻转 → 用户可见「先底后
+    /// 弹升」。顶部那对翻转是**自相消**的（frame 0 + contentMargins 171 ⇄ frame 114
+    /// + margin 0，行首落点相同，不可见），真正露馅的只有底部那条链。
+    /// 本文件侧已做的最小修复见 TreeSwitchZoom [切页弹簧撤销]（缩放硬切）+ onChange
+    /// 里恒等 @State 写的去噪。**残留部分不在本文件**：底部链的活件是三处
+    /// `safeAreaInset(栏)` 里的 ModeTabBar（切树时透镜岛被重建，见
+    /// TGLensHost.swift:200「SwiftUI 在切树时会重建」），spec D10 已定案改静态占位；
+    /// 另 RootTabRouter.previousMode 是只写属性却在每次切页 +120ms 发一次
+    /// objectWillChange（详见交卷报告 §③）。这两项落地前，本条只能算缓解。
     @ViewBuilder
     private func tabTree(_ mode: AppSourceMode) -> some View {
         let isCurrent = router.mode == mode
@@ -496,14 +515,34 @@ struct TreeSwitchZoom: ViewModifier {
         return (height - 3.0) / height
     }
 
-    // [切页高度弹升修复 2026-10-01] 缩放改由本地 @State 显式驱动（withAnimation
-    // 只包 scale 这一个赋值）：此前 `.animation(spring, value: router.mode)` 挂在
-    // 本视图上，其作用域 = 整棵 stackList 子树——mode 翻转事务里**任何**子树 diff
-    // （顶栏门控 / displayMode / 边距重算…）都会被这个 0.15s 弹簧一并动画化 =
-    // 切页时列表内容可见的"弹"（pp 实锤「先底后弹升，每切一次」）。改后用显式
-    // withAnimation 事务（只覆盖闭包内变更 = scale 本身），其余 diff 回到树级
-    // .animation(nil) 硬切。挂点位置与缩放量均未动，430/431 安全区判例与挂点
-    // 纪律不受影响。
+    // [切页高度弹升修复 2026-10-01] 缩放改由本地 @State 显式驱动：此前
+    // `.animation(spring, value: router.mode)` 挂在本视图上，其作用域 = 整棵
+    // stackList 子树——mode 翻转事务里**任何**子树 diff（顶栏门控 / displayMode /
+    // 边距重算…）都会被这个 0.15s 弹簧一并动画化 = 切页时列表内容可见的"弹"
+    // （pp 实锤「先底后弹升，每切一次」）。
+    //
+    // 🔴 [切页弹簧撤销 2026-10-01 · cc · build 444 装机日志实锤] 上条修复只**收窄了
+    // 动画作用域、没去掉动画**，症状照旧。444 日志逐切页读数（时间轴以 mode 落定为 0）：
+    //   +0ms   tap 写 router.mode（BINDING set=…）
+    //   +43ms  RootModeTabsView.onChange 触发（[NAV] MODE old→new）＝**进场树此刻
+    //          被点亮**（`.opacity(isCurrent ? 1 : 0)` 在此前的 body 求值里已翻成 1）
+    //   +78ms  [SCROLL] root-list bot = 98（离场树那一侧的瞬时读数）
+    //   +134ms [LISTFRAME] root-list y 由 0 跳到 113（本机树 hidden→visible 的
+    //          顶部链翻转）/ [SCROLL] bot 又回 0 ← **可见的「先底后弹升」就在这段**
+    //   +301ms 全部收敛（y=114 h=638.5）
+    // 收敛窗（≈134~210ms）与本弹簧同窗（0.15s）；两代挂点的病征时长几乎不变：
+    // v2 挂点 214ms（build 431 装机日志）、v3 挂点本包实测 ≈209ms——**挂点换了两轮、
+    // 时长没动**，说明变量不是「挂在链上多深」，而是「链在动」。
+    // 结论（实测 + 推断各半）：在这条 safe-area 求值链里**不能同时存在在飞的变换
+    // 动画**；缩放降层（v2→v3）压住了 430 的 98↔64 瞬跳，压不住本轮 insets 迟到。
+    // 修法取最小面：**切页事务里缩放硬切（不播弹簧）**。缩放量 =(视图高−3)/视图高
+    // ≈ 0.9965（3pt；本文件头原注已量「视觉差异 <0.5px」）→ 去掉弹簧后观感无损；
+    // 「非当前树按起点缩放预缩、当值树恒 1」的状态语义一字未动，挂点位置未动，
+    // 430/431 判例与 v3 挂点纪律全部不受影响。
+    // ⚠️ 想把弹簧加回来的前置条件（不在本文件）：缩放须离开 safe-area 求值链
+    // （spec D10：三处 safeAreaInset 改静态占位、栏改 overlay 绘制），或用
+    // `.compositingGroup()` 把变换隔离进独立渲染层（本文件头注「未采用的备选」之一，
+    // 需先评估大列表离屏合成开销）。
     @State private var scale: CGFloat = 1.0
 
     private var targetScale: CGFloat {
@@ -516,20 +555,14 @@ struct TreeSwitchZoom: ViewModifier {
             .scaleEffect(scale)
             .onAppear { scale = targetScale }
             .onChange(of: router.mode) { _, _ in
-                // TG :319-321：新页 0.15s 弹簧（v2 已撤延迟段，见下）。旧页曲线
-                // 近似沿革见 git 历史。宽屏不播（nil）。
-                withAnimation(horizontalSizeClass == .regular ? nil : Self.switchScaleAnimation) {
-                    scale = targetScale
-                }
+                // 硬切，不播弹簧（理由见 @State 上方 [切页弹簧撤销] 注释）。
+                // 宽屏 regular 恒 1，本就无动画可播。
+                scale = targetScale
             }
             .onChange(of: horizontalSizeClass) { _, _ in
-                withAnimation(nil) { scale = targetScale }
+                scale = targetScale
             }
     }
-
-    // [收口包 v2 2026-09-30 深夜] .delay(0.1)（TG :319-321 的延迟段）移除——pp 装机
-    // 反馈切页延迟感；3pt 缩量本就不可辨，延迟只造成挫顿。弹簧曲线本身保留。
-    private static let switchScaleAnimation: Animation = .spring(response: 0.15, dampingFraction: 1.0)
 }
 
 extension View {
