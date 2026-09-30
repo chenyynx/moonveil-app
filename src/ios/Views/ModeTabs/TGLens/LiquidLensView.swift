@@ -356,10 +356,10 @@ public final class LiquidLensView: UIView {
         lensView.layer.removeAnimation(forKey: Self.lensStretchAnimationKey)
         let referenceWidth = lensView.bounds.width
         if scaleX <= 1.0001 {
-            lensView.transform = CATransform3DIdentity
+            lensView.layer.transform = CATransform3DIdentity
             return
         }
-        lensView.transform = self.lensStretchTransform(
+        lensView.layer.transform = self.lensStretchTransform(
             scaleX: scaleX, referenceWidth: referenceWidth, leadingIsAnchor: leadingIsAnchor
         )
         // [探针 v4 2026-10-01] 拉伸只在「形变量真的动了」时打点（拖拽逐帧不刷屏）。
@@ -368,7 +368,7 @@ public final class LiquidLensView: UIView {
         let previous = self.lastStretchProbe
         if abs(previous - scaleX) > 0.05 {
             self.lastStretchProbe = scaleX
-            NavTrace.log("[LENS-GEO\(self.instanceTag)] w=\(String(format: "%.1f", referenceWidth)) sx=\(String(format: "%.3f", scaleX)) m11=\(String(format: "%.3f", lensView.transform.m11))")
+            NavTrace.log("[LENS-GEO\(self.instanceTag)] w=\(String(format: "%.1f", referenceWidth)) sx=\(String(format: "%.3f", scaleX)) m11=\(String(format: "%.3f", lensView.layer.transform.m11))")
         }
     }
 
@@ -398,7 +398,7 @@ public final class LiquidLensView: UIView {
         animation.isRemovedOnCompletion = true
         // 模型层即刻归位：拉伸是「只在飞行途中存在」的观感，落位必须回到恒等变换，
         // 否则下一次 setBounds/命中计算会被 model transform 污染。
-        lensView.transform = CATransform3DIdentity
+        lensView.layer.transform = CATransform3DIdentity
         lensView.layer.add(animation, forKey: Self.lensStretchAnimationKey)
         // [探针 v4 2026-10-01] 每次回弹一条（每手势 ≤ 1 条，噪声可控）。
         NavTrace.log("[LENS-GEO\(self.instanceTag)] w=\(String(format: "%.1f", referenceWidth)) sx=\(String(format: "%.3f", fromScaleX)) → 1.000")
@@ -525,7 +525,7 @@ public final class LiquidLensView: UIView {
             // 现改为按键排除法：**保留 "position" 与本仓的拉伸键**，其余（陈旧的
             // bounds/transform 等）照旧清掉。position 主弹簧由下方 setPosition 按
             // 在途 presentation 续接（Transition.swift:445-455），不会跳变。
-            for key in lensView.layer.animationKeys() where key != "position" && key != Self.lensStretchAnimationKey {
+            for key in lensView.layer.animationKeys() ?? [] where key != "position" && key != Self.lensStretchAnimationKey {
                 lensView.layer.removeAnimation(forKey: key)
             }
             lensView.bounds = lensBounds
