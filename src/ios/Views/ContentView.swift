@@ -928,6 +928,84 @@ private func probeRowHeight(_ h: CGFloat, _ tag: String) {
 }
 #endif
 
+// [列表探针 v2 2026-10-01] Release 常开的列表侧定层探针——「列表会话卡片高度还在
+// 变 / 画面高度先底后弹升」判读用。⚠️ 教训：上一轮同类探针写在 #if DEBUG 内
+// （Release 包 = 死代码，判读为空）——凡承诺「已内置」的探针，必须在最终产物同构
+// 配置下自查存在性。只在值真变时打（低噪）；判读后随批删。
+private let rowHeightProbeV2Lock = NSLock()
+nonisolated(unsafe) private var rowHeightProbeV2Last: [String: CGFloat] = [:]
+private func probeRowHeightV2(_ id: String, _ h: CGFloat) {
+    guard h > 1, h.isFinite else { return }
+    let hq: CGFloat = (h * 2).rounded() / 2
+    rowHeightProbeV2Lock.lock()
+    let last = rowHeightProbeV2Last[id]
+    let changed: Bool
+    if let last {
+        changed = abs(last - hq) > 0.5
+    } else {
+        changed = true
+    }
+    if changed { rowHeightProbeV2Last[id] = hq }
+    rowHeightProbeV2Lock.unlock()
+    guard changed else { return }
+    let lastStr: String
+    if let last { lastStr = String(format: "%.1f", last) } else { lastStr = "nil" }
+    NavTrace.log("[ROWH] \(id.prefix(8)) \(lastStr) → \(String(format: "%.1f", h))")
+}
+
+/// [列表探针 v2] 滚动几何（offset / contentInsets）变化——「先底后弹升」定层。
+/// 节流：y 离上次已打点值 ≥4pt 或 insets 变化才落日志（防滚动刷屏；弹跳/跳变的
+/// 轨迹仍按 4pt 步进完整留痕）。
+private struct ListScrollProbeV2: ViewModifier {
+    let tag: String
+    private struct Metrics: Equatable {
+        var y: CGFloat
+        var top: CGFloat
+        var bottom: CGFloat
+    }
+    @State private var lastLoggedY: CGFloat = .nan
+    @State private var lastLoggedTop: CGFloat = .nan
+    @State private var lastLoggedBottom: CGFloat = .nan
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) {
+            content.onScrollGeometryChange(for: Metrics.self) { geo in
+                Metrics(
+                    y: (geo.contentOffset.y * 2).rounded() / 2,
+                    top: (geo.contentInsets.top * 2).rounded() / 2,
+                    bottom: (geo.contentInsets.bottom * 2).rounded() / 2
+                )
+            } action: { _, new in
+                let insetsChanged = new.top != lastLoggedTop || new.bottom != lastLoggedBottom
+                let yChanged = lastLoggedY.isNaN || abs(new.y - lastLoggedY) >= 4
+                guard insetsChanged || yChanged else { return }
+                lastLoggedY = new.y
+                lastLoggedTop = new.top
+                lastLoggedBottom = new.bottom
+                NavTrace.log("[SCROLL] \(tag) y=\(new.y) top=\(new.top) bot=\(new.bottom)")
+            }
+        } else {
+            content
+        }
+    }
+}
+
+/// [列表探针 v2] 列表外框（全局坐标 y/h）变化——「画面高度在变」定层。
+private struct ListFrameProbeV2: ViewModifier {
+    let tag: String
+    @State private var lastY: CGFloat = .nan
+    @State private var lastH: CGFloat = .nan
+    func body(content: Content) -> some View {
+        content.onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { r in
+            let qy: CGFloat = (r.minY * 2).rounded() / 2
+            let qh: CGFloat = (r.height * 2).rounded() / 2
+            guard qy != lastY || qh != lastH else { return }
+            lastY = qy
+            lastH = qh
+            NavTrace.log("[LISTFRAME] \(tag) y=\(qy) h=\(qh)")
+        }
+    }
+}
+
 /// Sheets triggered from the toolbar menu, consolidated into a single `.sheet(item:)`.
 enum ToolSheet: String, Identifiable {
     case settings
@@ -2965,6 +3043,9 @@ struct ContentView: View {
         .onGeometryChange(for: CGFloat.self, of: { $0.safeAreaInsets.top }) { top in
             let candidate = top + 6
             if candidate > frozenTopContentMargin {
+                // [列表探针 v2 2026-10-01] 顶部冻结边距抬升打点（只增不减——若切页
+                // 期间出现抬升，即为「每切一次都变」的机制候选之一）。判读后删。
+                NavTrace.log("[TOPMARGIN] \(String(format: "%.1f", frozenTopContentMargin)) → \(String(format: "%.1f", candidate))")
                 frozenTopContentMargin = candidate
             }
         }
@@ -3099,6 +3180,10 @@ struct ContentView: View {
 
         }
         .listStyle(.plain)
+        // [列表探针 v2 2026-10-01] 滚动几何 + 列表外框（Release 常开；零变换修饰符，
+        // 符合缩放挂点纪律「链上只许留探针/几何采样」）。判读后随批删。
+        .modifier(ListScrollProbeV2(tag: "root-list"))
+        .modifier(ListFrameProbeV2(tag: "root-list"))
         #if DEBUG
         // TEMPORARY scroll-phase markers to bracket the jitter window in the
         // log. Pair with the [ROWH] probe: a [ROWH] line appearing during
@@ -6527,6 +6612,10 @@ private struct SessionRow: View, Equatable {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .contentShape(Rectangle())
+        // [列表探针 v2 2026-10-01] 会话行高变化打点（Release 常开；>0.5pt 才打）。
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { h in
+            probeRowHeightV2(session.id, h)
+        }
         #if DEBUG
         // TEMPORARY height probe — confirms List self-sizing jitter source.
         // PreferenceKey fires on every real layout (incl. the self-size

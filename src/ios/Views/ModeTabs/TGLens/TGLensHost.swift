@@ -82,7 +82,7 @@ struct TGLensBar: UIViewRepresentable {
         view.onSettings = onSettings
         view.ownSlot = ownSlot
         // [探针 2026-10-01] 渲染路径判定：岛已创建（「硬落点」定位；判读后可删）。
-        NavTrace.log("[LENS] island-created ownSlot=\(ownSlot)")
+        NavTrace.log("[LENS#\(view.instanceId)] island-created ownSlot=\(ownSlot)")
         return view
     }
 
@@ -101,6 +101,12 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     var onSettings: (() -> Void)?
     /// 本岛所属 tab 树的槽位序（0=local/1=remote/2=works）。见 TGLensBar.ownSlot。
     var ownSlot: Int = 0
+
+    /// [硬落点修复 v3 2026-10-01] 实例编号（日志身份；岛会被反复重建，无编号时日志
+    /// 无法把事件归到具体实例——上一轮判读的教训）。纯日志用途，无行为；判读后与
+    /// 探针一并删。
+    private static var instanceCounter = 0
+    private(set) var instanceId: Int = 0
 
     /// [提交交接 2026-09-30] 「每树一栏 + ZStack 瞬切」架构的桥：跨树提交时可见栏
     /// 瞬切，出发岛的 .ended 把「松手瞬间透镜的可见位」寄存于此，目标树的岛在紧随
@@ -159,9 +165,28 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     private var interactionStartFingerX: CGFloat = 0
     /// [第 4 格·设置齿轮] 按住在齿轮上（动作位不进透镜手势；见 handleSelectionGesture）。
     private var gearPressActive = false
-    /// [硬落点修复 2026-10-01] 延迟簧在途标记：apply 落位后登记、簧起播时清除；
-    /// layoutSubviews 本轮跳过即时推动作（对抗审建议的低成本保险）。
-    private var deferredSpringPending = false
+    /// [硬落点修复 v3 2026-10-01] 跨树复播收口：apply 消费/兜底时登记「起点 + 光晕槽 +
+    /// 图标交接值」，由 runPendingReplay() 两段式执行（段 1 = 瞬时落位 + 图标续实数；
+    /// 段 2 = 次 tick 起簧到提交槽）。旧实现（内联落位 + 一 tick 后补簧）在岛刚创建、
+    /// bounds 未就绪时会把两段拆散吞掉（上一轮日志实锤的事故形态之一）；v3 起对
+    /// bounds 时序免疫：就绪即跑，未就绪由 layoutSubviews/async 补驱。
+    private struct PendingReplay {
+        var startX: CGFloat
+        var glowSlot: Int?
+        var iconOverride: (Int, CGFloat)?
+        /// 段 1 已执行标记（等段 2 起簧）。
+        var placed: Bool = false
+    }
+    private var pendingReplay: PendingReplay?
+
+    /// [硬落点修复 v3 2026-10-01] 推去重键（目标位/抬升态/岛尺寸；见 pushLens）。
+    private struct PushKey: Equatable {
+        var x: CGFloat
+        var lifted: Bool
+        var width: CGFloat
+        var height: CGFloat
+    }
+    private var lastPushKey: PushKey?
 
     private static var tabImageCache: [String: UIImage] = [:]
     private static func tabImage(_ asset: String) -> UIImage {
@@ -178,6 +203,9 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
 
     init() {
         super.init(frame: .zero)
+        Self.instanceCounter += 1
+        instanceId = Self.instanceCounter
+        lens.instanceTag = "#\(instanceId)"
         lens.frame = bounds
         lens.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         addSubview(lens)
@@ -260,10 +288,47 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         )
         settingsNormal.frame = settingsFrame
         settingsSelected.frame = settingsFrame
-        // [硬落点修复 2026-10-01] 延迟簧在途时跳过即时推（防把在途滑动打回硬落点；
-        // 簧起播会带上当前几何，本轮跳过无副作用）。
-        if !deferredSpringPending {
+        // [硬落点修复 v3 2026-10-01] 复播在途 → 由本次布局驱动收口（bounds 现已
+        // 就绪）；否则维持即时推（pushLens 内部同参去重，重复推不再杀在途弹簧）。
+        if pendingReplay != nil {
+            runPendingReplay()
+        } else {
             pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: false)
+        }
+    }
+
+    /// [硬落点修复 v3 2026-10-01] 复播两段式收口（见 PendingReplay 注释）：
+    /// 段 1 = 瞬时落位（旧岛松手位/兜底起点，无动画）+ 图标续实数；段 2 = 次 tick
+    /// 起簧（目标 = 提交槽；pushLens 去重保证与落位同参时不会重复下发）。bounds 未
+    /// 就绪则原样保留，等 layoutSubviews（或下一次 apply 复播）再驱。幂等：任一
+    /// 调度源先到者执行、后到者 guard 空转。
+    private func runPendingReplay() {
+        guard var replay = pendingReplay else { return }
+        let width = bounds.width
+        let height = bounds.height
+        guard width > 0, height > 0 else { return }
+        if !replay.placed {
+            // 段 1：落位 + 图标交接值（图标须在落位 pushLens 的图标循环之后写，
+            // 否则被其 1.0/1.15 目标覆盖）。
+            replay.placed = true
+            pendingReplay = replay
+            // [探针 v2 2026-10-01] 复播落位打点（「硬落点」判读；判读后可删）。
+            let probeX = String(format: "%.1f", replay.startX)
+            NavTrace.log("[LENS#\(instanceId)] replay place x=\(probeX) glow=\(replay.glowSlot != nil)")
+            pushLens(pressed: replay.glowSlot, lensX: replay.startX, animated: false)
+            if let iconOverride = replay.iconOverride {
+                selectedIcons[iconOverride.0].transform = CGAffineTransform(
+                    scaleX: iconOverride.1, y: iconOverride.1
+                )
+            }
+            // 段 2：次 tick 起簧（等段 1 的这一帧提交后，与树硬切首帧渲染错开）。
+            DispatchQueue.main.async { [weak self] in
+                self?.runPendingReplay()
+            }
+        } else {
+            // 段 2：起簧到提交槽。
+            pendingReplay = nil
+            pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: true)
         }
     }
 
@@ -297,7 +362,7 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                CACurrentMediaTime() - handoff.at <= 0.5 {
                 Self.commitHandoff = nil
                 // [探针 2026-10-01] 交接消费打点（「硬落点」定位；判读后可删）。
-                NavTrace.log("[LENS] consume own=\(ownSlot) from=\(handoff.fromSlot) x=\(String(format: "%.1f", handoff.x)) iScale=\(String(format: "%.3f", handoff.iconScale))")
+                NavTrace.log("[LENS#\(instanceId)] consume own=\(ownSlot) from=\(handoff.fromSlot) x=\(String(format: "%.1f", handoff.x)) iScale=\(String(format: "%.3f", handoff.iconScale))")
                 // [交接续实数 v3 2026-09-30] 交接从「快照补满」改为「续真实进度」。
                 // 旧实现在此一步把透镜补到满态（isLifted 拉缩 + 光晕，图标 1.15），
                 // 而出发栏松手时弹簧通常只走到中途（快点按约半程）——补满那一步
@@ -313,8 +378,8 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                 // 从 1.0 走到 1.15 约 0.3s）。够久 = 图标本已接近满态，维持今天带
                 // 光晕的交接；不够久 = 快速点击，光晕此刻炸开比图标更突兀，故不吃
                 // lift。阈值可按装机反馈微调（只动这一个数）。
-                // [硬落点修复 2026-10-01] 消费成功：只登记起点/光晕/图标交接值，
-                // 落位与起簧走下方统一路径（起点同帧落位 → 簧推迟一拍再起）。
+                // [硬落点修复 v3 2026-10-01] 消费成功：只登记起点/光晕/图标交接值，
+                // 落位与起簧走下方 runPendingReplay 两段式收口（对 bounds 时序免疫）。
                 startX = handoff.x
                 if handoff.iconScale > 1.08 { glowSlot = handoff.slot }
                 iconOverride = (handoff.slot, handoff.iconScale)
@@ -333,31 +398,20 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                     probeH = "nil"
                 }
                 let probeFX = String(format: "%.1f", fallbackX)
-                NavTrace.log("[LENS] NO-CONSUME own=\(ownSlot) h=\(probeH) pressed=\(interactionPressed != nil) gear=\(gearPressActive) fallbackX=\(probeFX)")
+                NavTrace.log("[LENS#\(instanceId)] NO-CONSUME own=\(ownSlot) h=\(probeH) pressed=\(interactionPressed != nil) gear=\(gearPressActive) fallbackX=\(probeFX)")
             }
             if let startX {
-                // [硬落点修复 2026-10-01] 跨树续滑健壮化：起点同帧落位（硬切首帧
-                // 不再跳）→ 簧推迟一拍（DispatchQueue.main.async）再起播——确保在
-                // 树切换硬切首帧渲染之后才起簧，不受切页事务/渲染时序干扰
-                // （pp 实锤「点击切换硬落点、没有流体滑动」的修复点）。图标交接
-                // 值须在落位 pushLens 的图标循环之后写（否则被其 1.0/1.15 目标
-                // 覆盖）；延迟簧再从该值弹回 1.0（续实数语义不变）。
-                let hadBounds = bounds.width > 0 && bounds.height > 0
-                pushLens(pressed: glowSlot, lensX: startX, animated: false)
-                if let iconOverride {
-                    selectedIcons[iconOverride.0].transform = CGAffineTransform(
-                        scaleX: iconOverride.1, y: iconOverride.1
-                    )
-                }
-                // [对抗审 2026-10-01 保险] 延迟簧在途标记：layoutSubviews 本轮跳过
-                // 即时推，防把在途滑动打回硬落点（切页时岛 bounds 不变、本不应触发，
-                // 此为低成本兜底）。首挂载（apply 时 bounds 未就绪）→ 无在途可视
-                // 滑动可言，直接落位不播簧（避免从初始 (0,0) 起簧的角落滑入）。
-                deferredSpringPending = true
+                // [硬落点修复 v3 2026-10-01] 复播收口：登记起点/光晕/图标交接值 →
+                // 走 runPendingReplay 两段式（段 1 同帧落位——与树硬切同事务、首帧
+                // 无缝；段 2 次 tick 起簧到提交槽）。旧实现（内联落位 + 无条件补簧
+                // + deferredSpringPending 保险）在岛刚创建、bounds 未就绪时会把
+                // 落位/弹簧拆散吞掉——上一轮日志实锤的事故形态；v3 起对 bounds 时序
+                // 免疫。bounds 未就绪时 runPendingReplay 原样保留，下面这枚 async 与
+                // layoutSubviews 双驱（幂等，先到者执行）。
+                pendingReplay = PendingReplay(startX: startX, glowSlot: glowSlot, iconOverride: iconOverride)
+                runPendingReplay()
                 DispatchQueue.main.async { [weak self] in
-                    guard let self else { return }
-                    self.deferredSpringPending = false
-                    self.pushLens(pressed: self.interactionPressed, lensX: self.interactionLensX, animated: hadBounds)
+                    self?.runPendingReplay()
                 }
             } else {
                 pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: true)
@@ -386,7 +440,7 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             interactionLensX = interactionStartLensX
             pushLens(pressed: slot, lensX: interactionStartLensX, animated: true)
             // [探针 2026-10-01] 按压打点（判读后可删）。
-            NavTrace.log("[LENS] press slot=\(slot) x0=\(String(format: "%.1f", interactionStartLensX))")
+            NavTrace.log("[LENS#\(instanceId)] press slot=\(slot) x0=\(String(format: "%.1f", interactionStartLensX))")
         case .changed:
             if gearPressActive {
                 // 齿轮按压中移回 tab 区 = 撤销本次按压（不启动透镜手势）。
@@ -425,7 +479,7 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             // 链式 map+?? 拆为显式解包（判例见 Bug 库「求解器误诊」条）。
             let probeHX: String
             if let hx = handoffX { probeHX = String(format: "%.1f", hx) } else { probeHX = "nil" }
-            NavTrace.log("[LENS] release slot=\(commitSlot) hx=\(probeHX) iScale=\(String(format: "%.3f", handoffIconScale))")
+            NavTrace.log("[LENS#\(instanceId)] release slot=\(commitSlot) hx=\(probeHX) iScale=\(String(format: "%.3f", handoffIconScale))")
             interactionPressed = nil
             interactionLensX = nil
             // [TG 对齐 :555-604] TG 先清 selectionGestureState、再以提交 item 为目标
@@ -533,9 +587,27 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             x = CGFloat(selectionIndex) * slotWidth
         }
 
+        // [硬落点修复 v3 2026-10-01] 推去重（治「tab 硬落点」病根）：与上次完全同参
+        // （目标位/抬升态/岛尺寸全同）的推不再下发——这类「目标未变」的静默重复推
+        // （layoutSubviews 每轮即推、apply 旁路推、复播后紧随的同参推）会走
+        // LiquidLensView 非抬升分支的 removeAllAnimations，把刚起播的滑动弹簧当场
+        // 杀停（上一轮日志实锤：62 条 move 动画全建了、46 次松手读数全为终值 = 动画
+        // 建后被重复推杀掉）。去重后杀链从源头消失；尺寸变化（旋转等）会使 key
+        // 变化 → 照常重算落位。
+        let pushKey = PushKey(x: x, lifted: pressed != nil, width: width, height: height)
+        if pushKey == lastPushKey {
+            // 判读用：仅「带意图的动画推」被归并才打点（静默重复推归并不打，防噪）。
+            if animated {
+                let probeSkipX = String(format: "%.1f", x)
+                NavTrace.log("[LENS#\(instanceId)] dedup-skip x=\(probeSkipX) (keeps in-flight spring)")
+            }
+            return
+        }
+        lastPushKey = pushKey
+
         // [探针 2026-10-01] 推动作与目标位（「硬落点」定位；判读后可删）。
         if animated {
-            NavTrace.log("[LENS] push→ x=\(String(format: "%.1f", x)) lifted=\(pressed != nil)")
+            NavTrace.log("[LENS#\(instanceId)] push→ x=\(String(format: "%.1f", x)) lifted=\(pressed != nil)")
         }
         lens.update(
             size: CGSize(width: width, height: height),

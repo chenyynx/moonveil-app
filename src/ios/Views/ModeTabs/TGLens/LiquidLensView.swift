@@ -9,9 +9,13 @@
 //   ③ 删 update() 内 legacy 蒙版更新块（同 ②）。
 //   ④ 追加 currentSelectionOriginXForHandoff 读取口（本仓「每树一栏 + 瞬切」架构
 //      的跨树提交交接用；上游单栏架构无此需求。见 TGLensHost.CommitHandoff 注释）。
-//   ⑤ [探针 2026-10-01] updateLens/update 内追加 [LENS-LLV] 只读打点四处（lifted
-//      切换同步态 / 位置移动前值→目标 / position 动画是否材料化 / displaylink 开关）
-//      ——「底栏点击硬落点」定位用；判读后随其它探针一并删除。
+//   ⑤ [探针 2026-10-01 · v2 同日] updateLens/update 内 [LENS-LLV] 只读打点（lifted
+//      同步态 / move 前后值 / displaylink 开关 / 卡死窗口排队 / 位置动画被清除），
+//      全部带宿主注入实例号——「底栏点击硬落点」定位用；判读后随其它探针一并删除。
+//   ⑥ [本仓适配 2026-10-01 · 沉降看门狗] lift 切换的私有 alongside 回调对 T→F 恒
+//      迟到（装机日志 44/44），迟到窗口内排队参数整段搁浅 → updateLens 的
+//      shouldScheduleUpdate 支路追加一帧看门狗强制收口（与 alongside 同款收口、
+//      幂等）。除本块外 updateLens 保持逐字搬运。
 // 内容：TG 液态透镜的本体——iOS 26 走苹果私有 _UILiquidLensView（运行时反射），
 // 驱动 resting 背景/lifted 容器/内容穿透（punchout）与升起弹跳。⚠️ 私有 API，
 // 与 TG App Store 版同款用法；见 docs/ 风险记录。
@@ -147,6 +151,11 @@ public final class LiquidLensView: UIView {
     private var pendingLensParams: LensParams?
 
     private var liftedDisplayLink: SharedDisplayLinkDriver.Link?
+
+    /// [探针 v2 2026-10-01] 宿主（TGLensHost）注入的实例编号——岛会被反复重建，
+    /// 日志无身份时无法把事件归到具体实例（上一轮判读的教训）。纯日志，无行为；
+    /// 判读后随批删。
+    var instanceTag: String = ""
 
     public var selectionOrigin: CGPoint? {
         return self.params?.selectionOrigin
@@ -317,6 +326,9 @@ public final class LiquidLensView: UIView {
         }
 
         if self.isApplyingLensParams {
+            // [探针 v2 2026-10-01] 沉降卡死窗口内的排队（v3 看门狗收口后应罕见；
+            // 判读后可删）。
+            NavTrace.log("[LENS-LLV\(instanceTag)] queued (stall window)")
             self.pendingLensParams = params
             return
         }
@@ -369,12 +381,31 @@ public final class LiquidLensView: UIView {
                 self.isApplyingLensParams = false
             } else {
                 shouldScheduleUpdate = true
+                // [本仓适配⑥ 2026-10-01 · 沉降看门狗] 上游（TG）靠私有 setLifted 的
+                // alongside 回调收口；本集成实测 T→F 的 alongside 恒迟到（装机日志
+                // 44/44，最坏秒级），迟到窗口内排队的位置更新整段搁浅（跨树复播的
+                // 滑动被吞 = pp 装机「硬落点」的次因）。看门狗 = 一帧后强制走
+                // alongside 的同一收口序列（幂等：alongside 真回调时 pendingLensParams
+                // 已空 → 其 async 块 guard 空转；先到者收口、后到者无操作）。
+                // ⚠️ 本块是本仓对移植件的唯一行为性适配；除本块外 updateLens 保持
+                // 与 TG 逐字一致。
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.isApplyingLensParams else { return }
+                    self.isApplyingLensParams = false
+                    if let pending = self.pendingLensParams {
+                        self.pendingLensParams = nil
+                        NavTrace.log("[LENS-LLV\(self.instanceTag)] watchdog-flush pending")
+                        self.updateLens(params: pending, transition: transition)
+                    } else {
+                        NavTrace.log("[LENS-LLV\(self.instanceTag)] watchdog-release no-pending")
+                    }
+                }
             }
             // [探针 2026-10-01] lifted 切换同步态 + 位置动画材料化（判读后可删；
             // 显式局部量，规避 Swift 6.0.3 求解器病理）。
             let probeFromLifted = previousParams?.isLifted == true
             let probeHasPosAnim = lensView.layer.animation(forKey: "position") != nil
-            NavTrace.log("[LENS-LLV] lifted \(probeFromLifted ? "T" : "F")→\(params.isLifted ? "T" : "F") didSync=\(didProcessUpdate) posAnim=\(probeHasPosAnim)")
+            NavTrace.log("[LENS-LLV\(instanceTag)] lifted \(probeFromLifted ? "T" : "F")→\(params.isLifted ? "T" : "F") didSync=\(didProcessUpdate) posAnim=\(probeHasPosAnim)")
         } else {
             let liftedInset: CGFloat = params.isLifted ? params.liftedInset : (-params.inset)
             let lensBounds = CGRect(origin: CGPoint(), size: CGSize(width: params.baseFrame.width + liftedInset * 2.0, height: params.baseFrame.height + liftedInset * 2.0))
@@ -392,9 +423,14 @@ public final class LiquidLensView: UIView {
             transition.animateView {
                 lensView.bounds = lensBounds
             }
-            
+
+            // [探针 v2 2026-10-01] 杀链归档：本调用是否会清掉在途位置动画（「硬落点」
+            // 的实锤位；v3 去重后应恒 false）。判读后可删。
+            let hadInFlightStroke = lensView.layer.animation(forKey: "position") != nil
+            var didRemoveAllAnimations = false
             if let info = transition.userData(TransitionInfo.self), info.disableAnimationWorkarounds {
             } else {
+                didRemoveAllAnimations = true
                 lensView.layer.removeAllAnimations()
                 lensView.bounds = lensBounds
             }
@@ -416,7 +452,7 @@ public final class LiquidLensView: UIView {
             let probePrevX = String(format: "%.1f", probePreviousPosition.x)
             let probeToX = String(format: "%.1f", lensCenter.x)
             let probePosAnim = lensView.layer.animation(forKey: "position") != nil
-            NavTrace.log("[LENS-LLV] move prev=\(probePrevX) → \(probeToX) anim=\(!transition.animation.isImmediate) posAnim=\(probePosAnim)")
+            NavTrace.log("[LENS-LLV\(instanceTag)] move prev=\(probePrevX) → \(probeToX) anim=\(!transition.animation.isImmediate) killed=\(didRemoveAllAnimations && hadInFlightStroke) posAnim=\(probePosAnim)")
 
             self.isApplyingLensParams = false
         }
@@ -488,7 +524,7 @@ public final class LiquidLensView: UIView {
         if params.isLifted {
             if self.liftedDisplayLink == nil {
                 // [探针 2026-10-01] 弹跳驱动开关（按压路径生死；判读后可删）。
-                NavTrace.log("[LENS-LLV] displaylink ON")
+                NavTrace.log("[LENS-LLV\(instanceTag)] displaylink ON")
                 self.liftedDisplayLink = SharedDisplayLinkDriver.shared.add(framesPerSecond: .max, { [weak self] _ in
                     guard let self else {
                         return
@@ -497,7 +533,7 @@ public final class LiquidLensView: UIView {
                 })
             }
         } else if let liftedDisplayLink = self.liftedDisplayLink {
-            NavTrace.log("[LENS-LLV] displaylink OFF")
+            NavTrace.log("[LENS-LLV\(instanceTag)] displaylink OFF")
             self.liftedDisplayLink = nil
             liftedDisplayLink.invalidate()
         }
