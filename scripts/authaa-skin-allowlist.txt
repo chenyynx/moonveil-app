@@ -21,12 +21,12 @@
 #          counterpart path is named in each row's reason).
 # Group B: files with no upstream counterpart at all (our own code).
 src/ios/Views/AuthAA/AppFontRegistry.swift  617d7a43bbe07e8a5e2de94cd666f9114f977a69630598694e8544635e845faf  Group A: local font table diverged from upstream App/AppFontRegistry.swift (Moonveil typeface skin)
-src/ios/Views/AuthAA/AppGlassButton.swift  eeda6fdcd3cbdf25664dc20af40c4ff8b7a83a7ad32d3bdd9b5283ab75a7398f  Group A: retro-radio glass styling diverged from upstream Views/Components/AppGlassButton.swift
-src/ios/Views/AuthAA/ManualLoginView.swift  af644b600301896a430db849810bc3db22ee8f753836ff765e7ca48483f89468  Group A: login form skin diverged from upstream Views/Auth/ManualLoginView.swift
+src/ios/Views/AuthAA/AppGlassButton.swift  f583ba0f2ed071f745229abfcc156a11edc27a20472f6107363c2839cb8d8ee7  Group A: retro-radio glass styling diverged from upstream Views/Components/AppGlassButton.swift; re-registered 2026-09-30: 1b77917 GLASS-FIX landed unregistered
+src/ios/Views/AuthAA/ManualLoginView.swift  64eed86577627bcb35f9f14fc8f60ca6bc2e083270b1bdc56ff423faa1219e21  Group A: login form skin diverged from upstream Views/Auth/ManualLoginView.swift; re-registered 2026-09-30: doris 65fbead landed unregistered
 src/ios/Views/AuthAA/PrivacyPolicySheet.swift  862a4eea1699cf59177c25d97667985a199c7a215c47701e22e2effaf622f2e0  Group A: sheet chrome + localized copy diverged from upstream Views/Settings/PrivacyPolicySheet.swift
 src/ios/Views/AuthAA/QRCodeLoginView.swift  41ae3d89a91ea9a386523eacb35f32ff011977248f60a86f985161211556776f  Group A: scanner overlay skin diverged from upstream Views/Auth/QRCodeLoginView.swift
 src/ios/Views/AuthAA/ServiceEntryView.swift  5523d3518d3cac87f08b1a1714d6599a91b0ff94e83d0e89f3215a620947f0d5  Group A: entry-card layout diverged from upstream Views/Auth/ServiceEntryView.swift
-src/ios/Views/AuthAA/SheetCloseButton.swift  fb5d46b41554ae3c441d1127fa9c53f616d39281fb2e9214621c2cb277777623  Group A: button visuals diverged from upstream Views/Components/SheetCloseButton.swift
+src/ios/Views/AuthAA/SheetCloseButton.swift  29ae68c7395760f871945acd936147b51595d6d4425cb8e277d29ed7487f843d  Group A: button visuals diverged from upstream Views/Components/SheetCloseButton.swift; re-registered 2026-09-30: muse 79a6053 landed unregistered
 src/ios/Views/SettingsSkin/AppSymbolAssets.swift  1fce6ed4ef01f10d965f1209b6939e1c29d322f511f401066754b7cd8fe0bfa9  Group A: symbol asset table diverged from upstream Views/Components/AppSymbolAssets.swift (Moonveil icon set)
 src/ios/Views/AuthAA/AuthGlassCompat.swift  c1e955b9c1227173bffc239db4c58203738a0630c0458d966b58b9c0c11e9a23  Group B: our glass-material compatibility shim, no upstream counterpart
 src/ios/Views/SettingsSkin/SettingsKit.swift  13ac77121c30cad4eb2b709573d9f9c5cd4fd810b5d4e9f8b9affb9848f82574  Group B: our settings-skin toolkit, no upstream counterpart
