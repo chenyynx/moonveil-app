@@ -625,6 +625,7 @@
 		F1S00012 /* ChatSessionIdEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1S00011 /* ChatSessionIdEnvironment.swift */; };
 		F1S00021 /* NavTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1S00020 /* NavTrace.swift */; };
 		F1S00024 /* ChatRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1S00023 /* ChatRoute.swift */; };
+		F1S00027 /* ContainerNav.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1S00026 /* ContainerNav.swift */; };
 		F1T00011 /* ToolLiveSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1T00010 /* ToolLiveSheet.swift */; };
 		F1VMCPB1 /* MCPIntegrationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP01 /* MCPIntegrationsView.swift */; };
 		F1VMCPB2 /* MCPFormSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1VMCP02 /* MCPFormSheet.swift */; };
@@ -1546,6 +1547,7 @@
 		F1S00011 /* ChatSessionIdEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSessionIdEnvironment.swift; sourceTree = "<group>"; };
 		F1S00020 /* NavTrace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavTrace.swift; sourceTree = "<group>"; };
 		F1S00023 /* ChatRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatRoute.swift; sourceTree = "<group>"; };
+		F1S00026 /* ContainerNav.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerNav.swift; sourceTree = "<group>"; };
 		F1T00010 /* ToolLiveSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolLiveSheet.swift; sourceTree = "<group>"; };
 		F1VMCP01 /* MCPIntegrationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPIntegrationsView.swift; sourceTree = "<group>"; };
 		F1VMCP02 /* MCPFormSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPFormSheet.swift; sourceTree = "<group>"; };
@@ -2898,6 +2900,7 @@
 			isa = PBXGroup;
 			children = (
 				F1S00023 /* ChatRoute.swift */,
+				F1S00026 /* ContainerNav.swift */,
 			);
 			path = Navigation;
 			sourceTree = "<group>";
@@ -4092,6 +4095,7 @@
 				F1S00012 /* ChatSessionIdEnvironment.swift in Sources */,
 				F1S00021 /* NavTrace.swift in Sources */,
 				F1S00024 /* ChatRoute.swift in Sources */,
+				F1S00027 /* ContainerNav.swift in Sources */,
 				E5Q000004 /* FontSettings.swift in Sources */,
 				E5R000001 /* ICloudBackupManager.swift in Sources */,
 				E5R000002 /* ICloudBackupView.swift in Sources */,

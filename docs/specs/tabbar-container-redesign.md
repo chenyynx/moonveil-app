@@ -187,3 +187,57 @@ legacy 路径无交接；光晕（二值私有态）用 `iconScale > 1.08` 阈�
   无消费者；`deepLink.pendingSessionId`(:2118-2126) 无写入者——C5 处理。
 - 外壳卫生（可另批）：RootModeTabsView `showsSoulProfile` 死 presenter(:36/:92)、
   `soulName` write-only(:38-41)。
+
+## 9. 审查记录与修订（2026-09-30 · R1-R5 五路并行对抗审）
+
+> 流程：五个独立子代理（语义逐点 / 逐字保真 / 全仓遗漏 / 门禁工程 / 场景对抗），
+> 互不共享结论；全部缺陷在提交前修复并复验（parse 绿）。
+> ⚠️ 行号说明：本文档 §3 等处的旧行号引用（pushChat :3861 / destination :2261-2320
+> 等）为 C3 迁移前坐标；C3 后这些符号已迁入 ContainerNav / RootModeTabsView，以代码为准。
+
+### 9.1 五路结论
+| 路 | 范围 | 结论 |
+|---|---|---|
+| R1 语义逐点 | ContentView 全部替换点 | 2/3/4/6 类观察者/注入块逐场景等价（前提=path 仅承载 local 深页，已验证）；出栈锁步/动画纪律/分享目标/环境继承无回归 |
+| R2 逐字保真 | destination 块 60 行 | 行行对应，14 处 token 编辑全部在声明集合内，**零未声明漂移** |
+| R3 全仓遗漏 | 符号外引/新文件/pbxproj | 旧符号全仓 0 代码残留；pbxproj 4 处登记双 parser 复核通过；发现行点击命中区缺陷 |
+| R4 门禁工程 | 7 脚本 + 独立复核 | 6 绿；唯一红=authaa allowlist 旧 sha 遗留（与本批无关，见 9.4）；staged 无意外文件 |
+| R5 场景对抗 | 10 场景走查 | 3 个"最怀疑点"：P1 导航栏泄漏 / P2 划回写回 / P3 手势仲裁——P1 已修，P2/P3 列装机首查 |
+
+### 9.2 修订动作（均已落码并 parse 复验）
+1. **行点击命中链（高）**：Button label 从 EmptyView（零命中区）改为
+   `Color.clear.contentShape(Rectangle())` + `.buttonStyle(.plain)`。
+2. **导航栏泄漏保险（中高）**：容器 destination 两分支显式
+   `.toolbar(.visible, for: .navigationBar)`（仓内先例 RemoteChatPageToolbar:36）。
+3. **单例跨重建（中）**：新增 `ContainerNav.resetForRootRebuild()`，挂语言切换点
+   （ContentView 设置页 :7220 后，唯一整树重建源）——复刻"重建回列表"旧行为。
+4. **搜索镜像初值（中低）**：ContentView onAppear 补同步（幂等）。
+5. **D5 切 tab 清栈（中）**：推演确认"直接实现在 mode onChange 处会误杀同帧 push
+   的新会话"且当前不可达——改为不变量注释（RootModeTabsView mode onChange 内），
+   C4 按注释挂点处理。
+6. 日志 category 跟随原文（ContainerNav 双 logger）；ContentView 改 @ObservedObject；
+   死入口补 `.buttonStyle(.plain)`；注释修正（脚本误替换旧名、死残留标注）。
+
+### 9.3 行为变化记录（有意/已复刻）
+- `.id(appLanguage)` 重建已由 9.2-3 复刻旧行为（回列表）。
+- **宽窗档（iPad>700pt）深页不再随布局档消失**（容器栈与宽度无关；旧行为栈随
+  stackLayout 换出而消失）——接受并记录（R1-F2/P6）。
+- PATH-PROBE 语义：日志栈深=全局容器栈（C4 后混入远端/works——排障知悉）。
+- 多窗口（若未来开多 scene）：共享单例将跨窗口同栈（现状未开，记录）。
+
+### 9.4 C4 前置必改清单（R1-F3 实锤，勿遗忘）
+C4 把 remote/works 深页搬进容器栈时，"全局栈=本机会话"的隐式契约必须显式处理：
+① 分享注入 foreground 判定（ContentView ~:2048）；② 出栈清理块（~:1977-2017，
+清 currentStackSessionId/activeSessionId/全表刷新——远端出栈会误触）；③
+`localAtRoot`/searchFocused 守卫（~:1485/:2142）；④ 搜索镜像多写者（D9 时给
+owner 或随树切换清理）。
+**门禁遗留**：`scripts/authaa-skin-allowlist.txt` 的 AppGlassButton.swift 旧 sha
+（R4 实锤为 1b77917 遗留、与本批零关系）需 pp 点头重登记，否则该门禁持续红。
+本批冻结面零触碰已核。
+
+### 9.5 装机首查项（按序）
+① 点会话行打开聊天（命中链）+ 长按菜单/拖拽不劣化（失效退路=onTapGesture，
+仓内先例 ContentView:4489）；② 聊天页返回键/边缘划回存在（导航栏不泄漏）；
+③ 划回后 PATH-PROBE count 归零（写回存活）；④ 宿主被外层 push 期间内层 onChange
+仍触发（destDISAPPEAR 后 vm 挂起日志）；⑤ push 滑入动画在（Button 事务）；
+⑥ 搜索/宽屏/登录盖/设置不受影响。

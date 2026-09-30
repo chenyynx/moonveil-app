@@ -53,12 +53,13 @@ struct RootModeTabsView: View {
     /// 走本表。图标资产与栅格化缓存随 Tab 构建器迁入 ModeTabBar.swift。
     @State private var mountedModes: Set<AppSourceMode> = [.local, RootTabRouter.shared.mode]
 
-    /// [容器化 C2 2026-09-30] 外层容器栈（TG 根栈等价物，设计见
-    /// docs/specs/tabbar-container-redesign.md）：C3 起 path 承接全部深页 push
+    /// [容器化 C3 2026-09-30] 容器栈共享路由（ContainerNav 单例，设计见
+    /// docs/specs/tabbar-container-redesign.md）：path 承接全部深页 push
     /// （聊天/设备详情）——push 整页盖住容器（含栏）、pop 原位揭示（TG 真形）。
-    /// C2 阶段 path 恒空、深页仍走各树内层栈——本层只验证「嵌套结构不劣化」：
-    /// 无双层导航栏 / toolbar 不裁剪 / 键盘与探针值不变（验收点见 spec §2 末尾）。
-    @State private var containerPath: [ChatRoute] = []
+    /// 路由状态（path/pendingChatRoute/currentStackSessionId…）由 ContainerNav
+    /// 持有——ContentView 的程序化入口与观察者共用同一份（原 local 树内层栈
+    /// 的通道整体上收，见 ContainerNav 头注逐字迁移说明）。
+    @StateObject private var containerNav = ContainerNav.shared
 
     /// [切页转场 v2 2026-09-30] 宽屏（iPad / 横屏 Max）档 TG 不播切页动画
     /// （TabBarController.swift:283-285 widthClass == .regular → animated = false），
@@ -81,20 +82,102 @@ struct RootModeTabsView: View {
         // 反馈修正为 TG 转场（TabBarController.swift:279-330 数字化）：新页
         // 0.1s 淡入 + 从 (高−3)/高 弹簧放到 1（0.15s、延迟 0.1s）；旧页同缩并在
         // 溶解窗口内留于下层（见 tabTree 注释）。
-        // [容器化 C2 2026-09-30] 外层容器栈包住三树（TG 根栈等价物；C3 起深页
+        // [容器化 C2/C3 2026-09-30] 外层容器栈包住三树（TG 根栈等价物；深页
         // 从这里 push、天然盖住含栏的容器）。root 隐藏自身导航栏（D11）——
-        // 导航栏归各树内层栈；C2 阶段 path 恒空，视觉与现状零差别。
-        NavigationStack(path: $containerPath) {
+        // 导航栏归各树内层栈。
+        NavigationStack(path: $containerNav.path) {
             ZStack {
                 tabTree(.local)
                 tabTree(.remote)
                 tabTree(.works)
             }
             .toolbar(.hidden, for: .navigationBar)
+            // [容器化 C3] 深页目的地：逐字迁自 ContentView 内层栈的
+            // navigationDestination（原 :2261-2320），替换点以 [容器化 C3] 标注：
+            // ①Self.isNewSessionId/extractGroupId → ContentView.前缀（static 改
+            // internal）；②isSearching/searchMatchMessageIds → ContainerNav 搜索
+            // 镜像；③currentStackSessionId/previousStackSessionId/pathProbe* →
+            // ContainerNav。push 从容器栈推出，整页盖住容器（含栏），pop 原位揭示。
+            .navigationDestination(for: ChatRoute.self) { route in
+                // `.id(route)` mirrors detailView (iPad): navigationDestination
+                // views are identified by stack depth, not path value, so
+                // replacing the top element in place (menu "New Chat" swaps
+                // [current] → [draft]) would otherwise reuse the old view's
+                // @StateObject vm and nothing visibly changes.
+                switch route {
+                case .remote(let deviceId, let sessionId):
+                    // [ENV-DEFENSE 2026-09-27] 三处 AIChatView 调用点就地注入
+                    // ShareCoordinator（同一单例 ShareCoordinator.shared）。.ips
+                    // 符号栈实锤 #4 闪退：UIKitBarItemHost 在 push 转场中对导航栏
+                    // 标题控件做同步尺寸求值时重算 AIChatView.body，其
+                    // @EnvironmentObject 查找落空 → _assertionFailure。
+                    // 根注入（MinisApp:281）管主树；这里贴着实例再兜一层，让
+                    // 越界求值路径的环境链最短、始终有值（注入在实例外侧，
+                    // 同时覆盖该实例自身的 @EnvironmentObject 读取）。
+                    AIChatView(sessionId: sessionId, remoteDeviceId: deviceId)
+                        .environmentObject(ShareCoordinator.shared)
+                        .id(route)
+                        // [R3 审查修订 F2] 显式钉导航栏可见——容器 root 的
+                        // .toolbar(.hidden) 若泄漏到 pushed 页会丢标题/返回键/≡ 菜单；
+                        // 仓内先例（RemoteChatPageToolbar.swift:36）在 push 页同样补
+                        // .toolbar(.visible)（“push 页曾被工具栏可见性坑过”的实锤）。
+                        .toolbar(.visible, for: .navigationBar)
+                case .local(let id):
+                    // [容器化 C3] 搜索锚点改读 ContainerNav 镜像（ContentView
+                    // 单向同步；时序：点行 push 同帧、镜像在搜索期已同步，
+                    // destination 求值先于"入栈清搜索"的 onChange 一帧）。
+                    AIChatView(sessionId: ContentView.isNewSessionId(id) ? nil : id, draftId: ContentView.isNewSessionId(id) ? id : nil, initialGroupId: ContentView.extractGroupId(from: id), searchAnchorMessageId: containerNav.searchAnchor(for: id))
+                        .environmentObject(ShareCoordinator.shared) // [ENV-DEFENSE] 同上（#4 崩溃发生点）
+                        .id(route)
+                        // [R3 审查修订 F2] 同 .remote 分支：显式钉导航栏可见。
+                        .toolbar(.visible, for: .navigationBar)
+                        .onAppear {
+                            NavTrace.log("APPEAR ch=path trig=\(NavTrace.trigger)+\(NavTrace.age) path=\(containerNav.path.count)")
+                            if containerNav.currentStackSessionId != id {
+                                containerNav.currentStackSessionId = id
+                                // [T-ios-stacknav-transition-attributegraph-race]
+                                // Keep the outgoing-id tracker in lockstep.
+                                // This branch fires exactly when the two
+                                // have DIVERGED — the "swallowed push left
+                                // currentStackSessionId set to a target
+                                // that never appeared" case documented on
+                                // the .moveInputToSession handler — and it
+                                // mounts a chat WITHOUT a navigationPath
+                                // change, so the observer that normally
+                                // maintains previousStackSessionId does not
+                                // run. Left unsynced, the next real
+                                // transition would suspend whichever id the
+                                // last observer pass recorded instead of
+                                // the vm actually on screen: the wrong vm
+                                // stalls and the real outgoing one keeps
+                                // publishing into its teardown.
+                                containerNav.previousStackSessionId = id
+                            }
+                            SessionBadgeStore.shared.remove(.unread, for: id)
+                            AppLogger(category: "Share").info("🔄SESSION stackNav APPEAR id=\(id)")
+                            // [PATH-PROBE] 目的地出现/消失时刻的 path 快照——
+                            // destDISAPPEAR 是判别点：此刻 count 应已回落，
+                            // 残留即实锤系统 pop 回写丢失（T0 诊断）。
+                            containerNav.pathProbe("destAPPEAR:\(id)")
+                        }
+                        .onDisappear {
+                            NavTrace.log("DISAPPEAR ch=path path=\(containerNav.path.count)")
+                            AppLogger(category: "Share").info("🔄SESSION stackNav DISAPPEAR id=\(id)")
+                            containerNav.pathProbe("destDISAPPEAR:\(id)")
+                            containerNav.pathProbeLater("destDISAPPEAR+0.3s:\(id)")
+                        }
+                }
+            }
         }
         .onChange(of: router.mode) { old, new in
             mountedModes.insert(new)   // [TG-TABBAR] 保活表记账（访问过不卸载）
             NavTrace.log("MODE \(old)→\(new) trig=\(NavTrace.trigger)+\(NavTrace.age)")
+            // [R5 审查修订 P4 · D5 延后决定] 不变式：栏可见 ⇔ 容器栈为空——自洽
+            // 于「用户点栏时 path 恒空」（栏被 push 盖住时点不到栏）；全仓程序化
+            // route(to:) 均为「切树后立即 push」的一体式路径（route 先、push 后、
+            // 同一同步块），**不能**在此处盲目清空（会把同帧 push 的新会话误杀
+            // ——R5 场景 1 推演实锤）。若未来出现「纯程序化切 tab（不随 push）」，
+            // 清空须挂在该调用点而非此处；C4 remote 上栈时复核本注释。
         }
         // [TG-TABBAR] 原 TabView 级 .tint(.primary)（治系统栏选中黑）随系统栏
         // 退役；各树与各 sheet 的 tint 均为自带显式声明，不受影响。
