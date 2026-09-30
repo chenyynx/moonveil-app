@@ -29,7 +29,8 @@
 // [TG-LENS-PORT 2026-09-30 pp 拍板 B「真·移植 TG」] 26+（且苹果私有
 // _UILiquidLensView 可取）时，胶囊区改由 TGLensHost 的透镜岛渲染（TG 源码
 // 移植，见 TGLens/ 目录与 docs/tg-lens-port.md）；否则回退本文件的玻璃版
-// （legacyItemsCapsule）。同批几何对齐 TG 实测：栏高 64→68、整体下移 12pt；
+// （legacyItemsCapsule）。几何经对账修正（2026-09-30 源码+实机双证）：栏高 64、
+// 整体下移 14pt、边距 20、格宽 68.25（详见 barHeight/offset 注释与 spec §7）；
 // 圆钮换 .plain + interactive 玻璃（拉缩发光）。触摸手势保持在 SwiftUI 侧，
 // 交互分工：岛内手势（TG 原样，与玻璃触摸响应并行），选中/深色下发，提交回传
 // onCommit；legacy 路径保留原 SwiftUI DragGesture。
@@ -48,6 +49,11 @@ struct ModeTabBar: View {
     /// 三个页面位（compose 是动作钮，走右侧独立圆位，见 composeButton）。
     private static let selectableTabs: [AppSourceMode] = [.local, .remote, .works]
 
+    /// 槽位数 = 4（TG 4 格布局对齐：3 实 tab + 第 4 格空占位；pp 2026-09-30 装机
+    /// 「加一个图标占位保持和tg一致大小」——TG 是 4 tab 布局，按 3 格算每格偏大）。
+    /// 与 TGLensHost.slotCount 同值，两处渲染路径几何一致。
+    private static let slotCount = 4
+
     /// 按压跟踪（TG selectionGestureState / overrideSelectedItemId 的 SwiftUI 化）：
     /// 手指按住/拖到的 item。nil = 无按压。高亮显示位 = pressed ?? router.mode。
     @State private var pressed: AppSourceMode?
@@ -55,13 +61,13 @@ struct ModeTabBar: View {
     /// 拖动期间透镜 x = 起点 + 指尖位移（连续跟手）；松手弹簧落位（归 nil）。
     @State private var lensDragBaseX: CGFloat?
     @State private var lensDragShiftX: CGFloat = 0
-    /// item 区实宽（三槽平分用；背景 GeometryReader 测量，不依赖新 API）。
+    /// item 区实宽（四格平分用；背景 GeometryReader 测量，不依赖新 API）。
     @State private var itemsWidth: CGFloat = 0
     /// [TG-LENS-PORT] 深浅模式（透镜/玻璃的 isDark 参数与岛内图标着色）。
     @Environment(\.colorScheme) private var colorScheme
-    /// [TG-LENS-PORT] 栏高：TG 实测 ≈68（原 64）。底距经 offset(y:) 下移 12pt 对齐
-    /// TG 实测（胶囊距屏底 35→23pt，压入 home 指示条区）。
-    private static let barHeight: CGFloat = 68
+    /// 栏高 = 64（TG 源码 TabBarComponent.swift:664：56 + innerInset 4×2；pp 实机
+    /// 反演圆钮 192px = 64.0pt 双证）。此前 68 系屏测误差——2026-09-30 装机对账修正。
+    private static let barHeight: CGFloat = 64
 
     // MARK: - 资产（自 RootModeTabsView 迁入，逐字保留）
 
@@ -124,16 +130,21 @@ struct ModeTabBar: View {
             itemsCapsule
             composeButton
         }
-        .padding(.horizontal, 12)
-        // [对抗复审 2026-09-30·中] 键盘豁免：系统栏时代栏钉屏幕底、被键盘盖住；
-        // 本栏同理不随键盘避让上浮（本机列表搜索聚焦场景）。生效性装机核验；
-        // 若不生效，候选挂点 = 调用点 sessionList 的 safeAreaInset 之前（保 List
-        // 自身键盘策略不动——复审 v2 推理：inset 视图落位由父层布局决定）。
+        // [尺寸对账 2026-09-30] TG sideInset：底距≤28 的档位 = 20（TabBarContollerNode
+        // :213-215），pp 实机反演（四列图标中心距 68.0）落于此档 → 12 改 20；格宽
+        // 随之 (屏宽−40−圆钮64−间距8−innerInset8)/4 = 68.25 ≈ TG 实测 68。
+        .padding(.horizontal, 20)
+        // [TG-TABBAR-FIX 2026-09-30 pp 装机实证] 键盘豁免（本处）**无效**：栏落位由
+        // 被 safeAreaInset 修饰的整链安全区决定，挂在栏内部的 ignore 改不了插槽
+        // 位置——键盘开启从聊天页划回时栏随输入框一起上浮（TG = 钉死底部、被键盘
+        // 覆盖）。权威修复 = 挂点整链外侧的 ignoresSafeArea（ContentView.stackLayout /
+        // RemoteRootView / WorksListView 三处同款注释）。本行保留（对栏内部布局无
+        // 副作用，双保险），勿删。
         .ignoresSafeArea(.keyboard, edges: .bottom)
-        // [TG-LENS-PORT 2026-09-30] 几何对齐 TG 实测（屏截像素测量对比）：TG 栏
-        // 底距 ≈23pt，本栏原为安全区底（≈35pt）——整体下移 12pt（纯视觉位移，
-        // 不改变 safeAreaInset 的布局占位，内容 inset 不受影响）。
-        .offset(y: 12)
+        // [TG-LENS-PORT 2026-09-30 · 2026-09-30 对账修正] 底距对齐 TG 实机：圆钮
+        // 下缘实测 ≈19.7pt；本栏 = 安全区底 34 − offset ⇒ offset = 14（旧值 12 →
+        // 底距 22，偏差 2pt）。纯视觉位移，不改变 safeAreaInset 的布局占位。
+        .offset(y: 14)
     }
 
     /// [TG-LENS-PORT 2026-09-30 pp 拍板 B] 26+ 且私有类可选器形态完备 → TG 移植
@@ -170,8 +181,7 @@ struct ModeTabBar: View {
     /// 按下弹簧滑到指尖槽位、按住拖动连续跟手、松手弹簧落位并撤销抬升。
     private var legacyItemsCapsule: some View {
         let slot = Self.selectableTabs.firstIndex(of: pressed ?? router.mode) ?? 0
-        let slotWidth = itemsWidth / CGFloat(Self.selectableTabs.count)
-        let lensWidth = slotWidth + 8
+        let slotWidth = itemsWidth / CGFloat(Self.slotCount)
         // 透镜 x：拖动中 = 起点 + 指尖位移连续跟手（TG :545 currentX = startX +
         // translation.x），钳制在栏内（TG :885 lensSelection.x clamp）；否则 =
         // 高亮槽位 x（TG lensSelection 直算 :868-887）。
@@ -187,6 +197,9 @@ struct ModeTabBar: View {
             ForEach(Self.selectableTabs) { mode in
                 tabItem(mode)
             }
+            // [4 格占位 2026-09-30] 第 4 格留空（TG「设置」位）——前 3 格随之为
+            // TG 同尺寸；透镜/槽位算法分母 = slotCount(4)，见文件内各处。
+            Color.clear.frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 56)
@@ -198,16 +211,21 @@ struct ModeTabBar: View {
             }
         }
         .padding(4)
-        // 选中透镜：宽 = 槽宽 + innerInset×2（TG :870-872）、高 = item 高；
-        // 本体 = 系统 Liquid Glass（<26 回退 material）；拖动中微抬升（TG isLifted
-        // 的近似——真正的液态折射变形是 TG 私有 LiquidLens 渲染，不逐像素复刻）。
+        // 选中透镜**视觉 = item 槽位本身**：TG 的选中矩形 = item 外扩 4（:872
+        // minX−innerInset / 宽+8），私有透镜渲染时内收 4（26 路径：LiquidLensView
+        // :464 取矩形、:343/:376 以 liftedInset=−inset 内收；legacy blob 分支 :471
+        // 同义）→ 视觉 = item 矩形（宽 = 槽宽、距胶囊边 4pt）。本 legacy 件同视觉：
+        // 宽 = 槽宽、x = 选中坐标 + 4（2026-09-30 pp 装机「触边」修正：旧式 +8 宽、
+        // x 不加 4 → 首格左缘顶到胶囊边）。本体 = 系统 Liquid Glass（<26 回退
+        // material）；拖动中微抬升（TG isLifted 近似——真正的液态折射变形是 TG
+        // 私有 LiquidLens 渲染，不逐像素复刻）。
         .background(alignment: .topLeading) {
             Capsule()
                 .fill(.clear)
-                .frame(width: lensWidth, height: 56)
+                .frame(width: slotWidth, height: 56)
                 .selectionLensGlass()
                 .scaleEffect(lensLifted ? 1.05 : 1.0)
-                .offset(x: lensX, y: 4)
+                .offset(x: lensX + 4, y: 4)
                 .opacity(itemsWidth > 0 ? 1 : 0)
         }
         .tabBarGlassCapsule()
@@ -260,7 +278,7 @@ struct ModeTabBar: View {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 guard itemsWidth > 0 else { return }
-                let slotWidth = itemsWidth / CGFloat(Self.selectableTabs.count)
+                let slotWidth = itemsWidth / CGFloat(Self.slotCount)
                 if lensDragBaseX == nil {
                     // TG began：透镜起点 = 指尖下的槽位（按下即弹簧滑到那里）；
                     // 高亮/缩放同帧并入弹簧事务（TG began 即 .spring；对抗复审 v2
@@ -302,7 +320,7 @@ struct ModeTabBar: View {
     /// 越界按最近项钳制（同 TG item(at:) 的 ClosestItem 语义，:623-643）。
     private func slotIndex(forX x: CGFloat) -> Int {
         guard itemsWidth > 0 else { return 0 }
-        let slotWidth = itemsWidth / CGFloat(Self.selectableTabs.count)
+        let slotWidth = itemsWidth / CGFloat(Self.slotCount)
         let raw = Int(floor((x - 4) / slotWidth))
         return min(max(raw, 0), Self.selectableTabs.count - 1)
     }

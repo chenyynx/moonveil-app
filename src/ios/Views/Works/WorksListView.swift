@@ -67,6 +67,9 @@ struct WorksListView: View {
             }
             // [TG-TABBAR 2026-09-30] 自绘栏挂栈内 root 页底边（push 整页覆盖含栏）。
             .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .works) }
+            // [TG-TABBAR-FIX 2026-09-30] 键盘豁免·权威挂点（原理与勿动理由见
+            // ContentView.stackLayout 同款注释）：豁免须包在 inset 外侧。
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             // 原生标题留空：导航栏 principal 位放身份胶囊（跟本机页同位置）。
             .navigationTitle(Text(verbatim: ""))
             .navigationBarTitleDisplayMode(.inline)

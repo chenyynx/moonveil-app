@@ -79,6 +79,20 @@ GPLv3 开源工程，按「v2 or later」条款并入，许可证兼容路径成
   ——三者叠加 = 探针恒失败、透镜岛永不渲染、整栏永远静默回退旧胶囊（表象 = "什么
   也没搬"）。修复 = 探针只保留 4 个「无守卫直调」选择器（TGLensHost.swift 行内注释
   列明纪律与出处行号）。
+- **[装机回归·尺寸 2026-09-30]** ⑪槽位几何 3 格 → 4 格（TG 4 tab 布局对齐）：
+  TG 栏是 4 tab 布局，本方按 3 格平分导致每格（含透镜宽 = 槽宽+8）整体偏大
+  （pp 装机：「加一个图标占位保持和tg一致大小」）。修复 = 两处渲染路径分母统一
+  `slotCount = 4`：TGLensHost（岛：槽宽=(宽-8)/4，图标占 0-2 格、第 3 格空）+
+  ModeTabBar.legacyItemsCapsule（4 等分 HStack 尾插 `Color.clear` 占位格）；
+  按下/提交/钳制仍只在 0-2 实项（`selectableTabs.count` 不动）。
+- **[装机回归·尺寸对账 2026-09-30]** ⑫与 TG 源码 + pp 实机像素反演逐项对账，四笔
+  联动修正：①栏高 68→64（TabBarComponent.swift:664 = 56+4×2，实机圆钮 192px=64.0
+  双证）；②左右边距 12→20（TabBarContollerNode.swift:213-215「底距≤28 档」，实机
+  反演四列中心距 68.0 落此档）→ 格宽 72.25→68.25（= TG 实测 68）；③底距 offset
+  12→14（实机圆钮下缘 ≈19.7pt）；④legacy 选中透镜视觉改为「item 槽位本身」（TG
+  私有件渲染内收 4——26 路径 :464/:376、legacy blob 分支 :471 同义；视觉=item
+  矩形：宽=槽宽、距胶囊边 4pt）——修 pp 装机报「首格灰体触边」。对账全表见
+  docs/specs/tg-tabbar-retrofit.md §7。
 
 ## 3. ⚠️ 私有 API 清单（与 TG 同款用法）
 
@@ -106,5 +120,6 @@ setWarpsContentBelow:/setLifted:animated:…）、类方法（alloc 不能用实
    弹跳（SharedDisplayLinkDriver 驱动）。
 2. 按住 tab / 圆钮：拉缩（TouchEffect 方向拉伸）+ 发光（径向高亮）。
 3. 切换 tab：透镜弹簧滑位（spring 0.4，含 SpringParametersOverride→贝塞尔重定时）。
-4. 几何：栏高 68、底距 ≈23pt（下移 12pt 后）。
+4. 几何：栏高 64、底距 ≈20pt、左右边距 20、格宽 68.25（2026-09-30 对账修正，
+   全表见 docs/specs/tg-tabbar-retrofit.md §7）。
 5. 深/浅双模式、登录盖/设置 sheet/资料页 zoom 不受影响。

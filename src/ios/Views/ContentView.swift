@@ -2243,6 +2243,13 @@ struct ContentView: View {
                 // 栈内部盖上来整页覆盖含栏；划回 root 页（含栏）整体平移揭示。
                 // 系统栏与藏显机制整体退役（见 RootModeTabsView / ModeTabBar 头注）。
                 .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .local) }
+                // [TG-TABBAR-FIX 2026-09-30 pp 装机] 键盘豁免·权威挂点：栏的落位由
+                // **被 safeAreaInset 修饰的整链**的安全区决定，豁免必须包在 inset
+                // 外侧（子树安全区剔除键盘区）；挂在栏内部（ModeTabBar.body）实测
+                // 无效——键盘开启从聊天页划回时，栏随输入框一起上浮（TG = 钉死底部、
+                // 被键盘覆盖）。有意副效果：root 页列表内容随之可下穿键盘（搜索聚焦
+                // 时内容滚到键盘下，iOS 惯例）。勿把本行上移到 stack 或下移到栏内。
+                .ignoresSafeArea(.keyboard, edges: .bottom)
                 .navigationDestination(for: ChatRoute.self) { route in
                     // `.id(route)` mirrors detailView (iPad): navigationDestination
                     // views are identified by stack depth, not path value, so
@@ -3095,6 +3102,10 @@ struct ContentView: View {
         // 底栏无文本输入时，键盘 inset 不应顶起底栏（旧 FAB 行的键盘免疫，
         // 行删除后判据保留：等右上角真搜索接回 showSearchBar 时照常工作）。
         .ignoresSafeArea(.keyboard, edges: showSearchBar ? [] : .bottom)
+        // [TG-TABBAR-FIX 2026-09-30] 注意：stackLayout 的 root 页整链已**无条件**
+        // 豁免键盘（tab 栏钉死底部，见其挂点注释）；本行 `[]` 分支（搜索时恢复
+        // 键盘避让）会被其覆盖、无法生效。真搜索接回时二选一：保持栏恒钉底
+        // （推荐，TG 对齐）删本行，或与整链豁免条件锁步（对抗复审 2026-09-30 说明项）。
         // [SEARCH-DISMISS] pp 2026-09-20「只要弹出来输入搜索了 就弹不回去了」：
         // 聚焦后此前没有任何收起出口（清除 X 仅在有文字时显示；SwiftUI 列表的
         // scrollDismissesKeyboard 默认 .automatic 在非 searchable 场景等于 .never，
@@ -3298,6 +3309,8 @@ struct ContentView: View {
         // [T-home-fab-keyboard-inset] 底栏键盘免疫（旧 FAB 行已删，判据保留，
         // 等右上角真搜索接回 showSearchBar 时照常工作）。
         .ignoresSafeArea(.keyboard, edges: showSearchBar ? [] : .bottom)
+        // [TG-TABBAR-FIX 2026-09-30] 同 compact 列表：root 页整链无条件豁免已覆盖
+        // 本行 `[]` 分支（详见该处注释，对抗复审说明项）。
         // [SEARCH-DISMISS] 同 compact 列表：滚动收起搜索键盘。
         .scrollDismissesKeyboard(.immediately)
         // [CAPSULE-PRINCIPAL] 身份胶囊（principal，总高 ~74pt）撑高原生导航栏。

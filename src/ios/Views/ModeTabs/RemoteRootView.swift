@@ -28,6 +28,9 @@ struct RemoteRootView: View {
                 // [TG-TABBAR 2026-09-30] 自绘栏挂栈内 root 页底边——远端线的
                 // 二级页（会话聊天/设备详情）push 时整页覆盖含栏。
                 .safeAreaInset(edge: .bottom, spacing: 0) { ModeTabBar(tabMode: .remote) }
+                // [TG-TABBAR-FIX 2026-09-30] 键盘豁免·权威挂点（原理与勿动理由见
+                // ContentView.stackLayout 同款注释）：豁免须包在 inset 外侧。
+                .ignoresSafeArea(.keyboard, edges: .bottom)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     // [TABLER-ICONS] 与本机页左上角一致的设置入口（Tabler menu 两横，

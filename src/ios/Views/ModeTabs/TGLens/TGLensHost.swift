@@ -13,7 +13,9 @@
 //   · 透镜跟手 = TG 精确模型（TabBarComponent:538-545）：按下瞬间起点 = 被按槽位
 //     的透镜 minX，其后 lensX = 起点 + 指尖位移增量（保留抓取偏移），钳制栏内。
 //
-// 数值对齐 TG：innerInset 4；槽宽 = (宽-8)/3；透镜宽 = 槽宽+8、高 = 栏高；
+// 数值对齐 TG：innerInset 4；槽宽 = (宽-8)/4（TG 4 格布局：本 app 3 实 tab +
+// 第 4 格空占位，pp 2026-09-30 装机要求「加一个图标占位保持和tg一致大小」）；
+// 透镜宽 = 槽宽+8、高 = 栏高；
 // 按下的选中副本放大 1.15（:835），弹簧 0.4（:540/:599）。
 
 import SwiftUI
@@ -74,6 +76,11 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     /// 与 ModeTabBar.tabIcon 同源（注意：次序须与 ModeTabBar.selectableTabs
     /// [.local, .remote, .works] 保持一致）。
     private static let iconAssets = ["aa-Tabler-MessageCircle", "aa-Tabler-Cloud", "aa-Tabler-Puzzle"]
+
+    /// 槽位数 = 4（TG 4 格布局对齐：3 实图标 + 第 4 格空占位；pp 2026-09-30 装机
+    /// 「加一个图标占位保持和tg一致大小」——TG 是其 4 tab 布局，按 3 格算每格偏大）。
+    /// 与 ModeTabBar.slotCount 同值，两岛/胶囊两处渲染路径几何一致。
+    private static let slotCount = 4
 
     private let lens = LiquidLensView(kind: .externalContainer)
     private var normalIcons: [UIImageView] = []
@@ -225,8 +232,9 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         return min(max(raw, 0), Self.iconAssets.count - 1)
     }
 
+    /// 槽宽 = (宽-8)/4（TG 4 格布局；pp 2026-09-30 装机：按 3 格算每格偏大）。
     private func slotWidth() -> CGFloat {
-        return (bounds.width - TGLensBar.innerInset * 2) / CGFloat(Self.iconAssets.count)
+        return (bounds.width - TGLensBar.innerInset * 2) / CGFloat(Self.slotCount)
     }
 
     /// 透镜几何 + 按压放大（对照 TG TabBarComponent:868-887 / :835）。
