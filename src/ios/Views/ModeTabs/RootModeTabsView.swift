@@ -222,7 +222,8 @@ struct RootModeTabsView: View {
             // 必须显式收；只收**远端树自有**的路由（本机在栈会话一律不碰）。
             // ⚠️ 不同帧写 path（436/438 崩溃形状）：延后 0.35s（≥ 树切换转场全长）
             // 再复核栈顶归属才 pop；窗口内若已有新 push 顶替（深链等），归属不命中、
-            // 不误伤。pop() 自身另有 consumeTreeSwipePending 兜底网（双保险）。
+            // 不误伤。pop() 自身另有 consumeTreeSwipePendingDelay 兜底网（动态落点，
+            // 439 返修后，见其注释——双保险）。
             if new != .remote {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     MainActor.assumeIsolated {

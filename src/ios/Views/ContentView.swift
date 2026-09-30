@@ -3839,11 +3839,24 @@ struct ContentView: View {
     private static func scheduleReturnToLocalIfNeeded(delay: Double = 0.6, requireOpen: Bool = true) {
         guard RootTabRouter.shared.mode != .local else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            MainActor.assumeIsolated {
-                guard RootTabRouter.shared.mode != .local else { return }
-                if requireOpen && ContainerNav.shared.path.isEmpty { return }
-                RootTabRouter.shared.route(to: .local)
+            MainActor.assumeIsolated { Self.returnToLocalIfOpen(requireOpen: requireOpen, retries: 2) }
+        }
+    }
+
+    /// [兜底网加固配套 2026-09-30 晚] 归位的落地判定 + 重试：加固后的兜底网延迟可达
+    /// ~0.7s，可能晚于本定时器——空栈不再直接放弃（旧论据「flush 配对兜底」只在
+    /// appear/前台触发，此窗口内无第二机会），短间隔重试至多两次；到时栈仍空则真放弃。
+    private static func returnToLocalIfOpen(requireOpen: Bool, retries: Int) {
+        MainActor.assumeIsolated {
+            guard RootTabRouter.shared.mode != .local else { return }
+            if requireOpen && ContainerNav.shared.path.isEmpty {
+                guard retries > 0 else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    MainActor.assumeIsolated { Self.returnToLocalIfOpen(requireOpen: requireOpen, retries: retries - 1) }
+                }
+                return
             }
+            RootTabRouter.shared.route(to: .local)
         }
     }
 

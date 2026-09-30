@@ -87,19 +87,26 @@ final class RootTabRouter: ObservableObject {
         // EXC_BREAKPOINT in NavigationColumnState.boundPathChange；装机对照：
         // 本地列表点＋（无切 tab）不崩、跨树点＋崩）。⚠️ build 438 实锤「延后
         // 一拍」不够（SwiftUI 帧末统一结算，一跳仍赶进同一窗）；现 ContainerNav
-        // .pushChat 消费本标记改为延后 0.25s，且正常路径已由 L3「先开门、后归位」
-        // 改造绕开本网；窗长 0.35s（不变量见 consumeTreeSwipePending）。
+        // .pushChat 消费本标记改走「窗剩余 + 0.25s 尾巴」的动态落点，且正常路径已由
+        // L3「先开门、后归位」改造绕开本网；窗长 0.5s（不变量与 439 返修见
+        // consumeTreeSwipePendingDelay）。
         treeSwipeAt = CACurrentMediaTime()
     }
 
-    /// 见 route(to:) 的 [C3.2] 注释。≤0.35s 窗内的一次性消费（L3 后为残余路径的公共兜底网）。
-    /// 🔴 不变量（438 审查校正）：窗长必须 ≥ 树切换转场全长（alpha 0.1s + 缩放弹簧
-    /// 0.1s 延迟 + ≈0.15–0.25s 收束 + 120ms 溶解 ≈ 0.25–0.35s）——窗短了，route 之后
-    /// 0.2~0.35s 才到达的 push 不触发延后，path 写仍落进未结束的转场＝436/438 形状。
-    func consumeTreeSwipePending() -> Bool {
-        guard treeSwipeAt > 0, CACurrentMediaTime() - treeSwipeAt < 0.35 else { return false }
+    /// 见 route(to:) 的 [C3.2] 注释。返回「把 path 写推迟到安全落点所需的时长」；
+    /// nil = 无在窗标记（可直接写 path）。窗内一次性消费（L3 后为残余路径的公共兜底网）。
+    /// 🔴 不变量（438 审查校正 → **439 判例返修 2026-09-30 晚**）：窗长必须 ≥ 树切换
+    /// 转场全长。初值 0.35s 被 build 439 装机实锤否证——works 挂载后的重转场（三树 +
+    /// 首访文件扫描 + 原生透镜栏）下，旧「固定 0.25s 延后」会重新落回转场窗内，撞出
+    /// NavigationColumnState.boundPathChange 同族断言（.ips 帧栈与 436/438 逐帧相同）。
+    /// 现改：窗长 0.5s；落点 = **窗剩余 + 0.25s 尾巴**（保证写发生在窗关闭之后，而不是
+    /// 赌固定时长刚好越过）。
+    func consumeTreeSwipePendingDelay() -> CFTimeInterval? {
+        guard treeSwipeAt > 0 else { return nil }
+        let since = CACurrentMediaTime() - treeSwipeAt
+        guard since < 0.5 else { return nil }
         treeSwipeAt = 0
-        return true
+        return max(0.3, 0.5 - since + 0.25)
     }
 
     /// 最近一次树切换时刻（CACurrentMediaTime；0 = 无在窗标记）。

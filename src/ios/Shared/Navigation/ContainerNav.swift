@@ -76,12 +76,14 @@ final class ContainerNav: ObservableObject {
         // 两次 .ips 实锤；装机对照：本地列表点＋不崩、跨树点＋崩）。
         // ⚠️ [L3 修订] 438 装机实锤「延后一拍不够」：SwiftUI 在帧末
         // （NSRunLoop.flushObservers → Update.end）才把一批变更统一结算，一跳
-        // 异步仍会赶进同一结算窗。现改用定时 0.25s（推过结算窗；0.25 的绑定约束
-        // 是树切换转场 ≈0.25–0.35s 的收束段，窗长不变量见 consumeTreeSwipePending）。
+        // 异步仍会赶进同一结算窗。**439 判例返修 2026-09-30 晚**：固定 0.25s 是
+        // 按轻型转场标定的，works 挂载后的重转场下不够（.ips 与 436/438 同帧栈）。
+        // 现改动态落点「窗剩余 + 0.25s 尾巴」——写成窗关闭之后，而不是赌固定时长
+        // （机理与不变量见 RootTabRouter.consumeTreeSwipePendingDelay）。
         // 本网为**残余路径的公共兜底**：深链/通知/分享等「切树后随即 push」站点，
-        // 以及热路径的迟到场景（切 tab 后 0.2–0.35s 内点＋）——延迟只落在这类调用上。
-        if RootTabRouter.shared.consumeTreeSwipePending() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+        // 以及热路径的迟到场景（切 tab 后 0.2–0.5s 内点＋）——延迟只落在这类调用上。
+        if let delay = RootTabRouter.shared.consumeTreeSwipePendingDelay() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 MainActor.assumeIsolated { self?.pushChat(route) }
             }
             return
@@ -120,10 +122,10 @@ final class ContainerNav: ObservableObject {
         guard !path.isEmpty else { return }
         // [R4 审查修订 2026-09-30] 与 pushChat 同款兜底网：树切换转场内写 path 会触发
         // NavigationColumnState 断言（436/438 实锤，机理见 pushChat 注释）——pop 同属
-        // path 写，同窗内同样延后 0.25s 拆帧。三个调用点（设备删除 / 聊天页 onMenu /
-        // 返回编辑）全在远端树深页，切树后 0.35s 内触达属边缘但可达，防护成本一行。
-        if RootTabRouter.shared.consumeTreeSwipePending() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+        // path 写，同窗内同样延后拆帧（439 返修后为动态落点，见 pushChat 同段注释）。
+        // 三个调用点（设备删除 / 聊天页 onMenu / 返回编辑）全在远端树深页。
+        if let delay = RootTabRouter.shared.consumeTreeSwipePendingDelay() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 MainActor.assumeIsolated { self?.pop() }
             }
             return
