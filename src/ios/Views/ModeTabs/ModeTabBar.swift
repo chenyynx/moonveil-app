@@ -196,6 +196,14 @@ struct ModeTabBar: View {
                         }
                     }
                 )
+                // [v5 身份钉死 2026-10-01] 装机日志实锤：切树时宿主（RemoteRootView/
+                // WorksListView 等，body 随 router 重算）的 safeAreaInset 内容被
+                // SwiftUI 判为新内容 → 本 representable 整只重建（instanceId 一路
+                // 递增、每次切页换一只透镜岛 → 接力断层「动画不连贯」的根）。
+                // id = tabMode（本树内恒定、树间不同）——内容重建时同 id 保身份，
+                // makeUIView 不再重跑。判据：island-created 除首建外应为 0 次；
+                // 若仍复发 → 执行 D10（safeAreaInset 静态占位 + 栏改 overlay）。
+                .id(tabMode)
             } else {
                 legacyItemsCapsule
                     // [探针 2026-10-01] 渲染路径判定：岛不可用时打点（定位「底栏点击

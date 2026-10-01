@@ -208,6 +208,14 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         init(_ value: TGLensBarView) { self.value = value }
     }
     private static var slotOwners: [Int: IslandRef] = [:]
+    /// [v5 接力真值 2026-10-01] 槽位级「在途真值」寄存器：同槽位岛被顶替的
+    /// **瞬间**，把旧岛透镜的屏上位置（presentation 优先）寄存于此——下只岛
+    /// 落位的第一优先数据源。它比 CommitHandoff（.ended 采样，快击时弹簧未
+    /// 起步 = 离散槽位值）晚一整段采样：连点/动画途中被顶替时，它就是弹簧的
+    /// 当前帧（连续真值），透镜落位-续滑不再跳回离散槽位。
+    private static var slotInFlightX: [Int: (x: CGFloat, at: CFTimeInterval)] = [:]
+    /// 在途真值的新鲜窗（超窗弃用，防陈旧值把落点带偏）。
+    private static let inFlightFreshWindow: CFTimeInterval = 0.6
     /// 「上一次提交发生前，提交方岛的选中位」= 这次切页**是从哪儿出发的**。
     /// 跨树新建目标岛、又恰好拿不到交接时，这就是唯一正确的兜底起点（旧实现用
     /// 新岛自己的 previousSelectionIndex——跨树新建时它恒为默认 0，是假起点）。
@@ -244,7 +252,12 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     /// bounds 未就绪时会把两段拆散吞掉（上一轮日志实锤的事故形态之一）；v3 起对
     /// bounds 时序免疫：就绪即跑，未就绪由 layoutSubviews/async 补驱。
     private struct PendingReplay {
-        var startX: CGFloat
+        /// [v5] 屏上像素起点（在途真值/交接真值）——与 bounds 无关，直接可用。
+        var startX: CGFloat?
+        /// [v5] 槽位起点（prev-commit/prev-index 的兜底表达）——**绝不提前换算
+        /// 像素**：新建岛 bounds 未就绪时换算曾产出负值（fallbackX=-4.0），
+        /// 一律推迟到 runPendingReplay（bounds 就绪后）再乘 slotWidth()。
+        var startSlot: Int?
         var glowSlot: Int?
         var iconOverride: (Int, CGFloat)?
         /// 段 1 已执行标记（等段 2 起簧）。
@@ -348,6 +361,11 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     private static func adoptSlotOwner(_ island: TGLensBarView) {
         let slot = island.ownSlot
         if let current = Self.slotOwners[slot]?.value, current !== island {
+            // [v5 接力真值] 顶替瞬间采样旧岛透镜的屏上位置（presentation 优先，
+            // 在途弹簧时 = 弹簧当前帧）——此值优先于交接/兜底被新岛消费。
+            if let x = current.lens.currentSelectionOriginXForHandoff {
+                Self.slotInFlightX[slot] = (x: x, at: CACurrentMediaTime())
+            }
             current.retire(replacedBy: island)
         }
         Self.slotOwners[slot] = IslandRef(island)
@@ -378,6 +396,17 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         touchEffect = nil
         let nextId = next?.instanceId ?? -1
         NavTrace.log("[LENS#\(instanceId)] retire ownSlot=\(ownSlot) → #\(nextId)")
+        // [v5 残骸修复 2026-10-01] 退场即归位 + 摘除。装机截图实锤：底栏槽位
+        // 出现「灰色的圆 + 黑色半弧」叠画残影，且随时间累积（08:18 只有黑弧、
+        // 08:22 两样都有）——退休岛被 SwiftUI 顶替后未必当场回收其 UIView，
+        // 而它又不再被任何人驱动（透镜定格在拉伸/错位态），两层同屏叠画即残影。
+        // 摘除是安全的：retire 的全部场景 = 同槽位已有新岛接管（该位置此后由
+        // 新岛唯一渲染）。归位（拉伸清零）是第二道保险：万一它被系统某处短暂
+        // 引用，也不再以拉伸态示人。
+        lens.setLensStretch(scaleX: 1.0, leadingIsAnchor: true)
+        if superview != nil {
+            removeFromSuperview()
+        }
     }
 
     /// 复活判定：只有当本槽位**当前无主**（持有者已被释放）时才重新夺回；
@@ -385,6 +414,13 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     private func ensureActive() {
         guard isRetired else { return }
         guard Self.slotOwners[ownSlot]?.value == nil else { return }
+        // [v5 摘除配套] 若本岛在退休时已被摘出视图树（v5 残骸修复），复活它
+        // 会在 representable 位置上留空——弃权，等下一条新岛接管（该路径只在
+        // 异常时序可达；正常路径退休岛不会再收到 apply）。
+        if superview == nil {
+            NavTrace.log("[LENS#\(instanceId)] re-adopt 弃权（已摘除）ownSlot=\(ownSlot)")
+            return
+        }
         isRetired = false
         Self.slotOwners[ownSlot] = IslandRef(self)
         NavTrace.log("[LENS#\(instanceId)] re-adopt ownSlot=\(ownSlot)")
@@ -434,7 +470,9 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         if pendingReplay != nil {
             runPendingReplay()
         } else {
-            pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: false)
+            // [v5 拉伸分层] 布局维持推不碰拉伸（旧式在松手衰减期间被 layout 轮
+            // 推 setLensStretch(1.0) 砍断 = 「拉伸一闪就没」的直接机制）。
+            pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: false, allowStretch: false)
         }
     }
 
@@ -453,10 +491,19 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             // 否则被其 1.0/1.15 目标覆盖）。
             replay.placed = true
             pendingReplay = replay
+            // [v5] 起点解算：像素真值优先；槽位表达在此刻（bounds 已就绪）换算。
+            let resolvedX: CGFloat
+            if let px = replay.startX {
+                resolvedX = px
+            } else {
+                resolvedX = CGFloat(replay.startSlot ?? 0) * slotWidth()
+            }
             // [探针 v2 2026-10-01] 复播落位打点（「硬落点」判读；判读后可删）。
-            let probeX = String(format: "%.1f", replay.startX)
+            let probeX = String(format: "%.1f", resolvedX)
             NavTrace.log("[LENS#\(instanceId)] replay place x=\(probeX) glow=\(replay.glowSlot != nil)")
-            pushLens(pressed: replay.glowSlot, lensX: replay.startX, animated: false)
+            // [v5 拉伸分层] 落位 = 摆位（不是飞行）——不碰拉伸：形变交给段 2 的
+            // 起簧推（其 distance=落位点到目标，衰减与滑动同步起跑）。
+            pushLens(pressed: replay.glowSlot, lensX: resolvedX, animated: false, allowStretch: false)
             if let iconOverride = replay.iconOverride {
                 selectedIcons[iconOverride.0].transform = CGAffineTransform(
                     scaleX: iconOverride.1, y: iconOverride.1
@@ -498,12 +545,18 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                 NavTrace.log("[LENS#\(instanceId)] idle-gate own=\(ownSlot) target=\(selectedIndex)")
                 // 无动画地把模型位对齐（保模型状态自洽，也让深浅色之类的外观字段
                 // 落到透镜上），**不起任何弹簧**——隐藏树上不该有动画在跑。
-                pushLens(pressed: nil, lensX: nil, animated: false)
+                // [v5 拉伸分层] 对齐推不碰拉伸：旧式会按「跨槽距离」把 1.251 形变
+                // **钉死**在隐藏树透镜上（装机日志 `LENS-GEO … m11=1.251` 无衰减），
+                // 该树再进场时以拉伸态示人 = 残影来源之一。
+                pushLens(pressed: nil, lensX: nil, animated: false, allowStretch: false)
                 return
             }
             // [硬落点修复 2026-10-01] 目标岛进场的起点/光晕槽/图标交接值（消费或
             // 兜底路径写入，下方统一落位 + 推迟起簧）。
+            // [v5] 起点双表达：像素真值（startX，随存随用）或槽位（startSlot，
+            // bounds 就绪后再换算）——二者至多一个非 nil。
             var startX: CGFloat?
+            var startSlot: Int?
             var glowSlot: Int?
             var iconOverride: (Int, CGFloat)?
             // [提交交接] 本岛 = 刚被切进的目标树（ownSlot == 新选中位）且存有新鲜
@@ -537,31 +590,51 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                 // [硬落点修复 v3 2026-10-01] 消费成功：只登记起点/光晕/图标交接值，
                 // 落位与起簧走下方 runPendingReplay 两段式收口（对 bounds 时序免疫）。
                 startX = handoff.x
+                // [v5 接力真值] 槽位在途真值采样更晚（顶替瞬间 vs 松手瞬间）、
+                // 「重建竞赛」与连点途中它就是簧的当前帧——新鲜时覆盖交接位。
+                if let flight = Self.slotInFlightX[ownSlot],
+                   CACurrentMediaTime() - flight.at <= Self.inFlightFreshWindow {
+                    startX = flight.x
+                }
                 if handoff.iconScale > 1.08 { glowSlot = handoff.slot }
                 iconOverride = (handoff.slot, handoff.iconScale)
             } else if indexChanged, ownSlot == selectedIndex {
-                // [单岛收口 v4 · 兜底确定性] 无新鲜交接时的**三级固定兜底**（顺序
-                // 不变、日志打出命中哪一级，杜绝「有时从 0 弹、有时从上一槽弹」）：
-                //   ① 指向本槽位的陈旧交接（≤3s）——刚过 0.5s 新鲜窗时用它，别整段弹回；
-                //   ② 提交方岛「提交前」的选中位（进程级快照 selectionBeforeLastCommit）
-                //      ——跨树**新建**岛时本岛 previousSelectionIndex 恒为默认 0，
-                //      那是假起点（装机「滑动从第一个 tab 开始」即源于此）；
+                // [v5 接力真值 2026-10-01] 无新鲜交接时的**四级固定兜底**（顺序
+                // 不变、日志打出命中级，杜绝「有时从 0 弹、有时从上一槽弹」）：
+                //   ⓪ 槽位在途真值（≤0.6s）——同槽位岛刚被顶替瞬间采样的屏上位置
+                //      （连点/重建竞赛途中 = 弹簧当前帧）；旧三级兜底全是**离散槽位**
+                //      或**松手瞬间**采样，动画途中的位置连续性由此保证；
+                //   ① 指向本槽位的陈旧交接（≤3s）——刚过 0.5s 新鲜窗时用它；
+                //   ② 提交方岛「提交前」的选中位（跨树**新建**岛时本岛
+                //      previousSelectionIndex 恒为默认 0 = 假起点）；
                 //   ③ 本岛自己的上一选中位。
+                // ⓪① 是屏上像素真值（与 bounds 无关，直接可用）；②③ 是槽位表达，
+                // 像素换算一律推迟到 runPendingReplay（bounds 就绪后）——新建岛
+                // bounds=0 时提前换算曾产出负数（fallbackX=-4.0 的出处）。
                 var fallbackSource = "prev-index(\(previousSelectionIndex))"
-                var fallbackX = CGFloat(previousSelectionIndex) * slotWidth()
-                if let handoff = Self.commitHandoff,
+                var fallbackSlot: Int? = previousSelectionIndex
+                var fallbackPixel: CGFloat?
+                let now = CACurrentMediaTime()
+                if let flight = Self.slotInFlightX[ownSlot], now - flight.at <= Self.inFlightFreshWindow {
+                    fallbackPixel = flight.x
+                    fallbackSlot = nil
+                    fallbackSource = "in-flight(\(String(format: "%.2f", now - flight.at))s)"
+                } else if let handoff = Self.commitHandoff,
                    handoff.slot == selectedIndex,
                    handoff.fromSlot != ownSlot,
-                   CACurrentMediaTime() - handoff.at <= Self.staleHandoffGrace {
-                    fallbackX = handoff.x
+                   now - handoff.at <= Self.staleHandoffGrace {
+                    fallbackPixel = handoff.x
+                    fallbackSlot = nil
                     fallbackSource = "stale-handoff"
                 } else if Self.selectionBeforeLastCommit != selectedIndex {
-                    fallbackX = CGFloat(Self.selectionBeforeLastCommit) * slotWidth()
+                    fallbackSlot = Self.selectionBeforeLastCommit
                     fallbackSource = "prev-commit(\(Self.selectionBeforeLastCommit))"
                 }
-                startX = fallbackX
+                startX = fallbackPixel
+                startSlot = fallbackSlot
                 // [探针 v4 2026-10-01] 兜底路径打点（判读后可删；显式分支拆链，规避
-                // Swift 6.0.3 求解器病理）。
+                // Swift 6.0.3 求解器病理）。[v5] fallbackX 打「将要用的值」——像素
+                // 级直显、槽位级注名（避免 bounds 未就绪期打假数误判）。
                 let probeH: String
                 if let h = Self.commitHandoff {
                     let age = String(format: "%.2f", CACurrentMediaTime() - h.at)
@@ -569,10 +642,15 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                 } else {
                     probeH = "nil"
                 }
-                let probeFX = String(format: "%.1f", fallbackX)
+                let probeFX: String
+                if let px = fallbackPixel {
+                    probeFX = String(format: "%.1f", px)
+                } else {
+                    probeFX = "slot\(fallbackSlot ?? 0)"
+                }
                 NavTrace.log("[LENS#\(instanceId)] NO-CONSUME own=\(ownSlot) h=\(probeH) pressed=\(interactionPressed != nil) gear=\(gearPressActive) via=\(fallbackSource) fallbackX=\(probeFX)")
             }
-            if let startX {
+            if startX != nil || startSlot != nil {
                 // [硬落点修复 v3 2026-10-01] 复播收口：登记起点/光晕/图标交接值 →
                 // 走 runPendingReplay 两段式（段 1 同帧落位——与树硬切同事务、首帧
                 // 无缝；段 2 次 tick 起簧到提交槽）。旧实现（内联落位 + 无条件补簧
@@ -580,7 +658,7 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                 // 落位/弹簧拆散吞掉——上一轮日志实锤的事故形态；v3 起对 bounds 时序
                 // 免疫。bounds 未就绪时 runPendingReplay 原样保留，下面这枚 async 与
                 // layoutSubviews 双驱（幂等，先到者执行）。
-                pendingReplay = PendingReplay(startX: startX, glowSlot: glowSlot, iconOverride: iconOverride)
+                pendingReplay = PendingReplay(startX: startX, startSlot: startSlot, glowSlot: glowSlot, iconOverride: iconOverride)
                 runPendingReplay()
                 DispatchQueue.main.async { [weak self] in
                     self?.runPendingReplay()
@@ -786,12 +864,18 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     }
 
     /// 槽宽 = (宽-8)/4（TG 4 格布局；pp 2026-09-30 装机：按 3 格算每格偏大）。
+    /// [v5 防负 2026-10-01] 新建岛的 bounds 未就绪时，旧式会算出 (0−8)/4 = −2.0，
+    /// 兜底 fallbackX = 槽位×(−2.0) = 负值——装机日志 `fallbackX=-4.0` 的出处，
+    /// 透镜被摆到负坐标再滑（「闪跳」观感）。钳到 0：未就绪期的一切像素换算
+    /// 统一交给 runPendingReplay 的 bounds guard（届时才是真几何）。
     private func slotWidth() -> CGFloat {
-        return (bounds.width - TGLensBar.innerInset * 2) / CGFloat(Self.slotCount)
+        return max(0, bounds.width - TGLensBar.innerInset * 2) / CGFloat(Self.slotCount)
     }
 
     /// 透镜几何 + 按压放大 + [拉伸 v4] 飞行中的横向拉伸（对照 TG TabBarComponent:868-887 / :835）。
-    private func pushLens(pressed: Int?, lensX: CGFloat?, animated: Bool) {
+    /// [v5 拉伸分层] allowStretch=false 的推（落位/对齐/维持）不施加形变——
+    /// 见下方拉伸段注释。
+    private func pushLens(pressed: Int?, lensX: CGFloat?, animated: Bool, allowStretch: Bool = true) {
         let width = bounds.width
         let height = bounds.height
         guard width > 0, height > 0 else { return }
@@ -855,24 +939,35 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         //   · 即时推（拖拽跟手帧）→ 直接落形变，指尖到哪形变到哪；
         //   · 形变量 ≈ 0 的带动画推（典型：.began 吸附后 .ended 又推同一格）→
         //     **不动**，否则会把 .began 的衰减从半路掐断（观感上的「回弹一抖」）。
+        // [v5 拉伸分层 2026-10-01] allowStretch=false 的推（复播段 1 落位 /
+        // idle-gate 对齐 / layoutSubviews 维持）**完全不碰形变**。旧式它们
+        // distance≈0 时 setLensStretch(1.0) 会把在途衰减**瞬时砍断**（「拉伸感
+        // 一闪就没」的直接机制）；idle-gate 更会按跨槽距离把 1.251 形变**钉死**
+        // 在隐藏树上（装机日志 `LENS-GEO … m11=1.251` 无衰减）。基准
+        // （lastStretchX/leading）照常更新——它描述「透镜在谁手上」，与是否
+        // 施加形变无关；下一根起簧推的 distance 由此永远正确。
         let previousX = self.lastStretchX
         if let previousX, abs(x - previousX) > 0.5 {
             lastStretchLeading = (x - previousX) > 0
         }
-        let distance = previousX.map { abs($0 - x) } ?? 0
-        let extra = min(distance, slotWidth) * Self.stretchGain
-        let stretchScaleX = 1.0 + extra / max(1.0, lensWidth)
         lastStretchX = x
-        if animated {
-            if stretchScaleX > 1.02 {
-                lens.animateLensStretchRelease(
-                    fromScaleX: stretchScaleX,
-                    leadingIsAnchor: lastStretchLeading,
-                    duration: Self.stretchReleaseDuration
-                )
+        if allowStretch {
+            let distance = previousX.map { abs($0 - x) } ?? 0
+            let extra = min(distance, slotWidth) * Self.stretchGain
+            let stretchScaleX = 1.0 + extra / max(1.0, lensWidth)
+            if animated {
+                if stretchScaleX > 1.02 {
+                    lens.animateLensStretchRelease(
+                        fromScaleX: stretchScaleX,
+                        leadingIsAnchor: lastStretchLeading,
+                        duration: Self.stretchReleaseDuration
+                    )
+                }
+            } else if extra > 0.5 {
+                // [v5] 即时推只在「真的有位移」时落形变——distance≈0 的维持推
+                // 若落 setLensStretch(1.0) 会把在途衰减瞬时砍断（观感一闪）。
+                lens.setLensStretch(scaleX: stretchScaleX, leadingIsAnchor: lastStretchLeading)
             }
-        } else {
-            lens.setLensStretch(scaleX: stretchScaleX, leadingIsAnchor: lastStretchLeading)
         }
 
         // 按下的项：选中副本放大 1.15（TG :835，selectionGestureState != nil 期间）。
