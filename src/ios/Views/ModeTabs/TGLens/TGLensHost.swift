@@ -229,6 +229,20 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     private static let stretchGain: CGFloat = 0.28
     private static let stretchReleaseDuration: Double = 0.4
 
+    /// [v6 duang 2026-10-01 · pp「tg 的是点击 tab 之后灰底滑动 duang 的动画，
+    /// 而我们现在是平滑的」] 透镜滑动从 `.spring(0.4)`（经 CAAnimationUtils 落到
+    /// 无过冲的 bezier(0.38,0.7,0.125,1) = 「平滑」）改为 **TG bounce 通道的真弹簧**：
+    /// `.bounce` 两条路径均为真 CASpringAnimation——layer 路径直建弹簧
+    /// （CAAnimationUtils.animateSpring：mass 5 基底 + stiffness/damping 覆盖）；
+    /// UIView 路径（按下吸附的 animateView）经 SpringParametersOverride swizzle
+    /// 换成 makeSpringBounceAnimationImpl（TGLensSupport 转写件，TG 原件机制）。
+    /// 参数 = TG bounce 默认档（900/88，mass 5）：ζ = 88/(2√(900×5)) ≈ 0.656 →
+    /// 过冲 ~6%、settle ~0.55s——「duang」的含蓄档。**手感单点可调**：加 damping
+    /// 减弹、减 damping 加弹；duration 取 0.5（TG swizzle 的「标准弹簧」档同值）。
+    private static let slideTransition: ComponentTransition = ComponentTransition(
+        animation: .curve(duration: 0.5, curve: .bounce(stiffness: 900.0, damping: 88.0))
+    )
+
     /// 本岛是否已退场（被同槽位的新岛接管）。退场后所有下发入口空转。
     private var isRetired = false
     /// 上一次推动的目标 x（拉伸方向/距离的基准；nil = 还没推过）。
@@ -380,6 +394,10 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         }
         Self.adoptSlotOwner(self)
         isRetired = false
+        // [v6] 复用旧视图（updateUIView 换槽路径）时若曾被退休隐藏，恢复显示。
+        if isHidden {
+            isHidden = false
+        }
     }
 
     /// 退场（被同槽位的新岛接管 / SwiftUI 摘下本岛）：清空一切在途与待办，
@@ -396,17 +414,15 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         touchEffect = nil
         let nextId = next?.instanceId ?? -1
         NavTrace.log("[LENS#\(instanceId)] retire ownSlot=\(ownSlot) → #\(nextId)")
-        // [v5 残骸修复 2026-10-01] 退场即归位 + 摘除。装机截图实锤：底栏槽位
-        // 出现「灰色的圆 + 黑色半弧」叠画残影，且随时间累积（08:18 只有黑弧、
-        // 08:22 两样都有）——退休岛被 SwiftUI 顶替后未必当场回收其 UIView，
-        // 而它又不再被任何人驱动（透镜定格在拉伸/错位态），两层同屏叠画即残影。
-        // 摘除是安全的：retire 的全部场景 = 同槽位已有新岛接管（该位置此后由
-        // 新岛唯一渲染）。归位（拉伸清零）是第二道保险：万一它被系统某处短暂
-        // 引用，也不再以拉伸态示人。
+        // [v6 残影收口 2026-10-01] 退场即隐藏 + 拉伸归位。v5 曾以
+        // removeFromSuperview 摘除退休岛；后查明「残影」（灰圆+黑弧）的真因 =
+        // 选中副本坐标双重偏移（layoutSubviews 的 v6 修复，与叠岛无关）——摘除
+        // 并不必要，且有破坏 SwiftUI 层级记账的风险（representable 的视图被手动
+        // 摘离层级后，系统记账与实物不一致）。改 isHidden：不被渲染（同样杜绝
+        // 「两层同屏叠画」的万一）、不被触达，层级完整保留；复活路径（ensureActive）
+        // 负责取消隐藏。拉伸归位同 v5：万一短暂可见也不以拉伸态示人。
         lens.setLensStretch(scaleX: 1.0, leadingIsAnchor: true)
-        if superview != nil {
-            removeFromSuperview()
-        }
+        isHidden = true
     }
 
     /// 复活判定：只有当本槽位**当前无主**（持有者已被释放）时才重新夺回；
@@ -414,13 +430,14 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     private func ensureActive() {
         guard isRetired else { return }
         guard Self.slotOwners[ownSlot]?.value == nil else { return }
-        // [v5 摘除配套] 若本岛在退休时已被摘出视图树（v5 残骸修复），复活它
-        // 会在 representable 位置上留空——弃权，等下一条新岛接管（该路径只在
-        // 异常时序可达；正常路径退休岛不会再收到 apply）。
+        // [v6 隐藏配套] 退休岛被 isHidden（v6 残影收口）——复活时先取消隐藏；
+        // 若已无父（被系统摘除过），复活会在 representable 位置留空——弃权
+        // （该路径只在异常时序可达；正常路径退休岛不会再收到 apply）。
         if superview == nil {
-            NavTrace.log("[LENS#\(instanceId)] re-adopt 弃权（已摘除）ownSlot=\(ownSlot)")
+            NavTrace.log("[LENS#\(instanceId)] re-adopt 弃权（无父）ownSlot=\(ownSlot)")
             return
         }
+        isHidden = false
         isRetired = false
         Self.slotOwners[ownSlot] = IslandRef(self)
         NavTrace.log("[LENS#\(instanceId)] re-adopt ownSlot=\(ownSlot)")
@@ -446,7 +463,14 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                 height: iconSide
             )
             normalIcons[i].frame = frame
-            selectedIcons[i].frame = frame
+            // [v6 图标错位修复 2026-10-01 · pp「选中之后的图标都是乱的」实锤]
+            // selectedIcons[i] 是 selectedIconHosts[i] 的**子视图**（v4 为 TouchEffect
+            // 加的承载容器），其 frame 是**相对 host** 的坐标——旧式却赋了与
+            // host 相同的**容器坐标** frame ⇒ 选中副本被二次平移（净位置 =
+            // 2×槽位坐标），全部甩向右下、滑出透镜洞外——透镜滑到某槽时，洞内
+            // 露出的反而是**邻槽错位副本的残段**（装机截图「黑弧残片/图标消失」的
+            // 真正根因，v4 引入 host 起潜伏至今）。修 = host 内居中（0,0,27,27）。
+            selectedIcons[i].frame = CGRect(origin: .zero, size: CGSize(width: iconSide, height: iconSide))
             // [拉伸 v4] TouchEffect 作用在承载容器上：容器与图标同框（容器尺寸即
             // TouchEffect 的参考尺寸——它的拉伸公式吃 view.bounds，见 TouchEffect
             // :192-231）。
@@ -926,7 +950,7 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             isDark: isDark,
             isLifted: pressed != nil,
             isCollapsed: false,
-            transition: animated ? .spring(duration: 0.4) : .immediate
+            transition: animated ? Self.slideTransition : .immediate
         )
 
         // [拉伸 v4 2026-10-01] 飞行中的横向拉伸（TG 观感的显式化，机制取真值见
