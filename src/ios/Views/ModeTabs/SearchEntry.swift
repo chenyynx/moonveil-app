@@ -10,25 +10,29 @@
 //   · SearchPlaceholderView 原样保留（三树的 `showsSearch` sheet 仍在用），
 //     正式搜索 UI 落地时把 sheet 的 content 换成真搜索页即可，入口不动。
 // 故 SearchToolbarButton 已随互换退役（零调用点），不保留死件。
+//
+// [ICON-SWAP 2026-10-01 · pp「顶部的那个新会话按钮你又造了个＋号 应该直接用
+// 原来的图标」] 互换时顶栏钮临时用系统 plus（「先占位、图标后议」），现归位：
+// 用互换前 🔍 钮同款的预栅格化管线 + 会话语义图标——aa-Tabler-Edit（Tabler
+// 铅笔；与底栏圆钮互换前所用同源），尺寸 22pt 与本机页 ≡ / 终端钮同栅格。
+// 同时底栏圆钮拿到 aa-Search（见 ModeTabBar.searchAsset）——两件互换彻底闭环。
 
 import SwiftUI
 
-/// 各 tab 页右上角的 ＋ 按钮（系统 plus，19pt）——[SEARCH-SWAP 2026-10-01]
-/// 顶栏新会话入口，占的是原 🔍 的位置。动作由调用方注入（各树的新建链路不同）。
+/// 各 tab 页右上角的新会话按钮——[SEARCH-SWAP 2026-10-01] 占原 🔍 的位置；
+/// [ICON-SWAP 2026-10-01] 图标 = aa-Tabler-Edit 22pt 预栅格化（ContentView
+/// .toolbarIcon 共用管线，防切 tab 重建闪帧）。动作由调用方注入（各树新建
+/// 链路不同）。
 struct NewSessionToolbarButton: View {
     /// 点击动作：本机树 = 新建本机会话；远端树 = 开远端新会话页。
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            // [FIX-toolbar-flash] SF Symbol 用 font 定尺寸，不用 .resizable()
-            //（切 tab toolbar 重建时 resizable 要等布局才渲染，会闪一帧）。
-            // 2026-09-27：22→19，之前在液态玻璃 pill 里显得比旁边的终端圆钮大一圈
-            //（🔍 时代定的尺寸，＋ 沿用同栅格）。
-            // weight .medium：同栏 alarm 钮（:15 medium）与 ≡ 菜单（22pt Tabler 描边）
-            // 对齐，纯 regular 的 plus 在 19pt 框里偏细。
-            Image(systemName: "plus")
-                .font(.system(size: 19, weight: .medium))
+            // [ICON-SWAP 2026-10-01] 走 ContentView.toolbarIcon 预栅格化位图
+            //（与 🔍 时代同管线、与本机页 ≡ 同 22pt 栅格）：template=true 让
+            // 位图吃 tint（图层染色黑/白自适应，勿删）。
+            ContentView.toolbarIcon("aa-Tabler-Edit", pointSize: 22, template: true)
         }
         // [TINT-FIX2] foregroundStyle 盖不住 toolbar 的 AccentColor tint，
         // 直接改 Button 的 tint。

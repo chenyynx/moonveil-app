@@ -53,6 +53,22 @@
 //     锚在飞行方向的前缘，衰减曲线与位置动画同款 → 拉伸量随剩余距离同步衰减。
 //   ④TG 的 stretchVector 系统接线：按下/拖动时给「透镜下的选中副本」挂一枚
 //     TouchEffect，按指尖位移喂 setStretchVector（TG 原件零改写）。
+//
+// [水气球 v7 2026-10-01 · pp「就是跟气球装满水然后落地那种 duang 的效果」] ③的
+// 「单段衰减」升级为完整编排（LiquidLensView.playLensWaterBalloon，v4 的
+// animateLensStretchRelease 随批退役）：起飞随运动爬峰 → 到站横向挤压数个百分点
+// + 纵向微鼓（体积耦合）→ 两级阻尼果冻抖动 → 归位；0.8s 键位对位位置弹簧
+// （900/88/mass5：首过 ≈0.23s / 过冲 ≈0.31s / 回落 ≈0.43s）。触发两路：有位移
+// 起飞/重定向走全程（峰值随距离，>1.02 拉伸档）；松手落位（pressed=nil）位移≈0
+// 也走着陆段——「拖拽放手直接落下」的观感由此保证。拖拽跟手帧仍走 setLensStretch
+// 逐帧落形变（并掐掉在途编排＝手臂接管）；allowStretch=false 分层规则不变。
+//
+// [退役交棒修复 v7 2026-10-01 · v6「连环重建丢真值」根因收口] 同槽位 13-15ms
+// 连环顶替时，adoptSlotOwner 对旧岛「隔屏采样」：旧岛不可见 → presentation()
+// 返回冻结旧快照（=出发槽）→ 在途寄存器被毒化 → 继任岛回拉重飞（v6 日志铁证：
+// 20 处 NO-CONSUME 全部 via=in-flight(0.00s)、值清一色出发槽 0.0/68.2/136.5）。
+// 修复 = retire() 时若本岛不可见（自身+祖先链 isHidden/alpha 检查）直写模型真值
+// 覆盖毒值——退役恒晚于采样写入，真值必然生效。见 retire() / LiquidLensView ④。
 
 import SwiftUI
 import UIKit
@@ -118,7 +134,9 @@ struct TGLensBar: UIViewRepresentable {
         view.ownSlot = ownSlot
         // 槽位变了 = 换了归属的树，重新认领（否则会占着旧槽位的活岛身份）。
         if previousSlot != ownSlot {
-            view.claimSlotOwner()
+            // [S3 复审修 2026-10-01] 带旧槽号移交：认领前先清本岛在旧槽的登记
+            //（见 claimSlotOwner(movingFrom:) 注释——防误采样/退役交棒写错槽）。
+            view.claimSlotOwner(movingFrom: previousSlot)
         }
         view.apply(selectedIndex: selectedIndex, isDark: isDark)
     }
@@ -224,10 +242,10 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     /// 陈旧交接的宽限窗（新鲜窗 0.5s 之外再给一段，只为「刚过窗就整段弹回」）。
     private static let staleHandoffGrace: CFTimeInterval = 3.0
 
-    /// 拉伸增益与衰减时长（见文件头 [拉伸 v4]）：移动距离 × 0.28 得额外宽度，
-    /// 以槽宽封顶；衰减 0.4s 与位置动画同曲线同长度（LiquidLensView 适配 ⑦）。
+    /// 拉伸增益（见文件头 [拉伸 v4] / [水气球 v7]）：移动距离 × 0.28 得额外宽度，
+    /// 以槽宽封顶。衰减/挤压/抖动的曲线与时长由 LiquidLensView.playLensWaterBalloon
+    /// 的 0.8s 键位时间线承担（v4 的 stretchReleaseDuration 已随 v7 退役）。
     private static let stretchGain: CGFloat = 0.28
-    private static let stretchReleaseDuration: Double = 0.4
 
     /// [v6 duang 2026-10-01 · pp「tg 的是点击 tab 之后灰底滑动 duang 的动画，
     /// 而我们现在是平滑的」] 透镜滑动从 `.spring(0.4)`（经 CAAnimationUtils 落到
@@ -388,7 +406,15 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     /// [单岛收口 v4] 认领本槽位的活岛身份。**幂等**：重复调用只是把同一个引用
     /// 重新写回（不会误伤自己）。调用点 = 宿主在 makeUIView/updateUIView 写完
     /// ownSlot 之后——ownSlot 由宿主注入，init 里还是默认值 0，故不能在 init 认领。
-    fileprivate func claimSlotOwner() {
+    /// [S3 复审修 2026-10-01] `movingFrom`：updateUIView 换槽复用（同一视图从槽 A
+    /// 挪到槽 B）时传入旧槽号——认领前先清本岛在旧槽的登记。不清的话旧槽位指着
+    /// 一个「已在服务别的槽」的活岛：该槽后续新岛的顶替会把采样/退役动作打在错岛
+    /// 上，v7 退役交棒修复也会按 ownSlot（新槽）写寄存器、与毒值采样槽不一致。
+    fileprivate func claimSlotOwner(movingFrom previousSlot: Int? = nil) {
+        if let previousSlot, previousSlot != ownSlot,
+           Self.slotOwners[previousSlot]?.value === self {
+            Self.slotOwners[previousSlot] = nil
+        }
         if isRetired, Self.slotOwners[ownSlot]?.value === self {
             return
         }
@@ -405,6 +431,19 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
     /// 落点即静止，正是「出场岛静止、不参与动画、不被杀」的字面实现。
     fileprivate func retire(replacedBy next: TGLensBarView? = nil) {
         guard !isRetired else { return }
+        // [退役交棒修复 v7 2026-10-01 · v6「连环重建丢真值」根因收口] 本岛不可见
+        // （自身或祖先链 isHidden/alpha≈0，典型 = 保活 ZStack 里尚未切上场/已切
+        // 离场的那棵树）时，把透镜**模型真值**直写本槽位在途寄存器。为什么必须
+        // 是这里：adoptSlotOwner 先对旧岛「隔屏采样」（currentSelectionOriginXForHandoff，presentation
+        // 优先）再调本函数——不可见视图的 presentation() 是冻结旧快照（v6 判读
+        // 实锤 = 出发槽；Chain B：#1474 退役 → #1476 继任岛 NO-CONSUME
+        // fallbackX=0.0 → 回拉重飞），模型层才是真值（Chain B 里 = 落位真值
+        // 144.3）。退役恒晚于采样写入（采样在 retire 调用之前）⇒ 此处写入必然
+        // 盖过毒值；可见岛的正常顶替不受影响（采样读的本来就是活屏真值，不写）。
+        if isEffectivelyHidden, let modelX = lens.currentSelectionOriginXModelOnly {
+            Self.slotInFlightX[ownSlot] = (x: modelX, at: CACurrentMediaTime())
+            NavTrace.log("[LENS#\(instanceId)] retire-handoff x=\(String(format: "%.1f", modelX))")
+        }
         isRetired = true
         pendingReplay = nil
         interactionPressed = nil
@@ -423,6 +462,20 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
         // 负责取消隐藏。拉伸归位同 v5：万一短暂可见也不以拉伸态示人。
         lens.setLensStretch(scaleX: 1.0, leadingIsAnchor: true)
         isHidden = true
+    }
+
+    /// [退役交棒修复 v7 2026-10-01] 本岛（含祖先链）是否处于「不上屏」态：自身或
+    /// 任一祖先 isHidden，或 alpha ≈ 0（保活 ZStack 以 isHidden/alpha 藏树，两种
+    /// 都算）。仅作 retire 交棒修复的判据，勿用于其它语义。
+    private var isEffectivelyHidden: Bool {
+        var node: UIView? = self
+        while let current = node {
+            if current.isHidden || current.alpha <= 0.01 {
+                return true
+            }
+            node = current.superview
+        }
+        return false
     }
 
     /// 复活判定：只有当本槽位**当前无主**（持有者已被释放）时才重新夺回；
@@ -688,7 +741,12 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
                     self?.runPendingReplay()
                 }
             } else {
-                pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: true)
+                // [S2 复审修 2026-10-01] 本支路只在「changed 但 indexChanged=false」时
+                // 可达（深色切换等非选中变更；indexChanged 的两条路都必先设
+                // startX/startSlot 走复播）。目标位与上次同值 ⇒ 显式禁形变：否则
+                // pressed==nil 会命中水气球着陆路（stretch≤1.02 也起播），切
+                // 深浅色时透镜原地干抖一下。
+                pushLens(pressed: interactionPressed, lensX: interactionLensX, animated: true, allowStretch: false)
             }
         }
     }
@@ -953,16 +1011,20 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             transition: animated ? Self.slideTransition : .immediate
         )
 
-        // [拉伸 v4 2026-10-01] 飞行中的横向拉伸（TG 观感的显式化，机制取真值见
-        // 文件头 [拉伸 v4]）。形变量 = 本次目标 x 与上次目标 x 的距离 × 0.28，
-        // 以槽宽封顶（跨两格时不再继续拉长 = 液态的饱和感），换算成透镜视图的
-        // 横向 scale；锚在**飞行方向的前缘**（向右飞 → 前缘在左），于是视觉上
-        // 是「被拖着走、后缘被抹开」，而不是整体横向涨一圈。
-        //   · 带动画的推（按下吸附 / 松手落位 / 复播起簧）→ 起一次衰减动画，时长
-        //     曲线与位置动画同款 → 拉伸量随剩余距离同步衰减到 0；
-        //   · 即时推（拖拽跟手帧）→ 直接落形变，指尖到哪形变到哪；
-        //   · 形变量 ≈ 0 的带动画推（典型：.began 吸附后 .ended 又推同一格）→
-        //     **不动**，否则会把 .began 的衰减从半路掐断（观感上的「回弹一抖」）。
+        // [拉伸 v4 → 水气球 v7 2026-10-01] 飞行形变（机制取真值见文件头 [拉伸 v4]
+        // / [水气球 v7]）。形变量 = 本次目标 x 与上次目标 x 的距离 × 0.28，以槽宽
+        // 封顶（跨两格时不再继续拉长 = 液态的饱和感）；锚在**飞行方向的前缘**，
+        // 视觉上是「被拖着走、后缘被抹开」，而不是整体横向涨一圈。v7 起不再是
+        // 「起一次单段衰减」，而是完整水气球编排：起飞爬峰 → 到站挤压 → 两级果冻
+        // → 归位（LiquidLensView.playLensWaterBalloon 的 0.8s 键位时间线，对位位置
+        // 弹簧 900/88 的相位）。
+        //   · 带动画的推：①有位移的起飞/重定向（>1.02 拉伸档）→ 完整编排，峰值
+        //     随距离（intensity）；②松手落位（pressed=nil，含跨树复播段 2 的无
+        //     手势推）→ 即使位移≈0 也走着陆段（挤压/果冻带保底幅度）——pp「拖动
+        //     放手直接落下（水气球 duang）」的观感即此路（apply 侧深色维持推
+        //     已显式 allowStretch:false，不入此两路）；
+        //   · 即时推（拖拽跟手帧）→ setLensStretch 直接落形变（指尖到哪形变到哪，
+        //     同时掐掉在途编排 = 手臂接管）。
         // [v5 拉伸分层 2026-10-01] allowStretch=false 的推（复播段 1 落位 /
         // idle-gate 对齐 / layoutSubviews 维持）**完全不碰形变**。旧式它们
         // distance≈0 时 setLensStretch(1.0) 会把在途衰减**瞬时砍断**（「拉伸感
@@ -979,12 +1041,12 @@ final class TGLensBarView: UIView, UIGestureRecognizerDelegate {
             let distance = previousX.map { abs($0 - x) } ?? 0
             let extra = min(distance, slotWidth) * Self.stretchGain
             let stretchScaleX = 1.0 + extra / max(1.0, lensWidth)
+            let intensity = min(distance / max(1.0, slotWidth), 1.0)
             if animated {
-                if stretchScaleX > 1.02 {
-                    lens.animateLensStretchRelease(
-                        fromScaleX: stretchScaleX,
-                        leadingIsAnchor: lastStretchLeading,
-                        duration: Self.stretchReleaseDuration
+                if stretchScaleX > 1.02 || pressed == nil {
+                    lens.playLensWaterBalloon(
+                        intensity: intensity,
+                        leadingIsAnchor: lastStretchLeading
                     )
                 }
             } else if extra > 0.5 {

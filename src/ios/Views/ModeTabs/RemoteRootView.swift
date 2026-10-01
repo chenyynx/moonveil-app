@@ -66,14 +66,17 @@ struct RemoteRootView: View {
                 if tabRouter.mode == .remote {
                     // [TABLER-ICONS] 与本机页左上角一致的设置入口（Tabler menu 两横，
                     // 走 tabRouter.showSettings，sheet 由壳层呈现）。
+                    // [ICON-ALIGN 2026-10-01 · pp「远端页左上角那个图标大小和本地页
+                    // 左上角那个图标大小不一样 对齐本地页左上角图标大小」] 本钮原为
+                    // .resizable() 直出 20×20（等布局定尺才渲染，与本机页 ≡ 的 22pt
+                    // 预栅格化位图既差尺寸又差管线）→ 换 ContentView.toolbarIcon
+                    // 22pt 共用栅格化器，与本机页 ≡（ContentView:3767 调用点）同款
+                    // 同尺寸同模板，两根线顶栏左右角从此对齐。
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
                             tabRouter.showSettings = true
                         } label: {
-                            Image("aa-Tabler-Menu")
-                                .renderingMode(.template)
-                                .resizable()
-                                .frame(width: 20, height: 20)
+                            ContentView.toolbarIcon("aa-Tabler-Menu", pointSize: 22, template: true)
                         }
                         // [TINT-FIX2] 跟本机页统一，盖住 AccentColor 蓝。
                         .tint(.primary)

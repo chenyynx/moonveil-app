@@ -9,6 +9,8 @@
 //   ③ 删 update() 内 legacy 蒙版更新块（同 ②）。
 //   ④ 追加 currentSelectionOriginXForHandoff 读取口（本仓「每树一栏 + 瞬切」架构
 //      的跨树提交交接用；上游单栏架构无此需求。见 TGLensHost.CommitHandoff 注释）。
+//      [v7 2026-10-01] 增补 currentSelectionOriginXModelOnly（只看模型层）——
+//      退役交棒修复用（不可见岛的 presentation 是冻结快照），见 TGLensHost.retire。
 //   ⑤ [探针 2026-10-01 · v2 同日] updateLens/update 内 [LENS-LLV] 只读打点（lifted
 //      同步态 / move 前后值 / displaylink 开关 / 卡死窗口排队 / 位置动画被清除），
 //      全部带宿主注入实例号——「底栏点击硬落点」定位用；判读后随其它探针一并删除。
@@ -16,8 +18,11 @@
 //      里的 shouldScheduleUpdate/一帧 flush）：看门狗是 removeAllAnimations 后快照
 //      落位，装机日志两次 `[LENS-LLV] move … killed=true posAnim=false` 紧跟它出现
 //      ——它正是 pp 装机「硬落点」的凶手之一。替代方案见 ⑧（就地收口 + 不杀在途）。
-//   ⑦ [本仓适配 2026-10-01 · v4 · 拉伸] 追加 setLensStretch / animateLensStretchRelease：
-//      把「飞行中的黏性拖尾」显式建模为透镜视图的横向 scale（锚在飞行方向的前缘）。
+//   ⑦ [本仓适配 2026-10-01 · v4 · 拉伸 → v7 · 水气球] 追加 setLensStretch（拖拽
+//      跟手）与 playLensWaterBalloon（v7 起；v4 的 animateLensStretchRelease 单段
+//      衰减已随 v7 退役）：把「飞行中的黏性拖尾」显式建模为透镜视图的横向 scale
+//      （锚在飞行方向的前缘）+ [v7] 纵向体积耦合（拉伸微薄/挤压微鼓）；起飞爬峰 →
+//      到站挤压 → 两级阻尼果冻 → 归位，键位对位位置弹簧相位。
 //      TG 侧无此入口——它的拉伸来自私有 _UILiquidLensView 随几何弹簧自形变
 //      （TG TabBarComponent:868-887 逐帧算几何 → LiquidLensView:410-457 逐帧
 //      setPosition/bounds + :450 无 key 的 additive 前缘钉位），本仓同一份代码照搬，
@@ -195,6 +200,16 @@ public final class LiquidLensView: UIView {
         let centerX = lensView.layer.presentation()?.position.x ?? lensView.center.x
         return centerX - params.baseFrame.width * 0.5
     }
+
+    /// [退役交棒修复 v7 2026-10-01] 同上读取口的**只看模型层**变体——供「旧岛
+    /// 不上屏」的退场交接：不可见视图的 presentation() 是冻结旧快照（v6 判读
+    /// 实锤 = 出发槽），模型层才是真值。可见岛交接继续走上面的 presentation 优先版。
+    public var currentSelectionOriginXModelOnly: CGFloat? {
+        guard let lensView = self.lensView, let params = self.appliedLensParams else {
+            return nil
+        }
+        return lensView.center.x - params.baseFrame.width * 0.5
+    }
     
     public private(set) var isAnimating: Bool = false {
         didSet {
@@ -331,13 +346,22 @@ public final class LiquidLensView: UIView {
     /// 已逐行核对上游 LiquidLensView 无任何 transform 写入）。
     private static let lensStretchAnimationKey = "tg-lens-stretch"
 
-    /// 横向缩放 + 前缘钉位的仿射矩阵。锚在半宽处：m41 = ±(w/2)*(s−1)，
-    /// 令 锚点 经变换后原地不动（推导见方法注释；显式写分量而非链式
+    /// [水气球 v7 2026-10-01] 体积耦合系数：横向拉伸 → 纵向微薄、挤压 → 纵向微鼓
+    /// （水的不可压缩感；纯横向形变到挤压帧读作「变短」而不像「落地」）。
+    /// 收敛阀：观感不对调 0 = 退回 v4 纯横向。
+    private static let stretchVolumeCoupling: CGFloat = 0.3
+
+    /// 横向缩放 + 前缘钉位 + [v7] 纵向体积耦合的仿射矩阵。锚在半宽处：
+    /// m41 = ±(w/2)*(s−1)，令 锚点 经变换后原地不动（对 s<1 的挤压帧同样精确
+    /// 成立：锚缘 x = −w/2 恒映射回 −w/2；显式写分量而非链式
     /// CATransform3DScale/Translate，规避本仓 Swift 6.0.3 求解器病理）。
     private func lensStretchTransform(scaleX: CGFloat, referenceWidth: CGFloat, leadingIsAnchor: Bool) -> CATransform3D {
         var transform = CATransform3DIdentity
-        let s = max(1.0, scaleX)
+        // [v7] 下限从 1.0 放宽到 0.6——着陆挤压段需要 s<1（v4 只有单向拉伸）。
+        let s = max(0.6, scaleX)
         transform.m11 = s
+        let coupled = 1.0 - (s - 1.0) * Self.stretchVolumeCoupling
+        transform.m22 = min(max(coupled, 0.94), 1.03)
         let halfWidth = max(0.0, referenceWidth) * 0.5
         // 飞行方向为 +x（向右）时「前缘」= 左缘 → 锚左缘，m41 取正。
         transform.m41 = (leadingIsAnchor ? halfWidth : -halfWidth) * (s - 1.0)
@@ -372,36 +396,59 @@ public final class LiquidLensView: UIView {
         }
     }
 
-    /// [本仓适配 ⑦] 拉伸回弹：一次 CAAnimation 把 scaleX 衰减回 1。
-    /// 曲线/时长与位置动画**同款**（TG 的 `.spring(duration: 0.4)` 在 iOS 26 落到
-    /// CAAnimationUtils.makeAnimation 的 bezier(0.380, 0.700, 0.125, 1.000) 分支——
-    /// 见 CAAnimationUtils.swift:210-227 与 Transition.swift:33-73 的 curve→timingFunction
-    /// 映射；0.4 ≠ 0.3832 且 ≠ 0.5 故不进原生弹簧）——于是「拉伸量随剩余距离衰减」
-    /// 是几何上的严格同相，而不是两条曲线各走各的近似。
-    public func animateLensStretchRelease(fromScaleX: CGFloat, leadingIsAnchor: Bool, duration: Double) {
+    /// [本仓适配 ⑦ · 水气球 v7 2026-10-01] 完整的「起飞 → 着陆 → 果冻」时间线，
+    /// 替代 v4 的单段衰减（animateLensStretchRelease 已随本批退役）。
+    /// pp 目标形态：「装满水的气球落地那种 duang」——形变不再按下瞬间顶满再单调
+    /// 消失，而是随运动爬峰、到站挤压、再以两级阻尼抖动归位。
+    /// 键位对位位置弹簧（bounce 900/88/mass5，见 TGLensHost.slideTransition）：
+    /// 首过目标 ≈0.23s、过冲峰 ≈0.31s、回落 ≈0.43s——总时长 0.8s 的键位按此
+    /// 排布（0.29/0.40/0.55 三键分别压在 0.23/0.32/0.44s）。
+    /// - Parameters:
+    ///   - intensity: 0..1 飞行强度（距离/槽宽，TGLensHost 钳制）——决定拉伸峰值；
+    ///     着陆挤压与两级抖动带保底幅度（松手落位位移≈0 时仍「落地」）。
+    ///   - leadingIsAnchor: 锚边（同 setLensStretch）。
+    public func playLensWaterBalloon(intensity: CGFloat, leadingIsAnchor: Bool) {
         guard let lensView = self.lensView else {
             return
         }
-        guard fromScaleX > 1.0001, duration > 0.0 else {
-            self.setLensStretch(scaleX: 1.0, leadingIsAnchor: leadingIsAnchor)
-            return
-        }
         let referenceWidth = lensView.bounds.width
-        let animation = CABasicAnimation(keyPath: "transform")
-        animation.fromValue = NSValue(caTransform3D: self.lensStretchTransform(
-            scaleX: fromScaleX, referenceWidth: referenceWidth, leadingIsAnchor: leadingIsAnchor
-        ))
-        animation.toValue = NSValue(caTransform3D: CATransform3DIdentity)
-        animation.duration = duration
-        animation.timingFunction = CAMediaTimingFunction(controlPoints: 0.380, 0.700, 0.125, 1.000)
+        // 续接当前形态起播（重定向/松手重触发时可能在半途）——presentation 优先，
+        // 与交接采样同哲学；无在途动画时 presentation 即模型值。
+        let fromScale = min(max(lensView.layer.presentation()?.transform.m11 ?? 1.0, 0.9), 1.3)
+        let i = min(max(intensity, 0.0), 1.0)
+        // 着陆段强度底：即使位移≈0（松手落位）也保 60% 幅度的挤压/抖动。
+        let landing = 0.6 + 0.4 * i
+        let keys: [(t: CFTimeInterval, s: CGFloat)] = [
+            (0.00, fromScale),                  // 起播 = 当前形态（续接）
+            (0.13, 1.0 + 0.16 * i),             // 0.10s：行程爬峰（峰值随距离）
+            (0.29, 1.0 + 0.020 * i),            // 0.23s：到站，形变收拢
+            (0.40, 1.0 - 0.045 * landing),      // 0.32s：着陆挤压最深（对位过冲峰）
+            (0.55, 1.0 + 0.028 * landing),      // 0.44s：回弹一（对位回落）
+            (0.70, 1.0 - 0.013 * landing),      // 0.56s：回弹二
+            (0.85, 1.0 + 0.005 * landing),      // 0.68s：微回
+            (1.00, 1.0),                        // 0.80s：归位
+        ]
+        let total: CFTimeInterval = 0.8
+        let animation = CAKeyframeAnimation(keyPath: "transform")
+        animation.values = keys.map {
+            NSValue(caTransform3D: self.lensStretchTransform(
+                scaleX: $0.s, referenceWidth: referenceWidth, leadingIsAnchor: leadingIsAnchor
+            ))
+        }
+        // [S1 复审修 2026-10-01] keys 的 t 已是归一化分数（键位表注释：0.13 =
+        // 0.10s/0.8s），keyTimes 原样用——旧写法再除 total 得 [0,0.16,…,1.0625,
+        // 1.25] 越界（CA 要求 [0,1] 单调递增），着陆/果冻段相位整体错乱。
+        animation.keyTimes = keys.map { NSNumber(value: $0.t) }
+        animation.duration = total
         animation.fillMode = .forwards
         animation.isRemovedOnCompletion = true
-        // 模型层即刻归位：拉伸是「只在飞行途中存在」的观感，落位必须回到恒等变换，
-        // 否则下一次 setBounds/命中计算会被 model transform 污染。
+        // 模型层即刻归位：形变是「只在飞行途中存在」的观感，落位必须回到恒等变换，
+        // 否则下一次 setBounds/命中计算会被 model transform 污染（v4 同款纪律）。
         lensView.layer.transform = CATransform3DIdentity
         lensView.layer.add(animation, forKey: Self.lensStretchAnimationKey)
-        // [探针 v4 2026-10-01] 每次回弹一条（每手势 ≤ 1 条，噪声可控）。
-        NavTrace.log("[LENS-GEO\(self.instanceTag)] w=\(String(format: "%.1f", referenceWidth)) sx=\(String(format: "%.3f", fromScaleX)) → 1.000")
+        // [探针 v4→v7 2026-10-01] 每次编排起播一条（每手势 ≤ 数条，噪声可控）。
+        // 判读要点：i 随距离渐变、from 续接前值（不再有 1.251 常驻）。
+        NavTrace.log("[LENS-GEO\(self.instanceTag)] balloon i=\(String(format: "%.2f", i)) from=\(String(format: "%.3f", fromScale))")
     }
 
     public func update(size: CGSize, cornerRadius: CGFloat? = nil, selectionOrigin: CGPoint, selectionSize: CGSize, inset: CGFloat, liftedInset: CGFloat = 4.0, isDark: Bool, isLifted: Bool, isCollapsed: Bool = false, transition: ComponentTransition) {

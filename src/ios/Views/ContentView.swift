@@ -1184,8 +1184,13 @@ struct ContentView: View {
     /// 在 toolbar 重建（切 tab）时要等布局定尺寸后才渲染，中间空一帧 → 按钮
     /// 闪一下。这里按目标 pt 尺寸一次栅格化缓存，之后直接用位图，不 resizable。
     /// 只在 body（主线程）调用。
-    private static var toolbarIconCache: [String: UIImage] = [:]
-    private static func toolbarIcon(_ asset: String, pointSize: CGFloat, template: Bool = false) -> Image {
+    /// [ICON-SWAP 2026-10-01] private 摘除：本件升为 ModeTabs 侧共用的工具钮
+    /// 栅格化器（SearchEntry.NewSessionToolbarButton 顶栏铅笔、RemoteRootView
+    /// ≡ 菜单等）。**尺寸/模板的唯一真值在本函数**——他处要新图标形状只许
+    /// 传 asset 名进来，禁止另起栅格化器（否则又是闪帧面）。命名保留
+    /// toolbarIcon 不变（调用点多在 toolbar 语境，改名徒增 diff）。
+    static var toolbarIconCache: [String: UIImage] = [:]
+    static func toolbarIcon(_ asset: String, pointSize: CGFloat, template: Bool = false) -> Image {
         let key = "\(asset)@\(Int(pointSize))\(template ? "t" : "")"
         if let cached = toolbarIconCache[key] {
             return Image(uiImage: cached)

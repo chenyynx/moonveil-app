@@ -50,7 +50,8 @@ struct ModeTabBar: View {
     /// 「点了就调」。**刻意不设默认值**：四个挂点（ContentView 窄窗 stackLayout /
     /// ContentView 宽窗 / RemoteRootView / WorksListView）必须全部显式接线，
     /// 漏一个即为编译错误——这正是想要的：静默走旧的 compose 路径比编译失败更糟。
-    /// 视觉（玻璃圆 + 拉缩发光 + 图标 + a11y 文案）本批一字未动。
+    /// 视觉（玻璃圆 + 拉缩发光）不动；图标/a11y 的归位见 [圆钮图标 2026-10-01]
+    /// （composeButton）：圆形交互件沿用原名，仪表语义已随互换迁至搜索。
     var onSearchTapped: () -> Void
 
     /// 单通道（D4 红线）：选中读这里、切页写这里，与旧 tabSelection binding 同源。
@@ -95,16 +96,25 @@ struct ModeTabBar: View {
     /// .secondary。a11y 朗读文本由 tabLabel 提供。
     /// 2026-09-27：pp 从 Tabler 库四组候选中钦定（tab1 message-circle /
     /// tab2 cloud / tab3 puzzle / tab4 edit）。
+    /// [圆钮图标 2026-10-01] 原第 4 行 `.compose → aa-Tabler-Edit` 随图标归位
+    /// 退役：铅笔改驻顶栏新会话钮（SearchEntry.NewSessionToolbarButton），底栏圆钮
+    /// 改 aa-Search（见 searchAsset）；本字典回到「恰为三个页面位」。
     private static let tabIcon: [AppSourceMode: String] = [
         .local: "aa-Tabler-MessageCircle",
         .remote: "aa-Tabler-Cloud",
         .works: "aa-Tabler-Puzzle",
-        .compose: "aa-Tabler-Edit",
     ]
 
     /// [第 4 格] 设置齿轮资产（与 TGLensHost.settingsAsset / ContentView ≡ 齿轮
     /// 同源 aa-Tabler-Settings，勿另起）。
     private static let settingsAsset = "aa-Tabler-Settings"
+
+    /// [圆钮图标 2026-10-01 · pp「那个底部的搜索 你没有换图标啊……应该直接用原来的
+    /// 图标」] 底栏右侧搜索圆钮的图标 = 仓内现成 aa-Search（Tabler 几何放大镜，
+    /// 24box/stroke2，已按 template 渲染）。互换前顶栏 🔍 的角色由它接棒——e2dd445
+    /// 互换时「视觉一字未动」留下的账，本批补上：搜索语义图标到位，原铅笔
+    /// （aa-Tabler-Edit）随「新会话」语义迁去顶栏按钮。
+    private static let searchAsset = "aa-Search"
 
     /// Lucide SVG 资产是 24pt viewBox；Muse 的 tab 图标约 19pt，这里栅格化到
     /// 27pt 并保持 template 渲染；颜色由调用处的 .foregroundStyle 按选中态给。
@@ -309,7 +319,9 @@ struct ModeTabBar: View {
 
     /// 圆钮（TG 的 64×64 独立圆搜索钮同位，:899-901）。玻璃圆 + 按压回弹。
     /// [圆钮改造 2026-10-01] 动作 = `onSearchTapped()`；原「本栏自己 commit(.compose)
-    /// + 跨树守卫」整段退役（动作语义归调用方，栏内不该再猜）。视觉一字未动。
+    /// + 跨树守卫」整段退役（动作语义归调用方，栏内不该再猜）。
+    /// [圆钮图标 2026-10-01 · pp「你没有换图标啊……应该直接用原来的图标」] 图标
+    /// 与 a11y 随语义归位：aa-Search（搜索）+ "Search"；玻璃圆/拉缩发光/尺寸不动。
     private var composeButton: some View {
         Button {
             // 追踪打点保留（原先挂在 commit(.compose) 上；动作外移后若不同步搬
@@ -318,8 +330,8 @@ struct ModeTabBar: View {
             NavTrace.log("BINDING action=composeTab mode=\(router.mode) trig=\(NavTrace.trigger)+\(NavTrace.age)")
             onSearchTapped()
         } label: {
-            Self.tabImage(Self.tabIcon[.compose] ?? "aa-Circle")
-                .foregroundStyle(Self.tabIconColor(.compose, active: false))
+            Self.tabImage(Self.searchAsset)
+                .foregroundStyle(.primary)
                 .frame(width: 64, height: 64)
                 .circleLiquidGlass()
                 .contentShape(Circle())
@@ -328,7 +340,9 @@ struct ModeTabBar: View {
         // 玻璃）：卡住的"拉缩 + 发光"= 系统液态玻璃触摸响应，替掉原先无观感的手工
         // 0.92 缩放（SpringPressButtonStyle 与 .interactive() 双重缩放会打架）。
         .buttonStyle(.plain)
-        .accessibilityLabel(Text(Self.tabLabel(.compose)))
+        // 文案 key 与原 🔍 同款（SearchPlaceholderView 的标题同 key；xcstrings 里
+        // 该 key 尚缺，回退英文 "Search"，与占位页现状一致——补 key 由 pp 定）。
+        .accessibilityLabel(Text(String(localized: "Search")))
     }
 
     // MARK: - 手势（TG TabSelectionRecognizer 的 SwiftUI 化）
