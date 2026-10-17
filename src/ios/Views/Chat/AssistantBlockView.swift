@@ -493,8 +493,8 @@ struct ToolCapsuleView: View {
                 // pill list stays clean.
                 if let dur = durationText {
                     Text(dur)
-                        .font(.system(size: 11, weight: .regular, design: .monospaced))
-                        .foregroundStyle(ChatColors.tertiaryText)
+                        .font(ToolCapsuleSkin.detailFont)
+                        .foregroundStyle(ChatColors.secondaryText)
                 }
 
                 // Stop button for running commands
@@ -516,10 +516,9 @@ struct ToolCapsuleView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 12)
-            .frame(height: 36)
-            .background(Color(UIColor.systemGray6))
-            .clipShape(Capsule())
+            .padding(.horizontal, ToolCapsuleSkin.horizontalPadding)
+            .frame(height: capsuleHeight)
+            .toolCapsuleSurface(tint: ToolCapsuleSkin.green, shape: Capsule())
             .overlay(
                 Group {
                     if isActive {
@@ -528,10 +527,6 @@ struct ToolCapsuleView: View {
                             .allowsHitTesting(false)
                     }
                 }
-            )
-            .overlay(
-                Capsule()
-                    .stroke(ChatColors.toolBorder, lineWidth: 0.5)
             )
             .contentShape(Capsule())
             .onTapGesture {
@@ -686,7 +681,7 @@ struct ToolCapsuleView: View {
                 Image(systemName: icon == "doc.plus" ? "doc.text.fill" : icon)
             }
         }
-        .font(.system(size: 13))
+        .font(ToolCapsuleSkin.iconFont)
         .foregroundStyle(iconColor)
     }
 
@@ -895,26 +890,26 @@ struct ThinkingBlockView: View {
             HStack(spacing: 6) {
                 thinkingHeaderIcon
                 Text(AppLocalized("Deep Thinking"))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.blue)
+                    .font(ToolCapsuleSkin.titleFont)
+                    .foregroundStyle(ChatColors.primaryText)
                 if isStreaming {
                     ProgressView()
                         .controlSize(.mini)
-                        .tint(.blue)
+                        .tint(ToolCapsuleSkin.blue)
                 }
                 if block.content.count > 0 || block.thinkingContentBuffer.count > 0 {
                     let charCount = max(block.content.count, block.thinkingContentBuffer.count)
                     Text(charCount > 1000 ? "\(charCount / 1000)K" : "\(charCount)")
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.blue.opacity(0.6))
+                        .font(ToolCapsuleSkin.detailFont)
+                        .foregroundStyle(ChatColors.secondaryText)
                 }
                 Spacer()
                 Image(systemName: isExpanded.wrappedValue ? "chevron.up" : "chevron.down")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.blue.opacity(0.5))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(ChatColors.secondaryText)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.horizontal, ToolCapsuleSkin.horizontalPadding)
+            .frame(height: ToolCapsuleSkin.standardHeight)
             .contentShape(Rectangle())
             .onTapGesture {
                 // Mark before flipping so any concurrent stream-end collapse
@@ -967,7 +962,7 @@ struct ThinkingBlockView: View {
                                 Text("Showing last \(displayContent.count / 1000)K of \(total / 1000)K characters", comment: "Thinking window truncation hint")
                                     .font(.system(size: 11))
                                     .foregroundStyle(.secondary)
-                                    .padding(.horizontal, 12)
+                                    .padding(.horizontal, ToolCapsuleSkin.horizontalPadding)
                                     .padding(.bottom, 4)
                             }
                             // [T-thinking-stream-jank] textSelection(.enabled)
@@ -1074,11 +1069,9 @@ struct ThinkingBlockView: View {
         .onDisappear {
             ThinkingHitchMonitor.shared.stop(owner: block.id)
         }
-        .background(Color.blue.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.blue.opacity(0.15), lineWidth: 0.5)
+        .toolCapsuleSurface(
+            tint: ToolCapsuleSkin.blue,
+            shape: RoundedRectangle(cornerRadius: ToolCapsuleSkin.expandedCornerRadius)
         )
         .task(id: block.id) {
             // One-shot per-block auto-expand. Runs when this cell first hosts

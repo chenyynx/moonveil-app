@@ -120,6 +120,36 @@ final class MessageListLayout: UICollectionViewLayout {
     /// Vertical spacing between cells.
     var itemSpacing: CGFloat = 0
 
+    /// [tool-capsule-skin 2026-10-17] classic 皮肤下，工具胶囊 / 思考块之间的
+    /// 间距按参照压缩到 6pt；其余块间（文字、info 等）维持 itemSpacing。
+    /// 只在两端都是胶囊类块时生效，成对判定保证唯一性。
+    static func capsuleGapBetween(_ a: MessageListItem, _ b: MessageListItem,
+                                  messages: [ChatMessage],
+                                  messageIndex: [UUID: Int]) -> Bool {
+        func isCapsule(_ item: MessageListItem) -> Bool {
+            guard case .assistantBlock(let mid, let bid) = item else { return false }
+            guard let i = messageIndex[mid], i < messages.count else { return false }
+            guard let block = messages[i].blocks.first(where: { $0.id == bid }) else { return false }
+            switch block.kind {
+            case .thinking, .shellTool, .fileReadTool, .fileWriteTool,
+                 .fileEditTool, .browserTool, .readImageTool, .memoryTool:
+                return true
+            default:
+                return false
+            }
+        }
+        return isCapsule(a) && isCapsule(b)
+    }
+
+    /// Index → block item (for capsule-gap pairing).
+    private var capsuleGapAfterByIndex: [Int: Bool] = [:]
+
+    /// [tool-capsule-skin] index i → 下一项（i+1）与它之间是否走 6pt 胶囊间距。
+    /// 由 Coordinator 在 snapshot apply 时成对写入（见 V3 seed loop）。
+    func setCapsuleGapAfter(_ flag: Bool, at index: Int) {
+        capsuleGapAfterByIndex[index] = flag
+    }
+
     /// Cached heights keyed by item index. Persists across invalidation cycles.
     private var heightCache: [Int: CGFloat] = [:]
 
@@ -227,7 +257,12 @@ final class MessageListLayout: UICollectionViewLayout {
             // cell is zero-height (an empty text block renders nothing — its
             // trailing gap would double the spacing between its neighbors).
             // [T-ios-empty-textblock-gap]
-            if !isLast, !nextIsFooter, h > 0 { y += itemSpacing }
+            if !isLast, !nextIsFooter, h > 0 {
+                // [tool-capsule-skin] 两块都是胶囊类 → 6pt；其余维持 itemSpacing。
+                y += (capsuleGapAfterByIndex[i] == true)
+                    ? ToolCapsuleSkin.rowSpacing
+                    : itemSpacing
+            }
         }
         totalHeight = y
         lastItemCount = itemCount
@@ -735,6 +770,7 @@ final class MessageListLayout: UICollectionViewLayout {
             self.precalcHeights.removeAll()
             self.estimatedHeights.removeAll()
             self.geometryReaderConfirmed.removeAll()
+            self.capsuleGapAfterByIndex.removeAll()
             self.lastSettledWidth = cv.bounds.width
             self.invalidateLayout()
         }
@@ -890,6 +926,7 @@ final class MessageListLayout: UICollectionViewLayout {
         measuredHeightByContentKey.removeAll()
         contentKeyByIndex.removeAll()
         footerHugByIndex.removeAll()
+        capsuleGapAfterByIndex.removeAll()
     }
 
     // MARK: - Diagnostics

@@ -3039,6 +3039,19 @@ extension CollectionViewMessageListV3 {
 
                     }
 
+                    // [tool-capsule-skin 2026-10-17] classic 皮肤胶囊间距：本项与
+                    // 下一项都是工具/思考块 → prepare() 里用 6pt 替代 itemSpacing。
+                    // 与 footer-hug 同一生命周期（每次 snapshot apply 重建）。
+                    if ToolRenderStyleStore.current == .classic,
+                       i + 1 < newItems.count,
+                       MessageListLayout.capsuleGapBetween(item, newItems[i + 1],
+                                                           messages: messages,
+                                                           messageIndex: messageIndex) {
+                        layout.setCapsuleGapAfter(true, at: i)
+                    } else {
+                        layout.setCapsuleGapAfter(false, at: i)
+                    }
+
                     guard layout.cachedHeight(at: i) == nil else { continue }
 
                     // Re-entry seed: if we have a real measured height for this
