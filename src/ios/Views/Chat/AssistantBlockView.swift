@@ -685,12 +685,20 @@ struct ToolCapsuleView: View {
         .foregroundStyle(iconColor)
     }
 
+    /// [tool-capsule-skin] 参照 ToolCallCapsule.swift：命令行行用矮一号的 33.3pt，
+    /// 其余工具 35.5pt（旧的固定 36pt 退役）。
+    private var capsuleHeight: CGFloat {
+        if case .shellTool = block.kind { return ToolCapsuleSkin.compactHeight }
+        return ToolCapsuleSkin.standardHeight
+    }
+
     private var iconColor: Color {
         switch block.toolStatus {
-        case .success: return .green
         case .failed: return .red
         case .cancelled: return .yellow
-        default: return accentColor
+        // [tool-capsule-skin 2026-10-17] pp：工具统一绿色（原 per-tool accent
+        // 退役；失败/取消仍保留红/黄状态语义）。
+        default: return ToolCapsuleSkin.green
         }
     }
 
