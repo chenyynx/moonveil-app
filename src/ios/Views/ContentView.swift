@@ -7221,12 +7221,21 @@ private struct AppearanceSettingsView: View {
 
     @ObservedObject private var fontSettings = FontSettings.shared
 
+    // [T-app-icon-colorways] The moonveil logo set: terracotta is the default
+    // (iconName nil → the asset-catalog icon), the other colourways are
+    // alternate icons. Ids 1–4 belonged to the retired light/dark/legacy
+    // icons and are intentionally never reused, so a stored old selection
+    // keeps pointing at the icon the user actually has.
     private let iconOptions: [AppIconOption] = [
-        AppIconOption(id: 0, title: "Automatic", subtitle: "Follows system", iconName: nil, imageName: "AlternateIcons/AppIcon-Light"),
-        AppIconOption(id: 1, title: "Light", subtitle: "Always light", iconName: "AppIcon-Light", imageName: "AlternateIcons/AppIcon-Light"),
-        AppIconOption(id: 2, title: "Dark", subtitle: "Always dark", iconName: "AppIcon-Dark", imageName: "AlternateIcons/AppIcon-Dark"),
-        AppIconOption(id: 3, title: "Light (Legacy)", subtitle: "Classic light icon", iconName: "AppIcon-LegacyLight", imageName: "AlternateIcons/AppIcon-LegacyLight"),
-        AppIconOption(id: 4, title: "Dark (Legacy)", subtitle: "Classic dark icon", iconName: "AppIcon-LegacyDark", imageName: "AlternateIcons/AppIcon-LegacyDark"),
+        AppIconOption(id: 0, title: "Terracotta", subtitle: "Default icon", iconName: nil, imageName: "AlternateIcons/AppIcon-Terracotta"),
+        AppIconOption(id: 5, title: "Moon Red", subtitle: "", iconName: "AppIcon-Red", imageName: "AlternateIcons/AppIcon-Red"),
+        AppIconOption(id: 6, title: "Ink", subtitle: "", iconName: "AppIcon-Ink", imageName: "AlternateIcons/AppIcon-Ink"),
+        AppIconOption(id: 7, title: "Night Navy", subtitle: "", iconName: "AppIcon-Navy", imageName: "AlternateIcons/AppIcon-Navy"),
+        AppIconOption(id: 8, title: "Teal", subtitle: "", iconName: "AppIcon-Teal", imageName: "AlternateIcons/AppIcon-Teal"),
+        AppIconOption(id: 9, title: "Gold", subtitle: "", iconName: "AppIcon-Gold", imageName: "AlternateIcons/AppIcon-Gold"),
+        AppIconOption(id: 10, title: "Violet", subtitle: "", iconName: "AppIcon-Violet", imageName: "AlternateIcons/AppIcon-Violet"),
+        AppIconOption(id: 11, title: "Green", subtitle: "", iconName: "AppIcon-Green", imageName: "AlternateIcons/AppIcon-Green"),
+        AppIconOption(id: 12, title: "Rose", subtitle: "", iconName: "AppIcon-Rose", imageName: "AlternateIcons/AppIcon-Rose"),
     ]
 
     var body: some View {
@@ -7459,9 +7468,11 @@ private struct AppearanceSettingsView: View {
                                     // in — Text(String) would render them verbatim.
                                     Text(LocalizedStringKey(option.title))
                                         .foregroundStyle(.primary)
-                                    Text(LocalizedStringKey(option.subtitle))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                    if !option.subtitle.isEmpty {
+                                        Text(LocalizedStringKey(option.subtitle))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                                 Spacer()
                                 if appIconMode == option.id {
@@ -7476,7 +7487,7 @@ private struct AppearanceSettingsView: View {
                 } header: {
                     Text("App Icon")
                 } footer: {
-                    Text("\"Automatic\" uses the system icon which adapts to Dark Mode on iOS 18+.")
+                    Text("The icon changes on the Home Screen right away. Terracotta is the default.")
                 }
             }
 
